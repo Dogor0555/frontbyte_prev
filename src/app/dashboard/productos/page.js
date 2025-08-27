@@ -6,8 +6,8 @@ import { cookies } from "next/headers";
 import { checkAuth } from "../../../lib/auth";
 
 export default async function Produc() {
-    // Obtener las cookies del usuario (usando await)
-  const cookieStore = await cookies(); // ¡Aquí está el cambio!
+  // Obtener las cookies del usuario
+  const cookieStore = await cookies();
   const cookie = cookieStore
     .getAll()
     .map((cookie) => `${cookie.name}=${cookie.value}`)
@@ -21,37 +21,41 @@ export default async function Produc() {
     redirect("/auth/login");
   }
 
-    // Obtener las empresas del usuario
-    let productos = []; // Inicializar como array vacío
-    try {
-        const response = await fetch("http://localhost:3000/productos/getAll", {
-            method: "GET",
-            headers: {
-                Cookie: cookie,
-            },
-            credentials: "include",
-        });
+  // Verificar el rol del usuario y redirigir si no es admin
+  if (user.rol !== 'admin') {
+    redirect("/unauthorized");
+  }
 
-        if (!response.ok) {
-            throw new Error("Error al obtener los productos");
-        }
+  // Obtener las empresas del usuario
+  let productos = [];
+  try {
+    const response = await fetch("http://localhost:3000/productos/getAll", {
+      method: "GET",
+      headers: {
+        Cookie: cookie,
+      },
+      credentials: "include",
+    });
 
-        productos = await response.json();
-    } catch (error) {
-        console.error("Error al obtener los productos:", error);
+    if (!response.ok) {
+      throw new Error("Error al obtener los productos");
     }
 
-    // Pasar los productos y el usuario como props al Client Component
-    return (
-        <Suspense
-            fallback={
-                <div className="flex items-center justify-center min-h-screen">
-                    <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-                </div>
-            }
-        >
-            <Productos initialProductos={productos} user={user} />
-            </Suspense>
-    );
-}
+    productos = await response.json();
+  } catch (error) {
+    console.error("Error al obtener los productos:", error);
+  }
 
+  // Pasar los productos y el usuario como props al Client Component
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+        </div>
+      }
+    >
+      <Productos initialProductos={productos} user={user} />
+    </Suspense>
+  );
+}

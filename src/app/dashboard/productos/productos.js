@@ -587,48 +587,50 @@ export default function Productos({ initialProductos = [], user }) {
                                 <table className="min-w-full bg-white border border-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Oferta</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Oferta</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
                                         {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.slice(0, 10).map((producto) => (
                                             <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{producto.nombre}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{producto.codigo}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.nombre}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.codigo}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                                                     {getNombreUnidad(producto.unidad)}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{producto.precio}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{producto.preciooferta}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{producto.stock}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <button
-                                                        onClick={() => handleEditClick(producto)}
-                                                        className="text-blue-600 hover:text-blue-800 mr-2"
-                                                        aria-label="Editar"
-                                                    >
-                                                        <FaEdit />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleOpenStockModal(producto)}
-                                                        className="text-green-600 hover:text-green-800 mr-2"
-                                                        aria-label="Añadir stock"
-                                                    >
-                                                        <FaBoxOpen />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteClick(producto.id)}
-                                                        className="text-red-600 hover:text-red-800"
-                                                        aria-label="Eliminar"
-                                                    >
-                                                        <FaTrash />
-                                                    </button>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.precio}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.preciooferta}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.stock}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                                                    <div className="flex justify-center items-center space-x-2">
+                                                        <button
+                                                            onClick={() => handleEditClick(producto)}
+                                                            className="text-blue-600 hover:text-blue-800"
+                                                            aria-label="Editar"
+                                                        >
+                                                            <FaEdit />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleOpenStockModal(producto)}
+                                                            className="text-green-600 hover:text-green-800"
+                                                            aria-label="Añadir stock"
+                                                        >
+                                                            <FaBoxOpen />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteClick(producto.id)}
+                                                            className="text-red-600 hover:text-red-800"
+                                                            aria-label="Eliminar"
+                                                        >
+                                                            <FaTrash />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
