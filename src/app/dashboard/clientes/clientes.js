@@ -46,26 +46,6 @@ export default function Clientes({ initialClientes = [], user }) {
   ];
 
   const [formData, setFormData] = useState({
-  nombre: "",
-  nombrecomercial: "",
-  dui: "",
-  pasaporte: "",
-  nit: "",
-  nrc: "",
-  carnetresidente: "",
-  correo: "",
-  telefono: "",
-  departamento: "",
-  municipio: "",
-  complemento: "",
-  codactividad: "",
-  descactividad: "",
-  personanatural: false, // checkbox
-});
-
-
-const resetFormData = () => {
-  setFormData({
     nombre: "",
     nombrecomercial: "",
     dui: "",
@@ -80,10 +60,28 @@ const resetFormData = () => {
     complemento: "",
     codactividad: "",
     descactividad: "",
-    personanatural: false,
+    personanatural: false, // checkbox
   });
-};
 
+  const resetFormData = () => {
+    setFormData({
+      nombre: "",
+      nombrecomercial: "",
+      dui: "",
+      pasaporte: "",
+      nit: "",
+      nrc: "",
+      carnetresidente: "",
+      correo: "",
+      telefono: "",
+      departamento: "",
+      municipio: "",
+      complemento: "",
+      codactividad: "",
+      descactividad: "",
+      personanatural: false,
+    });
+  };
 
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [clienteToDelete, setClienteToDelete] = useState(null);
@@ -474,6 +472,12 @@ const resetFormData = () => {
                         Nombre
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Nombre Comercial
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tipo de Persona
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Documento
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -481,6 +485,12 @@ const resetFormData = () => {
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Teléfono
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actividad
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ubicación
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Estado
@@ -502,13 +512,30 @@ const resetFormData = () => {
                             {cliente.nombre}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {cliente.tipodocumento}: {cliente.numerodocumento}
+                            {cliente.nombrecomercial}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {cliente.personanatural ? "Natural" : "Jurídica"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {cliente.tipodocumento}:{" "}
+                            {cliente.dui ||
+                              cliente.pasaporte ||
+                              cliente.nit ||
+                              cliente.nrc ||
+                              cliente.carnetresidente}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {cliente.correo}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {cliente.telefono}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {cliente.codactividad} - {cliente.descactividad}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {cliente.departamento}, {cliente.municipio}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <span
@@ -567,6 +594,7 @@ const resetFormData = () => {
                 </table>
               </div>
             </div>
+
             {/* Listado para Móvil */}
             <div className="md:hidden">
               <div className="space-y-4">
@@ -578,9 +606,14 @@ const resetFormData = () => {
                       className="bg-white rounded-lg border border-gray-200 shadow-sm p-4"
                     >
                       <div className="flex justify-between items-start">
-                        <h3 className="text-lg font-medium text-gray-900">
-                          {cliente.nombre}
-                        </h3>
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-900">
+                            {cliente.nombre}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {cliente.nombrecomercial}
+                          </p>
+                        </div>
                         <div className="flex space-x-2">
                           <button
                             onClick={() => handleEditClick(cliente)}
@@ -617,33 +650,58 @@ const resetFormData = () => {
                         </div>
                       </div>
 
-                      <div className="mt-4 space-y-2">
+                      <div className="mt-4 space-y-2 text-sm text-gray-900">
                         <div className="flex justify-between">
-                          <span className="text-sm font-medium text-gray-500">
+                          <span className="font-medium text-gray-500">
+                            Tipo de Persona:
+                          </span>
+                          <span>
+                            {cliente.personanatural ? "Natural" : "Jurídica"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="font-medium text-gray-500">
                             Documento:
                           </span>
-                          <span className="text-sm text-gray-900">
-                            {cliente.tipodocumento}: {cliente.numerodocumento}
+                          <span>
+                            {cliente.tipodocumento}:{" "}
+                            {cliente.dui ||
+                              cliente.pasaporte ||
+                              cliente.nit ||
+                              cliente.nrc ||
+                              cliente.carnetresidente}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm font-medium text-gray-500">
+                          <span className="font-medium text-gray-500">
                             Correo:
                           </span>
-                          <span className="text-sm text-gray-900">
-                            {cliente.correo}
-                          </span>
+                          <span>{cliente.correo}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm font-medium text-gray-500">
+                          <span className="font-medium text-gray-500">
                             Teléfono:
                           </span>
-                          <span className="text-sm text-gray-900">
-                            {cliente.telefono}
+                          <span>{cliente.telefono}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="font-medium text-gray-500">
+                            Actividad:
+                          </span>
+                          <span>
+                            {cliente.codactividad} - {cliente.descactividad}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm font-medium text-gray-500">
+                          <span className="font-medium text-gray-500">
+                            Ubicación:
+                          </span>
+                          <span>
+                            {cliente.departamento}, {cliente.municipio}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="font-medium text-gray-500">
                             Estado:
                           </span>
                           <span
