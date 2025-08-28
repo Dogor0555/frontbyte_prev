@@ -18,9 +18,8 @@ import {
   FaUserTie,
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
-import { logout } from "../../services/auth";
+import { logout, isAdmin } from "../../services/auth";
 import { useState, useEffect } from "react";
-import { isAdmin } from "../../services/auth";
 
 // ACEPTA onOpenPerfil PARA ABRIR MODAL DESDE EL DASHBOARD
 export default function Sidebar({ onOpenPerfil }) {
@@ -61,8 +60,9 @@ export default function Sidebar({ onOpenPerfil }) {
     }));
   };
 
+  // Menú base
   const menuItems = [
-    { name: "Inicio", icon: <FaHome />, href: "#" },
+    { name: "Inicio", icon: <FaHome />, href: "/dashboard" },
     {
       name: "DTES",
       icon: <FaFileInvoiceDollar />,
@@ -79,7 +79,7 @@ export default function Sidebar({ onOpenPerfil }) {
     { name: "Reportes", icon: <FaChartBar />, href: "#" },
   ];
 
-  // Menú admin (igual que antes)
+  // Menú admin o configuración
   if (empleado && isAdmin(empleado)) {
     menuItems.push({
       name: "Administración",
@@ -89,7 +89,7 @@ export default function Sidebar({ onOpenPerfil }) {
         { name: "Empleados", icon: <FaUserTie />, href: "/dashboard/empleados" },
         { name: "Productos", icon: <FaBoxOpen />, href: "/dashboard/productos" },
         { name: "Sucursales", icon: <FaBuilding />, href: "/dashboard/sucursales" },
-        { name: "Clientes", icon: <FaBuilding />, href: "/dashboard/Clientes" },
+        { name: "Clientes", icon: <FaBuilding />, href: "/dashboard/clientes" },
       ],
       menuKey: "admin",
     });
@@ -98,8 +98,7 @@ export default function Sidebar({ onOpenPerfil }) {
   }
 
   // Label dinámico según rol
-  const perfilLabel =
-    empleado && isAdmin(empleado) ? "Editar Perfil" : "Ver Perfil";
+  const perfilLabel = empleado && isAdmin(empleado) ? "Editar Perfil" : "Ver Perfil";
 
   return (
     <aside className="bg-blue-900 h-full w-64">
@@ -172,11 +171,11 @@ export default function Sidebar({ onOpenPerfil }) {
           </div>
         )}
 
-        {/* ÚNICO botón de Perfil: cambia label según rol y abre modal */}
+        {/* Botón Perfil dinámico */}
         {empleado && (
           <div className="bg-blue-800 p-4 border-t border-blue-700">
             <button
-              onClick={() => onOpenPerfil?.()} // <-- abrir modal en dashboard
+              onClick={() => onOpenPerfil?.()}
               className="flex items-center justify-center w-full px-4 py-3 text-blue-200 border border-blue-600 rounded-md transition-all duration-200 hover:bg-blue-700 hover:text-white hover:border-blue-500"
             >
               <FaUserAlt className="text-base" />
