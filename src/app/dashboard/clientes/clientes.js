@@ -194,7 +194,7 @@ export default function Clientes({ initialClientes = [], user }) {
     }
 
     try {
-      const response = await fetch("http://localhost:3000/clientes/add", {
+      const response = await fetch("http://localhost:3000/clientes/addCli", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -240,7 +240,7 @@ export default function Clientes({ initialClientes = [], user }) {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/clientes/update/${clienteToEdit.idcliente}`,
+        `http://localhost:3000/clientes/updateCli/${clienteToEdit.idcliente}`,
         {
           method: "PUT",
           headers: {
@@ -310,7 +310,7 @@ export default function Clientes({ initialClientes = [], user }) {
   const handleDeleteCliente = async (clienteId) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/clientes/delete/${clienteId}`,
+        `http://localhost:3000/clientes/deleteCli/${clienteId}`,
         {
           method: "DELETE",
           headers: {
