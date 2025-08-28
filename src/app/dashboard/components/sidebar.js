@@ -74,7 +74,7 @@ export default function Sidebar() {
                 { name: "Empleados", icon: <FaUserTie />, href: "/dashboard/empleados" },
                 { name: "Productos", icon: <FaBoxOpen />, href: "/dashboard/productos" },
                 { name: "Sucursales", icon: <FaBuilding />, href: "/dashboard/sucursales" },
-                { name: "Clientes", icon: <FaBuilding />, href: "/dashboard/Clientes" }
+                { name: "Clientes", icon: <FaBuilding />, href: "/dashboard/clientes" }
             ],
             menuKey: "admin"
         });

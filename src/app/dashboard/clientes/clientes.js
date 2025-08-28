@@ -1,75 +1,40 @@
-// src/app/dashboard/EMPLEADOS/empleados.js
 "use client";
 import { useState, useEffect } from "react";
-import {
-  FaSearch,
-  FaBars,
-  FaPlus,
-  FaTimes,
-  FaEdit,
-  FaTrash,
-  FaFilePdf,
-  FaSave,
-  FaTimes as FaClose,
-  FaUser,
-  FaEye,
-  FaEyeSlash,
-  FaToggleOn,
-  FaToggleOff,
-} from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
-import { useRouter } from "next/navigation";
+import {
+  FaPlus,
+  FaSearch,
+  FaTimes,
+  FaEdit,
+  FaToggleOn,
+  FaToggleOff,
+  FaTrash,
+  FaBars,
+} from "react-icons/fa";
 
-export default function Empleados({ initialEmpleados = [], user }) {
-  const router = useRouter();
+export default function Clientes({ initialClientes = [], user }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [empleados, setEmpleados] = useState(initialEmpleados || []);
-  const [filteredEmpleados, setFilteredEmpleados] = useState(
-    initialEmpleados || []
+  const [clientes, setClientes] = useState(initialClientes || []);
+  const [filteredClientes, setFilteredClientes] = useState(
+    initialClientes || []
   );
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
-  const [showSearchResultsModal, setShowSearchResultsModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Límites de caracteres para cada campo
   const LIMITES = {
     NOMBRE: 255,
     NUMERODOCUMENTO: 20,
     CORREO: 255,
-    CONTRASENA: 255,
-    ROL: 255,
+    TELEFONO: 255,
   };
-
-  const [formData, setFormData] = useState({
-    nombre: "",
-    tipodocumento: "",
-    numerodocumento: "",
-    correo: "",
-    contrasena: "",
-    idsucursal: "",
-    rol: "",
-    estado: true,
-  });
-
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-
-  const [selectedEmpleado, setSelectedEmpleado] = useState(null);
-  const [empleadoToDelete, setEmpleadoToDelete] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
 
   // Tipos de documento según el modelo
   const tiposDocumento = [
@@ -80,18 +45,18 @@ export default function Empleados({ initialEmpleados = [], user }) {
     { codigo: "99", nombre: "Otro" },
   ];
 
-  // Roles disponibles
-  const roles = ["admin", "vendedor"];
+  const [formData, setFormData] = useState({
+    nombre: "",
+    tipodocumento: "",
+    numerodocumento: "",
+    correo: "",
+    telefono: "",
+    estado: true,
+  });
 
-  const getTipoDocumentoNombre = (codigo) => {
-    const tipo = tiposDocumento.find((t) => t.codigo === codigo);
-    return tipo ? tipo.nombre : "Desconocido";
-  };
-
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const [selectedCliente, setSelectedCliente] = useState(null);
+  const [clienteToDelete, setClienteToDelete] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const validateForm = () => {
     if (!formData.nombre.trim()) {
@@ -132,38 +97,22 @@ export default function Empleados({ initialEmpleados = [], user }) {
       );
       return false;
     }
-    if (
-      !showEditModal &&
-      (!formData.contrasena || formData.contrasena.length < 6)
-    ) {
-      setErrorMessage("La contraseña debe tener al menos 6 caracteres.");
+    if (!formData.telefono.trim()) {
+      setErrorMessage("El teléfono es obligatorio.");
       return false;
     }
-    if (!formData.rol.trim()) {
-      setErrorMessage("El rol es obligatorio.");
-      return false;
-    }
-    if (!formData.idsucursal) {
-      setErrorMessage("La sucursal es obligatoria.");
+    if (formData.telefono.length > LIMITES.TELEFONO) {
+      setErrorMessage(
+        `El teléfono no puede exceder los ${LIMITES.TELEFONO} caracteres.`
+      );
       return false;
     }
     return true;
   };
 
-  const validatePasswordForm = () => {
-    if (!passwordData.currentPassword) {
-      setErrorMessage("La contraseña actual es obligatoria.");
-      return false;
-    }
-    if (!passwordData.newPassword || passwordData.newPassword.length < 6) {
-      setErrorMessage("La nueva contraseña debe tener al menos 6 caracteres.");
-      return false;
-    }
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setErrorMessage("Las contraseñas no coinciden.");
-      return false;
-    }
-    return true;
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   };
 
   useEffect(() => {
@@ -177,6 +126,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
     };
 
     checkMobile();
+
     window.addEventListener("resize", checkMobile);
 
     const timer = setTimeout(() => {
@@ -190,27 +140,22 @@ export default function Empleados({ initialEmpleados = [], user }) {
   }, []);
 
   useEffect(() => {
-    setEmpleados(initialEmpleados || []);
-    setFilteredEmpleados(initialEmpleados || []);
-  }, [initialEmpleados]);
+    setClientes(initialClientes || []);
+    setFilteredClientes(initialClientes || []);
+  }, [initialClientes]);
 
   useEffect(() => {
     const results =
-      empleados && Array.isArray(empleados)
-        ? empleados.filter(
-            (empleado) =>
-              empleado.idempleado.toString().includes(searchTerm) ||
-              empleado.numerodocumento
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-              empleado.nombre
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-              empleado.correo.toLowerCase().includes(searchTerm.toLowerCase())
+      clientes && Array.isArray(clientes)
+        ? clientes.filter(
+            (cliente) =>
+              cliente.idcliente.toString().includes(searchTerm) ||
+              cliente.nombre.toLowerCase().includes(searchTerm) ||
+              cliente.numerodocumento.toLowerCase().includes(searchTerm)
           )
         : [];
-    setFilteredEmpleados(results);
-  }, [searchTerm, empleados]);
+    setFilteredClientes(results);
+  }, [searchTerm, clientes]);
 
   const handleSearch = () => {
     if (searchTerm.trim() !== "") {
@@ -218,9 +163,9 @@ export default function Empleados({ initialEmpleados = [], user }) {
     }
   };
 
-  const fetchEmpleados = async () => {
+  const fetchClientes = async () => {
     try {
-      const response = await fetch("http://localhost:3000/empleados/getAll", {
+      const response = await fetch("http://localhost:3000/clientes/getAllCli", {
         method: "GET",
         headers: {
           Cookie: document.cookie,
@@ -229,18 +174,18 @@ export default function Empleados({ initialEmpleados = [], user }) {
       });
 
       if (!response.ok) {
-        throw new Error("Error al obtener los empleados");
+        throw new Error("Error al obtener los clientes");
       }
 
       const data = await response.json();
-      setEmpleados(data.empleados || []);
-      setFilteredEmpleados(data.empleados || []);
+      setClientes(data.clientes || []);
+      setFilteredClientes(data.clientes || []);
     } catch (error) {
-      console.error("Error al obtener los empleados:", error);
+      console.error("Error al obtener los clientes:", error);
     }
   };
 
-  const handleSaveNewEmpleado = async (e) => {
+  const handleSaveNewCliente = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -249,7 +194,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
     }
 
     try {
-      const response = await fetch("http://localhost:3000/empleados/add", {
+      const response = await fetch("http://localhost:3000/clientes/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -261,7 +206,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        setErrorMessage(errorData.message || "Error al agregar el empleado");
+        setErrorMessage(errorData.message || "Error al agregar el cliente");
         setShowErrorModal(true);
         return;
       }
@@ -272,14 +217,12 @@ export default function Empleados({ initialEmpleados = [], user }) {
         tipodocumento: "",
         numerodocumento: "",
         correo: "",
-        contrasena: "",
-        idsucursal: "",
-        rol: "",
+        telefono: "",
         estado: true,
       });
-      fetchEmpleados();
+      fetchClientes();
     } catch (error) {
-      console.error("Error al agregar el empleado:", error);
+      console.error("Error al agregar el cliente:", error);
       setErrorMessage(
         "Ocurrió un error inesperado. Por favor, inténtelo de nuevo."
       );
@@ -287,14 +230,8 @@ export default function Empleados({ initialEmpleados = [], user }) {
     }
   };
 
-  const handleUpdateEmpleado = async (e) => {
+  const handleUpdateCliente = async (e) => {
     e.preventDefault();
-
-    // Para edición, no validar contraseña si está vacía
-    const tempFormData = { ...formData };
-    if (!tempFormData.contrasena) {
-      delete tempFormData.contrasena;
-    }
 
     if (!validateForm()) {
       setShowErrorModal(true);
@@ -303,7 +240,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/empleados/update/${formData.idempleado}`,
+        `http://localhost:3000/clientes/update/${clienteToEdit.idcliente}`,
         {
           method: "PUT",
           headers: {
@@ -317,7 +254,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        setErrorMessage(errorData.message || "Error al actualizar el empleado");
+        setErrorMessage(errorData.message || "Error al actualizar el cliente");
         setShowErrorModal(true);
         return;
       }
@@ -328,14 +265,12 @@ export default function Empleados({ initialEmpleados = [], user }) {
         tipodocumento: "",
         numerodocumento: "",
         correo: "",
-        contrasena: "",
-        idsucursal: "",
-        rol: "",
+        telefono: "",
         estado: true,
       });
-      fetchEmpleados();
+      fetchClientes();
     } catch (error) {
-      console.error("Error al actualizar el empleado:", error);
+      console.error("Error al actualizar el cliente:", error);
       setErrorMessage(
         "Ocurrió un error inesperado. Por favor, inténtelo de nuevo."
       );
@@ -343,10 +278,10 @@ export default function Empleados({ initialEmpleados = [], user }) {
     }
   };
 
-  const handleToggleEstado = async (empleadoId, nuevoEstado) => {
+  const handleToggleEstado = async (clienteId, nuevoEstado) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/empleados/toggle-estado/${empleadoId}`,
+        `http://localhost:3000/clientes/toggle-estado/${clienteId}`,
         {
           method: "PATCH",
           headers: {
@@ -359,23 +294,23 @@ export default function Empleados({ initialEmpleados = [], user }) {
       );
 
       if (!response.ok) {
-        setErrorMessage("Error al cambiar el estado del empleado.");
+        setErrorMessage("Error al cambiar el estado del cliente.");
         setShowErrorModal(true);
         return;
       }
 
-      fetchEmpleados();
+      fetchClientes();
     } catch (error) {
-      console.error("Error al cambiar el estado del empleado:", error);
-      setErrorMessage("Error al cambiar el estado del empleado.");
+      console.error("Error al cambiar el estado del cliente:", error);
+      setErrorMessage("Error al cambiar el estado del cliente.");
       setShowErrorModal(true);
     }
   };
 
-  const handleDeleteEmpleado = async (empleadoId) => {
+  const handleDeleteCliente = async (clienteId) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/empleados/delete/${empleadoId}`,
+        `http://localhost:3000/clientes/delete/${clienteId}`,
         {
           method: "DELETE",
           headers: {
@@ -386,85 +321,29 @@ export default function Empleados({ initialEmpleados = [], user }) {
       );
 
       if (!response.ok) {
-        setErrorMessage("Error al eliminar el empleado.");
+        setErrorMessage("Error al eliminar el cliente.");
         setShowErrorModal(true);
         return;
       }
 
-      fetchEmpleados();
+      fetchClientes();
     } catch (error) {
-      console.error("Error al eliminar el empleado:", error);
-      setErrorMessage("Error al eliminar el empleado.");
+      console.error("Error al eliminar el cliente:", error);
+      setErrorMessage("Error al eliminar el cliente.");
       setShowErrorModal(true);
     }
   };
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-
-    if (!validatePasswordForm()) {
-      setShowErrorModal(true);
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `http://localhost:3000/empleados/change-password/${selectedEmpleado.idempleado}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: document.cookie,
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            currentPassword: passwordData.currentPassword,
-            newPassword: passwordData.newPassword,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        setErrorMessage(errorData.error || "Error al cambiar la contraseña");
-        setShowErrorModal(true);
-        return;
-      }
-
-      setShowPasswordModal(false);
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-      setSelectedEmpleado(null);
-    } catch (error) {
-      console.error("Error al cambiar la contraseña:", error);
-      setErrorMessage("Error al cambiar la contraseña.");
-      setShowErrorModal(true);
-    }
-  };
-
-  const handleEditClick = (empleado) => {
+  const handleEditClick = (cliente) => {
     setFormData({
-      ...empleado,
-      contrasena: "", // No mostrar la contraseña actual
+      ...cliente,
     });
     setShowEditModal(true);
   };
 
-  const handleDeleteClick = (empleadoId) => {
-    setEmpleadoToDelete(empleadoId);
+  const handleDeleteClick = (clienteId) => {
+    setClienteToDelete(clienteId);
     setShowDeleteConfirmModal(true);
-  };
-
-  const handlePasswordClick = (empleado) => {
-    setSelectedEmpleado(empleado);
-    setShowPasswordModal(true);
-  };
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
   };
 
   const hasChanges = () => {
@@ -479,6 +358,8 @@ export default function Empleados({ initialEmpleados = [], user }) {
       return false;
     });
   };
+
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
@@ -532,7 +413,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
               <div className="flex items-center">
                 <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
-                  Empleados
+                  Clientes
                 </h2>
               </div>
               <button
@@ -542,12 +423,12 @@ export default function Empleados({ initialEmpleados = [], user }) {
                 <FaPlus className="mr-2" /> Agregar
               </button>
             </div>
-
+            {/* Búsqueda  EL ERROR ESTA AQUI */}
             <div className="mb-6">
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Buscar por ID, documento, nombre o correo"
+                  placeholder="Buscar por documento, nombre, correo o teléfono"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="text-gray-900 w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -560,7 +441,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
                 </button>
               </div>
             </div>
-
+            {/* Tabla para Desktop */}
             <div className="hidden md:block">
               <div className="overflow-x-auto rounded-lg shadow">
                 <table className="min-w-full bg-white border border-gray-200">
@@ -576,7 +457,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
                         Correo
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Rol
+                        Teléfono
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Estado
@@ -587,69 +468,61 @@ export default function Empleados({ initialEmpleados = [], user }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {filteredEmpleados &&
-                      Array.isArray(filteredEmpleados) &&
-                      filteredEmpleados.slice(0, 10).map((empleado) => (
+                    {filteredClientes &&
+                      Array.isArray(filteredClientes) &&
+                      filteredClientes.slice(0, 10).map((cliente) => (
                         <tr
-                          key={empleado.idempleado}
+                          key={cliente.idcliente}
                           className="hover:bg-gray-50 transition-colors"
                         >
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {empleado.nombre}
+                            {cliente.nombre}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {getTipoDocumentoNombre(empleado.tipodocumento)}:{" "}
-                            {empleado.numerodocumento}
+                            {cliente.tipodocumento}: {cliente.numerodocumento}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {empleado.correo}
+                            {cliente.correo}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {empleado.rol}
+                            {cliente.telefono}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <span
                               className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                empleado.estado
+                                cliente.estado
                                   ? "bg-green-100 text-green-800"
                                   : "bg-red-100 text-red-800"
                               }`}
                             >
-                              {empleado.estado ? "Activo" : "Inactivo"}
+                              {cliente.estado ? "Activo" : "Inactivo"}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button
-                              onClick={() => handleEditClick(empleado)}
+                              onClick={() => handleEditClick(cliente)}
                               className="text-blue-600 hover:text-blue-800 mr-2"
                               aria-label="Editar"
                             >
                               <FaEdit />
                             </button>
                             <button
-                              onClick={() => handlePasswordClick(empleado)}
-                              className="text-purple-600 hover:text-purple-800 mr-2"
-                              aria-label="Cambiar contraseña"
-                            >
-                              <FaUser />
-                            </button>
-                            <button
                               onClick={() =>
                                 handleToggleEstado(
-                                  empleado.idempleado,
-                                  !empleado.estado
+                                  cliente.idcliente,
+                                  !cliente.estado
                                 )
                               }
                               className={`mr-2 ${
-                                empleado.estado
+                                cliente.estado
                                   ? "text-red-600 hover:text-red-800"
                                   : "text-green-600 hover:text-green-800"
                               }`}
                               aria-label={
-                                empleado.estado ? "Desactivar" : "Activar"
+                                cliente.estado ? "Desactivar" : "Activar"
                               }
                             >
-                              {empleado.estado ? (
+                              {cliente.estado ? (
                                 <FaToggleOff />
                               ) : (
                                 <FaToggleOn />
@@ -657,7 +530,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
                             </button>
                             <button
                               onClick={() =>
-                                handleDeleteClick(empleado.idempleado)
+                                handleDeleteClick(cliente.idcliente)
                               }
                               className="text-red-600 hover:text-red-800"
                               aria-label="Eliminar"
@@ -671,57 +544,48 @@ export default function Empleados({ initialEmpleados = [], user }) {
                 </table>
               </div>
             </div>
-
+            {/* Listado para Móvil */}
             <div className="md:hidden">
               <div className="space-y-4">
-                {filteredEmpleados &&
-                  Array.isArray(filteredEmpleados) &&
-                  filteredEmpleados.slice(0, 10).map((empleado) => (
+                {filteredClientes &&
+                  Array.isArray(filteredClientes) &&
+                  filteredClientes.slice(0, 10).map((cliente) => (
                     <div
-                      key={empleado.idempleado}
+                      key={cliente.idcliente}
                       className="bg-white rounded-lg border border-gray-200 shadow-sm p-4"
                     >
                       <div className="flex justify-between items-start">
                         <h3 className="text-lg font-medium text-gray-900">
-                          {empleado.nombre}
+                          {cliente.nombre}
                         </h3>
                         <div className="flex space-x-2">
                           <button
-                            onClick={() => handleEditClick(empleado)}
+                            onClick={() => handleEditClick(cliente)}
                             className="text-blue-600 hover:text-blue-800"
                             aria-label="Editar"
                           >
                             <FaEdit />
                           </button>
                           <button
-                            onClick={() => handlePasswordClick(empleado)}
-                            className="text-purple-600 hover:text-purple-800"
-                            aria-label="Cambiar contraseña"
-                          >
-                            <FaUser />
-                          </button>
-                          <button
                             onClick={() =>
                               handleToggleEstado(
-                                empleado.idempleado,
-                                !empleado.estado
+                                cliente.idcliente,
+                                !cliente.estado
                               )
                             }
                             className={
-                              empleado.estado
+                              cliente.estado
                                 ? "text-red-600 hover:text-red-800"
                                 : "text-green-600 hover:text-green-800"
                             }
                             aria-label={
-                              empleado.estado ? "Desactivar" : "Activar"
+                              cliente.estado ? "Desactivar" : "Activar"
                             }
                           >
-                            {empleado.estado ? <FaToggleOff /> : <FaToggleOn />}
+                            {cliente.estado ? <FaToggleOff /> : <FaToggleOn />}
                           </button>
                           <button
-                            onClick={() =>
-                              handleDeleteClick(empleado.idempleado)
-                            }
+                            onClick={() => handleDeleteClick(cliente.idcliente)}
                             className="text-red-600 hover:text-red-800"
                             aria-label="Eliminar"
                           >
@@ -736,8 +600,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
                             Documento:
                           </span>
                           <span className="text-sm text-gray-900">
-                            {getTipoDocumentoNombre(empleado.tipodocumento)}:{" "}
-                            {empleado.numerodocumento}
+                            {cliente.tipodocumento}: {cliente.numerodocumento}
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -745,15 +608,15 @@ export default function Empleados({ initialEmpleados = [], user }) {
                             Correo:
                           </span>
                           <span className="text-sm text-gray-900">
-                            {empleado.correo}
+                            {cliente.correo}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-sm font-medium text-gray-500">
-                            Rol:
+                            Teléfono:
                           </span>
                           <span className="text-sm text-gray-900">
-                            {empleado.rol}
+                            {cliente.telefono}
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -762,12 +625,12 @@ export default function Empleados({ initialEmpleados = [], user }) {
                           </span>
                           <span
                             className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              empleado.estado
+                              cliente.estado
                                 ? "bg-green-100 text-green-800"
                                 : "bg-red-100 text-red-800"
                             }`}
                           >
-                            {empleado.estado ? "Activo" : "Inactivo"}
+                            {cliente.estado ? "Activo" : "Inactivo"}
                           </span>
                         </div>
                       </div>
@@ -776,18 +639,17 @@ export default function Empleados({ initialEmpleados = [], user }) {
               </div>
             </div>
           </div>
-
           <Footer />
         </div>
       </div>
 
-      {/* Modal de Agregar Empleado */}
+      {/* Modal de Agregar Cliente */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-screen overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h3 className="text-lg font-medium text-gray-900">
-                Agregar Empleado
+                Agregar Cliente
               </h3>
               <button
                 onClick={() => {
@@ -802,8 +664,9 @@ export default function Empleados({ initialEmpleados = [], user }) {
                 <FaTimes className="h-5 w-5" />
               </button>
             </div>
+
             <form
-              onSubmit={handleSaveNewEmpleado}
+              onSubmit={handleSaveNewCliente}
               className="px-6 py-4 space-y-4"
             >
               <div>
@@ -894,64 +757,16 @@ export default function Empleados({ initialEmpleados = [], user }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={formData.contrasena}
-                    onChange={(e) =>
-                      setFormData({ ...formData, contrasena: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    maxLength={LIMITES.CONTRASENA}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Mínimo 6 caracteres
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rol
-                </label>
-                <select
-                  value={formData.rol}
-                  onChange={(e) =>
-                    setFormData({ ...formData, rol: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Seleccionar</option>
-                  {roles.map((rol) => (
-                    <option key={rol} value={rol}>
-                      {rol}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sucursal
+                  Teléfono
                 </label>
                 <input
-                  type="number"
-                  value={formData.idsucursal}
+                  type="text"
+                  value={formData.telefono}
                   onChange={(e) =>
-                    setFormData({ ...formData, idsucursal: e.target.value })
+                    setFormData({ ...formData, telefono: e.target.value })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.TELEFONO}
                   required
                 />
               </div>
@@ -999,14 +814,13 @@ export default function Empleados({ initialEmpleados = [], user }) {
           </div>
         </div>
       )}
-
-      {/* Modal de Editar Empleado */}
+      {/* Modal de Editar Cliente */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-screen overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h3 className="text-lg font-medium text-gray-900">
-                Editar Empleado
+                Editar Cliente
               </h3>
               <button
                 onClick={() => {
@@ -1021,9 +835,10 @@ export default function Empleados({ initialEmpleados = [], user }) {
                 <FaTimes className="h-5 w-5" />
               </button>
             </div>
+
             <form
-              onSubmit={handleUpdateEmpleado}
-              className="text-black px-6 py-4 space-y-4"
+              onSubmit={handleUpdateCliente}
+              className="px-6 py-4 space-y-4"
             >
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1113,64 +928,16 @@ export default function Empleados({ initialEmpleados = [], user }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contraseña (dejar vacío para no cambiar)
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={formData.contrasena}
-                    onChange={(e) =>
-                      setFormData({ ...formData, contrasena: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    maxLength={LIMITES.CONTRASENA}
-                    placeholder="Nueva contraseña"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Mínimo 6 caracteres
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rol
-                </label>
-                <select
-                  value={formData.rol}
-                  onChange={(e) =>
-                    setFormData({ ...formData, rol: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Seleccionar</option>
-                  {roles.map((rol) => (
-                    <option key={rol} value={rol}>
-                      {rol}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sucursal
+                  Teléfono
                 </label>
                 <input
-                  type="number"
-                  value={formData.idsucursal}
+                  type="text"
+                  value={formData.telefono}
                   onChange={(e) =>
-                    setFormData({ ...formData, idsucursal: e.target.value })
+                    setFormData({ ...formData, telefono: e.target.value })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.TELEFONO}
                   required
                 />
               </div>
@@ -1218,7 +985,6 @@ export default function Empleados({ initialEmpleados = [], user }) {
           </div>
         </div>
       )}
-
       {/* Modal de Confirmación de Eliminación */}
       {showDeleteConfirmModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -1230,7 +996,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
             </div>
             <div className="px-6 py-4">
               <p className="text-sm text-gray-600">
-                ¿Estás seguro de que deseas eliminar este empleado? Esta acción
+                ¿Estás seguro de que deseas eliminar este cliente? Esta acción
                 no se puede deshacer.
               </p>
             </div>
@@ -1243,7 +1009,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
               </button>
               <button
                 onClick={() => {
-                  handleDeleteEmpleado(empleadoToDelete);
+                  handleDeleteCliente(clienteToDelete);
                   setShowDeleteConfirmModal(false);
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
@@ -1287,9 +1053,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
                     tipodocumento: "",
                     numerodocumento: "",
                     correo: "",
-                    contrasena: "",
-                    idsucursal: "",
-                    rol: "",
+                    telefono: "",
                     estado: true,
                   });
                 }}
@@ -1298,148 +1062,6 @@ export default function Empleados({ initialEmpleados = [], user }) {
                 Descartar cambios
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Error */}
-      {showErrorModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
-            <div className="px-6 py-4 border-b">
-              <h3 className="text-lg font-medium text-gray-900">Error</h3>
-            </div>
-            <div className="px-6 py-4">
-              <p className="text-sm text-gray-600">{errorMessage}</p>
-            </div>
-            <div className="flex justify-end px-6 py-4 bg-gray-50 rounded-b-lg">
-              <button
-                onClick={() => setShowErrorModal(false)}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-              >
-                Aceptar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Cambio de Contraseña */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="text-lg font-medium text-gray-900">
-                Cambiar Contraseña
-              </h3>
-              <button
-                onClick={() => setShowPasswordModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FaTimes className="h-5 w-5" />
-              </button>
-            </div>
-            <form
-              onSubmit={handleChangePassword}
-              className="px-6 py-4 space-y-4"
-            >
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contraseña Actual
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={passwordData.currentPassword}
-                    onChange={(e) =>
-                      setPasswordData({
-                        ...passwordData,
-                        currentPassword: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nueva Contraseña
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={passwordData.newPassword}
-                    onChange={(e) =>
-                      setPasswordData({
-                        ...passwordData,
-                        newPassword: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirmar Nueva Contraseña
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={passwordData.confirmPassword}
-                    onChange={(e) =>
-                      setPasswordData({
-                        ...passwordData,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-                >
-                  Cambiar Contraseña
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
