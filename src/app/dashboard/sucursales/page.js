@@ -3,7 +3,6 @@ import Sucursales from "../sucursales/sucursal";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { checkAuth } from "../../../lib/auth";
 import { checkAuthStatus, isAdmin } from "../../services/auth";
 
 export default async function PageSucursales() {
