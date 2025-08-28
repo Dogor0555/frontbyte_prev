@@ -99,7 +99,7 @@ export default function Productos({ initialProductos = [], user }) {
     };
 
     const validateStock = (value) => {
-        return !isNaN(value) && Number(value) >= 0;
+        return !isNaN(value);
     };
 
     const validateNombre = (nombre) => {
