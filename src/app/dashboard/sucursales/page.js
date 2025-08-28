@@ -4,15 +4,24 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuth } from "../../../lib/auth";
+import { checkAuthStatus, isAdmin } from "../../services/auth";
 
 export default async function PageSucursales() {
-  // cookies lado servidor
+
   const cookieStore = await cookies();
   const cookie = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join("; ");
 
-  // auth
-  const user = await checkAuth(cookie);
-  if (!user) redirect("/auth/login");
+  const session = await checkAuthStatus(cookie);   // <- devuelve { user: {...} }
+  const u = session?.user;
+
+  if (!u) {
+    redirect("/auth/login");
+  }
+
+  if (!isAdmin(u)) {
+    redirect("/dashboard/unauthorized");
+  }
+
 
   // carga inicial
   let initial = { ok: true, data: [], meta: { total: 0, page: 1, limit: 10, pages: 1 } };
@@ -35,7 +44,7 @@ export default async function PageSucursales() {
         <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
       </div>
     }>
-      <Sucursales initialData={initial} user={user} cookieHeader={cookie} />
+      <Sucursales initialData={initial} user={u} cookieHeader={cookie} />
     </Suspense>
   );
 }
