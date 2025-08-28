@@ -47,7 +47,7 @@ export default function Sidebar() {
     };
 
     const menuItems = [
-        { name: "Inicio", icon: <FaHome />, href: "#" },
+        { name: "Inicio", icon: <FaHome />, href: "/dashboard" },
         { 
             name: "DTES", 
             icon: <FaFileInvoiceDollar />, 

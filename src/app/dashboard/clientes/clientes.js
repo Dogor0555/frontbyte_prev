@@ -46,13 +46,44 @@ export default function Clientes({ initialClientes = [], user }) {
   ];
 
   const [formData, setFormData] = useState({
+  nombre: "",
+  nombrecomercial: "",
+  dui: "",
+  pasaporte: "",
+  nit: "",
+  nrc: "",
+  carnetresidente: "",
+  correo: "",
+  telefono: "",
+  departamento: "",
+  municipio: "",
+  complemento: "",
+  codactividad: "",
+  descactividad: "",
+  personanatural: false, // checkbox
+});
+
+
+const resetFormData = () => {
+  setFormData({
     nombre: "",
-    tipodocumento: "",
-    numerodocumento: "",
+    nombrecomercial: "",
+    dui: "",
+    pasaporte: "",
+    nit: "",
+    nrc: "",
+    carnetresidente: "",
     correo: "",
     telefono: "",
-    estado: true,
+    departamento: "",
+    municipio: "",
+    complemento: "",
+    codactividad: "",
+    descactividad: "",
+    personanatural: false,
   });
+};
+
 
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [clienteToDelete, setClienteToDelete] = useState(null);
@@ -187,7 +218,6 @@ export default function Clientes({ initialClientes = [], user }) {
 
   const handleSaveNewCliente = async (e) => {
     e.preventDefault();
-
     if (!validateForm()) {
       setShowErrorModal(true);
       return;
@@ -212,14 +242,7 @@ export default function Clientes({ initialClientes = [], user }) {
       }
 
       setShowAddModal(false);
-      setFormData({
-        nombre: "",
-        tipodocumento: "",
-        numerodocumento: "",
-        correo: "",
-        telefono: "",
-        estado: true,
-      });
+      resetFormData();
       fetchClientes();
     } catch (error) {
       console.error("Error al agregar el cliente:", error);
@@ -646,7 +669,7 @@ export default function Clientes({ initialClientes = [], user }) {
       {/* Modal de Agregar Cliente */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-screen overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h3 className="text-lg font-medium text-gray-900">
                 Agregar Cliente
@@ -669,6 +692,7 @@ export default function Clientes({ initialClientes = [], user }) {
               onSubmit={handleSaveNewCliente}
               className="px-6 py-4 space-y-4"
             >
+              {/* Nombre y Nombre Comercial */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nombre
@@ -679,63 +703,102 @@ export default function Clientes({ initialClientes = [], user }) {
                   onChange={(e) =>
                     setFormData({ ...formData, nombre: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  maxLength={LIMITES.NOMBRE}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  {formData.nombre.length}/{LIMITES.NOMBRE} caracteres
-                </p>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre Comercial
+                </label>
+                <input
+                  type="text"
+                  value={formData.nombrecomercial}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      nombrecomercial: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              {/* Documentos */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo de Documento
-                  </label>
-                  <select
-                    value={formData.tipodocumento}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        tipodocumento: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="">Seleccionar</option>
-                    {tiposDocumento.map((tipo) => (
-                      <option key={tipo.codigo} value={tipo.codigo}>
-                        {tipo.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Número de Documento
+                    DUI
                   </label>
                   <input
                     type="text"
-                    value={formData.numerodocumento}
+                    value={formData.dui}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dui: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Pasaporte
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.pasaporte}
+                    onChange={(e) =>
+                      setFormData({ ...formData, pasaporte: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    NIT
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nit}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nit: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    NRC
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nrc}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nrc: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Carnet Residente
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.carnetresidente}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        numerodocumento: e.target.value,
+                        carnetresidente: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    maxLength={LIMITES.NUMERODOCUMENTO}
-                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {formData.numerodocumento.length}/{LIMITES.NUMERODOCUMENTO}{" "}
-                    caracteres
-                  </p>
                 </div>
               </div>
 
+              {/* Correo y Teléfono */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Correo
@@ -746,13 +809,9 @@ export default function Clientes({ initialClientes = [], user }) {
                   onChange={(e) =>
                     setFormData({ ...formData, correo: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  maxLength={LIMITES.CORREO}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  {formData.correo.length}/{LIMITES.CORREO} caracteres
-                </p>
               </div>
 
               <div>
@@ -765,30 +824,115 @@ export default function Clientes({ initialClientes = [], user }) {
                   onChange={(e) =>
                     setFormData({ ...formData, telefono: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  maxLength={LIMITES.TELEFONO}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
 
+              {/* Dirección */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Departamento
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.departamento}
+                    onChange={(e) =>
+                      setFormData({ ...formData, departamento: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Municipio
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.municipio}
+                    onChange={(e) =>
+                      setFormData({ ...formData, municipio: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Complemento
+                </label>
+                <input
+                  type="text"
+                  value={formData.complemento}
+                  onChange={(e) =>
+                    setFormData({ ...formData, complemento: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              {/* Actividad */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Código de Actividad
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.codactividad}
+                    onChange={(e) =>
+                      setFormData({ ...formData, codactividad: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Descripción de Actividad
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.descactividad}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        descactividad: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Persona Natural */}
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  id="estado"
-                  checked={formData.estado}
+                  id="personanatural"
+                  checked={formData.personanatural}
                   onChange={(e) =>
-                    setFormData({ ...formData, estado: e.target.checked })
+                    setFormData({
+                      ...formData,
+                      personanatural: e.target.checked,
+                    })
                   }
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label
-                  htmlFor="estado"
+                  htmlFor="personanatural"
                   className="ml-2 block text-sm text-gray-900"
                 >
-                  Estado activo
+                  Persona Natural
                 </label>
               </div>
 
+              {/* Botones */}
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -814,6 +958,7 @@ export default function Clientes({ initialClientes = [], user }) {
           </div>
         </div>
       )}
+
       {/* Modal de Editar Cliente */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
