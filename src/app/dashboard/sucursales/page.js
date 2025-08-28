@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus, isAdmin } from "../../services/auth";
+import { checkAuth } from "@/lib/auth";
 
 export default async function PageSucursales() {
 
