@@ -29,13 +29,6 @@ export default function Clientes({ initialClientes = [], user }) {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const LIMITES = {
-    NOMBRE: 255,
-    NUMERODOCUMENTO: 20,
-    CORREO: 255,
-    TELEFONO: 255,
-  };
-
   // Tipos de documento según el modelo
   const tiposDocumento = [
     { codigo: "01", nombre: "DUI" },
@@ -44,6 +37,177 @@ export default function Clientes({ initialClientes = [], user }) {
     { codigo: "04", nombre: "Carnet de Residente" },
     { codigo: "99", nombre: "Otro" },
   ];
+
+  const LIMITES = {
+    NOMBRE: 255,
+    NOMBRECOMERCIAL: 255,
+    DUI: 10,
+    PASAPORTE: 20,
+    NIT: 20,
+    NRC: 20,
+    CARNETRESIDENTE: 20,
+    CORREO: 255,
+    TELEFONO: 20,
+    DEPARTAMENTO: 100,
+    MUNICIPIO: 100,
+    COMPLEMENTO: 255,
+    CODACTIVIDAD: 20,
+    DESCACTIVIDAD: 255,
+  };
+
+  const validateForm = () => {
+    // Nombre
+    if (!formData.nombre.trim()) {
+      setErrorMessage("El nombre es obligatorio.");
+      return false;
+    }
+    if (formData.nombre.length > LIMITES.NOMBRE) {
+      setErrorMessage(
+        `El nombre no puede exceder los ${LIMITES.NOMBRE} caracteres.`
+      );
+      return false;
+    }
+
+    // Nombre Comercial
+    if (!formData.nombrecomercial.trim()) {
+      setErrorMessage("El nombre comercial es obligatorio.");
+      return false;
+    }
+    if (formData.nombrecomercial.length > LIMITES.NOMBRECOMERCIAL) {
+      setErrorMessage(
+        `El nombre comercial no puede exceder los ${LIMITES.NOMBRECOMERCIAL} caracteres.`
+      );
+      return false;
+    }
+
+    // Documentos (opcionales, pero con límites y formato)
+    if (formData.dui && formData.dui.length > LIMITES.DUI) {
+      setErrorMessage(`El DUI no puede exceder los ${LIMITES.DUI} caracteres.`);
+      return false;
+    }
+    if (formData.dui && !/^[0-9-]+$/.test(formData.dui)) {
+      setErrorMessage("El DUI solo puede contener números y guiones.");
+      return false;
+    }
+
+    if (formData.pasaporte && formData.pasaporte.length > LIMITES.PASAPORTE) {
+      setErrorMessage(
+        `El pasaporte no puede exceder los ${LIMITES.PASAPORTE} caracteres.`
+      );
+      return false;
+    }
+
+    if (formData.nit && formData.nit.length > LIMITES.NIT) {
+      setErrorMessage(`El NIT no puede exceder los ${LIMITES.NIT} caracteres.`);
+      return false;
+    }
+
+    if (formData.nrc && formData.nrc.length > LIMITES.NRC) {
+      setErrorMessage(`El NRC no puede exceder los ${LIMITES.NRC} caracteres.`);
+      return false;
+    }
+
+    if (
+      formData.carnetresidente &&
+      formData.carnetresidente.length > LIMITES.CARNETRESIDENTE
+    ) {
+      setErrorMessage(
+        `El Carnet de Residente no puede exceder los ${LIMITES.CARNETRESIDENTE} caracteres.`
+      );
+      return false;
+    }
+
+    // Correo
+    if (!formData.correo.trim()) {
+      setErrorMessage("El correo es obligatorio.");
+      return false;
+    }
+    if (!validateEmail(formData.correo)) {
+      setErrorMessage("El formato del correo no es válido.");
+      return false;
+    }
+    if (formData.correo.length > LIMITES.CORREO) {
+      setErrorMessage(
+        `El correo no puede exceder los ${LIMITES.CORREO} caracteres.`
+      );
+      return false;
+    }
+
+    // Teléfono
+    if (!formData.telefono.trim()) {
+      setErrorMessage("El teléfono es obligatorio.");
+      return false;
+    }
+    if (formData.telefono.length > LIMITES.TELEFONO) {
+      setErrorMessage(
+        `El teléfono no puede exceder los ${LIMITES.TELEFONO} caracteres.`
+      );
+      return false;
+    }
+    if (!/^[0-9]+$/.test(formData.telefono)) {
+      setErrorMessage("El teléfono solo puede contener números.");
+      return false;
+    }
+
+    // Dirección
+    if (!formData.departamento.trim()) {
+      setErrorMessage("El departamento es obligatorio.");
+      return false;
+    }
+    if (formData.departamento.length > LIMITES.DEPARTAMENTO) {
+      setErrorMessage(
+        `El departamento no puede exceder los ${LIMITES.DEPARTAMENTO} caracteres.`
+      );
+      return false;
+    }
+
+    if (!formData.municipio.trim()) {
+      setErrorMessage("El municipio es obligatorio.");
+      return false;
+    }
+    if (formData.municipio.length > LIMITES.MUNICIPIO) {
+      setErrorMessage(
+        `El municipio no puede exceder los ${LIMITES.MUNICIPIO} caracteres.`
+      );
+      return false;
+    }
+
+    if (!formData.complemento.trim()) {
+      setErrorMessage("El complemento es obligatorio.");
+      return false;
+    }
+    if (formData.complemento.length > LIMITES.COMPLEMENTO) {
+      setErrorMessage(
+        `El complemento no puede exceder los ${LIMITES.COMPLEMENTO} caracteres.`
+      );
+      return false;
+    }
+
+    // Actividad
+    if (!formData.codactividad.trim()) {
+      setErrorMessage("El código de actividad es obligatorio.");
+      return false;
+    }
+    if (formData.codactividad.length > LIMITES.CODACTIVIDAD) {
+      setErrorMessage(
+        `El código de actividad no puede exceder los ${LIMITES.CODACTIVIDAD} caracteres.`
+      );
+      return false;
+    }
+
+    if (!formData.descactividad.trim()) {
+      setErrorMessage("La descripción de actividad es obligatoria.");
+      return false;
+    }
+    if (formData.descactividad.length > LIMITES.DESCACTIVIDAD) {
+      setErrorMessage(
+        `La descripción de actividad no puede exceder los ${LIMITES.DESCACTIVIDAD} caracteres.`
+      );
+      return false;
+    }
+
+    return true;
+  };
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -86,58 +250,6 @@ export default function Clientes({ initialClientes = [], user }) {
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [clienteToDelete, setClienteToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-
-  const validateForm = () => {
-    if (!formData.nombre.trim()) {
-      setErrorMessage("El nombre es obligatorio.");
-      return false;
-    }
-    if (formData.nombre.length > LIMITES.NOMBRE) {
-      setErrorMessage(
-        `El nombre no puede exceder los ${LIMITES.NOMBRE} caracteres.`
-      );
-      return false;
-    }
-    if (!formData.tipodocumento) {
-      setErrorMessage("El tipo de documento es obligatorio.");
-      return false;
-    }
-    if (!formData.numerodocumento.trim()) {
-      setErrorMessage("El número de documento es obligatorio.");
-      return false;
-    }
-    if (formData.numerodocumento.length > LIMITES.NUMERODOCUMENTO) {
-      setErrorMessage(
-        `El número de documento no puede exceder los ${LIMITES.NUMERODOCUMENTO} caracteres.`
-      );
-      return false;
-    }
-    if (!formData.correo.trim()) {
-      setErrorMessage("El correo es obligatorio.");
-      return false;
-    }
-    if (!validateEmail(formData.correo)) {
-      setErrorMessage("El formato del correo no es válido.");
-      return false;
-    }
-    if (formData.correo.length > LIMITES.CORREO) {
-      setErrorMessage(
-        `El correo no puede exceder los ${LIMITES.CORREO} caracteres.`
-      );
-      return false;
-    }
-    if (!formData.telefono.trim()) {
-      setErrorMessage("El teléfono es obligatorio.");
-      return false;
-    }
-    if (formData.telefono.length > LIMITES.TELEFONO) {
-      setErrorMessage(
-        `El teléfono no puede exceder los ${LIMITES.TELEFONO} caracteres.`
-      );
-      return false;
-    }
-    return true;
-  };
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -762,8 +874,12 @@ export default function Clientes({ initialClientes = [], user }) {
                     setFormData({ ...formData, nombre: e.target.value })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.NOMBRE}
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.nombre.length}/{LIMITES.NOMBRE} caracteres
+                </p>
               </div>
 
               <div>
@@ -780,8 +896,13 @@ export default function Clientes({ initialClientes = [], user }) {
                     })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.NOMBRECOMERCIAL}
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.nombrecomercial.length}/{LIMITES.NOMBRECOMERCIAL}{" "}
+                  caracteres
+                </p>
               </div>
 
               {/* Documentos */}
@@ -797,7 +918,11 @@ export default function Clientes({ initialClientes = [], user }) {
                       setFormData({ ...formData, dui: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.DUI}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.dui.length}/{LIMITES.DUI} caracteres
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -810,7 +935,11 @@ export default function Clientes({ initialClientes = [], user }) {
                       setFormData({ ...formData, pasaporte: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.PASAPORTE}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.pasaporte.length}/{LIMITES.PASAPORTE} caracteres
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -823,7 +952,11 @@ export default function Clientes({ initialClientes = [], user }) {
                       setFormData({ ...formData, nit: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.NIT}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.nit.length}/{LIMITES.NIT} caracteres
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -836,7 +969,11 @@ export default function Clientes({ initialClientes = [], user }) {
                       setFormData({ ...formData, nrc: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.NRC}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.nrc.length}/{LIMITES.NRC} caracteres
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -852,7 +989,12 @@ export default function Clientes({ initialClientes = [], user }) {
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.CARNETRESIDENTE}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.carnetresidente.length}/{LIMITES.CARNETRESIDENTE}{" "}
+                    caracteres
+                  </p>
                 </div>
               </div>
 
@@ -868,8 +1010,12 @@ export default function Clientes({ initialClientes = [], user }) {
                     setFormData({ ...formData, correo: e.target.value })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.CORREO}
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.correo.length}/{LIMITES.CORREO} caracteres
+                </p>
               </div>
 
               <div>
@@ -883,8 +1029,12 @@ export default function Clientes({ initialClientes = [], user }) {
                     setFormData({ ...formData, telefono: e.target.value })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.TELEFONO}
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.telefono.length}/{LIMITES.TELEFONO} caracteres
+                </p>
               </div>
 
               {/* Dirección */}
@@ -900,8 +1050,13 @@ export default function Clientes({ initialClientes = [], user }) {
                       setFormData({ ...formData, departamento: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.DEPARTAMENTO}
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.departamento.length}/{LIMITES.DEPARTAMENTO}{" "}
+                    caracteres
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -914,8 +1069,12 @@ export default function Clientes({ initialClientes = [], user }) {
                       setFormData({ ...formData, municipio: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.MUNICIPIO}
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.municipio.length}/{LIMITES.MUNICIPIO} caracteres
+                  </p>
                 </div>
               </div>
               <div>
@@ -929,8 +1088,12 @@ export default function Clientes({ initialClientes = [], user }) {
                     setFormData({ ...formData, complemento: e.target.value })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.COMPLEMENTO}
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.complemento.length}/{LIMITES.COMPLEMENTO} caracteres
+                </p>
               </div>
 
               {/* Actividad */}
@@ -946,8 +1109,13 @@ export default function Clientes({ initialClientes = [], user }) {
                       setFormData({ ...formData, codactividad: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.CODACTIVIDAD}
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.codactividad.length}/{LIMITES.CODACTIVIDAD}{" "}
+                    caracteres
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -963,8 +1131,13 @@ export default function Clientes({ initialClientes = [], user }) {
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.DESCACTIVIDAD}
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.descactividad.length}/{LIMITES.DESCACTIVIDAD}{" "}
+                    caracteres
+                  </p>
                 </div>
               </div>
 
@@ -1020,7 +1193,7 @@ export default function Clientes({ initialClientes = [], user }) {
       {/* Modal de Editar Cliente */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-screen overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h3 className="text-lg font-medium text-gray-900">
                 Editar Cliente
@@ -1043,68 +1216,227 @@ export default function Clientes({ initialClientes = [], user }) {
               onSubmit={handleUpdateCliente}
               className="px-6 py-4 space-y-4"
             >
+              {/* Nombre */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nombre
                 </label>
                 <input
                   type="text"
-                  value={formData.nombre}
+                  value={formData.nombre || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, nombre: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
                   maxLength={LIMITES.NOMBRE}
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  {formData.nombre.length}/{LIMITES.NOMBRE} caracteres
+                  {(formData.nombre || "").length}/{LIMITES.NOMBRE} caracteres
                 </p>
               </div>
 
+              {/* Nombre Comercial */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre Comercial
+                </label>
+                <input
+                  type="text"
+                  value={formData.nombrecomercial || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      nombrecomercial: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.NOMBRECOMERCIAL}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {(formData.nombrecomercial || "").length}/
+                  {LIMITES.NOMBRECOMERCIAL} caracteres
+                </p>
+              </div>
+
+              {/* Documentos */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo de Documento
-                  </label>
-                  <select
-                    value={formData.tipodocumento}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        tipodocumento: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="">Seleccionar</option>
-                    {tiposDocumento.map((tipo) => (
-                      <option key={tipo.codigo} value={tipo.codigo}>
-                        {tipo.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Número de Documento
+                    DUI
                   </label>
                   <input
                     type="text"
-                    value={formData.numerodocumento}
+                    value={formData.dui || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dui: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.DUI}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(formData.dui || "").length}/{LIMITES.DUI} caracteres
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Pasaporte
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.pasaporte || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, pasaporte: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.PASAPORTE}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(formData.pasaporte || "").length}/{LIMITES.PASAPORTE}{" "}
+                    caracteres
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    NIT
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nit || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nit: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.NIT}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(formData.nit || "").length}/{LIMITES.NIT} caracteres
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    NRC
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nrc || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nrc: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.NRC}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(formData.nrc || "").length}/{LIMITES.NRC} caracteres
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Carnet Residente
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.carnetresidente || ""}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        numerodocumento: e.target.value,
+                        carnetresidente: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    maxLength={LIMITES.NUMERODOCUMENTO}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.CARNETRESIDENTE}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(formData.carnetresidente || "").length}/
+                    {LIMITES.CARNETRESIDENTE} caracteres
+                  </p>
+                </div>
+              </div>
+
+              {/* Correo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Correo
+                </label>
+                <input
+                  type="email"
+                  value={formData.correo || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, correo: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.CORREO}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {(formData.correo || "").length}/{LIMITES.CORREO} caracteres
+                </p>
+              </div>
+
+              {/* Teléfono */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Teléfono
+                </label>
+                <input
+                  type="text"
+                  value={formData.telefono || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, telefono: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.TELEFONO}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {(formData.telefono || "").length}/{LIMITES.TELEFONO}{" "}
+                  caracteres
+                </p>
+              </div>
+
+              {/* Dirección */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Departamento
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.departamento || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, departamento: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.DEPARTAMENTO}
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    {formData.numerodocumento.length}/{LIMITES.NUMERODOCUMENTO}{" "}
+                    {(formData.departamento || "").length}/
+                    {LIMITES.DEPARTAMENTO} caracteres
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Municipio
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.municipio || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, municipio: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.MUNICIPIO}
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(formData.municipio || "").length}/{LIMITES.MUNICIPIO}{" "}
                     caracteres
                   </p>
                 </div>
@@ -1112,57 +1444,93 @@ export default function Clientes({ initialClientes = [], user }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Correo
-                </label>
-                <input
-                  type="email"
-                  value={formData.correo}
-                  onChange={(e) =>
-                    setFormData({ ...formData, correo: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  maxLength={LIMITES.CORREO}
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {formData.correo.length}/{LIMITES.CORREO} caracteres
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Teléfono
+                  Complemento
                 </label>
                 <input
                   type="text"
-                  value={formData.telefono}
+                  value={formData.complemento || ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, telefono: e.target.value })
+                    setFormData({ ...formData, complemento: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  maxLength={LIMITES.TELEFONO}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.COMPLEMENTO}
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  {(formData.complemento || "").length}/{LIMITES.COMPLEMENTO}{" "}
+                  caracteres
+                </p>
               </div>
 
+              {/* Actividad */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Código de Actividad
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.codactividad || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, codactividad: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.CODACTIVIDAD}
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(formData.codactividad || "").length}/
+                    {LIMITES.CODACTIVIDAD} caracteres
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Descripción de Actividad
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.descactividad || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        descactividad: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    maxLength={LIMITES.DESCACTIVIDAD}
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(formData.descactividad || "").length}/
+                    {LIMITES.DESCACTIVIDAD} caracteres
+                  </p>
+                </div>
+              </div>
+
+              {/* Persona Natural */}
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  id="estadoEdit"
-                  checked={formData.estado}
+                  id="personanaturalEdit"
+                  checked={!!formData.personanatural}
                   onChange={(e) =>
-                    setFormData({ ...formData, estado: e.target.checked })
+                    setFormData({
+                      ...formData,
+                      personanatural: e.target.checked,
+                    })
                   }
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label
-                  htmlFor="estadoEdit"
+                  htmlFor="personanaturalEdit"
                   className="ml-2 block text-sm text-gray-900"
                 >
-                  Estado activo
+                  Persona Natural
                 </label>
               </div>
 
+              {/* Botones */}
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -1188,6 +1556,7 @@ export default function Clientes({ initialClientes = [], user }) {
           </div>
         </div>
       )}
+
       {/* Modal de Confirmación de Eliminación */}
       {showDeleteConfirmModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
