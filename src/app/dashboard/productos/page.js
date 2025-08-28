@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuth } from "../../../lib/auth";
+import { isAdmin } from "../../services/auth";
 
 export default async function Produc() {
   // Obtener las cookies del usuario
@@ -22,7 +23,7 @@ export default async function Produc() {
   }
 
   // Verificar el rol del usuario y redirigir si no es admin
-  if (user.rol !== 'admin') {
+  if (!isAdmin(user)) {
     redirect("/unauthorized");
   }
 
