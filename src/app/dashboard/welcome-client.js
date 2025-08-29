@@ -1,7 +1,8 @@
 // src/app/dashboard/welcome-client.js
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaBars, FaTimes, FaCheckCircle, FaExclamationTriangle, FaSave } from "react-icons/fa";
+
+import { FaSearch, FaBars, FaTimes, FaCheckCircle, FaExclamationTriangle, FaSave, FaEye, FaEyeSlash } from "react-icons/fa";
 import Sidebar from "./components/sidebar";
 import Footer from "./components/footer";
 import { useRouter } from "next/navigation";
@@ -30,10 +31,106 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
         tipodocumento: "",
         numerodocumento: "",
         correo: "",
+        contrasenaActual: "",
+        nuevaContrasena: "",
     });
     const [perfilEditable, setPerfilEditable] = useState(false);
 
+    // Mostrar/ocultar contraseñas
+    const [showPwd, setShowPwd] = useState(false);
 
+    // --- Opciones de tipo de documento en entero ---
+    //  NIT -> 36, DUI -> 13, Pasaporte -> 3, Carnet de Residente -> 2, Otro -> 37
+    const DOC_OPTIONS = [
+        { label: "DUI", value: 13 },
+        { label: "NIT", value: 36 },
+        { label: "Pasaporte", value: 3 },
+        { label: "Carnet de Residente", value: 2 },
+        { label: "Otro", value: 37 },
+    ];
+
+    // Enviar con guiones (true) o solo dígitos (false). Para evitar doble formateo, dejamos en false.
+    const FORMAT_NUMBER_ON_SUBMIT = false;
+
+    // --- Reglas para el nombre ---
+    const NAME_MAX = 70;
+    // Solo letras (incluyendo ' - acentos/ñ/ü) y espacios. Sin números ni otros símbolos.
+    const NAME_REGEX = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'-]+$/;
+    const sanitizeName = (val) =>
+        (val ?? "").replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'-]/g, "").replace(/\s{2,}/g, " ");
+
+    // Helpers de normalización/máscara
+    const toDigits = (raw) => (raw ?? "").replace(/\\D+/g, "");
+    const maxLenNumeroDocumento = (tipoInt) => (tipoInt === 13 ? 10 : tipoInt === 36 ? 17 : 20);
+    const capDigitsPorTipo = (digits, tipoInt) =>
+        tipoInt === 13 ? digits.slice(0, 9) : tipoInt === 36 ? digits.slice(0, 14) : digits.slice(0, 20);
+
+    // --- Formateo de número de documento con guiones al guardar ---
+
+    function formatNumeroDocumento(rawOrDigits, tipoInt) {
+        const digits = toDigits(rawOrDigits);
+
+        // DUI: 8-1 (9 dígitos)
+        if (tipoInt === 13) {
+            const d = digits.slice(0, 9);
+            if (d.length <= 8) return d;
+            return `${d.slice(0, 8)}-${d.slice(8)}`;
+        }
+        // NIT: 4-6-3-1 (14 dígitos)
+        if (tipoInt === 36) {
+            const d = digits.slice(0, 14);
+            if (d.length <= 4) return d;
+            if (d.length <= 10) return `${d.slice(0, 4)}-${d.slice(4)}`;
+            if (d.length <= 13) return `${d.slice(0, 4)}-${d.slice(4, 10)}-${d.slice(10)}`;
+            return `${d.slice(0, 4)}-${d.slice(4, 10)}-${d.slice(10, 13)}-${d.slice(13)}`;
+        }
+        // Otros tipos: conservar como lo ingresó el usuario
+        return digits;
+    }
+
+    // Máscara en vivo para el input (muestra guiones según se escribe)
+    function maskNumeroDocumentoLive(rawValue, tipoInt) {
+        const digits = capDigitsPorTipo(toDigits(rawValue), tipoInt);
+        return formatNumeroDocumento(digits, tipoInt);
+    }
+
+    // --- Validación estricta por tipo (se usa en Guardar) ---
+    //  DUI (13) -> 00000000-0 (exacto, 9 dígitos, 1 guion)
+    //  NIT (36) -> 0000-000000-000-0 (exacto, 14 dígitos, guiones en posiciones correctas)
+    //  Otros    -> alfanumérico y guiones (sin espacios)
+    function validateNumeroDocumentoPorTipo(displayValue, tipoInt) {
+        const val = (displayValue ?? "").trim();
+        if (!val) return { ok: false, message: "El número de documento es obligatorio." };
+
+        if (tipoInt === 13) { // DUI
+            const fullPattern = /^\d{8}-\d{1}$/;
+            if (!fullPattern.test(val)) {
+                const digits = toDigits(val);
+                if (digits.length < 9) {
+                    return { ok: false, message: "El DUI debe tener 9 dígitos (formato 00000000-0)." };
+                }
+                return { ok: false, message: "El DUI debe tener el formato 00000000-0 (solo dígitos y un guion)." };
+            }
+            return { ok: true };
+        }
+
+        if (tipoInt === 36) { // NIT
+            const fullPattern = /^\d{4}-\d{6}-\d{3}-\d{1}$/;
+            if (!fullPattern.test(val)) {
+                const digits = toDigits(val);
+                if (digits.length < 14) {
+                    return { ok: false, message: "El NIT debe tener 14 dígitos (formato 0000-000000-000-0)." };
+                }
+                return { ok: false, message: "El NIT debe tener el formato 0000-000000-000-0 (solo dígitos y guiones en posiciones correctas)." };
+            }
+            return { ok: true };
+        }
+
+        const otherPattern = /^[A-Za-z0-9-]+$/;
+        return otherPattern.test(val)
+            ? { ok: true }
+            : { ok: false, message: "El número de documento solo puede contener letras, números y guiones." };
+    }
 
     // Abrir modal y cargar datos
     const API_BASE = "http://localhost:3000";
@@ -59,9 +156,16 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
             setPerfil(data);
             setPerfilForm({
                 nombre: data?.nombre ?? "",
-                tipodocumento: data?.tipodocumento ?? "",
+
+                // Mantener como string para el <select>, aunque el backend lo tenga en entero
+                tipodocumento: data?.tipodocumento != null ? String(data.tipodocumento) : "",
+                // Si backend ya devuelve con guiones, lo dejamos tal cual para mostrar;
+                // al escribir, enmascaramos con la lógica de abajo.
                 numerodocumento: data?.numerodocumento ?? "",
                 correo: data?.correo ?? "",
+                contrasenaActual: "",
+                nuevaContrasena: "",
+
             });
             // Admin -> editable, Vendedor -> lectura
             const editable = String(data?.rol ?? "").toLowerCase() === "admin";
@@ -81,24 +185,60 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
     // Guardar (solo admin)
     const savePerfil = async () => {
         if (!perfilEditable) return;
+        const tipoInt = parseInt(perfilForm.tipodocumento, 10);
 
-        // Validación mínima
+        // Validación mínima  
         if (!perfilForm.nombre.trim()) return setPerfilError("El nombre es obligatorio.");
+        if (perfilForm.nombre.trim().length > NAME_MAX) {
+            return setPerfilError(`El nombre no puede exceder ${NAME_MAX} caracteres.`);
+        }
+        if (!NAME_REGEX.test(perfilForm.nombre.trim())) {
+            return setPerfilError(
+                "El nombre solo puede contener letras (incluyendo tildes y ñ) y espacios. No se permiten números ni símbolos."
+            );
+        }
         if (!perfilForm.tipodocumento) return setPerfilError("El tipo de documento es obligatorio.");
         if (!perfilForm.numerodocumento.trim()) return setPerfilError("El número de documento es obligatorio.");
+        // Validar formato del número según tipo seleccionado
+        {
+            const { ok, message } = validateNumeroDocumentoPorTipo(perfilForm.numerodocumento, tipoInt);
+            if (!ok) {
+                return setPerfilError(message);
+            }
+        }
         if (!perfilForm.correo.trim()) return setPerfilError("El correo es obligatorio.");
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(perfilForm.correo)) return setPerfilError("El formato del correo no es válido.");
+
+        // Validación de cambio de contraseña (opcional)
+        const hasPwdChange = !!perfilForm.nuevaContrasena && !!perfilForm.contrasenaActual;
+        if (hasPwdChange) {
+            if (!perfilForm.contrasenaActual) return setPerfilError("Debes proporcionar la contraseña actual para cambiarla.");
+            if (!perfilForm.nuevaContrasena || perfilForm.nuevaContrasena.length < 6)
+                return setPerfilError("La nueva contraseña debe tener al menos 6 caracteres.");
+        }
 
         setPerfilSaving(true);
         setPerfilError("");
         setPerfilOk("");
         try {
+            const digitsOnly = toDigits(perfilForm.numerodocumento);
+            const numeroFmt = FORMAT_NUMBER_ON_SUBMIT
+                ? formatNumeroDocumento(digitsOnly, tipoInt) // Frontend decide los guiones
+                : digitsOnly; // Enviamos solo dígitos para evitar doble formateo si el backend también agrega guiones
             const payload = {
                 nombre: perfilForm.nombre.trim(),
-                tipodocumento: String(perfilForm.tipodocumento).trim(),
-                numerodocumento: perfilForm.numerodocumento.trim(),
+                // Enviar tipodocumento como entero
+                tipodocumento: Number.isNaN(tipoInt) ? null : tipoInt,
+                // Guardar número (según estrategia anterior)
+                numerodocumento: numeroFmt,
                 correo: perfilForm.correo.trim().toLowerCase(),
             };
+
+            // Incluir credenciales solo si el usuario inició el cambio de contraseña
+            if (!!perfilForm.nuevaContrasena && !!perfilForm.contrasenaActual) {
+                payload.contrasenaActual = perfilForm.contrasenaActual;
+                payload.nuevaContrasena = perfilForm.nuevaContrasena;
+            }
 
             const res = await fetch(`${API_BASE}/perfil`, {
                 method: "PUT",
@@ -122,6 +262,9 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
             const actualizado = body?.perfil ?? payload;
             setPerfil((p) => ({ ...p, ...actualizado }));
             setPerfilOk("Perfil actualizado con éxito.");
+            // Limpiar campos de contraseña y ocultar
+            setPerfilForm((s) => ({ ...s, contrasenaActual: "", nuevaContrasena: "" }));
+            setShowPwd(false);
         } catch (e) {
             console.error("[welcome-client] PUT /perfil:", e);
             setPerfilError("Error de red al actualizar el perfil.");
@@ -129,15 +272,6 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
             setPerfilSaving(false);
         }
     };
-
-
-
-
-
-
-
-
-
 
     useEffect(() => {
         // Actualizar estado cuando cambien las props
@@ -393,175 +527,246 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
             </div>
 
 
-            
+
 
             {perfilOpen && (
-  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
-    <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white shadow-lg">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b px-5 py-3">
-        <div>
-          <h3 className="text-lg font-medium text-gray-900">Mi Perfil</h3>
-          <p className="text-xs text-gray-500">
-            {perfilEditable ? "Puedes editar tus datos." : "Solo lectura (rol vendedor)."}
-          </p>
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
+                    <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white shadow-lg">
+                        {/* Header */}
+                        <div className="flex items-center justify-between border-b px-5 py-3">
+                            <div>
+                                <h3 className="text-lg font-medium text-gray-900">Mi Perfil</h3>
+                                <p className="text-xs text-gray-500">
+                                    {perfilEditable ? "Puedes editar tus datos." : "Solo lectura (rol vendedor)."}
+                                </p>
+                            </div>
+                            <button
+                                className="text-gray-400 hover:text-gray-600"
+                                onClick={closePerfilModal}
+                                aria-label="Cerrar"
+                            >
+                                <FaTimes />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="px-5 py-4 space-y-4">
+                            {perfilLoading && (
+                                <div className="rounded-md border bg-white p-3 text-gray-600">Cargando perfil…</div>
+                            )}
+
+                            {!perfilLoading && perfilError && (
+                                <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800">
+                                    <FaExclamationTriangle className="h-4 w-4" />
+                                    <span className="text-sm">{perfilError}</span>
+                                </div>
+                            )}
+
+                            {!perfilLoading && perfilOk && (
+                                <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3 text-green-800">
+                                    <FaCheckCircle className="h-4 w-4" />
+                                    <span className="text-sm">{perfilOk}</span>
+                                </div>
+                            )}
+
+                            {!perfilLoading && perfil && (
+                                <>
+                                    <div>
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
+                                        <input
+                                            type="text"
+                                            value={perfilForm.nombre}
+                                            onChange={(e) =>
+                                                setPerfilForm((s) => ({
+                                                    ...s,
+                                                    // Limpieza en vivo: elimina números/símbolos no permitidos y colapsa espacios
+                                                    nombre: sanitizeName(e.target.value).slice(0, NAME_MAX),
+                                                }))
+                                            }
+                                            maxLength={NAME_MAX}
+
+                                            disabled={!perfilEditable}
+                                            className={`w-full rounded-md border px-3 py-2 text-gray-900 outline-none focus:ring-1 ${perfilEditable ? "border-gray-300 focus:ring-blue-500" : "border-gray-200 bg-gray-50 text-gray-500"
+                                                }`}
+                                            placeholder="Nombre y apellidos"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <div>
+                                            <label className="mb-1 block text-sm font-medium text-gray-700">Tipo de documento</label>
+                                            <select
+                                                value={perfilForm.tipodocumento}
+                                                onChange={(e) => {
+                                                    const newTipo = parseInt(e.target.value, 10);
+                                                    setPerfilForm((s) => ({
+                                                        ...s,
+                                                        tipodocumento: e.target.value,
+                                                        // Re-enmascara el número actual al cambiar de tipo
+                                                        numerodocumento: maskNumeroDocumentoLive(s.numerodocumento, newTipo),
+                                                    }));
+                                                }}
+                                                disabled={!perfilEditable}
+                                                className={`w-full rounded-md border px-3 py-2 text-gray-900 outline-none focus:ring-1 ${perfilEditable ? "border-gray-300 focus:ring-blue-500" : "border-gray-200 bg-gray-50 text-gray-500"
+                                                    }`}
+                                            >
+                                                <option value="">Seleccionar</option>
+                                                {DOC_OPTIONS.map((opt) => (
+                                                    <option key={opt.value} value={String(opt.value)}>{opt.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="mb-1 block text-sm font-medium text-gray-700">Número de documento</label>
+                                            <input
+                                                type="text"
+                                                value={perfilForm.numerodocumento}
+                                                onChange={(e) => {
+                                                    const tipoInt = parseInt(perfilForm.tipodocumento, 10);
+                                                    const masked = maskNumeroDocumentoLive(e.target.value, tipoInt);
+                                                    setPerfilForm((s) => ({ ...s, numerodocumento: masked }));
+                                                }}
+                                                maxLength={maxLenNumeroDocumento(parseInt(perfilForm.tipodocumento, 10))}
+
+                                                disabled={!perfilEditable}
+                                                className={`w-full rounded-md border px-3 py-2 text-gray-900 outline-none focus:ring-1 ${perfilEditable ? "border-gray-300 focus:ring-blue-500" : "border-gray-200 bg-gray-50 text-gray-500"
+                                                    }`}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Correo</label>
+                                        <input
+                                            type="email"
+                                            value={perfilForm.correo}
+                                            onChange={(e) => setPerfilForm((s) => ({ ...s, correo: e.target.value }))}
+                                            disabled={!perfilEditable}
+                                            className={`w-full rounded-md border px-3 py-2 text-gray-900 outline-none focus:ring-1 ${perfilEditable ? "border-gray-300 focus:ring-blue-500" : "border-gray-200 bg-gray-50 text-gray-500"
+                                                }`}
+                                        />
+                                    </div>
+                                    <div>
+                                        {/* Cambio de contraseña (solo admin) */}
+                                        {perfilEditable && (
+                                            <fieldset className="rounded-md border border-gray-200 p-4">
+                                                <legend className="px-2 text-sm font-medium text-gray-700">
+                                                    Cambio de contraseña (opcional)
+                                                </legend>
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <div className="relative">
+                                                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                            Contraseña actual
+                                                        </label>
+                                                        <input
+                                                            type={showPwd ? "text" : "password"}
+                                                            value={perfilForm.contrasenaActual}
+                                                            onChange={(e) =>
+                                                                setPerfilForm((s) => ({ ...s, contrasenaActual: e.target.value }))
+                                                            }
+                                                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
+                                                            placeholder="••••••••"
+                                                        />
+                                                        <TogglePwd show={showPwd} setShow={setShowPwd} />
+                                                    </div>
+                                                    <div className="relative">
+                                                        <label className="mb-1 block text-sm font-medium text-gray-700">
+                                                            Nueva contraseña
+                                                        </label>
+                                                        <input
+                                                            type={showPwd ? "text" : "password"}
+                                                            value={perfilForm.nuevaContrasena}
+                                                            onChange={(e) =>
+                                                                setPerfilForm((s) => ({ ...s, nuevaContrasena: e.target.value }))
+                                                            }
+                                                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
+                                                            placeholder="Mínimo 6 caracteres"
+                                                        />
+                                                        <TogglePwd show={showPwd} setShow={setShowPwd} />
+                                                    </div>
+                                                </div>
+                                            </fieldset>
+                                        )}
+                                    </div>
+                                    {/* Meta no editable */}
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <div>
+                                            <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">ID Empleado</span>
+                                            <span className="mt-0.5 block text-sm text-gray-900">{perfil?.idempleado ?? "-"}</span>
+                                        </div>
+                                        <div>
+                                            <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Rol</span>
+                                            <span className="mt-0.5 block text-sm text-gray-900">{perfil?.rol ?? "-"}</span>
+                                        </div>
+                                        <div>
+                                            <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Estado</span>
+                                            <span
+                                                className={`mt-0.5 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${perfil?.estado ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                                                    }`}
+                                            >
+                                                {perfil?.estado ? "Activo" : "Inactivo"}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Sucursal</span>
+                                            <span className="mt-0.5 block text-sm text-gray-900">
+                                                {perfil?.sucursal ? `${perfil.sucursal.nombre} (ID ${perfil.sucursal.idsucursal})` : "-"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-end gap-2 border-t px-5 py-3">
+                            <button
+                                type="button"
+                                onClick={closePerfilModal}
+                                className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
+                            >
+                                Cerrar
+                            </button>
+                            {perfilEditable && (
+                                <button
+                                    type="button"
+                                    disabled={perfilSaving}
+                                    onClick={savePerfil}
+                                    className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white ${perfilSaving ? "bg-blue-300 cursor-wait" : "bg-blue-600 hover:bg-blue-700"
+                                        }`}
+                                >
+                                    <FaSave />
+                                    {perfilSaving ? "Guardando..." : "Guardar"}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+
+
+
+
+
+
         </div>
+    );
+}
+
+// Botón para mostrar/ocultar contraseñas (igual que en perfilEmpleado.js)
+function TogglePwd({ show, setShow }) {
+    return (
         <button
-          className="text-gray-400 hover:text-gray-600"
-          onClick={closePerfilModal}
-          aria-label="Cerrar"
-        >
-          <FaTimes />
-        </button>
-      </div>
-
-      {/* Body */}
-      <div className="px-5 py-4 space-y-4">
-        {perfilLoading && (
-          <div className="rounded-md border bg-white p-3 text-gray-600">Cargando perfil…</div>
-        )}
-
-        {!perfilLoading && perfilError && (
-          <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800">
-            <FaExclamationTriangle className="h-4 w-4" />
-            <span className="text-sm">{perfilError}</span>
-          </div>
-        )}
-
-        {!perfilLoading && perfilOk && (
-          <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3 text-green-800">
-            <FaCheckCircle className="h-4 w-4" />
-            <span className="text-sm">{perfilOk}</span>
-          </div>
-        )}
-
-        {!perfilLoading && perfil && (
-          <>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
-              <input
-                type="text"
-                value={perfilForm.nombre}
-                onChange={(e) => setPerfilForm((s) => ({ ...s, nombre: e.target.value }))}
-                disabled={!perfilEditable}
-                className={`w-full rounded-md border px-3 py-2 text-gray-900 outline-none focus:ring-1 ${
-                  perfilEditable ? "border-gray-300 focus:ring-blue-500" : "border-gray-200 bg-gray-50 text-gray-500"
-                }`}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Tipo de documento</label>
-                <select
-                  value={perfilForm.tipodocumento}
-                  onChange={(e) => setPerfilForm((s) => ({ ...s, tipodocumento: e.target.value }))}
-                  disabled={!perfilEditable}
-                  className={`w-full rounded-md border px-3 py-2 text-gray-900 outline-none focus:ring-1 ${
-                    perfilEditable ? "border-gray-300 focus:ring-blue-500" : "border-gray-200 bg-gray-50 text-gray-500"
-                  }`}
-                >
-                  <option value="">Seleccionar</option>
-                  <option value="01">DUI</option>
-                  <option value="02">NIT</option>
-                  <option value="03">Pasaporte</option>
-                  <option value="04">Carnet de Residente</option>
-                  <option value="13">DUI (El Salvador)</option>
-                  <option value="99">Otro</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Número de documento</label>
-                <input
-                  type="text"
-                  value={perfilForm.numerodocumento}
-                  onChange={(e) => setPerfilForm((s) => ({ ...s, numerodocumento: e.target.value }))}
-                  disabled={!perfilEditable}
-                  className={`w-full rounded-md border px-3 py-2 text-gray-900 outline-none focus:ring-1 ${
-                    perfilEditable ? "border-gray-300 focus:ring-blue-500" : "border-gray-200 bg-gray-50 text-gray-500"
-                  }`}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Correo</label>
-              <input
-                type="email"
-                value={perfilForm.correo}
-                onChange={(e) => setPerfilForm((s) => ({ ...s, correo: e.target.value }))}
-                disabled={!perfilEditable}
-                className={`w-full rounded-md border px-3 py-2 text-gray-900 outline-none focus:ring-1 ${
-                  perfilEditable ? "border-gray-300 focus:ring-blue-500" : "border-gray-200 bg-gray-50 text-gray-500"
-                }`}
-              />
-            </div>
-
-            {/* Meta no editable */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">ID Empleado</span>
-                <span className="mt-0.5 block text-sm text-gray-900">{perfil?.idempleado ?? "-"}</span>
-              </div>
-              <div>
-                <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Rol</span>
-                <span className="mt-0.5 block text-sm text-gray-900">{perfil?.rol ?? "-"}</span>
-              </div>
-              <div>
-                <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Estado</span>
-                <span
-                  className={`mt-0.5 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                    perfil?.estado ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {perfil?.estado ? "Activo" : "Inactivo"}
-                </span>
-              </div>
-              <div>
-                <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">Sucursal</span>
-                <span className="mt-0.5 block text-sm text-gray-900">
-                  {perfil?.sucursal ? `${perfil.sucursal.nombre} (ID ${perfil.sucursal.idsucursal})` : "-"}
-                </span>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-end gap-2 border-t px-5 py-3">
-        <button
-          type="button"
-          onClick={closePerfilModal}
-          className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
-        >
-          Cerrar
-        </button>
-        {perfilEditable && (
-          <button
             type="button"
-            disabled={perfilSaving}
-            onClick={savePerfil}
-            className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white ${
-              perfilSaving ? "bg-blue-300 cursor-wait" : "bg-blue-600 hover:bg-blue-700"
-            }`}
-          >
-            <FaSave />
-            {perfilSaving ? "Guardando..." : "Guardar"}
-          </button>
-        )}
-      </div>
-    </div>
-  </div>
-)}
-
-
-            
-
-
-
-
-
-        </div>
+            onClick={() => setShow((s) => !s)}
+            className="absolute inset-y-0 right-0 mr-3 flex items-center text-gray-400 hover:text-gray-600"
+            tabIndex={-1}
+            aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
+            title={show ? "Ocultar contraseña" : "Mostrar contraseña"}
+        >
+            {show ? <FaEyeSlash /> : <FaEye />}
+        </button>
     );
 }
