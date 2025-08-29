@@ -1,6 +1,7 @@
 // src/app/dashboard/components/sidebar.js
 "use client";
 import { useRouter } from "next/navigation";
+import Link from "next/link"; 
 import Image from "next/image";
 import {
   FaHome,
@@ -22,7 +23,7 @@ import { logout } from "../../services/auth";
 import { useState, useEffect } from "react";
 import { isAdmin } from "../../services/auth";
 
-// ACEPTA onOpenPerfil PARA ABRIR MODAL DESDE EL DASHBOARD
+// (La prop onOpenPerfil ya no se usa; el botón empuja siempre a /dashboard/perfil)
 export default function Sidebar({ onOpenPerfil }) {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -98,8 +99,7 @@ export default function Sidebar({ onOpenPerfil }) {
   }
 
   // Label dinámico según rol
-  const perfilLabel =
-    empleado && isAdmin(empleado) ? "Editar Perfil" : "Ver Perfil";
+  const perfilLabel = empleado && isAdmin(empleado) ? "Editar Perfil" : "Ver Perfil";
 
   return (
     <aside className="bg-blue-900 h-full w-64">
@@ -136,6 +136,7 @@ export default function Sidebar({ onOpenPerfil }) {
                       <ul className="pl-6 space-y-2">
                         {subMenu.map(({ name, icon, href }) => (
                           <li key={name}>
+                            {/* Puedes reemplazar este <a> por <Link> si quieres navegación client-side en subitems */}
                             <a
                               href={href}
                               className="flex items-center px-4 py-3 text-blue-100 rounded-lg transition-all duration-300 hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 hover:text-white hover:shadow-md hover:shadow-blue-500/20 hover:backdrop-blur-sm"
@@ -172,16 +173,17 @@ export default function Sidebar({ onOpenPerfil }) {
           </div>
         )}
 
-        {/* ÚNICO botón de Perfil: cambia label según rol y abre modal */}
+        {/* ÚNICO botón de Perfil: ahora con <Link> para forzar SPA + scroll={false} */}
         {empleado && (
           <div className="bg-blue-800 p-4 border-t border-blue-700">
-            <button
-              onClick={() => onOpenPerfil?.()} // <-- abrir modal en dashboard
+            <Link
+              href="/dashboard/perfil"
+              scroll={false} // ✅ asegura SPA sin ajustar scroll
               className="flex items-center justify-center w-full px-4 py-3 text-blue-200 border border-blue-600 rounded-md transition-all duration-200 hover:bg-blue-700 hover:text-white hover:border-blue-500"
             >
               <FaUserAlt className="text-base" />
               <span className="ml-3">{perfilLabel}</span>
-            </button>
+            </Link>
           </div>
         )}
 
