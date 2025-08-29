@@ -12,16 +12,19 @@ export default async function ClientesPage() {
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
+
   // Verificar autenticación y obtener info del usuario
   const authResult = await checkAuthStatus(cookie);
 
   if (!authResult.isAuthenticated || !authResult.user) {
     redirect("/auth/login");
   }
+
   // Verificar si el usuario es administrador
   if (authResult.user.rol !== "admin") {
     redirect("/dashboard/unauthorized");
   }
+
   // Obtener clientes desde la API
   let clientes = [];
   try {
@@ -36,10 +39,11 @@ export default async function ClientesPage() {
     }
 
     const data = await response.json();
-    clientes = data.clientes || [];
+    clientes = data.data || []; // 👈 aquí está el fix
   } catch (error) {
     console.error("Error al obtener los clientes:", error);
   }
+
   // Renderizar Client Component
   return (
     <Suspense
