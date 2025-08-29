@@ -53,7 +53,7 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
     const FORMAT_NUMBER_ON_SUBMIT = false;
 
     // --- Reglas para el nombre ---
-    const NAME_MAX = 70;
+    const NAME_MAX = 255;
     // Solo letras (incluyendo ' - acentos/ñ/ü) y espacios. Sin números ni otros símbolos.
     const NAME_REGEX = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'-]+$/;
     const sanitizeName = (val) =>
