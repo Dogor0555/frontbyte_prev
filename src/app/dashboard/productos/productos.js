@@ -640,62 +640,61 @@ export default function Productos({ initialProductos = [], user }) {
                         </div>
                     </div>
 
-                        <div className="md:hidden">
-                            <div className="space-y-4">
-                                {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.slice(0, 10).map((producto) => (
-                                    <div key={producto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-                                        <div className="flex justify-between items-start">
-                                            <h3 className="text-lg font-medium text-gray-900">{producto.nombre}</h3>
-                                            <div className="flex space-x-2">
-                                                <button
-                                                    onClick={() => handleEditClick(producto)}
-                                                    className="text-blue-600 hover:text-blue-800"
-                                                    aria-label="Editar"
-                                                >
-                                                    <FaEdit />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleOpenStockModal(producto)}
-                                                    className="text-green-600 hover:text-green-800"
-                                                    aria-label="Añadir stock"
-                                                >
-                                                    <FaBoxOpen />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteClick(producto.id)}
-                                                    className="text-red-600 hover:text-red-800"
-                                                    aria-label="Eliminar"
-                                                >
-                                                    <FaTrash />
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4 space-y-2">
-                                            <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-500">Código:</span>
-                                                <span className="text-sm text-gray-900">{producto.codigo}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-500">Unidad:</span>
-                                                <span className="text-sm text-gray-900">{getNombreUnidad(producto.unidad)}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-500">Precio:</span>
-                                                <span className="text-sm text-gray-900">{producto.precio}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-500">Precio Oferta:</span>
-                                                <span className="text-sm text-gray-900">{producto.preciooferta}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-500">Stock:</span>
-                                                <span className="text-sm text-gray-900">{producto.stock}</span>
-                                            </div>
+                    <div className="md:hidden">
+                        <div className="space-y-4">
+                            {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.slice(0, 10).map((producto) => (
+                                <div key={producto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                                    <div className="flex justify-between items-start">
+                                        <h3 className="text-lg font-medium text-gray-900">{producto.nombre}</h3>
+                                        <div className="flex space-x-2">
+                                            <button
+                                                onClick={() => handleEditClick(producto)}
+                                                className="text-blue-600 hover:text-blue-800"
+                                                aria-label="Editar"
+                                            >
+                                                <FaEdit />
+                                            </button>
+                                            <button
+                                                onClick={() => handleOpenStockModal(producto)}
+                                                className="text-green-600 hover:text-green-800"
+                                                aria-label="Añadir stock"
+                                            >
+                                                <FaBoxOpen />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteClick(producto.id)}
+                                                className="text-red-600 hover:text-red-800"
+                                                aria-label="Eliminar"
+                                            >
+                                                <FaTrash />
+                                            </button>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+
+                                    <div className="mt-4 space-y-2">
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Código:</span>
+                                            <span className="text-sm text-gray-900">{producto.codigo}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Unidad:</span>
+                                            <span className="text-sm text-gray-900">{getNombreUnidad(producto.unidad)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Precio:</span>
+                                            <span className="text-sm text-gray-900">{producto.precio}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Precio Oferta:</span>
+                                            <span className="text-sm text-gray-900">{producto.preciooferta}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Stock:</span>
+                                            <span className="text-sm text-gray-900">{producto.stock}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -703,7 +702,7 @@ export default function Productos({ initialProductos = [], user }) {
                 </div>
             </div>
 
-            {showSearchResultsModal && (
+            {showSearchResultsModal && ( 
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
                         <div className="flex items-center justify-between px-6 py-4 border-b">
