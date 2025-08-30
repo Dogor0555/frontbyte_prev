@@ -19,9 +19,8 @@ import {
   FaUserTie,
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
-import { logout } from "../../services/auth";
+import { logout, isAdmin } from "../../services/auth";
 import { useState, useEffect } from "react";
-import { isAdmin } from "../../services/auth";
 
 // (La prop onOpenPerfil ya no se usa; el botón empuja siempre a /dashboard/perfil)
 export default function Sidebar({ onOpenPerfil }) {
@@ -62,8 +61,9 @@ export default function Sidebar({ onOpenPerfil }) {
     }));
   };
 
+  // Menú base
   const menuItems = [
-    { name: "Inicio", icon: <FaHome />, href: "#" },
+    { name: "Inicio", icon: <FaHome />, href: "/dashboard" },
     {
       name: "DTES",
       icon: <FaFileInvoiceDollar />,
@@ -80,7 +80,7 @@ export default function Sidebar({ onOpenPerfil }) {
     { name: "Reportes", icon: <FaChartBar />, href: "#" },
   ];
 
-  // Menú admin (igual que antes)
+  // Menú admin o configuración
   if (empleado && isAdmin(empleado)) {
     menuItems.push({
       name: "Administración",
@@ -90,7 +90,7 @@ export default function Sidebar({ onOpenPerfil }) {
         { name: "Empleados", icon: <FaUserTie />, href: "/dashboard/empleados" },
         { name: "Productos", icon: <FaBoxOpen />, href: "/dashboard/productos" },
         { name: "Sucursales", icon: <FaBuilding />, href: "/dashboard/sucursales" },
-        { name: "Clientes", icon: <FaBuilding />, href: "/dashboard/Clientes" },
+        { name: "Clientes", icon: <FaBuilding />, href: "/dashboard/clientes" },
       ],
       menuKey: "admin",
     });
