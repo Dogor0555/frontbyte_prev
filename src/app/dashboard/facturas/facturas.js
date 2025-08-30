@@ -273,18 +273,6 @@ export default function FacturasView() {
 
                   {/* Cuerpo de factura */}
                   <div className="p-5">
-                    {/* Información adicional del estado */}
-                    <div className="mb-3 p-2 bg-gray-50 rounded-lg">
-                      <div className="text-xs text-gray-600">
-                        <strong>Estado:</strong> {factura.estado || 'No definido'}
-                      </div>
-                      {factura.fechaemision && (
-                        <div className="text-xs text-gray-600 mt-1">
-                          <strong>Emitida:</strong> {formatDate(factura.fechaemision)}
-                        </div>
-                      )}
-                    </div>
-
                     {/* Línea de estado */}
                     <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-100">
                       <div className="flex items-center text-gray-600">
