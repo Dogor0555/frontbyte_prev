@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 export default function FacturasView() {
   const [facturas, setFacturas] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [estadoFiltro, setEstadoFiltro] = useState("")
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,16 +38,24 @@ export default function FacturasView() {
     fetchFacturas();
   }, []);
 
-  const facturasFiltradas = Array.isArray(facturas) ? facturas.filter(factura => {
-    if (!factura) return false;
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (factura.codigo?.toLowerCase() || '').includes(searchLower) ||
-      (factura.nombrentrega?.toLowerCase() || '').includes(searchLower) ||
-      (factura.numerofacturausuario?.toString() || '').includes(searchTerm) ||
-      (factura.iddtefactura?.toString() || '').includes(searchTerm)
-    );
-  }) : [];
+  
+
+  const facturasFiltradas = Array.isArray(facturas)
+    ? facturas.filter((factura) => {
+        if (!factura) return false;
+        const searchLower = searchTerm.toLowerCase();
+
+        const matchSearch =
+          (factura.codigo?.toLowerCase() || "").includes(searchLower) ||
+          (factura.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
+          (factura.numerofacturausuario?.toString() || "").includes(searchTerm) ||
+          (factura.iddtefactura?.toString() || "").includes(searchTerm);
+
+        const matchEstado = estadoFiltro ? factura.estado === estadoFiltro : true;
+
+        return matchSearch && matchEstado;
+      })
+    : [];
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -189,55 +198,71 @@ export default function FacturasView() {
     );
   }
 
+  
   return (
     <div className="flex min-h-screen bg-blue-50">
-      {/* Sidebar para desktop */}
       <div className="hidden md:block">
         <Sidebar />
       </div>
 
-      {/* Overlay para móvil */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden" onClick={toggleSidebar}></div>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+        ></div>
       )}
 
-      {/* Contenido principal */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Botón para abrir sidebar en móvil */}
         <button
-          onClick={toggleSidebar}
+          onClick={() => setSidebarOpen(!sidebarOpen)}
           className="md:hidden fixed left-2 top-2 z-10 p-2 rounded-md bg-white shadow-md text-gray-600"
         >
           ☰
         </button>
 
-        {/* Contenido con scroll */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="max-w-6xl mx-auto">
-            {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Mis Facturas</h1>
                 <p className="text-gray-600">
-                  {facturas.length} {facturas.length === 1 ? 'documento' : 'documentos'} registrados
-                  {searchTerm && (` (${facturasFiltradas.length} encontrados)`)}
+                  {facturas.length} {facturas.length === 1 ? "documento" : "documentos"} registrados
+                  {searchTerm && ` (${facturasFiltradas.length} encontrados)`}
                 </p>
               </div>
-              <div className="relative w-full md:w-64">
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar por código, cliente o número..."
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={searchTerm}
+
+              {/* 🔎 Búsqueda + Filtro por estado */}
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <div className="relative w-full md:w-64">
+                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por código, cliente o número..."
+                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+
+                <select
+                  value={estadoFiltro}
                   onChange={(e) => {
-                    setSearchTerm(e.target.value);
+                    setEstadoFiltro(e.target.value);
                     setCurrentPage(1);
                   }}
-                />
+                  className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
+                >
+                  <option value="">Todos los estados</option>
+                  <option value="ANULADO">ANULADO</option>
+                  <option value="TRANSMITIDO">TRANSMITIDO</option>
+                  <option value="RE-TRANSMITIDO">RE-TRANSMITIDO</option>
+                  <option value="CONTINGENCIA">CONTINGENCIA</option>
+                </select>
               </div>
             </div>
-
             {/* Listado en formato tarjeta-factura */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {currentItems.map((factura) => (
@@ -295,7 +320,7 @@ export default function FacturasView() {
                         <span className="text-sm font-medium">Cliente</span>
                       </div>
                       <p className="text-gray-900 font-medium truncate pl-4">
-                        {factura.nombrentrega || 'Cliente no especificado'}
+                        {factura.nombentrega || 'Cliente no especificado'}
                       </p>
                       {factura.docuentrega && (
                         <p className="text-xs text-gray-500 pl-4 mt-1">DUI: {factura.docuentrega}</p>
