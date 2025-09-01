@@ -2853,7 +2853,7 @@ export default function Clientes({ initialClientes = [], user }) {
                 <FaPlus className="mr-2" /> Agregar
               </button>
             </div>
-            {/* Búsqueda  EL ERROR ESTA AQUI */}
+            {/* Búsqueda */}
             <div className="mb-6">
               <div className="relative">
                 <input
@@ -3168,6 +3168,7 @@ export default function Clientes({ initialClientes = [], user }) {
               </div>
 
               {/* Nombre */}
+              {/* Nombre */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nombre
@@ -3175,11 +3176,18 @@ export default function Clientes({ initialClientes = [], user }) {
                 <input
                   type="text"
                   value={formData.nombre}
-                  onChange={(e) =>
-                    setFormData({ ...formData, nombre: e.target.value })
-                  }
+                  onChange={(e) => {
+                    // Filtra caracteres que no sean letras, espacios o acentos
+                    const value = e.target.value.replace(
+                      /[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g,
+                      ""
+                    );
+                    setFormData({ ...formData, nombre: value });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                   maxLength={LIMITES.NOMBRE}
+                  pattern="^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$"
+                  title="El nombre solo puede contener letras y espacios"
                   required
                 />
               </div>
@@ -3342,6 +3350,7 @@ export default function Clientes({ initialClientes = [], user }) {
                 </div>
               </div>
 
+              {/* Dirección / Complemento */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Dirección / Complemento
@@ -3349,11 +3358,18 @@ export default function Clientes({ initialClientes = [], user }) {
                 <input
                   type="text"
                   value={formData.complemento}
-                  onChange={(e) =>
-                    setFormData({ ...formData, complemento: e.target.value })
-                  }
+                  onChange={(e) => {
+                    // Filtra solo letras, números, espacios y caracteres permitidos
+                    const value = e.target.value.replace(
+                      /[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s\-\.,#]/g,
+                      ""
+                    );
+                    setFormData({ ...formData, complemento: value });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                   maxLength={LIMITES.COMPLEMENTO}
+                  pattern="^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s\-\.,#]+$"
+                  title="La dirección solo puede contener letras, números, espacios y los caracteres - , . #"
                   required
                 />
               </div>
@@ -3501,18 +3517,26 @@ export default function Clientes({ initialClientes = [], user }) {
               </div>
 
               {/* Nombre */}
+              {/* Nombre */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nombre
                 </label>
                 <input
                   type="text"
-                  value={formData.nombre || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, nombre: e.target.value })
-                  }
+                  value={formData.nombre}
+                  onChange={(e) => {
+                    // Filtra caracteres que no sean letras, espacios o acentos
+                    const value = e.target.value.replace(
+                      /[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g,
+                      ""
+                    );
+                    setFormData({ ...formData, nombre: value });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                   maxLength={LIMITES.NOMBRE}
+                  pattern="^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$"
+                  title="El nombre solo puede contener letras y espacios"
                   required
                 />
               </div>
@@ -3675,18 +3699,26 @@ export default function Clientes({ initialClientes = [], user }) {
                 </div>
               </div>
 
+              {/* Dirección / Complemento */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Dirección / Complemento
                 </label>
                 <input
                   type="text"
-                  value={formData.complemento || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, complemento: e.target.value })
-                  }
+                  value={formData.complemento}
+                  onChange={(e) => {
+                    // Filtra solo letras, números, espacios y caracteres permitidos
+                    const value = e.target.value.replace(
+                      /[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s\-\.,#]/g,
+                      ""
+                    );
+                    setFormData({ ...formData, complemento: value });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                   maxLength={LIMITES.COMPLEMENTO}
+                  pattern="^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s\-\.,#]+$"
+                  title="La dirección solo puede contener letras, números, espacios y los caracteres - , . #"
                   required
                 />
               </div>
