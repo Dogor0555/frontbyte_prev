@@ -2995,9 +2995,6 @@ export default function Clientes({ initialClientes = [], user }) {
                           <h3 className="text-lg font-medium text-gray-900">
                             {cliente.nombre}
                           </h3>
-                          <p className="text-sm text-gray-500">
-                            {cliente.nombrecomercial}
-                          </p>
                         </div>
                         <div className="flex space-x-2">
                           <button
@@ -3059,31 +3056,9 @@ export default function Clientes({ initialClientes = [], user }) {
                         </div>
                         <div className="flex justify-between">
                           <span className="font-medium text-gray-500">
-                            Correo:
-                          </span>
-                          <span>{cliente.correo}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="font-medium text-gray-500">
                             Teléfono:
                           </span>
                           <span>{cliente.telefono}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="font-medium text-gray-500">
-                            Actividad:
-                          </span>
-                          <span>
-                            {cliente.codactividad} - {cliente.descactividad}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="font-medium text-gray-500">
-                            Ubicación:
-                          </span>
-                          <span>
-                            {cliente.departamento}, {cliente.municipio}
-                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="font-medium text-gray-500">
@@ -3203,7 +3178,7 @@ export default function Clientes({ initialClientes = [], user }) {
                   onChange={(e) =>
                     setFormData({ ...formData, nombre: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                   maxLength={LIMITES.NOMBRE}
                   required
                 />
@@ -3212,7 +3187,9 @@ export default function Clientes({ initialClientes = [], user }) {
               {/* Campos de documentos */}
               {/* DUI siempre visible */}
               <div>
-                <label>DUI</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  DUI
+                </label>
                 <input
                   type="text"
                   value={formData.dui}
@@ -3222,7 +3199,7 @@ export default function Clientes({ initialClientes = [], user }) {
                       val = val.slice(0, 8) + "-" + val.slice(8, 9);
                     setFormData({ ...formData, dui: val });
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                   maxLength={10}
                   required
                 />
@@ -3232,7 +3209,9 @@ export default function Clientes({ initialClientes = [], user }) {
               {!formData.personanatural && (
                 <>
                   <div>
-                    <label>NIT</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      NIT
+                    </label>
                     <input
                       type="text"
                       value={formData.nit}
@@ -3246,24 +3225,28 @@ export default function Clientes({ initialClientes = [], user }) {
                           val = val.slice(0, 15) + "-" + val.slice(15, 16);
                         setFormData({ ...formData, nit: val });
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                       maxLength={17}
                     />
                   </div>
 
                   <div>
-                    <label>NRC</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      NRC
+                    </label>
                     <input
                       type="text"
                       value={formData.nrc}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          carnetresidente: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                      maxLength={LIMITES.NRC}
+                      onChange={(e) => {
+                        // Permitimos solo números y un guion opcional
+                        const value = e.target.value.replace(/[^0-9-]/g, "");
+                        setFormData({ ...formData, nrc: value });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                      maxLength={9} // 7 dígitos + guion + 1 dígito
+                      pattern="^(\d{6,7}|\d{6}-\d{1})$"
+                      title="El NRC debe ser de 6 o 7 dígitos, o con guion y 1 dígito verificador (ej: 123456 o 123456-7)"
+                      required={!formData.personanatural} // requerido solo para persona jurídica
                     />
                   </div>
                 </>
@@ -3271,28 +3254,35 @@ export default function Clientes({ initialClientes = [], user }) {
 
               {/* Teléfono y Correo (para ambos tipos) */}
               <div>
-                <label>Teléfono</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Teléfono
+                </label>
                 <input
                   type="text"
                   value={formData.telefono}
-                  onChange={(e) =>
-                    setFormData({ ...formData, telefono: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                  maxLength={LIMITES.TELEFONO}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, ""); // Solo números
+                    setFormData({ ...formData, telefono: value });
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  maxLength={8}
+                  pattern="^[2679]\d{7}$"
+                  title="El teléfono debe tener 8 dígitos y comenzar con 2, 6, 7 o 9"
                   required
                 />
               </div>
 
               <div>
-                <label>Correo</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Correo
+                </label>
                 <input
                   type="email"
                   value={formData.correo}
                   onChange={(e) =>
                     setFormData({ ...formData, correo: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                   maxLength={LIMITES.CORREO}
                   required
                 />
@@ -3301,7 +3291,9 @@ export default function Clientes({ initialClientes = [], user }) {
               {/* Dirección */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label>Departamento</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Departamento
+                  </label>
                   <select
                     value={formData.departamento}
                     onChange={(e) =>
@@ -3311,7 +3303,7 @@ export default function Clientes({ initialClientes = [], user }) {
                         municipio: "",
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                     required
                   >
                     <option value="">Seleccione un Departamento</option>
@@ -3324,13 +3316,15 @@ export default function Clientes({ initialClientes = [], user }) {
                 </div>
 
                 <div>
-                  <label>Municipio</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Municipio
+                  </label>
                   <select
                     value={formData.municipio}
                     onChange={(e) =>
                       setFormData({ ...formData, municipio: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                     required
                     disabled={!formData.departamento}
                   >
@@ -3349,14 +3343,16 @@ export default function Clientes({ initialClientes = [], user }) {
               </div>
 
               <div>
-                <label>Dirección / Complemento</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Dirección / Complemento
+                </label>
                 <input
                   type="text"
                   value={formData.complemento}
                   onChange={(e) =>
                     setFormData({ ...formData, complemento: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                   maxLength={LIMITES.COMPLEMENTO}
                   required
                 />
@@ -3365,7 +3361,9 @@ export default function Clientes({ initialClientes = [], user }) {
               {/* Actividad solo para Persona Jurídica */}
               {!formData.personanatural && (
                 <div>
-                  <label>Código de Actividad / Nombre</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Código de Actividad / Nombre
+                  </label>
                   <Select
                     options={codactividad.map((act) => ({
                       value: act.codigo,
@@ -3390,7 +3388,7 @@ export default function Clientes({ initialClientes = [], user }) {
                         descactividad: selected.nombre, // guardamos el nombre también
                       });
                     }}
-                    className="w-full"
+                    className="w-full text-gray-700"
                   />
                 </div>
               )}
@@ -3420,274 +3418,337 @@ export default function Clientes({ initialClientes = [], user }) {
       )}
 
       {/* Modal de Editar Cliente */}
-{showEditModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
-      <div className="flex items-center justify-between px-6 py-4 border-b">
-        <h3 className="text-lg font-medium text-gray-900">Editar Cliente</h3>
-        <button
-          onClick={() => {
-            if (hasChanges()) setShowCancelConfirmModal(true);
-            else setShowEditModal(false);
-          }}
-          className="text-gray-400 hover:text-gray-600"
-        >
-          <FaTimes className="h-5 w-5" />
-        </button>
-      </div>
-
-      <form onSubmit={handleUpdateCliente} className="px-6 py-4 space-y-4">
-        {/* Tipo de Persona */}
-        <div className="flex items-center space-x-4 mb-4">
-          <label className="text-sm font-medium text-gray-700">Tipo de Persona:</label>
-
-          <div className="flex items-center">
-            <input
-              type="radio"
-              id="naturalEdit"
-              name="tipopersonaEdit"
-              value="natural"
-              checked={formData.personanatural === true}
-              onChange={() =>
-                setFormData({
-                  ...formData,
-                  personanatural: true,
-                  // Limpiar campos de persona jurídica
-                  nit: "",
-                  carnetresidente: "",
-                  codactividad: "",
-                  descactividad: "",
-                })
-              }
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-            />
-            <label htmlFor="naturalEdit" className="ml-1 text-sm text-gray-900">
-              Natural
-            </label>
-          </div>
-
-          <div className="flex items-center">
-            <input
-              type="radio"
-              id="juridicaEdit"
-              name="tipopersonaEdit"
-              value="juridica"
-              checked={formData.personanatural === false}
-              onChange={() =>
-                setFormData({
-                  ...formData,
-                  personanatural: false,
-                  // Limpiar campos de persona natural
-                  dui: "",
-                })
-              }
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-            />
-            <label htmlFor="juridicaEdit" className="ml-1 text-sm text-gray-900">
-              Jurídica
-            </label>
-          </div>
-        </div>
-
-        {/* Nombre */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-          <input
-            type="text"
-            value={formData.nombre || ""}
-            onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-            maxLength={LIMITES.NOMBRE}
-            required
-          />
-        </div>
-
-        {/* Campos de documentos */}
-        {/* DUI siempre visible */}
-        <div>
-          <label>DUI</label>
-          <input
-            type="text"
-            value={formData.dui || ""}
-            onChange={(e) => {
-              let val = e.target.value.replace(/\D/g, "");
-              if (val.length > 8) val = val.slice(0, 8) + "-" + val.slice(8, 9);
-              setFormData({ ...formData, dui: val });
-            }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-            maxLength={10}
-            required
-          />
-        </div>
-
-        {/* Campos solo para Persona Jurídica */}
-        {!formData.personanatural && (
-          <>
-            <div>
-              <label>NIT</label>
-              <input
-                type="text"
-                value={formData.nit || ""}
-                onChange={(e) => {
-                  let val = e.target.value.replace(/\D/g, "");
-                  if (val.length > 4) val = val.slice(0, 4) + "-" + val.slice(4);
-                  if (val.length > 11) val = val.slice(0, 11) + "-" + val.slice(11);
-                  if (val.length > 15) val = val.slice(0, 15) + "-" + val.slice(15, 16);
-                  setFormData({ ...formData, nit: val });
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-lg font-medium text-gray-900">
+                Editar Cliente
+              </h3>
+              <button
+                onClick={() => {
+                  if (hasChanges()) setShowCancelConfirmModal(true);
+                  else setShowEditModal(false);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                maxLength={17}
-              />
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
             </div>
 
-            <div>
-              <label>Carnet Residente / NRC</label>
-              <input
-                type="text"
-                value={formData.carnetresidente || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, carnetresidente: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                maxLength={LIMITES.NRC}
-              />
-            </div>
-          </>
-        )}
-
-        {/* Teléfono y Correo */}
-        <div>
-          <label>Teléfono</label>
-          <input
-            type="text"
-            value={formData.telefono || ""}
-            onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-            maxLength={LIMITES.TELEFONO}
-            required
-          />
-        </div>
-
-        <div>
-          <label>Correo</label>
-          <input
-            type="email"
-            value={formData.correo || ""}
-            onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-            maxLength={LIMITES.CORREO}
-            required
-          />
-        </div>
-
-        {/* Dirección */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label>Departamento</label>
-            <select
-              value={formData.departamento || ""}
-              onChange={(e) => {
-                setFormData({ ...formData, departamento: e.target.value, municipio: "" });
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-              required
+            <form
+              onSubmit={handleUpdateCliente}
+              className="px-6 py-4 space-y-4"
             >
-              <option value="">Seleccione un Departamento</option>
-              {departamentos.map((dep) => (
-                <option key={dep.codigo} value={dep.codigo}>
-                  {dep.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+              {/* Tipo de Persona */}
+              <div className="flex items-center space-x-4 mb-4">
+                <label className="text-sm font-medium text-gray-700">
+                  Tipo de Persona:
+                </label>
 
-          <div>
-            <label>Municipio</label>
-            <select
-              value={formData.municipio || ""}
-              onChange={(e) => setFormData({ ...formData, municipio: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-              required
-              disabled={!formData.departamento}
-            >
-              <option value="">Seleccione un Municipio</option>
-              {municipios
-                .filter((mun) => mun.departamento === formData.departamento)
-                .map((mun) => (
-                  <option key={mun.codigo} value={mun.codigo}>
-                    {mun.nombre}
-                  </option>
-                ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label>Dirección / Complemento</label>
-          <input
-            type="text"
-            value={formData.complemento || ""}
-            onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-            maxLength={LIMITES.COMPLEMENTO}
-            required
-          />
-        </div>
-
-        {/* Actividad solo para Persona Jurídica */}
-        {!formData.personanatural && (
-          <div>
-            <label>Código de Actividad / Nombre</label>
-            <Select
-              options={codactividad.map((act) => ({
-                value: act.codigo,
-                label: act.codigo + " - " + act.nombre,
-                nombre: act.nombre,
-              }))}
-              value={
-                formData.codactividad
-                  ? {
-                      value: formData.codactividad,
-                      label: formData.codactividad + " - " + formData.descactividad,
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id="naturalEdit"
+                    name="tipopersonaEdit"
+                    value="natural"
+                    checked={formData.personanatural === true}
+                    onChange={() =>
+                      setFormData({
+                        ...formData,
+                        personanatural: true,
+                        // Limpiar campos de persona jurídica
+                        nit: "",
+                        carnetresidente: "",
+                        codactividad: "",
+                        descactividad: "",
+                      })
                     }
-                  : null
-              }
-              onChange={(selected) => {
-                setFormData({
-                  ...formData,
-                  codactividad: selected.value,
-                  descactividad: selected.nombre,
-                });
-              }}
-              className="w-full"
-            />
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <label
+                    htmlFor="naturalEdit"
+                    className="ml-1 text-sm text-gray-900"
+                  >
+                    Natural
+                  </label>
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id="juridicaEdit"
+                    name="tipopersonaEdit"
+                    value="juridica"
+                    checked={formData.personanatural === false}
+                    onChange={() =>
+                      setFormData({
+                        ...formData,
+                        personanatural: false,
+                        // Limpiar campos de persona natural
+                        dui: "",
+                      })
+                    }
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <label
+                    htmlFor="juridicaEdit"
+                    className="ml-1 text-sm text-gray-900"
+                  >
+                    Jurídica
+                  </label>
+                </div>
+              </div>
+
+              {/* Nombre */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre
+                </label>
+                <input
+                  type="text"
+                  value={formData.nombre || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, nombre: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  maxLength={LIMITES.NOMBRE}
+                  required
+                />
+              </div>
+
+              {/* Campos de documentos */}
+              {/* DUI siempre visible */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  DUI
+                </label>
+                <input
+                  type="text"
+                  value={formData.dui || ""}
+                  onChange={(e) => {
+                    let val = e.target.value.replace(/\D/g, "");
+                    if (val.length > 8)
+                      val = val.slice(0, 8) + "-" + val.slice(8, 9);
+                    setFormData({ ...formData, dui: val });
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  maxLength={10}
+                  required
+                />
+              </div>
+
+              {/* Campos solo para Persona Jurídica */}
+              {!formData.personanatural && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      NIT
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nit || ""}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, "");
+                        if (val.length > 4)
+                          val = val.slice(0, 4) + "-" + val.slice(4);
+                        if (val.length > 11)
+                          val = val.slice(0, 11) + "-" + val.slice(11);
+                        if (val.length > 15)
+                          val = val.slice(0, 15) + "-" + val.slice(15, 16);
+                        setFormData({ ...formData, nit: val });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                      maxLength={17}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      NRC
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nrc}
+                      onChange={(e) => {
+                        // Permitimos solo números y un guion opcional
+                        const value = e.target.value.replace(/[^0-9-]/g, "");
+                        setFormData({ ...formData, nrc: value });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                      maxLength={9} // 7 dígitos + guion + 1 dígito
+                      pattern="^(\d{6,7}|\d{6}-\d{1})$"
+                      title="El NRC debe ser de 6 o 7 dígitos, o con guion y 1 dígito verificador (ej: 123456 o 123456-7)"
+                      required={!formData.personanatural} // requerido solo para persona jurídica
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Teléfono y Correo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Teléfono
+                </label>
+                <input
+                  type="text"
+                  value={formData.telefono}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, ""); // Solo números
+                    setFormData({ ...formData, telefono: value });
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  maxLength={8}
+                  pattern="^[2679]\d{7}$"
+                  title="El teléfono debe tener 8 dígitos y comenzar con 2, 6, 7 o 9"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Correo
+                </label>
+                <input
+                  type="email"
+                  value={formData.correo || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, correo: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  maxLength={LIMITES.CORREO}
+                  required
+                />
+              </div>
+
+              {/* Dirección */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Departamento
+                  </label>
+                  <select
+                    value={formData.departamento || ""}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        departamento: e.target.value,
+                        municipio: "",
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                    required
+                  >
+                    <option value="">Seleccione un Departamento</option>
+                    {departamentos.map((dep) => (
+                      <option key={dep.codigo} value={dep.codigo}>
+                        {dep.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Municipio
+                  </label>
+                  <select
+                    value={formData.municipio || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, municipio: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                    required
+                    disabled={!formData.departamento}
+                  >
+                    <option value="">Seleccione un Municipio</option>
+                    {municipios
+                      .filter(
+                        (mun) => mun.departamento === formData.departamento
+                      )
+                      .map((mun) => (
+                        <option key={mun.codigo} value={mun.codigo}>
+                          {mun.nombre}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Dirección / Complemento
+                </label>
+                <input
+                  type="text"
+                  value={formData.complemento || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, complemento: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  maxLength={LIMITES.COMPLEMENTO}
+                  required
+                />
+              </div>
+
+              {/* Actividad solo para Persona Jurídica */}
+              {!formData.personanatural && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Código de Actividad / Nombre
+                  </label>
+                  <Select
+                    options={codactividad.map((act) => ({
+                      value: act.codigo,
+                      label: act.codigo + " - " + act.nombre,
+                      nombre: act.nombre,
+                    }))}
+                    value={
+                      formData.codactividad
+                        ? {
+                            value: formData.codactividad,
+                            label:
+                              formData.codactividad +
+                              " - " +
+                              formData.descactividad,
+                          }
+                        : null
+                    }
+                    onChange={(selected) => {
+                      setFormData({
+                        ...formData,
+                        codactividad: selected.value,
+                        descactividad: selected.nombre,
+                      });
+                    }}
+                    className="w-full text-gray-700"
+                  />
+                </div>
+              )}
+
+              {/* Botones */}
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (hasChanges()) setShowCancelConfirmModal(true);
+                    else setShowEditModal(false);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                >
+                  Actualizar
+                </button>
+              </div>
+            </form>
           </div>
-        )}
-
-        {/* Botones */}
-        <div className="flex justify-end space-x-3 pt-4">
-          <button
-            type="button"
-            onClick={() => {
-              if (hasChanges()) setShowCancelConfirmModal(true);
-              else setShowEditModal(false);
-            }}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-          >
-            Actualizar
-          </button>
         </div>
-      </form>
-    </div>
-  </div>
-)}
-
+      )}
 
       {/* Modal de Confirmación de Eliminación */}
       {showDeleteConfirmModal && (
