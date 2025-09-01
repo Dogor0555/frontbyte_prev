@@ -2890,7 +2890,7 @@ export default function Clientes({ initialClientes = [], user }) {
                         Teléfono
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Estado
+                        Correo
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Acciones
@@ -2923,51 +2923,21 @@ export default function Clientes({ initialClientes = [], user }) {
                             {cliente.telefono}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <span
-                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                cliente.estado
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {cliente.estado ? "Activo" : "Inactivo"}
-                            </span>
+                            {cliente.correo}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex space-x-2">
                             <button
                               onClick={() => handleEditClick(cliente)}
-                              className="text-blue-600 hover:text-blue-800 mr-2"
+                              className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-colors"
                               aria-label="Editar"
                             >
                               <FaEdit />
                             </button>
                             <button
                               onClick={() =>
-                                handleToggleEstado(
-                                  cliente.idcliente,
-                                  !cliente.estado
-                                )
-                              }
-                              className={`mr-2 ${
-                                cliente.estado
-                                  ? "text-red-600 hover:text-red-800"
-                                  : "text-green-600 hover:text-green-800"
-                              }`}
-                              aria-label={
-                                cliente.estado ? "Desactivar" : "Activar"
-                              }
-                            >
-                              {cliente.estado ? (
-                                <FaToggleOff />
-                              ) : (
-                                <FaToggleOn />
-                              )}
-                            </button>
-                            <button
-                              onClick={() =>
                                 handleDeleteClick(cliente.idcliente)
                               }
-                              className="text-red-600 hover:text-red-800"
+                              className="flex items-center justify-center w-8 h-8 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-colors"
                               aria-label="Eliminar"
                             >
                               <FaTrash />
@@ -2990,41 +2960,29 @@ export default function Clientes({ initialClientes = [], user }) {
                       key={cliente.idcliente}
                       className="bg-white rounded-lg border border-gray-200 shadow-sm p-4"
                     >
+                      {/* Encabezado con nombre y botones */}
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="text-lg font-medium text-gray-900">
                             {cliente.nombre}
                           </h3>
+                          {cliente.nombrecomercial && (
+                            <p className="text-sm text-gray-500">
+                              {cliente.nombrecomercial}
+                            </p>
+                          )}
                         </div>
                         <div className="flex space-x-2">
                           <button
                             onClick={() => handleEditClick(cliente)}
-                            className="text-blue-600 hover:text-blue-800"
+                            className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-colors"
                             aria-label="Editar"
                           >
                             <FaEdit />
                           </button>
                           <button
-                            onClick={() =>
-                              handleToggleEstado(
-                                cliente.idcliente,
-                                !cliente.estado
-                              )
-                            }
-                            className={
-                              cliente.estado
-                                ? "text-red-600 hover:text-red-800"
-                                : "text-green-600 hover:text-green-800"
-                            }
-                            aria-label={
-                              cliente.estado ? "Desactivar" : "Activar"
-                            }
-                          >
-                            {cliente.estado ? <FaToggleOff /> : <FaToggleOn />}
-                          </button>
-                          <button
                             onClick={() => handleDeleteClick(cliente.idcliente)}
-                            className="text-red-600 hover:text-red-800"
+                            className="flex items-center justify-center w-8 h-8 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-colors"
                             aria-label="Eliminar"
                           >
                             <FaTrash />
@@ -3032,6 +2990,7 @@ export default function Clientes({ initialClientes = [], user }) {
                         </div>
                       </div>
 
+                      {/* Información detallada */}
                       <div className="mt-4 space-y-2 text-sm text-gray-900">
                         <div className="flex justify-between">
                           <span className="font-medium text-gray-500">
@@ -3062,17 +3021,9 @@ export default function Clientes({ initialClientes = [], user }) {
                         </div>
                         <div className="flex justify-between">
                           <span className="font-medium text-gray-500">
-                            Estado:
+                            Correo:
                           </span>
-                          <span
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              cliente.estado
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {cliente.estado ? "Activo" : "Inactivo"}
-                          </span>
+                          <span>{cliente.correo}</span>
                         </div>
                       </div>
                     </div>
@@ -3457,66 +3408,15 @@ export default function Clientes({ initialClientes = [], user }) {
               className="px-6 py-4 space-y-4"
             >
               {/* Tipo de Persona */}
-              <div className="flex items-center space-x-4 mb-4">
-                <label className="text-sm font-medium text-gray-700">
-                  Tipo de Persona:
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
+                  Tipo de Persona
                 </label>
-
-                <div className="flex items-center">
-                  <input
-                    type="radio"
-                    id="naturalEdit"
-                    name="tipopersonaEdit"
-                    value="natural"
-                    checked={formData.personanatural === true}
-                    onChange={() =>
-                      setFormData({
-                        ...formData,
-                        personanatural: true,
-                        // Limpiar campos de persona jurídica
-                        nit: "",
-                        carnetresidente: "",
-                        codactividad: "",
-                        descactividad: "",
-                      })
-                    }
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <label
-                    htmlFor="naturalEdit"
-                    className="ml-1 text-sm text-gray-900"
-                  >
-                    Natural
-                  </label>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="radio"
-                    id="juridicaEdit"
-                    name="tipopersonaEdit"
-                    value="juridica"
-                    checked={formData.personanatural === false}
-                    onChange={() =>
-                      setFormData({
-                        ...formData,
-                        personanatural: false,
-                        // Limpiar campos de persona natural
-                        dui: "",
-                      })
-                    }
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <label
-                    htmlFor="juridicaEdit"
-                    className="ml-1 text-sm text-gray-900"
-                  >
-                    Jurídica
-                  </label>
-                </div>
+                <span className="text-gray-900 font-medium">
+                  {formData.personanatural ? "Natural" : "Jurídica"}
+                </span>
               </div>
 
-              {/* Nombre */}
               {/* Nombre */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -3526,7 +3426,6 @@ export default function Clientes({ initialClientes = [], user }) {
                   type="text"
                   value={formData.nombre}
                   onChange={(e) => {
-                    // Filtra caracteres que no sean letras, espacios o acentos
                     const value = e.target.value.replace(
                       /[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g,
                       ""
@@ -3535,36 +3434,36 @@ export default function Clientes({ initialClientes = [], user }) {
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                   maxLength={LIMITES.NOMBRE}
-                  pattern="^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$"
-                  title="El nombre solo puede contener letras y espacios"
                   required
                 />
               </div>
 
-              {/* Campos de documentos */}
-              {/* DUI siempre visible */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  DUI
-                </label>
-                <input
-                  type="text"
-                  value={formData.dui || ""}
-                  onChange={(e) => {
-                    let val = e.target.value.replace(/\D/g, "");
-                    if (val.length > 8)
-                      val = val.slice(0, 8) + "-" + val.slice(8, 9);
-                    setFormData({ ...formData, dui: val });
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
-                  maxLength={10}
-                  required
-                />
-              </div>
-
-              {/* Campos solo para Persona Jurídica */}
-              {!formData.personanatural && (
+              {/* Campos dinámicos según tipo de persona */}
+              {formData.personanatural ? (
                 <>
+                  {/* Persona Natural */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      DUI
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.dui || ""}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, "");
+                        if (val.length > 8)
+                          val = val.slice(0, 8) + "-" + val.slice(8, 9);
+                        setFormData({ ...formData, dui: val });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                      maxLength={10}
+                      required
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Persona Jurídica */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       NIT
@@ -3584,6 +3483,7 @@ export default function Clientes({ initialClientes = [], user }) {
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                       maxLength={17}
+                      required
                     />
                   </div>
 
@@ -3593,23 +3493,53 @@ export default function Clientes({ initialClientes = [], user }) {
                     </label>
                     <input
                       type="text"
-                      value={formData.nrc}
+                      value={formData.nrc || ""}
                       onChange={(e) => {
-                        // Permitimos solo números y un guion opcional
                         const value = e.target.value.replace(/[^0-9-]/g, "");
                         setFormData({ ...formData, nrc: value });
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
-                      maxLength={9} // 7 dígitos + guion + 1 dígito
+                      maxLength={9}
                       pattern="^(\d{6,7}|\d{6}-\d{1})$"
-                      title="El NRC debe ser de 6 o 7 dígitos, o con guion y 1 dígito verificador (ej: 123456 o 123456-7)"
-                      required={!formData.personanatural} // requerido solo para persona jurídica
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Código de Actividad / Nombre
+                    </label>
+                    <Select
+                      options={codactividad.map((act) => ({
+                        value: act.codigo,
+                        label: act.codigo + " - " + act.nombre,
+                        nombre: act.nombre,
+                      }))}
+                      value={
+                        formData.codactividad
+                          ? {
+                              value: formData.codactividad,
+                              label:
+                                formData.codactividad +
+                                " - " +
+                                formData.descactividad,
+                            }
+                          : null
+                      }
+                      onChange={(selected) => {
+                        setFormData({
+                          ...formData,
+                          codactividad: selected.value,
+                          descactividad: selected.nombre,
+                        });
+                      }}
+                      className="w-full text-gray-700"
                     />
                   </div>
                 </>
               )}
 
-              {/* Teléfono y Correo */}
+              {/* Teléfono */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Teléfono
@@ -3618,17 +3548,16 @@ export default function Clientes({ initialClientes = [], user }) {
                   type="text"
                   value={formData.telefono}
                   onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, ""); // Solo números
+                    const value = e.target.value.replace(/\D/g, "");
                     setFormData({ ...formData, telefono: value });
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                   maxLength={8}
-                  pattern="^[2679]\d{7}$"
-                  title="El teléfono debe tener 8 dígitos y comenzar con 2, 6, 7 o 9"
                   required
                 />
               </div>
 
+              {/* Correo */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Correo
@@ -3699,7 +3628,6 @@ export default function Clientes({ initialClientes = [], user }) {
                 </div>
               </div>
 
-              {/* Dirección / Complemento */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Dirección / Complemento
@@ -3708,7 +3636,6 @@ export default function Clientes({ initialClientes = [], user }) {
                   type="text"
                   value={formData.complemento}
                   onChange={(e) => {
-                    // Filtra solo letras, números, espacios y caracteres permitidos
                     const value = e.target.value.replace(
                       /[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s\-\.,#]/g,
                       ""
@@ -3717,46 +3644,9 @@ export default function Clientes({ initialClientes = [], user }) {
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
                   maxLength={LIMITES.COMPLEMENTO}
-                  pattern="^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s\-\.,#]+$"
-                  title="La dirección solo puede contener letras, números, espacios y los caracteres - , . #"
                   required
                 />
               </div>
-
-              {/* Actividad solo para Persona Jurídica */}
-              {!formData.personanatural && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Código de Actividad / Nombre
-                  </label>
-                  <Select
-                    options={codactividad.map((act) => ({
-                      value: act.codigo,
-                      label: act.codigo + " - " + act.nombre,
-                      nombre: act.nombre,
-                    }))}
-                    value={
-                      formData.codactividad
-                        ? {
-                            value: formData.codactividad,
-                            label:
-                              formData.codactividad +
-                              " - " +
-                              formData.descactividad,
-                          }
-                        : null
-                    }
-                    onChange={(selected) => {
-                      setFormData({
-                        ...formData,
-                        codactividad: selected.value,
-                        descactividad: selected.nombre,
-                      });
-                    }}
-                    className="w-full text-gray-700"
-                  />
-                </div>
-              )}
 
               {/* Botones */}
               <div className="flex justify-end space-x-3 pt-4">
