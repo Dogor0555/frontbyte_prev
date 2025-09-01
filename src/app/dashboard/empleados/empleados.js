@@ -21,6 +21,10 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import { useRouter } from "next/navigation";
 
+// Base de API (igual que en perfilEmpleado.js)
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3000"
+
+
 export default function Empleados({ initialEmpleados = [], user }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -40,6 +44,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminProfile, setAdminProfile] = useState(null); // perfil con sucursal
 
   // Límites de caracteres para cada campo
   const LIMITES = {
@@ -60,6 +65,20 @@ export default function Empleados({ initialEmpleados = [], user }) {
     rol: "",
     estado: true,
   });
+
+
+  // Cuando se abre el modal y ya tenemos la sucursal del admin, precargar idsucursal
+  useEffect(() => {
+    if (showAddModal && adminProfile?.sucursal?.idsucursal) {
+      setFormData((prev) => ({
+        ...prev,
+        idsucursal: String(adminProfile.sucursal.idsucursal),
+      }));
+    }
+  }, [showAddModal, adminProfile]);
+
+
+
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -144,7 +163,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
       return false;
     }
     if (!formData.idsucursal) {
-      setErrorMessage("La sucursal es obligatoria.");
+      setErrorMessage("No se pudo determinar tu sucursal. Recarga la página e inténtalo de nuevo.");
       return false;
     }
     return true;
@@ -189,6 +208,34 @@ export default function Empleados({ initialEmpleados = [], user }) {
     };
   }, []);
 
+
+  // Cargar el perfil (incluye sucursal) para saber a qué sucursal pertenece el admin
+  useEffect(() => {
+    let cancel = false;
+    async function loadProfile() {
+      try {
+        const res = await fetch(`${API_BASE}/perfil`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json", Cookie: document.cookie },
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const body = await res.json();
+        if (cancel) return;
+        setAdminProfile(body);
+        setIsAdmin(String(body?.rol ?? "").toLowerCase() === "admin");
+      } catch (e) {
+        console.error("Error al cargar el perfil:", e);
+      }
+    }
+    loadProfile();
+    return () => { cancel = true; };
+  }, []);
+
+
+
+
+
   useEffect(() => {
     setEmpleados(initialEmpleados || []);
     setFilteredEmpleados(initialEmpleados || []);
@@ -198,16 +245,16 @@ export default function Empleados({ initialEmpleados = [], user }) {
     const results =
       empleados && Array.isArray(empleados)
         ? empleados.filter(
-            (empleado) =>
-              empleado.idempleado.toString().includes(searchTerm) ||
-              empleado.numerodocumento
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-              empleado.nombre
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-              empleado.correo.toLowerCase().includes(searchTerm.toLowerCase())
-          )
+          (empleado) =>
+            empleado.idempleado.toString().includes(searchTerm) ||
+            empleado.numerodocumento
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            empleado.nombre
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            empleado.correo.toLowerCase().includes(searchTerm.toLowerCase())
+        )
         : [];
     setFilteredEmpleados(results);
   }, [searchTerm, empleados]);
@@ -344,33 +391,68 @@ export default function Empleados({ initialEmpleados = [], user }) {
   };
 
   const handleToggleEstado = async (empleadoId, nuevoEstado) => {
+    // 1) Buscar el empleado actual en memoria para armar el payload completo
+    const emp = empleados.find((e) => e.idempleado === empleadoId);
+    if (!emp) return;
+
+    const payload = {
+      // Enviar los mismos campos que envía el modal, solo cambiando el estado.
+      nombre: emp.nombre,
+      tipodocumento: emp.tipodocumento,
+      numerodocumento: emp.numerodocumento,
+      correo: emp.correo,
+      idsucursal: emp.idsucursal,
+      rol: emp.rol,
+      estado: nuevoEstado,
+    };
+
+    // 2) Actualización optimista
+    const prevEmpleados = empleados;
+    const prevFiltrados = filteredEmpleados;
+
+    const applyLocal = (list) =>
+      list.map((e) =>
+        e.idempleado === empleadoId ? { ...e, estado: nuevoEstado } : e
+      );
+
+    setEmpleados((list) => applyLocal(list));
+    setFilteredEmpleados((list) => applyLocal(list));
+
     try {
       const response = await fetch(
-        `http://localhost:3000/empleados/toggle-estado/${empleadoId}`,
+        `${API_BASE}/empleados/update/${empleadoId}`,
         {
-          method: "PATCH",
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Cookie: document.cookie,
           },
           credentials: "include",
-          body: JSON.stringify({ estado: nuevoEstado }),
+          body: JSON.stringify(payload),
         }
       );
 
       if (!response.ok) {
+        // Revertir si falla
+        setEmpleados(prevEmpleados);
+        setFilteredEmpleados(prevFiltrados);
         setErrorMessage("Error al cambiar el estado del empleado.");
         setShowErrorModal(true);
         return;
       }
 
-      fetchEmpleados();
+      // (Opcional) refrescar desde servidor si quieres asegurar consistencia:
+      // await fetchEmpleados();
     } catch (error) {
       console.error("Error al cambiar el estado del empleado:", error);
+      // Revertir si falla
+      setEmpleados(prevEmpleados);
+      setFilteredEmpleados(prevFiltrados);
       setErrorMessage("Error al cambiar el estado del empleado.");
       setShowErrorModal(true);
     }
   };
+
 
   const handleDeleteEmpleado = async (empleadoId) => {
     try {
@@ -491,9 +573,8 @@ export default function Empleados({ initialEmpleados = [], user }) {
 
       <div className="flex flex-1 h-full">
         <div
-          className={`md:static fixed z-40 h-full transition-all duration-300 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}
+          className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            } ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}
         >
           <Sidebar />
         </div>
@@ -609,11 +690,10 @@ export default function Empleados({ initialEmpleados = [], user }) {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <span
-                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                empleado.estado
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${empleado.estado
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                                }`}
                             >
                               {empleado.estado ? "Activo" : "Inactivo"}
                             </span>
@@ -640,19 +720,18 @@ export default function Empleados({ initialEmpleados = [], user }) {
                                   !empleado.estado
                                 )
                               }
-                              className={`mr-2 ${
-                                empleado.estado
-                                  ? "text-red-600 hover:text-red-800"
-                                  : "text-green-600 hover:text-green-800"
-                              }`}
+                              className={`mr-2 ${empleado.estado
+                                ? "text-green-600 hover:text-green-800"
+                                : "text-red-600 hover:text-red-800"
+                                }`}
                               aria-label={
                                 empleado.estado ? "Desactivar" : "Activar"
                               }
                             >
                               {empleado.estado ? (
-                                <FaToggleOff />
-                              ) : (
                                 <FaToggleOn />
+                              ) : (
+                                <FaToggleOff />
                               )}
                             </button>
                             <button
@@ -709,14 +788,14 @@ export default function Empleados({ initialEmpleados = [], user }) {
                             }
                             className={
                               empleado.estado
-                                ? "text-red-600 hover:text-red-800"
-                                : "text-green-600 hover:text-green-800"
+                                ? "text-green-600 hover:text-green-800"
+                                : "text-red-600 hover:text-red-800"
                             }
                             aria-label={
                               empleado.estado ? "Desactivar" : "Activar"
                             }
                           >
-                            {empleado.estado ? <FaToggleOff /> : <FaToggleOn />}
+                            {empleado.estado ? <FaToggleOn /> : <FaToggleOff />}
                           </button>
                           <button
                             onClick={() =>
@@ -761,11 +840,10 @@ export default function Empleados({ initialEmpleados = [], user }) {
                             Estado:
                           </span>
                           <span
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              empleado.estado
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${empleado.estado
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                              }`}
                           >
                             {empleado.estado ? "Activo" : "Inactivo"}
                           </span>
@@ -816,7 +894,7 @@ export default function Empleados({ initialEmpleados = [], user }) {
                   onChange={(e) =>
                     setFormData({ ...formData, nombre: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="text-gray-800 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                   maxLength={LIMITES.NOMBRE}
                   required
                 />
@@ -833,24 +911,27 @@ export default function Empleados({ initialEmpleados = [], user }) {
                   <select
                     value={formData.tipodocumento}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        tipodocumento: e.target.value,
-                      })
+                      setFormData({ ...formData, tipodocumento: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                     required
+                    style={{ color: formData.tipodocumento ? '#111827' : '#4b5563' }} // gris-600 cuando está "Seleccionar"
                   >
-                    <option value="">Seleccionar</option>
+                    <option value="" disabled className="text-gray-600">
+                      Seleccionar
+                    </option>
                     {tiposDocumento.map((tipo) => (
                       <option key={tipo.codigo} value={tipo.codigo}>
                         {tipo.nombre}
                       </option>
                     ))}
                   </select>
+
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    className="block text-sm font-medium text-gray-900 mb-0.5 whitespace-nowrap"
+                  >
                     Número de Documento
                   </label>
                   <input
@@ -862,13 +943,13 @@ export default function Empleados({ initialEmpleados = [], user }) {
                         numerodocumento: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="Ingrese el número de documento"
+                    className="text-gray-900 w-full px-3 py-2 border border-gray-400 rounded-md placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     maxLength={LIMITES.NUMERODOCUMENTO}
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    {formData.numerodocumento.length}/{LIMITES.NUMERODOCUMENTO}{" "}
-                    caracteres
+                    {formData.numerodocumento.length}/{LIMITES.NUMERODOCUMENTO} caracteres
                   </p>
                 </div>
               </div>
@@ -926,35 +1007,46 @@ export default function Empleados({ initialEmpleados = [], user }) {
                 </label>
                 <select
                   value={formData.rol}
-                  onChange={(e) =>
-                    setFormData({ ...formData, rol: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
+                  style={{ color: formData.rol ? '#111827' : '#4b5563' }} // gris-600 cuando está "Seleccionar"
                 >
-                  <option value="">Seleccionar</option>
+                  <option value="" disabled className="text-gray-600">
+                    Seleccionar
+                  </option>
                   {roles.map((rol) => (
                     <option key={rol} value={rol}>
                       {rol}
                     </option>
                   ))}
                 </select>
+
               </div>
+
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Sucursal
                 </label>
+                {/* Campo visible solo lectura con nombre + ID */}
                 <input
-                  type="number"
-                  value={formData.idsucursal}
-                  onChange={(e) =>
-                    setFormData({ ...formData, idsucursal: e.target.value })
+                  type="text"
+                  value={
+                    adminProfile?.sucursal
+                      ? `${adminProfile.sucursal.nombre} (ID ${adminProfile.sucursal.idsucursal})`
+                      : "Cargando sucursal..."
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  required
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-md text-gray-600"
                 />
+                {/* Valor real que se enviará en el POST */}
+                <input type="hidden" value={formData.idsucursal} />
+                <p className="text-xs text-gray-500 mt-1">
+                  La nueva cuenta se creará en tu misma sucursal.
+                </p>
               </div>
+
 
               <div className="flex items-center">
                 <input
@@ -1052,21 +1144,22 @@ export default function Empleados({ initialEmpleados = [], user }) {
                   <select
                     value={formData.tipodocumento}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        tipodocumento: e.target.value,
-                      })
+                      setFormData({ ...formData, tipodocumento: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                     required
+                    style={{ color: formData.tipodocumento ? '#111827' : '#4b5563' }}
                   >
-                    <option value="">Seleccionar</option>
+                    <option value="" disabled className="text-gray-600">
+                      Seleccionar
+                    </option>
                     {tiposDocumento.map((tipo) => (
                       <option key={tipo.codigo} value={tipo.codigo}>
                         {tipo.nombre}
                       </option>
                     ))}
                   </select>
+
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1138,42 +1231,55 @@ export default function Empleados({ initialEmpleados = [], user }) {
                   Mínimo 6 caracteres
                 </p>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Rol
                 </label>
                 <select
                   value={formData.rol}
-                  onChange={(e) =>
-                    setFormData({ ...formData, rol: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
+                  style={{ color: formData.rol ? '#111827' : '#4b5563' }}
                 >
-                  <option value="">Seleccionar</option>
+                  <option value="" disabled className="text-gray-600">
+                    Seleccionar
+                  </option>
                   {roles.map((rol) => (
                     <option key={rol} value={rol}>
                       {rol}
                     </option>
                   ))}
                 </select>
+
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Sucursal
                 </label>
+
+                {/* Visible solo lectura: muestra la sucursal del empleado */}
                 <input
-                  type="number"
-                  value={formData.idsucursal}
-                  onChange={(e) =>
-                    setFormData({ ...formData, idsucursal: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  required
+                  type="text"
+                  value={`ID ${formData.idsucursal}`}   // Si querés y tenés el nombre, podés usar: `${formData.sucursal?.nombre} (ID ${formData.idsucursal})`
+                  readOnly
+                  className="
+                  w-full px-3 py-2
+                  border border-gray-200 bg-gray-50
+                  rounded-md
+                  text-gray-600                       
+                  cursor-not-allowed
+                  "
                 />
+
+                {/* Mantener el valor en el estado para el submit (no editable) */}
+                <input type="hidden" value={formData.idsucursal} />
+                <p className="text-xs text-gray-500 mt-1">
+                  Campo de solo lectura.
+                </p>
               </div>
+
 
               <div className="flex items-center">
                 <input
