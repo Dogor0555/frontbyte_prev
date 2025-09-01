@@ -19,11 +19,11 @@ export default async function Produc() {
 
   // Si el usuario no está autenticado, redirigir al login
   if (!user) {
-    redirect("/auth/login");
+    redirect("/auth/login"); 
   }
 
   // Verificar el rol del usuario y redirigir si no es admin
-  if (!isAdmin(user)) {
+  if (user.rol !== 'admin') {
     redirect("/unauthorized");
   }
 

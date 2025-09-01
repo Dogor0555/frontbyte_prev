@@ -99,7 +99,7 @@ export default function Productos({ initialProductos = [], user }) {
     };
 
     const validateStock = (value) => {
-        return !isNaN(value) && Number(value) >= 0;
+        return !isNaN(value);
     };
 
     const validateNombre = (nombre) => {
@@ -582,119 +582,119 @@ export default function Productos({ initialProductos = [], user }) {
                             </div>
                         </div>
 
-                    <div className="hidden md:block">
-                        <div className="overflow-x-auto rounded-lg shadow">
-                            <table className="min-w-full bg-white border border-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Oferta</th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.slice(0, 10).map((producto) => (
-                                        <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.nombre}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.codigo}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                                                {getNombreUnidad(producto.unidad)}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.precio}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.preciooferta}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.stock}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                                                <div className="flex justify-center items-center space-x-2">
-                                                    <button
-                                                        onClick={() => handleEditClick(producto)}
-                                                        className="text-blue-600 hover:text-blue-800"
-                                                        aria-label="Editar"
-                                                    >
-                                                        <FaEdit />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleOpenStockModal(producto)}
-                                                        className="text-green-600 hover:text-green-800"
-                                                        aria-label="Añadir stock"
-                                                    >
-                                                        <FaBoxOpen />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteClick(producto.id)}
-                                                        className="text-red-600 hover:text-red-800"
-                                                        aria-label="Eliminar"
-                                                    >
-                                                        <FaTrash />
-                                                    </button>
-                                                </div>
-                                            </td>
+                        <div className="hidden md:block">
+                            <div className="overflow-x-auto rounded-lg shadow">
+                                <table className="min-w-full bg-white border border-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Oferta</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.slice(0, 10).map((producto) => (
+                                            <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.nombre}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.codigo}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                                                    {getNombreUnidad(producto.unidad)}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.precio}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.preciooferta}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.stock}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                                                    <div className="flex justify-center items-center space-x-2">
+                                                        <button
+                                                            onClick={() => handleEditClick(producto)}
+                                                            className="text-blue-600 hover:text-blue-800"
+                                                            aria-label="Editar"
+                                                        >
+                                                            <FaEdit />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleOpenStockModal(producto)}
+                                                            className="text-green-600 hover:text-green-800"
+                                                            aria-label="Añadir stock"
+                                                        >
+                                                            <FaBoxOpen />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteClick(producto.id)}
+                                                            className="text-red-600 hover:text-red-800"
+                                                            aria-label="Eliminar"
+                                                        >
+                                                            <FaTrash />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
 
-                        <div className="md:hidden">
-                            <div className="space-y-4">
-                                {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.slice(0, 10).map((producto) => (
-                                    <div key={producto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-                                        <div className="flex justify-between items-start">
-                                            <h3 className="text-lg font-medium text-gray-900">{producto.nombre}</h3>
-                                            <div className="flex space-x-2">
-                                                <button
-                                                    onClick={() => handleEditClick(producto)}
-                                                    className="text-blue-600 hover:text-blue-800"
-                                                    aria-label="Editar"
-                                                >
-                                                    <FaEdit />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleOpenStockModal(producto)}
-                                                    className="text-green-600 hover:text-green-800"
-                                                    aria-label="Añadir stock"
-                                                >
-                                                    <FaBoxOpen />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteClick(producto.id)}
-                                                    className="text-red-600 hover:text-red-800"
-                                                    aria-label="Eliminar"
-                                                >
-                                                    <FaTrash />
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4 space-y-2">
-                                            <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-500">Código:</span>
-                                                <span className="text-sm text-gray-900">{producto.codigo}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-500">Unidad:</span>
-                                                <span className="text-sm text-gray-900">{getNombreUnidad(producto.unidad)}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-500">Precio:</span>
-                                                <span className="text-sm text-gray-900">{producto.precio}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-500">Precio Oferta:</span>
-                                                <span className="text-sm text-gray-900">{producto.preciooferta}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-500">Stock:</span>
-                                                <span className="text-sm text-gray-900">{producto.stock}</span>
-                                            </div>
+                    <div className="md:hidden">
+                        <div className="space-y-4">
+                            {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.slice(0, 10).map((producto) => (
+                                <div key={producto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                                    <div className="flex justify-between items-start">
+                                        <h3 className="text-lg font-medium text-gray-900">{producto.nombre}</h3>
+                                        <div className="flex space-x-2">
+                                            <button
+                                                onClick={() => handleEditClick(producto)}
+                                                className="text-blue-600 hover:text-blue-800"
+                                                aria-label="Editar"
+                                            >
+                                                <FaEdit />
+                                            </button>
+                                            <button
+                                                onClick={() => handleOpenStockModal(producto)}
+                                                className="text-green-600 hover:text-green-800"
+                                                aria-label="Añadir stock"
+                                            >
+                                                <FaBoxOpen />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteClick(producto.id)}
+                                                className="text-red-600 hover:text-red-800"
+                                                aria-label="Eliminar"
+                                            >
+                                                <FaTrash />
+                                            </button>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+
+                                    <div className="mt-4 space-y-2">
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Código:</span>
+                                            <span className="text-sm text-gray-900">{producto.codigo}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Unidad:</span>
+                                            <span className="text-sm text-gray-900">{getNombreUnidad(producto.unidad)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Precio:</span>
+                                            <span className="text-sm text-gray-900">{producto.precio}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Precio Oferta:</span>
+                                            <span className="text-sm text-gray-900">{producto.preciooferta}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm font-medium text-gray-500">Stock:</span>
+                                            <span className="text-sm text-gray-900">{producto.stock}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -702,7 +702,7 @@ export default function Productos({ initialProductos = [], user }) {
                 </div>
             </div>
 
-            {showSearchResultsModal && (
+            {showSearchResultsModal && ( 
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
                         <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -877,6 +877,7 @@ export default function Productos({ initialProductos = [], user }) {
                                         onChange={handleStockChange}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
+                                        min="0"
                                     />
                                 </div>
 
