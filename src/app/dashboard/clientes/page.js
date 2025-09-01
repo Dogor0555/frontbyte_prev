@@ -15,7 +15,6 @@ export default async function ClientesPage() {
 
   // Verificar autenticación y obtener info del usuario
   const authResult = await checkAuthStatus(cookie);
-
   if (!authResult.isAuthenticated || !authResult.user) {
     redirect("/auth/login");
   }
@@ -32,6 +31,7 @@ export default async function ClientesPage() {
       method: "GET",
       headers: { Cookie: cookie },
       credentials: "include",
+      cache: "no-store", // evita caching del lado del servidor
     });
 
     if (!response.ok) {
@@ -39,20 +39,14 @@ export default async function ClientesPage() {
     }
 
     const data = await response.json();
-    clientes = data.data || []; // 👈 aquí está el fix
+    clientes = data?.data ?? []; // ← aquí saneamos el valor
   } catch (error) {
     console.error("Error al obtener los clientes:", error);
   }
 
   // Renderizar Client Component
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-        </div>
-      }
-    >
+    <Suspense fallback={<div>Cargando...</div>}>
       <Clientes initialClientes={clientes} user={authResult.user} />
     </Suspense>
   );

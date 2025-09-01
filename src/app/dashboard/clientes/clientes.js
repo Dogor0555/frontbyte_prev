@@ -30,6 +30,9 @@ export default function Clientes({ initialClientes = [], user }) {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [showSearchResultsModal, setShowSearchResultsModal] = useState(false);
+
+
   const codactividad = [
     {
       codigo: "01111",
@@ -2340,9 +2343,7 @@ export default function Clientes({ initialClientes = [], user }) {
       return false;
     }
     if (formData.nombre.length > LIMITES.NOMBRE) {
-      setErrorMessage(
-        `El nombre no puede exceder los ${LIMITES.NOMBRE} caracteres.`
-      );
+      setErrorMessage(`El nombre no puede exceder los ${LIMITES.NOMBRE} caracteres.`);
       return false;
     }
 
@@ -2352,46 +2353,7 @@ export default function Clientes({ initialClientes = [], user }) {
       return false;
     }
     if (formData.nombrecomercial.length > LIMITES.NOMBRECOMERCIAL) {
-      setErrorMessage(
-        `El nombre comercial no puede exceder los ${LIMITES.NOMBRECOMERCIAL} caracteres.`
-      );
-      return false;
-    }
-
-    // Documentos (opcionales, pero con límites y formato)
-    if (formData.dui && formData.dui.length > LIMITES.DUI) {
-      setErrorMessage(`El DUI no puede exceder los ${LIMITES.DUI} caracteres.`);
-      return false;
-    }
-    if (formData.dui && !/^[0-9-]+$/.test(formData.dui)) {
-      setErrorMessage("El DUI solo puede contener números y guiones.");
-      return false;
-    }
-
-    if (formData.pasaporte && formData.pasaporte.length > LIMITES.PASAPORTE) {
-      setErrorMessage(
-        `El pasaporte no puede exceder los ${LIMITES.PASAPORTE} caracteres.`
-      );
-      return false;
-    }
-
-    if (formData.nit && formData.nit.length > LIMITES.NIT) {
-      setErrorMessage(`El NIT no puede exceder los ${LIMITES.NIT} caracteres.`);
-      return false;
-    }
-
-    if (formData.nrc && formData.nrc.length > LIMITES.NRC) {
-      setErrorMessage(`El NRC no puede exceder los ${LIMITES.NRC} caracteres.`);
-      return false;
-    }
-
-    if (
-      formData.carnetresidente &&
-      formData.carnetresidente.length > LIMITES.CARNETRESIDENTE
-    ) {
-      setErrorMessage(
-        `El Carnet de Residente no puede exceder los ${LIMITES.CARNETRESIDENTE} caracteres.`
-      );
+      setErrorMessage(`El nombre comercial no puede exceder los ${LIMITES.NOMBRECOMERCIAL} caracteres.`);
       return false;
     }
 
@@ -2405,9 +2367,7 @@ export default function Clientes({ initialClientes = [], user }) {
       return false;
     }
     if (formData.correo.length > LIMITES.CORREO) {
-      setErrorMessage(
-        `El correo no puede exceder los ${LIMITES.CORREO} caracteres.`
-      );
+      setErrorMessage(`El correo no puede exceder los ${LIMITES.CORREO} caracteres.`);
       return false;
     }
 
@@ -2417,9 +2377,7 @@ export default function Clientes({ initialClientes = [], user }) {
       return false;
     }
     if (formData.telefono.length > LIMITES.TELEFONO) {
-      setErrorMessage(
-        `El teléfono no puede exceder los ${LIMITES.TELEFONO} caracteres.`
-      );
+      setErrorMessage(`El teléfono no puede exceder los ${LIMITES.TELEFONO} caracteres.`);
       return false;
     }
     if (!/^[0-9]+$/.test(formData.telefono)) {
@@ -2432,56 +2390,74 @@ export default function Clientes({ initialClientes = [], user }) {
       setErrorMessage("El departamento es obligatorio.");
       return false;
     }
-    if (formData.departamento.length > LIMITES.DEPARTAMENTO) {
-      setErrorMessage(
-        `El departamento no puede exceder los ${LIMITES.DEPARTAMENTO} caracteres.`
-      );
-      return false;
-    }
-
     if (!formData.municipio.trim()) {
       setErrorMessage("El municipio es obligatorio.");
       return false;
     }
-    if (formData.municipio.length > LIMITES.MUNICIPIO) {
-      setErrorMessage(
-        `El municipio no puede exceder los ${LIMITES.MUNICIPIO} caracteres.`
-      );
-      return false;
-    }
-
     if (!formData.complemento.trim()) {
       setErrorMessage("El complemento es obligatorio.");
       return false;
     }
     if (formData.complemento.length > LIMITES.COMPLEMENTO) {
-      setErrorMessage(
-        `El complemento no puede exceder los ${LIMITES.COMPLEMENTO} caracteres.`
-      );
+      setErrorMessage(`El complemento no puede exceder los ${LIMITES.COMPLEMENTO} caracteres.`);
       return false;
     }
 
-    // Actividad
-    if (!formData.codactividad.trim()) {
-      setErrorMessage("El código de actividad es obligatorio.");
-      return false;
-    }
-    if (formData.codactividad.length > LIMITES.CODACTIVIDAD) {
-      setErrorMessage(
-        `El código de actividad no puede exceder los ${LIMITES.CODACTIVIDAD} caracteres.`
-      );
-      return false;
-    }
-
-    if (!formData.descactividad.trim()) {
-      setErrorMessage("La descripción de actividad es obligatoria.");
-      return false;
-    }
-    if (formData.descactividad.length > LIMITES.DESCACTIVIDAD) {
-      setErrorMessage(
-        `La descripción de actividad no puede exceder los ${LIMITES.DESCACTIVIDAD} caracteres.`
-      );
-      return false;
+    // === Reglas condicionales por tipo de persona ===
+    if (formData.personanatural) {
+      // Natural: al menos uno de DUI/Pasaporte/Carnet Residente
+      if (
+        !formData.dui?.trim() &&
+        !formData.pasaporte?.trim() &&
+        !formData.carnetresidente?.trim()
+      ) {
+        setErrorMessage("Para persona natural, ingresa al menos uno: DUI, Pasaporte o Carnet de Residente.");
+        return false;
+      }
+      if (formData.dui) {
+        if (formData.dui.length > LIMITES.DUI) {
+          setErrorMessage(`El DUI no puede exceder los ${LIMITES.DUI} caracteres.`);
+          return false;
+        }
+        if (!/^[0-9-]+$/.test(formData.dui)) {
+          setErrorMessage("El DUI solo puede contener números y guiones.");
+          return false;
+        }
+      }
+      if (formData.pasaporte && formData.pasaporte.length > LIMITES.PASAPORTE) {
+        setErrorMessage(`El pasaporte no puede exceder los ${LIMITES.PASAPORTE} caracteres.`);
+        return false;
+      }
+    } else {
+      // Jurídica: exigir actividad y al menos uno de NIT/NRC/Carnet
+      if (!formData.codactividad.trim()) {
+        setErrorMessage("El código de actividad es obligatorio para persona jurídica.");
+        return false;
+      }
+      if (!formData.descactividad.trim()) {
+        setErrorMessage("La descripción de actividad es obligatoria para persona jurídica.");
+        return false;
+      }
+      if (
+        !formData.nit?.trim() &&
+        !formData.nrc?.trim() &&
+        !formData.carnetresidente?.trim()
+      ) {
+        setErrorMessage("Para persona jurídica, ingresa al menos uno: NIT, NRC o Carnet de Residente.");
+        return false;
+      }
+      if (formData.nit && formData.nit.length > LIMITES.NIT) {
+        setErrorMessage(`El NIT no puede exceder los ${LIMITES.NIT} caracteres.`);
+        return false;
+      }
+      if (formData.nrc && formData.nrc.length > LIMITES.NRC) {
+        setErrorMessage(`El NRC no puede exceder los ${LIMITES.NRC} caracteres.`);
+        return false;
+      }
+      if (formData.carnetresidente && formData.carnetresidente.length > LIMITES.CARNETRESIDENTE) {
+        setErrorMessage(`El Carnet de Residente no puede exceder los ${LIMITES.CARNETRESIDENTE} caracteres.`);
+        return false;
+      }
     }
 
     return true;
@@ -2567,26 +2543,26 @@ export default function Clientes({ initialClientes = [], user }) {
     const results =
       clientes && Array.isArray(clientes)
         ? clientes.filter((cliente) => {
-            const term = searchTerm.toLowerCase();
+          const term = searchTerm.toLowerCase();
 
-            const nombre = (cliente.nombre || "").toLowerCase();
-            const correo = (cliente.correo || "").toLowerCase();
-            const telefono = (cliente.telefono || "").toLowerCase();
-            const documento = (
-              (cliente.dui || "") +
-              (cliente.pasaporte || "") +
-              (cliente.nit || "") +
-              (cliente.nrc || "") +
-              (cliente.carnetresidente || "")
-            ).toLowerCase();
+          const nombre = (cliente.nombre || "").toLowerCase();
+          const correo = (cliente.correo || "").toLowerCase();
+          const telefono = (cliente.telefono || "").toLowerCase();
+          const documento = (
+            (cliente.dui || "") +
+            (cliente.pasaporte || "") +
+            (cliente.nit || "") +
+            (cliente.nrc || "") +
+            (cliente.carnetresidente || "")
+          ).toLowerCase();
 
-            return (
-              nombre.includes(term) ||
-              correo.includes(term) ||
-              telefono.includes(term) ||
-              documento.includes(term)
-            );
-          })
+          return (
+            nombre.includes(term) ||
+            correo.includes(term) ||
+            telefono.includes(term) ||
+            documento.includes(term)
+          );
+        })
         : [];
 
     setFilteredClientes(results);
@@ -2616,10 +2592,25 @@ export default function Clientes({ initialClientes = [], user }) {
       console.log("data---", data);
 
       // 👇 aquí cambiamos clientes → data
-      setClientes(data.data || []);
-      setFilteredClientes(data.data || []);
+      setClientes(data?.data ?? []);
+      setFilteredClientes(data?.data ?? []);
     } catch (error) {
       console.error("Error al obtener los clientes:", error);
+    }
+  };
+
+  // Determina tipodocumento para cumplir con el backend
+  const computeTipoDocumento = (fd) => {
+    if (fd.personanatural) {
+      if (fd.dui) return "DUI";
+      if (fd.pasaporte) return "Pasaporte";
+      if (fd.carnetresidente) return "Carnet de Residente";
+      return "Otro";
+    } else {
+      if (fd.nit) return "NIT";
+      if (fd.nrc) return "NRC";
+      if (fd.carnetresidente) return "Carnet de Residente";
+      return "Otro";
     }
   };
 
@@ -2631,6 +2622,12 @@ export default function Clientes({ initialClientes = [], user }) {
     }
 
     try {
+      const payload = {
+        ...formData,
+        tipodocumento: computeTipoDocumento(formData),
+        idusuario: user?.id,
+      };
+
       const response = await fetch("http://localhost:3000/clientes/addCli", {
         method: "POST",
         headers: {
@@ -2638,7 +2635,7 @@ export default function Clientes({ initialClientes = [], user }) {
           Cookie: document.cookie,
         },
         credentials: "include",
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -2802,9 +2799,8 @@ export default function Clientes({ initialClientes = [], user }) {
 
       <div className="flex flex-1 h-full">
         <div
-          className={`md:static fixed z-40 h-full transition-all duration-300 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}
+          className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            } ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}
         >
           <Sidebar />
         </div>
@@ -2814,7 +2810,7 @@ export default function Clientes({ initialClientes = [], user }) {
             <div className="flex items-center justify-between h-16 px-4 md:px-6">
               <div className="flex items-center">
                 <button
-                  className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none"
+                  className="md:hidden p-2 rounded-md text-gray-900 hover:bg-gray-100 focus:outline-none"
                   onClick={toggleSidebar}
                   aria-label={sidebarOpen ? "Cerrar menú" : "Abrir menú"}
                 >
@@ -2865,7 +2861,7 @@ export default function Clientes({ initialClientes = [], user }) {
                 />
                 <button
                   onClick={handleSearch}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-3 text-gray-900 hover:text-gray-900"
                 >
                   <FaSearch />
                 </button>
@@ -2877,22 +2873,22 @@ export default function Clientes({ initialClientes = [], user }) {
                 <table className="min-w-full bg-white border border-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                         Nombre
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                         Tipo de Persona
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                         Documento
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                         Teléfono
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                         Estado
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
                         Acciones
                       </th>
                     </tr>
@@ -2924,11 +2920,10 @@ export default function Clientes({ initialClientes = [], user }) {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <span
-                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                cliente.estado
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${cliente.estado
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                                }`}
                             >
                               {cliente.estado ? "Activo" : "Inactivo"}
                             </span>
@@ -2948,11 +2943,10 @@ export default function Clientes({ initialClientes = [], user }) {
                                   !cliente.estado
                                 )
                               }
-                              className={`mr-2 ${
-                                cliente.estado
-                                  ? "text-red-600 hover:text-red-800"
-                                  : "text-green-600 hover:text-green-800"
-                              }`}
+                              className={`mr-2 ${cliente.estado
+                                ? "text-red-600 hover:text-red-800"
+                                : "text-green-600 hover:text-green-800"
+                                }`}
                               aria-label={
                                 cliente.estado ? "Desactivar" : "Activar"
                               }
@@ -2995,7 +2989,7 @@ export default function Clientes({ initialClientes = [], user }) {
                           <h3 className="text-lg font-medium text-gray-900">
                             {cliente.nombre}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-800">
                             {cliente.nombrecomercial}
                           </p>
                         </div>
@@ -3037,7 +3031,7 @@ export default function Clientes({ initialClientes = [], user }) {
 
                       <div className="mt-4 space-y-2 text-sm text-gray-900">
                         <div className="flex justify-between">
-                          <span className="font-medium text-gray-500">
+                          <span className="font-medium text-gray-800">
                             Tipo de Persona:
                           </span>
                           <span>
@@ -3045,7 +3039,7 @@ export default function Clientes({ initialClientes = [], user }) {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="font-medium text-gray-500">
+                          <span className="font-medium text-gray-800">
                             Documento:
                           </span>
                           <span>
@@ -3058,19 +3052,19 @@ export default function Clientes({ initialClientes = [], user }) {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="font-medium text-gray-500">
+                          <span className="font-medium text-gray-800">
                             Correo:
                           </span>
                           <span>{cliente.correo}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="font-medium text-gray-500">
+                          <span className="font-medium text-gray-800">
                             Teléfono:
                           </span>
                           <span>{cliente.telefono}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="font-medium text-gray-500">
+                          <span className="font-medium text-gray-800">
                             Actividad:
                           </span>
                           <span>
@@ -3078,7 +3072,7 @@ export default function Clientes({ initialClientes = [], user }) {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="font-medium text-gray-500">
+                          <span className="font-medium text-gray-800">
                             Ubicación:
                           </span>
                           <span>
@@ -3086,15 +3080,14 @@ export default function Clientes({ initialClientes = [], user }) {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="font-medium text-gray-500">
+                          <span className="font-medium text-gray-800">
                             Estado:
                           </span>
                           <span
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              cliente.estado
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${cliente.estado
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                              }`}
                           >
                             {cliente.estado ? "Activo" : "Inactivo"}
                           </span>
@@ -3122,7 +3115,7 @@ export default function Clientes({ initialClientes = [], user }) {
                   if (hasChanges()) setShowCancelConfirmModal(true);
                   else setShowAddModal(false);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-900 hover:text-gray-900"
               >
                 <FaTimes className="h-5 w-5" />
               </button>
@@ -3134,7 +3127,7 @@ export default function Clientes({ initialClientes = [], user }) {
             >
               {/* Tipo de Persona */}
               <div className="flex items-center space-x-4 mb-4">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-gray-900">
                   Tipo de Persona:
                 </label>
 
@@ -3194,7 +3187,7 @@ export default function Clientes({ initialClientes = [], user }) {
 
               {/* Nombre */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   Nombre
                 </label>
                 <input
@@ -3209,28 +3202,57 @@ export default function Clientes({ initialClientes = [], user }) {
                 />
               </div>
 
-              {/* Campos de documentos */}
-              {/* DUI siempre visible */}
+              {/* Nombre Comercial */}
               <div>
-                <label>DUI</label>
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Nombre Comercial
+                </label>
                 <input
                   type="text"
-                  value={formData.dui}
-                  onChange={(e) => {
-                    let val = e.target.value.replace(/\D/g, "");
-                    if (val.length > 8)
-                      val = val.slice(0, 8) + "-" + val.slice(8, 9);
-                    setFormData({ ...formData, dui: val });
-                  }}
+                  value={formData.nombrecomercial}
+                  onChange={(e) => setFormData({ ...formData, nombrecomercial: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                  maxLength={10}
+                  maxLength={LIMITES.NOMBRECOMERCIAL}
                   required
                 />
               </div>
 
-              {/* Campos solo para Persona Jurídica */}
-              {!formData.personanatural && (
+
+
+
+              {/* Documentos por tipo de persona */}
+              {formData.personanatural ? (
                 <>
+                  {/* DUI (opcional, solo natural) */}
+                  <div>
+                    <label>DUI</label>
+                    <input
+                      type="text"
+                      value={formData.dui}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, "");
+                        if (val.length > 8) val = val.slice(0, 8) + "-" + val.slice(8, 9);
+                        setFormData({ ...formData, dui: val });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                      maxLength={10}
+                    />
+                  </div>
+                  {/* Pasaporte (opcional, solo natural) */}
+                  <div>
+                    <label>Pasaporte</label>
+                    <input
+                      type="text"
+                      value={formData.pasaporte}
+                      onChange={(e) => setFormData({ ...formData, pasaporte: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                      maxLength={LIMITES.PASAPORTE}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* NIT (solo jurídica) */}
                   <div>
                     <label>NIT</label>
                     <input
@@ -3238,32 +3260,35 @@ export default function Clientes({ initialClientes = [], user }) {
                       value={formData.nit}
                       onChange={(e) => {
                         let val = e.target.value.replace(/\D/g, "");
-                        if (val.length > 4)
-                          val = val.slice(0, 4) + "-" + val.slice(4);
-                        if (val.length > 11)
-                          val = val.slice(0, 11) + "-" + val.slice(11);
-                        if (val.length > 15)
-                          val = val.slice(0, 15) + "-" + val.slice(15, 16);
+                        if (val.length > 4) val = val.slice(0, 4) + "-" + val.slice(4);
+                        if (val.length > 11) val = val.slice(0, 11) + "-" + val.slice(11);
+                        if (val.length > 15) val = val.slice(0, 15) + "-" + val.slice(15, 16);
                         setFormData({ ...formData, nit: val });
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
                       maxLength={17}
                     />
                   </div>
-
+                  {/* NRC (solo jurídica) */}
                   <div>
                     <label>NRC</label>
                     <input
                       type="text"
                       value={formData.nrc}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          carnetresidente: e.target.value,
-                        })
-                      }
+                      onChange={(e) => setFormData({ ...formData, nrc: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
                       maxLength={LIMITES.NRC}
+                    />
+                  </div>
+                  {/* Carnet de Residente (opcional, solo jurídica) */}
+                  <div>
+                    <label>Carnet de Residente</label>
+                    <input
+                      type="text"
+                      value={formData.carnetresidente}
+                      onChange={(e) => setFormData({ ...formData, carnetresidente: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                      maxLength={LIMITES.CARNETRESIDENTE}
                     />
                   </div>
                 </>
@@ -3375,12 +3400,12 @@ export default function Clientes({ initialClientes = [], user }) {
                     value={
                       formData.codactividad
                         ? {
-                            value: formData.codactividad,
-                            label:
-                              formData.codactividad +
-                              " - " +
-                              formData.descactividad,
-                          }
+                          value: formData.codactividad,
+                          label:
+                            formData.codactividad +
+                            " - " +
+                            formData.descactividad,
+                        }
                         : null
                     }
                     onChange={(selected) => {
@@ -3403,7 +3428,7 @@ export default function Clientes({ initialClientes = [], user }) {
                     if (hasChanges()) setShowCancelConfirmModal(true);
                     else setShowAddModal(false);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-gray-900 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
                 >
                   Cancelar
                 </button>
@@ -3420,273 +3445,303 @@ export default function Clientes({ initialClientes = [], user }) {
       )}
 
       {/* Modal de Editar Cliente */}
-{showEditModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
-      <div className="flex items-center justify-between px-6 py-4 border-b">
-        <h3 className="text-lg font-medium text-gray-900">Editar Cliente</h3>
-        <button
-          onClick={() => {
-            if (hasChanges()) setShowCancelConfirmModal(true);
-            else setShowEditModal(false);
-          }}
-          className="text-gray-400 hover:text-gray-600"
-        >
-          <FaTimes className="h-5 w-5" />
-        </button>
-      </div>
-
-      <form onSubmit={handleUpdateCliente} className="px-6 py-4 space-y-4">
-        {/* Tipo de Persona */}
-        <div className="flex items-center space-x-4 mb-4">
-          <label className="text-sm font-medium text-gray-700">Tipo de Persona:</label>
-
-          <div className="flex items-center">
-            <input
-              type="radio"
-              id="naturalEdit"
-              name="tipopersonaEdit"
-              value="natural"
-              checked={formData.personanatural === true}
-              onChange={() =>
-                setFormData({
-                  ...formData,
-                  personanatural: true,
-                  // Limpiar campos de persona jurídica
-                  nit: "",
-                  carnetresidente: "",
-                  codactividad: "",
-                  descactividad: "",
-                })
-              }
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-            />
-            <label htmlFor="naturalEdit" className="ml-1 text-sm text-gray-900">
-              Natural
-            </label>
-          </div>
-
-          <div className="flex items-center">
-            <input
-              type="radio"
-              id="juridicaEdit"
-              name="tipopersonaEdit"
-              value="juridica"
-              checked={formData.personanatural === false}
-              onChange={() =>
-                setFormData({
-                  ...formData,
-                  personanatural: false,
-                  // Limpiar campos de persona natural
-                  dui: "",
-                })
-              }
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-            />
-            <label htmlFor="juridicaEdit" className="ml-1 text-sm text-gray-900">
-              Jurídica
-            </label>
-          </div>
-        </div>
-
-        {/* Nombre */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-          <input
-            type="text"
-            value={formData.nombre || ""}
-            onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-            maxLength={LIMITES.NOMBRE}
-            required
-          />
-        </div>
-
-        {/* Campos de documentos */}
-        {/* DUI siempre visible */}
-        <div>
-          <label>DUI</label>
-          <input
-            type="text"
-            value={formData.dui || ""}
-            onChange={(e) => {
-              let val = e.target.value.replace(/\D/g, "");
-              if (val.length > 8) val = val.slice(0, 8) + "-" + val.slice(8, 9);
-              setFormData({ ...formData, dui: val });
-            }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-            maxLength={10}
-            required
-          />
-        </div>
-
-        {/* Campos solo para Persona Jurídica */}
-        {!formData.personanatural && (
-          <>
-            <div>
-              <label>NIT</label>
-              <input
-                type="text"
-                value={formData.nit || ""}
-                onChange={(e) => {
-                  let val = e.target.value.replace(/\D/g, "");
-                  if (val.length > 4) val = val.slice(0, 4) + "-" + val.slice(4);
-                  if (val.length > 11) val = val.slice(0, 11) + "-" + val.slice(11);
-                  if (val.length > 15) val = val.slice(0, 15) + "-" + val.slice(15, 16);
-                  setFormData({ ...formData, nit: val });
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-lg font-medium text-gray-900">Editar Cliente</h3>
+              <button
+                onClick={() => {
+                  if (hasChanges()) setShowCancelConfirmModal(true);
+                  else setShowEditModal(false);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                maxLength={17}
-              />
+                className="text-gray-900 hover:text-gray-900"
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
             </div>
 
-            <div>
-              <label>Carnet Residente / NRC</label>
-              <input
-                type="text"
-                value={formData.carnetresidente || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, carnetresidente: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-                maxLength={LIMITES.NRC}
-              />
-            </div>
-          </>
-        )}
+            <form onSubmit={handleUpdateCliente} className="px-6 py-4 space-y-4">
+              {/* Tipo de Persona */}
+              <div className="flex items-center space-x-4 mb-4">
+                <label className="text-sm font-medium text-gray-900">Tipo de Persona:</label>
 
-        {/* Teléfono y Correo */}
-        <div>
-          <label>Teléfono</label>
-          <input
-            type="text"
-            value={formData.telefono || ""}
-            onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-            maxLength={LIMITES.TELEFONO}
-            required
-          />
-        </div>
-
-        <div>
-          <label>Correo</label>
-          <input
-            type="email"
-            value={formData.correo || ""}
-            onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-            maxLength={LIMITES.CORREO}
-            required
-          />
-        </div>
-
-        {/* Dirección */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label>Departamento</label>
-            <select
-              value={formData.departamento || ""}
-              onChange={(e) => {
-                setFormData({ ...formData, departamento: e.target.value, municipio: "" });
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-              required
-            >
-              <option value="">Seleccione un Departamento</option>
-              {departamentos.map((dep) => (
-                <option key={dep.codigo} value={dep.codigo}>
-                  {dep.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label>Municipio</label>
-            <select
-              value={formData.municipio || ""}
-              onChange={(e) => setFormData({ ...formData, municipio: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-              required
-              disabled={!formData.departamento}
-            >
-              <option value="">Seleccione un Municipio</option>
-              {municipios
-                .filter((mun) => mun.departamento === formData.departamento)
-                .map((mun) => (
-                  <option key={mun.codigo} value={mun.codigo}>
-                    {mun.nombre}
-                  </option>
-                ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label>Dirección / Complemento</label>
-          <input
-            type="text"
-            value={formData.complemento || ""}
-            onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-            maxLength={LIMITES.COMPLEMENTO}
-            required
-          />
-        </div>
-
-        {/* Actividad solo para Persona Jurídica */}
-        {!formData.personanatural && (
-          <div>
-            <label>Código de Actividad / Nombre</label>
-            <Select
-              options={codactividad.map((act) => ({
-                value: act.codigo,
-                label: act.codigo + " - " + act.nombre,
-                nombre: act.nombre,
-              }))}
-              value={
-                formData.codactividad
-                  ? {
-                      value: formData.codactividad,
-                      label: formData.codactividad + " - " + formData.descactividad,
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id="naturalEdit"
+                    name="tipopersonaEdit"
+                    value="natural"
+                    checked={formData.personanatural === true}
+                    onChange={() =>
+                      setFormData({
+                        ...formData,
+                        personanatural: true,
+                        // Limpiar campos de persona jurídica
+                        nit: "",
+                        carnetresidente: "",
+                        codactividad: "",
+                        descactividad: "",
+                      })
                     }
-                  : null
-              }
-              onChange={(selected) => {
-                setFormData({
-                  ...formData,
-                  codactividad: selected.value,
-                  descactividad: selected.nombre,
-                });
-              }}
-              className="w-full"
-            />
-          </div>
-        )}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <label htmlFor="naturalEdit" className="ml-1 text-sm text-gray-900">
+                    Natural
+                  </label>
+                </div>
 
-        {/* Botones */}
-        <div className="flex justify-end space-x-3 pt-4">
-          <button
-            type="button"
-            onClick={() => {
-              if (hasChanges()) setShowCancelConfirmModal(true);
-              else setShowEditModal(false);
-            }}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-          >
-            Actualizar
-          </button>
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id="juridicaEdit"
+                    name="tipopersonaEdit"
+                    value="juridica"
+                    checked={formData.personanatural === false}
+                    onChange={() =>
+                      setFormData({
+                        ...formData,
+                        personanatural: false,
+                        // Limpiar campos de persona natural
+                        dui: "",
+                      })
+                    }
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <label htmlFor="juridicaEdit" className="ml-1 text-sm text-gray-900">
+                    Jurídica
+                  </label>
+                </div>
+              </div>
+
+              {/* Nombre */}
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Nombre</label>
+                <input
+                  type="text"
+                  value={formData.nombre || ""}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.NOMBRE}
+                  required
+                />
+              </div>
+
+              {/* Nombre Comercial (Editar) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Nombre Comercial
+                </label>
+                <input
+                  type="text"
+                  value={formData.nombrecomercial || ""}
+                  onChange={(e) => setFormData({ ...formData, nombrecomercial: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.NOMBRECOMERCIAL}
+                  required
+                />
+              </div>
+
+              {/* Campos de documentos */}
+              {/* Documentos por tipo de persona (Editar) */}
+              {formData.personanatural ? (
+                <>
+                  <div>
+                    <label>DUI</label>
+                    <input
+                      type="text"
+                      value={formData.dui || ""}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, "");
+                        if (val.length > 8) val = val.slice(0, 8) + "-" + val.slice(8, 9);
+                        setFormData({ ...formData, dui: val });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                      maxLength={10}
+                    />
+                  </div>
+                  <div>
+                    <label>Pasaporte</label>
+                    <input
+                      type="text"
+                      value={formData.pasaporte || ""}
+                      onChange={(e) => setFormData({ ...formData, pasaporte: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                      maxLength={LIMITES.PASAPORTE}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label>NIT</label>
+                    <input
+                      type="text"
+                      value={formData.nit || ""}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, "");
+                        if (val.length > 4) val = val.slice(0, 4) + "-" + val.slice(4);
+                        if (val.length > 11) val = val.slice(0, 11) + "-" + val.slice(11);
+                        if (val.length > 15) val = val.slice(0, 15) + "-" + val.slice(15, 16);
+                        setFormData({ ...formData, nit: val });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                      maxLength={17}
+                    />
+                  </div>
+                  <div>
+                    <label>NRC</label>
+                    <input
+                      type="text"
+                      value={formData.nrc || ""}
+                      onChange={(e) => setFormData({ ...formData, nrc: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                      maxLength={LIMITES.NRC}
+                    />
+                  </div>
+                  <div>
+                    <label>Carnet de Residente</label>
+                    <input
+                      type="text"
+                      value={formData.carnetresidente || ""}
+                      onChange={(e) => setFormData({ ...formData, carnetresidente: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                      maxLength={LIMITES.CARNETRESIDENTE}
+                    />
+                  </div>
+                </>
+              )}
+              <div>
+                <label>Teléfono</label>
+                <input
+                  type="text"
+                  value={formData.telefono || ""}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.TELEFONO}
+                  required
+                />
+              </div>
+
+              <div>
+                <label>Correo</label>
+                <input
+                  type="email"
+                  value={formData.correo || ""}
+                  onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.CORREO}
+                  required
+                />
+              </div>
+
+              {/* Dirección */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label>Departamento</label>
+                  <select
+                    value={formData.departamento || ""}
+                    onChange={(e) => {
+                      setFormData({ ...formData, departamento: e.target.value, municipio: "" });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">Seleccione un Departamento</option>
+                    {departamentos.map((dep) => (
+                      <option key={dep.codigo} value={dep.codigo}>
+                        {dep.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label>Municipio</label>
+                  <select
+                    value={formData.municipio || ""}
+                    onChange={(e) => setFormData({ ...formData, municipio: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                    required
+                    disabled={!formData.departamento}
+                  >
+                    <option value="">Seleccione un Municipio</option>
+                    {municipios
+                      .filter((mun) => mun.departamento === formData.departamento)
+                      .map((mun) => (
+                        <option key={mun.codigo} value={mun.codigo}>
+                          {mun.nombre}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label>Dirección / Complemento</label>
+                <input
+                  type="text"
+                  value={formData.complemento || ""}
+                  onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  maxLength={LIMITES.COMPLEMENTO}
+                  required
+                />
+              </div>
+
+              {/* Actividad solo para Persona Jurídica */}
+              {!formData.personanatural && (
+                <div>
+                  <label>Código de Actividad / Nombre</label>
+                  <Select
+                    options={codactividad.map((act) => ({
+                      value: act.codigo,
+                      label: act.codigo + " - " + act.nombre,
+                      nombre: act.nombre,
+                    }))}
+                    value={
+                      formData.codactividad
+                        ? {
+                          value: formData.codactividad,
+                          label: formData.codactividad + " - " + formData.descactividad,
+                        }
+                        : null
+                    }
+                    onChange={(selected) => {
+                      setFormData({
+                        ...formData,
+                        codactividad: selected.value,
+                        descactividad: selected.nombre,
+                      });
+                    }}
+                    className="w-full"
+                  />
+                </div>
+              )}
+
+              {/* Botones */}
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (hasChanges()) setShowCancelConfirmModal(true);
+                    else setShowEditModal(false);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-900 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                >
+                  Actualizar
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </form>
-    </div>
-  </div>
-)}
+      )}
 
 
       {/* Modal de Confirmación de Eliminación */}
@@ -3699,7 +3754,7 @@ export default function Clientes({ initialClientes = [], user }) {
               </h3>
             </div>
             <div className="px-6 py-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-900">
                 ¿Estás seguro de que deseas eliminar este cliente? Esta acción
                 no se puede deshacer.
               </p>
@@ -3707,7 +3762,7 @@ export default function Clientes({ initialClientes = [], user }) {
             <div className="flex justify-end space-x-3 px-6 py-4 bg-gray-50 rounded-b-lg">
               <button
                 onClick={() => setShowDeleteConfirmModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-900 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
               >
                 Cancelar
               </button>
@@ -3735,7 +3790,7 @@ export default function Clientes({ initialClientes = [], user }) {
               </h3>
             </div>
             <div className="px-6 py-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-900">
                 Tienes cambios sin guardar. ¿Estás seguro de que deseas
                 cancelar?
               </p>
@@ -3743,7 +3798,7 @@ export default function Clientes({ initialClientes = [], user }) {
             <div className="flex justify-end space-x-3 px-6 py-4 bg-gray-50 rounded-b-lg">
               <button
                 onClick={() => setShowCancelConfirmModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-900 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
               >
                 Continuar editando
               </button>
