@@ -1,13 +1,69 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { FaSearch, FaBars, FaPlus, FaTimes, FaEdit, FaTrash, FaSave } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 
+/* =========================================
+   Config / Utils
+========================================= */
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
-/* ========== Pop-up de confirmación (inline) ========== */
-function ConfirmDialog({ open, title = "Confirmar", message = "¿Estás seguro?", confirmText = "Aceptar", cancelText = "Cancelar", loading = false, onConfirm, onCancel }) {
+// fetch JSON con manejo de errores uniforme
+async function jsonFetch(url, options = {}) {
+  const resp = await fetch(url, { credentials: "include", cache: "no-store", ...options });
+  let data;
+  try { data = await resp.json(); } catch { data = null; }
+  if (!resp.ok || data?.ok === false) {
+    const msg = data?.details?.join?.(", ") || data?.error || `Error HTTP ${resp.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// acento-insensible
+const norm = (s = "") => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+// hook debounce simple
+function useDebounce(value, delay = 350) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
+
+// seleccionar solo campos persistentes para comparar
+const pickComparable = (f) => ({
+  usuarioid: f.usuarioid ?? "",
+  nombre: f.nombre ?? "",
+  telefono: f.telefono ?? "",
+  complemento: f.complemento ?? "",
+  codactividad: f.codactividad ?? "",
+  desactividad: f.desactividad ?? "",
+  tipoestablecimiento: f.tipoestablecimiento ?? "",
+  codestablemh: f.codestablemh ?? "",
+  codpuntoventamh: f.codpuntoventamh ?? "",
+  codpuntoventa: f.codpuntoventa ?? "",
+  departamento: f.departamento ?? "",
+  municipio: f.municipio ?? "",
+  logo: f.logo ?? "",
+});
+
+/* =========================================
+   UI: Diálogo de confirmación
+========================================= */
+function ConfirmDialog({
+  open,
+  title = "Confirmar",
+  message = "¿Estás seguro?",
+  confirmText = "Aceptar",
+  cancelText = "Cancelar",
+  loading = false,
+  onConfirm,
+  onCancel,
+}) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
@@ -21,20 +77,615 @@ function ConfirmDialog({ open, title = "Confirmar", message = "¿Estás seguro?"
         <div className="px-5 py-3 border-t flex justify-end gap-2">
           <button type="button" onClick={onCancel} className="px-4 py-2 rounded border hover:bg-gray-50" disabled={loading}>{cancelText}</button>
           <button type="button" onClick={onConfirm} className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-60" disabled={loading}>
-            {loading ? "Eliminando..." : confirmText}
+            {loading ? "Procesando..." : confirmText}
           </button>
         </div>
       </div>
     </div>
   );
 }
-/* ===================================================== */
 
+/* =========================================
+   Página principal
+========================================= */
 export default function Sucursales({ initialData, user }) {
-  // layout como Empleados
+  /* ---------- Layout / Responsive ---------- */
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const COD_ACTIVIDADES = [
+
+  useEffect(() => {
+    const check = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      setSidebarOpen(!mobile);
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  const toggleSidebar = useCallback(() => setSidebarOpen((s) => !s), []);
+
+  /* ---------- Catálogos ---------- */
+  // (Se mantienen completos; idealmente exportarlos desde un módulo aparte)
+  const COD_ACTIVIDADES = COD_ACTIVIDADES_DATA;
+  const DEPARTAMENTOS = DEPARTAMENTOS_DATA;
+  const MUNICIPIOS = MUNICIPIOS_DATA;
+
+  const deptosOptions = DEPARTAMENTOS;
+
+  /* ---------- Filtros / Estado tabla ---------- */
+  const [searchTerm, setSearchTerm] = useState("");
+  const q = useDebounce(searchTerm.trim(), 350);
+
+  const [page, setPage] = useState(initialData?.meta?.page ?? 1);
+  const [limit, setLimit] = useState(initialData?.meta?.limit ?? 10);
+  const [orderBy, setOrderBy] = useState("idsucursal");
+  const [order, setOrder] = useState("DESC");
+
+  const [rows, setRows] = useState(initialData?.data ?? []);
+  const [meta, setMeta] = useState(initialData?.meta ?? { total: 0, page: 1, limit: 10, pages: 1 });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  /* ---------- Modal crear/editar ---------- */
+  const emptyForm = useMemo(() => ({
+    usuarioid: "",
+    nombre: "",
+    telefono: "",
+    complemento: "",
+    codactividad: "",
+    desactividad: "",
+    tipoestablecimiento: "",
+    codestablemh: "",
+    codpuntoventamh: "",
+    codpuntoventa: "",
+    departamento: "",
+    municipio: "",
+    logo: null,
+  }), []);
+
+  const [form, setForm] = useState(emptyForm);
+  const [openModal, setOpenModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+
+  // snapshot para detectar cambios
+  const initialFormRef = useRef(pickComparable(emptyForm));
+  useEffect(() => {
+    if (openModal) {
+      initialFormRef.current = pickComparable(form);
+    }
+  }, [openModal, editingId, form]);
+
+  const isDirty = useMemo(
+    () => JSON.stringify(pickComparable(form)) !== JSON.stringify(initialFormRef.current),
+    [form]
+  );
+
+  // confirmar cancelación
+  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
+  const handleCancel = useCallback(() => {
+    if (isDirty) setShowCancelConfirmModal(true);
+    else setOpenModal(false);
+  }, [isDirty]);
+
+  const confirmDiscard = useCallback(() => {
+    setShowCancelConfirmModal(false);
+    setOpenModal(false);
+    setForm(emptyForm);
+    setActQuery("");
+    setMuniQuery("");
+  }, [emptyForm]);
+
+  /* ---------- Eliminar ---------- */
+  const [openDelete, setOpenDelete] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const askDelete = useCallback((id) => {
+    setDeleteId(id);
+    setOpenDelete(true);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteId) return;
+    try {
+      setDeleting(true);
+      await jsonFetch(`${API_BASE}/sucursal/delete/${deleteId}`, { method: "DELETE" });
+      setOpenDelete(false);
+      setDeleteId(null);
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteId]); // load está definido más abajo con useCallback
+
+  /* ---------- Catálogo: Actividades (buscador) ---------- */
+  const [actQuery, setActQuery] = useState("");
+  const filteredActs = useMemo(() => {
+    const query = actQuery.trim().toLowerCase();
+    if (!query) return COD_ACTIVIDADES.slice(0, 100);
+    return COD_ACTIVIDADES
+      .filter(a => a.codigo.includes(query) || a.nombre.toLowerCase().includes(query))
+      .slice(0, 100);
+  }, [actQuery, COD_ACTIVIDADES]);
+
+  /* ---------- Catálogo: Municipios (dependiente de Depto) ---------- */
+  const [muniQuery, setMuniQuery] = useState("");
+  const municipiosOptions = useMemo(() => {
+    const list = MUNICIPIOS.filter(m => m.departamento === (form.departamento || ""));
+    const nq = norm(muniQuery);
+    return nq ? list.filter(m => norm(m.nombre).includes(nq) || m.codigo.includes(nq)) : list;
+  }, [MUNICIPIOS, form.departamento, muniQuery]);
+
+  useEffect(() => {
+    setMuniQuery("");
+    setForm(f => ({ ...f, municipio: "" }));
+  }, [form.departamento]);
+
+  /* ---------- Carga de datos ---------- */
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const url = new URL("/sucursal/getAll", API_BASE);
+      url.searchParams.set("page", page);
+      url.searchParams.set("limit", limit);
+      url.searchParams.set("orderBy", orderBy);
+      url.searchParams.set("order", order);
+      if (q) url.searchParams.set("q", q);
+
+      const data = await jsonFetch(url.toString(), { method: "GET" });
+
+      // Backends distintos: arreglo directo o {data, meta}
+      if (Array.isArray(data)) {
+        setRows(data);
+        setMeta({ total: data.length, page: 1, limit, pages: 1 });
+      } else {
+        setRows(data?.data ?? []);
+        setMeta(data?.meta ?? { total: 0, page: 1, limit: 10, pages: 1 });
+      }
+    } catch (e) {
+      setError(e?.message || "Error cargando sucursales");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, limit, orderBy, order, q]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  /* ---------- Handlers de formulario ---------- */
+  const openCreate = useCallback(() => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setOpenModal(true);
+  }, [emptyForm]);
+
+  const openEdit = useCallback(async (id) => {
+    try {
+      setEditingId(id);
+      setOpenModal(true);
+      setLoading(true);
+      const data = await jsonFetch(`${API_BASE}/sucursal/${id}`, { method: "GET" });
+      const r = data?.data || data;
+      setForm({
+        usuarioid: r?.usuarioid ?? "",
+        nombre: r?.nombre ?? "",
+        telefono: r?.telefono ?? "",
+        complemento: r?.complemento ?? "",
+        codactividad: r?.codactividad ?? "",
+        desactividad: r?.desactividad ?? "",
+        tipoestablecimiento: r?.tipoestablecimiento ?? "",
+        codestablemh: r?.codestablemh ?? "",
+        codpuntoventamh: r?.codpuntoventamh ?? "",
+        codpuntoventa: r?.codpuntoventa ?? "",
+        departamento: r?.departamento ?? "",
+        municipio: r?.municipio ?? "",
+        logo: null,
+      });
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const onChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setForm((s) => ({ ...s, [name]: value }));
+  }, []);
+
+  const onFile = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return setForm((s) => ({ ...s, logo: null }));
+    const b64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+    setForm((s) => ({ ...s, logo: (b64 || "").split(",").pop() }));
+  }, []);
+
+  const onSubmit = useCallback(async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError("");
+
+      const body = { ...form };
+      if (body.usuarioid) body.usuarioid = Number(body.usuarioid);
+
+      const isEdit = !!editingId;
+      const url = isEdit ? `${API_BASE}/sucursal/update/${editingId}` : `${API_BASE}/sucursal/create`;
+      await jsonFetch(url, {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      setOpenModal(false);
+      await load();
+    } catch (e2) {
+      setError(e2.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [form, editingId, load]);
+
+  /* =========================================
+     Render
+  ========================================= */
+  return (
+    <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
+      {/* overlay móvil */}
+      {isMobile && sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30" onClick={() => setSidebarOpen(false)} />}
+
+      <div className="flex flex-1 h-full">
+        {/* Sidebar */}
+        <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}>
+          <Sidebar />
+        </div>
+
+        {/* Panel derecho */}
+        <div className="flex-1 flex flex-col">
+          {/* Header */}
+          <header className="sticky top-0 bg-white backdrop-blur-md bg-opacity-90 shadow-sm z-20">
+            <div className="flex items-center justify-between h-16 px-4 md:px-6">
+              <div className="flex items-center gap-2">
+                <button className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none" onClick={toggleSidebar} aria-label={sidebarOpen ? "Cerrar menú" : "Abrir menú"}>
+                  {sidebarOpen ? <FaTimes className="h-6 w-6" /> : <FaBars className="h-6 w-6" />}
+                </button>
+                <h2 className="hidden md:block text-xl font-semibold text-gray-800">Sucursales</h2>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {user?.name && <span className="hidden sm:block text-sm text-black font-medium truncate max-w-[180px]">{user.name}</span>}
+                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center justify-center text-white font-medium">
+                  {user?.name ? user.name.charAt(0) : "U"}
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Contenido */}
+          <div className="flex-1 p-4 md:p-6">
+            {/* Título + botón Nueva (en móvil ya está en header) */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <h2 className="text-2xl font-bold text-gray-800 tracking-tight sm:hidden">Sucursales</h2>
+              <button onClick={openCreate} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors shadow-sm flex items-center w-full sm:w-auto justify-center">
+                <FaPlus className="mr-2" /> Nueva
+              </button>
+            </div>
+
+            {/* BUSCADOR y controles */}
+            <div className="mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <div className="relative md:col-span-2">
+                  <input
+                    type="text"
+                    placeholder="Buscar por nombre/códigos/ubicación…"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
+
+                <select value={limit} onChange={(e) => setLimit(+e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  {[10, 20, 50, 100].map((n) => (
+                    <option key={n} value={n}>{n}/página</option>
+                  ))}
+                </select>
+
+                <div className="flex gap-2">
+                  <select value={orderBy} onChange={(e) => setOrderBy(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="idsucursal">Ordenar por: idsucursal</option>
+                    <option value="nombre">Ordenar por: nombre</option>
+                    <option value="codpuntoventamh">Ordenar por: PV MH</option>
+                  </select>
+                  <select value={order} onChange={(e) => setOrder(e.target.value)} className="w-[110px] px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="DESC">DESC</option>
+                    <option value="ASC">ASC</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabla desktop */}
+            <div className="hidden md:block">
+              <div className="overflow-x-auto rounded-lg shadow">
+                <table className="min-w-full bg-white border border-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PV MH</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departamento</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Municipio</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {loading ? (
+                      <tr><td colSpan={7} className="px-6 py-4">Cargando…</td></tr>
+                    ) : rows?.length ? (
+                      rows.map((r) => (
+                        <tr key={r.idsucursal} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.idsucursal}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{r.nombre}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.codpuntoventamh || "-"}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.departamento || "-"}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.municipio || "-"}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {r.usuario?.nombre
+                              ? `${r.usuario.nombre} (${r.usuario.nit})`
+                              : r.usuarios?.nombre
+                              ? `${r.usuarios.nombre} (${r.usuarios.nit})`
+                              : "-"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                            <button onClick={() => openEdit(r.idsucursal)} className="text-amber-600 hover:text-amber-700 mr-3" aria-label="Editar"><FaEdit /></button>
+                            <button onClick={() => askDelete(r.idsucursal)} className="text-red-600 hover:text-red-800" aria-label="Eliminar"><FaTrash /></button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr><td colSpan={7} className="px-6 py-4">Sin resultados</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Tarjetas móvil */}
+            <div className="md:hidden">
+              <div className="space-y-4">
+                {rows?.length ? rows.map((r) => (
+                  <div key={r.idsucursal} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-lg font-medium text-gray-900">{r.nombre}</h3>
+                      <div className="flex space-x-2">
+                        <button onClick={() => openEdit(r.idsucursal)} className="text-amber-600 hover:text-amber-700" aria-label="Editar"><FaEdit /></button>
+                        <button onClick={() => askDelete(r.idsucursal)} className="text-red-600 hover:text-red-800" aria-label="Eliminar"><FaTrash /></button>
+                      </div>
+                    </div>
+                    <div className="mt-3 text-sm text-gray-700 space-y-1">
+                      <div><span className="font-medium">PV MH: </span>{r.codpuntoventamh || "-"}</div>
+                      <div><span className="font-medium">Departamento: </span>{r.departamento || "-"}</div>
+                      <div><span className="font-medium">Municipio: </span>{r.municipio || "-"}</div>
+                      <div><span className="font-medium">Usuario: </span>{r.usuario?.nombre || r.usuarios?.nombre || "-"}</div>
+                    </div>
+                  </div>
+                )) : <div className="text-gray-600">Sin resultados</div>}
+              </div>
+            </div>
+
+            {/* Paginación */}
+            <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+              <div> Total: <b>{meta.total}</b> • Página <b>{meta.page}</b> de <b>{meta.pages}</b> </div>
+              <div className="flex gap-2">
+                <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-3 py-1.5 rounded border disabled:opacity-50">Anterior</button>
+                <button disabled={page >= meta.pages} onClick={() => setPage((p) => Math.min(meta.pages, p + 1))} className="px-3 py-1.5 rounded border disabled:opacity-50">Siguiente</button>
+              </div>
+            </div>
+          </div>
+
+          <Footer />
+        </div>
+      </div>
+
+      {/* Confirmación de cierre con cambios */}
+      {showCancelConfirmModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
+          <div className="bg-white p-6 rounded shadow-md">
+            <p className="mb-4 text-black">¿Seguro que quieres descartar los cambios?</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowCancelConfirmModal(false)} className="px-4 py-2 rounded border text-black">No</button>
+              <button onClick={confirmDiscard} className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700">Sí, descartar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL crear/editar */}
+      {openModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-md shadow-lg w-full max-w-2xl p-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-black">
+                {editingId ? `Editar sucursal #${editingId}` : "Nueva sucursal"}
+              </h2>
+              <button onClick={handleCancel} className="p-2 rounded hover:bg-gray-100"><FaTimes /></button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 text-black">
+              {/* Básicos */}
+              <div>
+                <label className="block text-sm font-medium">Usuario ID *</label>
+                <input name="usuarioid" value={form.usuarioid} onChange={onChange} className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900" required type="number" min="1" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Nombre *</label>
+                <input name="nombre" value={form.nombre} onChange={onChange} className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900" required />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Teléfono</label>
+                <input name="telefono" value={form.telefono} onChange={onChange} className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900" />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium">Complemento</label>
+                <input name="complemento" value={form.complemento} onChange={onChange} className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900" />
+              </div>
+
+              {/* Código actividad (buscador) */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium">Código de actividad</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Buscar por código o nombre…"
+                    value={actQuery}
+                    onChange={(e) => setActQuery(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  />
+                  {actQuery && filteredActs.length > 0 && (
+                    <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-white shadow">
+                      {filteredActs.map((a) => (
+                        <li
+                          key={a.codigo}
+                          className="px-3 py-2 text-sm text-gray-900 hover:bg-gray-100 cursor-pointer"
+                          onMouseDown={() => {
+                            setForm((f) => ({ ...f, codactividad: a.codigo, desactividad: a.nombre }));
+                            setActQuery(`${a.codigo} - ${a.nombre}`);
+                          }}
+                        >
+                          {a.codigo} — {a.nombre}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                  <input readOnly value={form.codactividad} placeholder="Código seleccionado" className="border border-gray-300 rounded w-full p-2 bg-gray-50 text-gray-900" />
+                  <input name="desactividad" value={form.desactividad} onChange={(e) => setForm((f) => ({ ...f, desactividad: e.target.value }))} placeholder="Descripción seleccionada" className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900" />
+                </div>
+              </div>
+
+              {/* Depto → Municipio */}
+              <div>
+                <label className="block text-sm font-medium">Departamento</label>
+                <select
+                  name="departamento"
+                  value={form.departamento}
+                  onChange={(e) => setForm((f) => ({ ...f, departamento: e.target.value }))}
+                  className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
+                >
+                  <option value="">-- Seleccionar --</option>
+                  {deptosOptions.map((d) => (
+                    <option key={d.codigo} value={d.codigo}>{d.codigo} - {d.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Municipio</label>
+                <input
+                  type="text"
+                  placeholder="Filtrar municipio…"
+                  value={muniQuery}
+                  onChange={(e) => setMuniQuery(e.target.value)}
+                  className="mb-2 w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  disabled={!form.departamento}
+                />
+                <select
+                  name="municipio"
+                  value={form.municipio}
+                  onChange={(e) => setForm((f) => ({ ...f, municipio: e.target.value }))}
+                  className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
+                  disabled={!form.departamento}
+                >
+                  <option value="">{form.departamento ? "-- Seleccionar --" : "Seleccione un departamento"}</option>
+                  {municipiosOptions.map((m) => (
+                    <option key={`${m.departamento}-${m.codigo}`} value={m.codigo}>{m.codigo} - {m.nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* MH / otros */}
+              <div>
+                <label className="block text-sm font-medium">Tipo Establecimiento</label>
+                <input name="tipoestablecimiento" value={form.tipoestablecimiento} onChange={onChange} className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Código Estable MH</label>
+                <input name="codestablemh" value={form.codestablemh} onChange={onChange} className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Código Punto Venta MH</label>
+                <input name="codpuntoventamh" value={form.codpuntoventamh} onChange={onChange} className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Código Punto Venta (interno)</label>
+                <input name="codpuntoventa" value={form.codpuntoventa} onChange={onChange} className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900" />
+              </div>
+
+              {/* Logo */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium">Logo (imagen)</label>
+                <input type="file" accept="image/*" onChange={onFile} className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900" />
+                <p className="text-xs text-gray-500 mt-1">Se enviará como base64 (sin encabezado).</p>
+              </div>
+
+              {/* Botones */}
+              <div className="md:col-span-2">
+                <button disabled={loading} className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                  <FaSave /> {loading ? "Guardando..." : "Guardar"}
+                </button>
+                <button type="button" onClick={handleCancel} className="ml-2 px-4 py-2 rounded border">Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmación de borrado */}
+      <ConfirmDialog
+        open={openDelete}
+        title="Eliminar sucursal"
+        message="Esta acción no se puede deshacer. ¿Deseas eliminar la sucursal?"
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => { if (!deleting) { setOpenDelete(false); setDeleteId(null); } }}
+      />
+    </div>
+  );
+}
+
+
+/* =========================================
+   Catálogos (idénticos a los tuyos)
+   — Si gustas, luego los movemos a /data/*.js
+========================================= */
+
+const COD_ACTIVIDADES_DATA = [
     { codigo: "01111", nombre: "Cultivo de cereales excepto arroz y para forrajes" },
     { codigo: "01112", nombre: "Cultivo de legumbres" },
     { codigo: "01113", nombre: "Cultivo de semillas oleaginosas" },
@@ -811,7 +1462,7 @@ export default function Sucursales({ initialData, user }) {
 ];
 
 // === Catálogos con códigos ===
-const DEPARTAMENTOS = [
+const DEPARTAMENTOS_DATA = [
   { codigo: "00", nombre: "Otro (Para extranjeros)" },
   { codigo: "01", nombre: "Ahuachapán" },
   { codigo: "02", nombre: "Santa Ana" },
@@ -829,7 +1480,7 @@ const DEPARTAMENTOS = [
   { codigo: "14", nombre: "La Unión" }
 ];
 
-const MUNICIPIOS = [
+const MUNICIPIOS_DATA = [
   { codigo: "00", nombre: "Otro (Para extranjeros)", departamento: "00" },
   { codigo: "13", nombre: "AHUACHAPAN NORTE", departamento: "01" },
   { codigo: "14", nombre: "AHUACHAPAN CENTRO", departamento: "01" },
@@ -876,653 +1527,3 @@ const MUNICIPIOS = [
   { codigo: "19", nombre: "LA UNION NORTE", departamento: "14" },
   { codigo: "20", nombre: "LA UNION SUR", departamento: "14" }
 ]; 
-// util acento-insensible
-const norm = (s="") => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-
-
-// Mini buscador para municipios
-const [muniQuery, setMuniQuery] = useState("");
-
-// Lista de deptos ordenada
-const deptosOptions = DEPARTAMENTOS;
-
-
-
-  // filtros
-  const [searchTerm, setSearchTerm] = useState("");
-  const [q, setQ] = useState(""); // lo que realmente consulta (debounced)
-  const [page, setPage] = useState(initialData?.meta?.page ?? 1);
-  const [limit, setLimit] = useState(initialData?.meta?.limit ?? 10);
-  const [orderBy, setOrderBy] = useState("idsucursal");
-  const [order, setOrder] = useState("DESC");
-
-  // datos
-  const [rows, setRows] = useState(initialData?.data ?? []);
-  const [meta, setMeta] = useState(initialData?.meta ?? { total: 0, page: 1, limit: 10, pages: 1 });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // modal crear/editar
-  const [openModal, setOpenModal] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-
-  // modal eliminar
-  const [openDelete, setOpenDelete] = useState(false);
-  const [deleteId, setDeleteId] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-
-  // form
-  const emptyForm = useMemo(
-    () => ({
-      usuarioid: "",
-      nombre: "",
-      telefono: "",
-      complemento: "",
-      codactividad: "",
-      desactividad: "",
-      tipoestablecimiento: "",
-      codestablemh: "",
-      codpuntoventamh: "",
-      codpuntoventa: "",
-      departamento: "",
-      municipio: "",
-      logo: null,
-    }),
-    []
-  );
-  const [form, setForm] = useState(emptyForm);
-
-  // Municipios filtrados por depto + búsqueda
-const municipiosOptions = useMemo(() => {
-  const list = MUNICIPIOS.filter(m => m.departamento === (form.departamento || ""));
-  const q = norm(muniQuery);
-  return q ? list.filter(m => norm(m.nombre).includes(q) || m.codigo.includes(q)) : list;
-}, [form.departamento, muniQuery]);
-
-// Si cambia el departamento, limpia municipio y búsqueda
-useEffect(() => {
-  setMuniQuery("");
-  setForm(f => ({ ...f, municipio: "" }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [form.departamento]);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      setSidebarOpen(!mobile);
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  const [actQuery, setActQuery] = useState("");
-  const filteredActs = useMemo(() => {
-    const q = actQuery.trim().toLowerCase();
-    if (!q) return COD_ACTIVIDADES.slice(0, 100); // tope inicial
-    return COD_ACTIVIDADES
-      .filter(a =>
-        a.codigo.includes(q) ||
-        a.nombre.toLowerCase().includes(q)
-      )
-      .slice(0, 100); // limita resultados
-  }, [actQuery]);
-
-  // debounce para la búsqueda (350ms)
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setQ(searchTerm.trim());
-      setPage(1);
-    }, 350);
-    return () => clearTimeout(t);
-  }, [searchTerm]);
-
-  // carga desde API
-  async function load() {
-    try {
-      setLoading(true);
-      setError("");
-      const url = new URL("/sucursal/getAll", API_BASE);
-      url.searchParams.set("page", page);
-      url.searchParams.set("limit", limit);
-      url.searchParams.set("orderBy", orderBy);
-      url.searchParams.set("order", order);
-      if (q) url.searchParams.set("q", q);
-
-      const resp = await fetch(url.toString(), { method: "GET", credentials: "include", cache: "no-store" });
-      const json = await resp.json();
-      if (Array.isArray(json)) {
-        setRows(json);
-        setMeta({ total: json.length, page: 1, limit, pages: 1 });
-      } else {
-        setRows(json?.data ?? []);
-        setMeta(json?.meta ?? { total: 0, page: 1, limit: 10, pages: 1 });
-        if (json?.ok === false && json?.error) setError(json.error);
-      }
-    } catch (e) {
-      setError(e?.message || "Error cargando sucursales");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // recargar cuando cambien filtros o q (debounced)
-  useEffect(() => {
-    load(); // eslint-disable-next-line
-  }, [page, limit, orderBy, order, q]);
-
-  function openCreate() {
-    setEditingId(null);
-    setForm(emptyForm);
-    setOpenModal(true);
-  }
-
-  async function openEdit(id) {
-    try {
-      setEditingId(id);
-      setOpenModal(true);
-      setLoading(true);
-      const resp = await fetch(`${API_BASE}/sucursal/${id}`, { method: "GET", credentials: "include", cache: "no-store" });
-      const json = await resp.json();
-      const r = json?.data || json;
-      setForm({
-        usuarioid: r?.usuarioid ?? "",
-        nombre: r?.nombre ?? "",
-        telefono: r?.telefono ?? "",
-        complemento: r?.complemento ?? "",
-        codactividad: r?.codactividad ?? "",
-        desactividad: r?.desactividad ?? "",
-        tipoestablecimiento: r?.tipoestablecimiento ?? "",
-        codestablemh: r?.codestablemh ?? "",
-        codpuntoventamh: r?.codpuntoventamh ?? "",
-        codpuntoventa: r?.codpuntoventa ?? "",
-        departamento: r?.departamento ?? "",
-        municipio: r?.municipio ?? "",
-        logo: null,
-      });
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function onChange(e) {
-    const { name, value } = e.target;
-    setForm((s) => ({ ...s, [name]: value }));
-  }
-
-  async function onFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return setForm((s) => ({ ...s, logo: null }));
-    const b64 = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
-    setForm((s) => ({ ...s, logo: (b64 || "").split(",").pop() }));
-  }
-
-  async function onSubmit(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const body = { ...form };
-      if (body.usuarioid) body.usuarioid = Number(body.usuarioid);
-
-      const isEdit = !!editingId;
-      const url = isEdit ? `${API_BASE}/sucursal/update/${editingId}` : `${API_BASE}/sucursal/create`;
-      const resp = await fetch(url, {
-        method: isEdit ? "PUT" : "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = await resp.json();
-      if (!resp.ok || json?.ok === false) {
-        const msg = json?.details?.join?.(", ") || json?.error || "Error al guardar";
-        throw new Error(msg);
-      }
-      setOpenModal(false);
-      await load();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // eliminar
-  function askDelete(id) {
-    setDeleteId(id);
-    setOpenDelete(true);
-  }
-  async function confirmDelete() {
-    if (!deleteId) return;
-    try {
-      setDeleting(true);
-      const resp = await fetch(`${API_BASE}/sucursal/delete/${deleteId}`, { method: "DELETE", credentials: "include" });
-      const json = await resp.json();
-      if (!resp.ok || json?.ok === false) throw new Error(json?.error || "No se pudo eliminar");
-      setOpenDelete(false);
-      setDeleteId(null);
-      await load();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setDeleting(false);
-    }
-  }
-
-  const toggleSidebar = () => setSidebarOpen((s) => !s);
-
-  return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
-      {/* overlay móvil */}
-      {isMobile && sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30" onClick={() => setSidebarOpen(false)} />}
-
-      <div className="flex flex-1 h-full">
-        {/* Sidebar con mismo comportamiento que Empleados */}
-        <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}>
-          <Sidebar />
-        </div>
-
-        {/* Panel derecho */}
-        <div className="flex-1 flex flex-col">
-          {/* Header sticky como Empleados */}
-          <header className="sticky top-0 bg-white backdrop-blur-md bg-opacity-90 shadow-sm z-20">
-            <div className="flex items-center justify-between h-16 px-4 md:px-6">
-              <div className="flex items-center gap-2">
-                <button className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none" onClick={toggleSidebar} aria-label={sidebarOpen ? "Cerrar menú" : "Abrir menú"}>
-                  {sidebarOpen ? <FaTimes className="h-6 w-6" /> : <FaBars className="h-6 w-6" />}
-                </button>
-                <h2 className="hidden md:block text-xl font-semibold text-gray-800"></h2>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {user?.name && <span className="hidden sm:block text-sm text-black font-medium truncate max-w-[180px]">{user.name}</span>}
-                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center justify-center text-white font-medium">
-                  {user?.name ? user.name.charAt(0) : "U"}
-                </div>
-              </div>
-            </div>
-          </header>
-
-          {/* Contenido */}
-          <div className="flex-1 p-4 md:p-6">
-            {/* Título + botón Nueva */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-              <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Sucursales</h2>
-              <button onClick={openCreate} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors shadow-sm flex items-center w-full sm:w-auto justify-center">
-                <FaPlus className="mr-2" /> Nueva
-              </button>
-            </div>
-
-            {/* BUSCADOR: en vivo sin botón */}
-            <div className="mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                <div className="relative md:col-span-2">
-                  <input
-                    type="text"
-                    placeholder="Buscar por nombre/códigos/ubicación…"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                  <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                </div>
-
-                <select value={limit} onChange={(e) => setLimit(+e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                  {[10, 20, 50, 100].map((n) => (
-                    <option key={n} value={n}>{n}/página</option>
-                  ))}
-                </select>
-
-                <div className="flex gap-2">
-                  <select value={orderBy} onChange={(e) => setOrderBy(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option value="idsucursal">Ordenar por: idsucursal</option>
-                    <option value="nombre">Ordenar por: nombre</option>
-                    <option value="codpuntoventamh">Ordenar por: PV MH</option>
-                  </select>
-                  <select value={order} onChange={(e) => setOrder(e.target.value)} className="w-[110px] px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option value="DESC">DESC</option>
-                    <option value="ASC">ASC</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Tabla estilo Empleados */}
-            <div className="hidden md:block">
-              <div className="overflow-x-auto rounded-lg shadow">
-                <table className="min-w-full bg-white border border-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PV MH</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departamento</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Municipio</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {loading ? (
-                      <tr><td colSpan={7} className="px-6 py-4">Cargando…</td></tr>
-                    ) : rows?.length ? (
-                      rows.map((r) => (
-                        <tr key={r.idsucursal} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.idsucursal}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{r.nombre}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.codpuntoventamh || "-"}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.departamento || "-"}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.municipio || "-"}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {r.usuario?.nombre
-                              ? `${r.usuario.nombre} (${r.usuario.nit})`
-                              : r.usuarios?.nombre
-                              ? `${r.usuarios.nombre} (${r.usuarios.nit})`
-                              : "-"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
-                            <button onClick={() => openEdit(r.idsucursal)} className="text-amber-600 hover:text-amber-700 mr-3" aria-label="Editar"><FaEdit /></button>
-                            <button onClick={() => askDelete(r.idsucursal)} className="text-red-600 hover:text-red-800" aria-label="Eliminar"><FaTrash /></button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr><td colSpan={7} className="px-6 py-4">Sin resultados</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Tarjetas para móvil */}
-            <div className="md:hidden">
-              <div className="space-y-4">
-                {rows?.length ? rows.map((r) => (
-                  <div key={r.idsucursal} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-                    <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-medium text-gray-900">{r.nombre}</h3>
-                      <div className="flex space-x-2">
-                        <button onClick={() => openEdit(r.idsucursal)} className="text-amber-600 hover:text-amber-700" aria-label="Editar"><FaEdit /></button>
-                        <button onClick={() => askDelete(r.idsucursal)} className="text-red-600 hover:text-red-800" aria-label="Eliminar"><FaTrash /></button>
-                      </div>
-                    </div>
-                    <div className="mt-3 text-sm text-gray-700 space-y-1">
-                      <div><span className="font-medium">PV MH: </span>{r.codpuntoventamh || "-"}</div>
-                      <div><span className="font-medium">Departamento: </span>{r.departamento || "-"}</div>
-                      <div><span className="font-medium">Municipio: </span>{r.municipio || "-"}</div>
-                      <div><span className="font-medium">Usuario: </span>{r.usuario?.nombre || r.usuarios?.nombre || "-"}</div>
-                    </div>
-                  </div>
-                )) : <div className="text-gray-600">Sin resultados</div>}
-              </div>
-            </div>
-
-            {/* Paginación */}
-            <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-              <div> Total: <b>{meta.total}</b> • Página <b>{meta.page}</b> de <b>{meta.pages}</b> </div>
-              <div className="flex gap-2">
-                <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-3 py-1.5 rounded border disabled:opacity-50">Anterior</button>
-                <button disabled={page >= meta.pages} onClick={() => setPage((p) => Math.min(meta.pages, p + 1))} className="px-3 py-1.5 rounded border disabled:opacity-50">Siguiente</button>
-              </div>
-            </div>
-          </div>
-
-          <Footer />
-        </div>
-      </div>
-
-      {/* MODAL crear/editar */}
-{openModal && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]">
-    <div className="bg-white rounded-md shadow-lg w-full max-w-2xl p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold text-black">
-          {editingId ? `Editar sucursal #${editingId}` : "Nueva sucursal"}
-        </h2>
-        <button onClick={() => setOpenModal(false)} className="p-2 rounded hover:bg-gray-100">
-          <FaTimes />
-        </button>
-      </div>
-
-      {/* Form */}
-      <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 text-black">
-
-        {/* Básicos */}
-        <div>
-          <label className="block text-sm font-medium">Usuario ID *</label>
-          <input
-            name="usuarioid"
-            value={form.usuarioid}
-            onChange={onChange}
-            className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-            required
-            type="number"
-            min="1"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium">Nombre *</label>
-          <input
-            name="nombre"
-            value={form.nombre}
-            onChange={onChange}
-            className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium">Teléfono</label>
-          <input
-            name="telefono"
-            value={form.telefono}
-            onChange={onChange}
-            className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium">Complemento</label>
-          <input
-            name="complemento"
-            value={form.complemento}
-            onChange={onChange}
-            className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-          />
-        </div>
-
-        {/* ====== CÓDIGO DE ACTIVIDAD (COMBOBOX con búsqueda) ====== */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium">Código de actividad</label>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Buscar por código o nombre…"
-              value={actQuery}
-              onChange={(e) => setActQuery(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-            />
-
-            {/* dropdown de resultados */}
-            {actQuery && filteredActs.length > 0 && (
-              <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-white shadow">
-                {filteredActs.map((a) => (
-                  <li
-                    key={a.codigo}
-                    className="px-3 py-2 text-sm text-gray-900 hover:bg-gray-100 cursor-pointer"
-                    onMouseDown={() => {
-                      setForm((f) => ({ ...f, codactividad: a.codigo, desactividad: a.nombre }));
-                      setActQuery(`${a.codigo} - ${a.nombre}`);
-                    }}
-                  >
-                    {a.codigo} — {a.nombre}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* seleccion actual */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-            <input
-              readOnly
-              value={form.codactividad}
-              placeholder="Código seleccionado"
-              className="border border-gray-300 rounded w-full p-2 bg-gray-50 text-gray-900"
-            />
-            <input
-              name="desactividad"
-              value={form.desactividad}
-              onChange={(e) => setForm((f) => ({ ...f, desactividad: e.target.value }))}
-              placeholder="Descripción seleccionada"
-              className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-            />
-          </div>
-        </div>
-
-        {/* ====== DEPARTAMENTO → MUNICIPIO (códigos en cascada) ====== */}
-        <div>
-          <label className="block text-sm font-medium">Departamento</label>
-          <select
-            name="departamento"
-            value={form.departamento}
-            onChange={(e) => setForm((f) => ({ ...f, departamento: e.target.value }))}
-            className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-          >
-            <option value="">-- Seleccionar --</option>
-            {deptosOptions.map((d) => (
-              <option key={d.codigo} value={d.codigo}>
-                {d.codigo} - {d.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium">Municipio</label>
-
-          {/* mini buscador dentro del depto */}
-          <input
-            type="text"
-            placeholder="Filtrar municipio…"
-            value={muniQuery}
-            onChange={(e) => setMuniQuery(e.target.value)}
-            className="mb-2 w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-            disabled={!form.departamento}
-          />
-
-          <select
-            name="municipio"
-            value={form.municipio}
-            onChange={(e) => setForm((f) => ({ ...f, municipio: e.target.value }))}
-            className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-            disabled={!form.departamento}
-          >
-            <option value="">{form.departamento ? "-- Seleccionar --" : "Seleccione un departamento"}</option>
-            {municipiosOptions.map((m) => (
-              <option key={`${m.departamento}-${m.codigo}`} value={m.codigo}>
-                {m.codigo} - {m.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* MH / otros */}
-        <div>
-          <label className="block text-sm font-medium">Tipo Establecimiento</label>
-          <input
-            name="tipoestablecimiento"
-            value={form.tipoestablecimiento}
-            onChange={onChange}
-            className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium">Código Estable MH</label>
-          <input
-            name="codestablemh"
-            value={form.codestablemh}
-            onChange={onChange}
-            className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium">Código Punto Venta MH</label>
-          <input
-            name="codpuntoventamh"
-            value={form.codpuntoventamh}
-            onChange={onChange}
-            className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium">Código Punto Venta (interno)</label>
-          <input
-            name="codpuntoventa"
-            value={form.codpuntoventa}
-            onChange={onChange}
-            className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-          />
-        </div>
-
-        {/* Logo */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium">Logo (imagen)</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={onFile}
-            className="border border-gray-300 rounded w-full p-2 bg-white text-gray-900"
-          />
-          <p className="text-xs text-gray-500 mt-1">Se enviará como base64 (sin encabezado).</p>
-        </div>
-
-        {/* Botones */}
-        <div className="md:col-span-2">
-          <button
-            disabled={loading}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-          >
-            <FaSave /> {loading ? "Guardando..." : "Guardar"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setOpenModal(false)}
-            className="ml-2 px-4 py-2 rounded border"
-          >
-            Cancelar
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
-
-
-      {/* Confirmación de borrado */}
-      <ConfirmDialog
-        open={openDelete}
-        title="Eliminar sucursal"
-        message="Esta acción no se puede deshacer. ¿Deseas eliminar la sucursal?"
-        confirmText="Eliminar"
-        cancelText="Cancelar"
-        loading={deleting}
-        onConfirm={confirmDelete}
-        onCancel={() => { if (!deleting) { setOpenDelete(false); setDeleteId(null); } }}
-      />
-    </div>
-  );
-}
