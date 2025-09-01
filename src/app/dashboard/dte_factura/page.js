@@ -38,11 +38,21 @@ export default async function FacturacionPage() {
     if (!productosResponse.ok) {
       throw new Error("Error al obtener los productos");
     }
+    
     const productosData = await productosResponse.json();
-    productos = productosData.data || productosData;
+    
+    // Asegurarnos de que productos sea un array
+    if (Array.isArray(productosData)) {
+      productos = productosData;
+    } else if (productosData && Array.isArray(productosData.data)) {
+      productos = productosData.data;
+    } else {
+      console.error("Formato de productos inesperado:", productosData);
+      productos = [];
+    }
 
-    // Obtener clientes (personas naturales)
-    const clientesResponse = await fetch("http://localhost:3000/personasNaturales/getAll", {
+    // Obtener clientes
+    const clientesResponse = await fetch("http://localhost:3000/clientes/getAllCli", {
       method: "GET",
       headers: {
         Cookie: cookie,
@@ -50,11 +60,20 @@ export default async function FacturacionPage() {
       credentials: "include",
     });
 
-    if (!clientesResponse.ok) {
-      throw new Error("Error al obtener los clientes");
+    if (clientesResponse.ok) {
+      const clientesData = await clientesResponse.json();
+      
+      // Asegurarnos de que clientes sea un array
+      if (Array.isArray(clientesData)) {
+        clientes = clientesData;
+      } else if (clientesData && Array.isArray(clientesData.data)) {
+        clientes = clientesData.data;
+      } else {
+        console.error("Formato de clientes inesperado:", clientesData);
+        clientes = [];
+      }
     }
-    const clientesData = await clientesResponse.json();
-    clientes = clientesData.data || clientesData;
+
   } catch (error) {
     console.error("Error al obtener los datos:", error);
   }
