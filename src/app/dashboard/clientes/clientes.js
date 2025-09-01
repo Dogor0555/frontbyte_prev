@@ -3104,6 +3104,7 @@ export default function Clientes({ initialClientes = [], user }) {
 
       {/* Modal de Agregar Cliente */}
       {showAddModal && (
+        <div className="text-gray-900">
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -3442,10 +3443,12 @@ export default function Clientes({ initialClientes = [], user }) {
             </form>
           </div>
         </div>
+        </div>
       )}
 
       {/* Modal de Editar Cliente */}
       {showEditModal && (
+        <div className="text-gray-900">
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -3740,6 +3743,7 @@ export default function Clientes({ initialClientes = [], user }) {
               </div>
             </form>
           </div>
+        </div>
         </div>
       )}
 
