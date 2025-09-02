@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import { useRouter } from "next/navigation";
@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 export default function FacturasView() {
   const [facturas, setFacturas] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [estadoFiltro, setEstadoFiltro] = useState("")
+  const [estadoFiltro, setEstadoFiltro] = useState("");
+  const [ordenFecha, setOrdenFecha] = useState("reciente"); // "reciente" o "antigua"
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,7 +39,19 @@ export default function FacturasView() {
     fetchFacturas();
   }, []);
 
-  
+  // Función para ordenar facturas por fecha
+  const ordenarFacturasPorFecha = (facturas) => {
+    return [...facturas].sort((a, b) => {
+      const fechaA = new Date(a.fechaemision || 0);
+      const fechaB = new Date(b.fechaemision || 0);
+      
+      if (ordenFecha === "reciente") {
+        return fechaB - fechaA; // Más reciente primero
+      } else {
+        return fechaA - fechaB; // Más antigua primero
+      }
+    });
+  };
 
   const facturasFiltradas = Array.isArray(facturas)
     ? facturas.filter((factura) => {
@@ -57,10 +70,13 @@ export default function FacturasView() {
       })
     : [];
 
+  // Aplicar ordenamiento por fecha
+  const facturasOrdenadas = ordenarFacturasPorFecha(facturasFiltradas);
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = facturasFiltradas.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(facturasFiltradas.length / itemsPerPage);
+  const currentItems = facturasOrdenadas.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(facturasOrdenadas.length / itemsPerPage);
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const formatCurrency = (amount) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(amount || 0);
@@ -159,13 +175,21 @@ export default function FacturasView() {
   const handleGeneratePDF = async (facturaId, numeroFactura) => {
     setPdfLoading(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-pdf`, {
+      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-pdf?code=VERIFICATION_CODE`, {
         credentials: "include"
       });
+      
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(errorData || "Error al descargar PDF");
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          throw new Error(errorText || "Error al descargar PDF");
+        }
+        throw new Error(errorData.detalles || errorData.error || "Error al descargar PDF");
       }
+      
       const pdfBlob = await response.blob();
       const pdfUrl = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
@@ -174,6 +198,7 @@ export default function FacturasView() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(pdfUrl);
     } catch (error) {
       console.error("Error al generar PDF:", error);
       alert("Error al generar el PDF: " + error.message);
@@ -198,7 +223,6 @@ export default function FacturasView() {
     );
   }
 
-  
   return (
     <div className="flex min-h-screen bg-blue-50">
       <div className="hidden md:block">
@@ -231,7 +255,7 @@ export default function FacturasView() {
                 </p>
               </div>
 
-              {/* 🔎 Búsqueda + Filtro por estado */}
+              {/* 🔎 Búsqueda + Filtro por estado + Orden por fecha */}
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 <div className="relative w-full md:w-64">
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -261,24 +285,37 @@ export default function FacturasView() {
                   <option value="RE-TRANSMITIDO">RE-TRANSMITIDO</option>
                   <option value="CONTINGENCIA">CONTINGENCIA</option>
                 </select>
+
+                <select
+                  value={ordenFecha}
+                  onChange={(e) => {
+                    setOrdenFecha(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
+                >
+                  <option value="reciente">Más reciente</option>
+                  <option value="antigua">Más antigua</option>
+                </select>
               </div>
             </div>
-            {/* Listado en formato tarjeta-factura */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            {/* Listado en formato tarjeta-factura (más compacto) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {currentItems.map((factura) => (
                 <div
                   key={factura.iddtefactura}
-                  className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                  className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-200"
                 >
                   {/* Encabezado de factura con azul sólido */}
-                  <div className="bg-blue-600 text-white p-4">
+                  <div className="bg-blue-600 text-white p-3">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center">
-                        <div className="bg-white/20 p-1.5 rounded-lg mr-3">
-                          <FaFileAlt className="text-white text-sm" />
+                        <div className="bg-white/20 p-1 rounded mr-2">
+                          <FaFileAlt className="text-white text-xs" />
                         </div>
                         <div>
-                          <span className="font-semibold text-sm block">FACTURA</span>
+                          <span className="font-semibold text-xs block">FACTURA</span>
                           <span className="text-xs font-light opacity-90">
                             #{factura.numerofacturausuario?.toString().padStart(4, '0') || factura.iddtefactura}
                           </span>
@@ -297,12 +334,12 @@ export default function FacturasView() {
                   </div>
 
                   {/* Cuerpo de factura */}
-                  <div className="p-5">
+                  <div className="p-4">
                     {/* Línea de estado */}
-                    <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-100">
+                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
                       <div className="flex items-center text-gray-600">
-                        <FaCalendarAlt className="mr-2 text-blue-500 text-sm" />
-                        <span className="text-sm">{formatDate(factura.fechaemision)}</span>
+                        <FaCalendarAlt className="mr-1 text-blue-500 text-xs" />
+                        <span className="text-xs">{formatDate(factura.fechaemision)}</span>
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                         factura.documentofirmado && factura.documentofirmado !== "null"
@@ -314,40 +351,40 @@ export default function FacturasView() {
                     </div>
 
                     {/* Información del cliente */}
-                    <div className="mb-4">
-                      <div className="flex items-center text-gray-700 mb-2">
-                        <FaUser className="mr-2 text-blue-500 text-sm" />
-                        <span className="text-sm font-medium">Cliente</span>
+                    <div className="mb-3">
+                      <div className="flex items-center text-gray-700 mb-1">
+                        <FaUser className="mr-1 text-blue-500 text-xs" />
+                        <span className="text-xs font-medium">Cliente</span>
                       </div>
-                      <p className="text-gray-900 font-medium truncate pl-4">
+                      <p className="text-gray-900 text-sm font-medium truncate pl-3">
                         {factura.nombentrega || 'Cliente no especificado'}
                       </p>
                       {factura.docuentrega && (
-                        <p className="text-xs text-gray-500 pl-4 mt-1">DUI: {factura.docuentrega}</p>
+                        <p className="text-xs text-gray-500 pl-3 mt-0.5">DUI: {factura.docuentrega}</p>
                       )}
                     </div>
 
                     {/* Información de control */}
-                    <div className="grid grid-cols-2 gap-3 mb-5">
+                    <div className="grid grid-cols-2 gap-2 mb-3">
                       <div>
-                        <div className="text-xs text-gray-500 mb-1">Código</div>
-                        <div className="text-sm font-mono text-gray-800 bg-gray-50 p-1.5 rounded">
+                        <div className="text-xs text-gray-500 mb-0.5">Código</div>
+                        <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded">
                           {factura.codigo || 'N/A'}
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs text-gray-500 mb-1">Control</div>
-                        <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1.5 rounded truncate">
+                        <div className="text-xs text-gray-500 mb-0.5">Control</div>
+                        <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded truncate">
                           {factura.ncontrol || 'N/A'}
                         </div>
                       </div>
                     </div>
 
                     {/* Total */}
-                    <div className="border-t border-gray-100 pt-4">
+                    <div className="border-t border-gray-100 pt-2">
                       <div className="flex justify-between items-center">
-                        <div className="text-sm text-gray-500">Total a pagar</div>
-                        <div className="text-xl font-bold text-blue-600">
+                        <div className="text-xs text-gray-500">Total a pagar</div>
+                        <div className="text-lg font-bold text-blue-600">
                           {formatCurrency(factura.totalpagar || factura.montototaloperacion || 0)}
                         </div>
                       </div>
@@ -355,14 +392,14 @@ export default function FacturasView() {
                   </div>
 
                   {/* Pie de factura - Acciones */}
-                  <div className="bg-gray-50 px-4 py-3 flex flex-wrap gap-2 justify-between border-t border-gray-100">
+                  <div className="bg-gray-50 px-3 py-2 flex flex-wrap gap-1 justify-between border-t border-gray-100">
                     {/* Botón de Detalles */}
                     <button
                       onClick={() => handleViewDetails(factura.iddtefactura)}
-                      className="flex items-center text-blue-600 hover:text-blue-800 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
+                      className="flex items-center text-blue-600 hover:text-blue-800 px-2 py-1 rounded text-xs font-medium"
                       title="Ver detalles completos"
                     >
-                      <FaFileAlt className="mr-1.5 text-sm" />
+                      <FaFileAlt className="mr-1 text-xs" />
                       Detalles
                     </button>
 
@@ -371,16 +408,16 @@ export default function FacturasView() {
                       <button
                         onClick={() => handleReTransmitir(factura.iddtefactura)}
                         disabled={reTransmitiendo === factura.iddtefactura}
-                        className={`flex items-center px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+                        className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
                           reTransmitiendo === factura.iddtefactura
                             ? 'bg-gray-400 text-gray-700'
                             : 'bg-yellow-500 hover:bg-yellow-600 text-white'
                         }`}
                       >
                         {reTransmitiendo === factura.iddtefactura ? (
-                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1.5"></div>
+                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
                         ) : (
-                          <FaSync className="mr-1.5 text-sm" />
+                          <FaSync className="mr-1 text-xs" />
                         )}
                         Re-transmitir
                       </button>
@@ -391,16 +428,16 @@ export default function FacturasView() {
                       <button
                         onClick={() => handleAnularFactura(factura.iddtefactura)}
                         disabled={anulando === factura.iddtefactura}
-                        className={`flex items-center px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+                        className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
                           anulando === factura.iddtefactura
                             ? 'bg-gray-400 text-gray-700'
                             : 'bg-red-500 hover:bg-red-600 text-white'
                         }`}
                       >
                         {anulando === factura.iddtefactura ? (
-                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1.5"></div>
+                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
                         ) : (
-                          <FaBan className="mr-1.5 text-sm" />
+                          <FaBan className="mr-1 text-xs" />
                         )}
                         Anular
                       </button>
@@ -410,7 +447,7 @@ export default function FacturasView() {
                     <button
                       onClick={() => handleGeneratePDF(factura.iddtefactura, factura.numerofacturausuario)}
                       disabled={pdfLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
-                      className={`flex items-center px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
+                      className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
                         pdfLoading === factura.iddtefactura
                           ? 'bg-gray-400 text-gray-700'
                           : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
@@ -421,12 +458,12 @@ export default function FacturasView() {
                     >
                       {pdfLoading === factura.iddtefactura ? (
                         <>
-                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1.5"></div>
+                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
                           Generando
                         </>
                       ) : (
                         <>
-                          <FaFilePdf className="mr-1.5 text-sm" />
+                          <FaFilePdf className="mr-1 text-xs" />
                           PDF
                         </>
                       )}
@@ -437,8 +474,8 @@ export default function FacturasView() {
             </div>
 
             {/* Paginación */}
-            {facturasFiltradas.length > itemsPerPage && (
-              <div className="flex justify-center mt-8">
+            {facturasOrdenadas.length > itemsPerPage && (
+              <div className="flex justify-center mt-6">
                 <nav className="inline-flex rounded-md shadow">
                   <button
                     onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
@@ -453,7 +490,7 @@ export default function FacturasView() {
                     <button
                       key={number}
                       onClick={() => paginate(number)}
-                      className={`px-4 py-1 border-t border-b ${
+                      className={`px-3 py-1 border-t border-b ${
                         currentPage === number ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                       }`}
                     >
@@ -474,10 +511,10 @@ export default function FacturasView() {
             )}
 
             {/* Mensaje cuando no hay resultados */}
-            {facturasFiltradas.length === 0 && (
-              <div className="text-center py-12">
-                <div className="text-gray-400 mb-4">
-                  <FaFileAlt className="inline-block text-5xl" />
+            {facturasOrdenadas.length === 0 && (
+              <div className="text-center py-10">
+                <div className="text-gray-400 mb-3">
+                  <FaFileAlt className="inline-block text-4xl" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-700">
                   {facturas.length === 0 ? 'No hay facturas registradas' : 'No se encontraron coincidencias'}
