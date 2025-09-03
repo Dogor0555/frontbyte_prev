@@ -1,5 +1,5 @@
 // src/app/dashboard/sucursales/page.js
-import Sucursales from "../sucursales/sucursal";
+import Sucursales from "../sucursal/sucursales";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
