@@ -76,7 +76,7 @@ export default function Sidebar({ onOpenPerfil }) {
     { name: "Facturas", icon: <FaFileAlt />, href: "/dashboard/facturas" },
     { name: "Creditos", icon: <FaFileAlt />, href: "/dashboard/creditos" },
     // { name: "Clientes", icon: <FaUsers />, href: "#", subMenu: [...], menuKey: "clients" },
-    { name: "Reportes", icon: <FaChartBar />, href: "#" },
+    { name: "Reportes", icon: <FaChartBar />, href: "/dashboard/reportes" },
   ];
 
   // Menú admin o configuración
