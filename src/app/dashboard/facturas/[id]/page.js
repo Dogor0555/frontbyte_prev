@@ -1,13 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser } from "react-icons/fa";
+import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
 
 export default function FacturaDetallePage() {
   const params = useParams();
-  const numeroFactura = params?.id;
+  const idFactura = params?.id;
   
   const [facturaData, setFacturaData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,7 @@ export default function FacturaDetallePage() {
     const fetchFactura = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/facturas-completas/${numeroFactura}`, {
+        const response = await fetch(`http://localhost:3000/facturas/productos/${idFactura}`, {
           credentials: "include",
           headers: {
             'Content-Type': 'application/json',
@@ -43,44 +43,41 @@ export default function FacturaDetallePage() {
       }
     };
     
-    if (numeroFactura) {
+    if (idFactura) {
       fetchFactura();
     }
-  }, [numeroFactura]);
+  }, [idFactura]);
 
   const handleGeneratePDF = async () => {
     setGenerandoPDF(true);
     try {
-      if (!facturaData?.factura?.documentofirmado) {
-        throw new Error("La factura no tiene documento firmado");
-      }
-
-      const pdfResponse = await fetch("http://localhost:3000/api/generar-pdf/factura", {
-        method: "POST",
+      const response = await fetch(`http://localhost:3000/facturas/${idFactura}/descargar-pdf?code=VERIFICATION_CODE`, {
+        credentials: "include",
         headers: {
-          "Content-Type": "application/json",
           'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          token: facturaData.factura.documentofirmado,
-          tipo: "factura",
-          facturaId: facturaData.factura.id
-        }),
-        credentials: "include"
+        }
       });
-
-      if (!pdfResponse.ok) throw new Error("Error al generar PDF");
-
-      const pdfBlob = await pdfResponse.blob();
-      const pdfUrl = URL.createObjectURL(pdfBlob);
       
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          throw new Error(errorText || "Error al descargar PDF");
+        }
+        throw new Error(errorData.detalles || errorData.error || "Error al descargar PDF");
+      }
+      
+      const pdfBlob = await response.blob();
+      const pdfUrl = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = `FAC-${facturaData.factura.numero}.pdf`;
+      link.download = `FAC-${facturaData.factura.numerofacturausuario || idFactura}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
+      URL.revokeObjectURL(pdfUrl);
     } catch (error) {
       console.error("Error al generar PDF:", error);
       alert("Error al generar el PDF: " + error.message);
@@ -239,12 +236,14 @@ export default function FacturaDetallePage() {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
                     <FaFileAlt className="mr-2 text-xl" />
-                    <span className="font-semibold text-xl">FAC-{facturaData.factura.numero?.toString().padStart(4, '0') || '0000'}</span>
+                    <span className="font-semibold text-xl">
+                      FAC-{facturaData.factura.numerofacturausuario?.toString().padStart(4, '0') || '0000'}
+                    </span>
                   </div>
                   <span className={`text-xs px-2 py-1 rounded ${
-                    facturaData.factura.tipo === 'crédito' ? 'bg-blue-700' : 'bg-blue-800'
+                    facturaData.factura.tipoventa === 'crédito' ? 'bg-blue-700' : 'bg-blue-800'
                   }`}>
-                    {facturaData.factura.tipo?.toUpperCase() || 'FACTURA'}
+                    {facturaData.factura.tipoventa?.toUpperCase() || 'FACTURA'}
                   </span>
                 </div>
               </div>
@@ -253,21 +252,20 @@ export default function FacturaDetallePage() {
               <div className="text-black p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-4 rounded">
                   <h2 className="font-semibold mb-3 text-lg">Emisor</h2>
-                  <p className="font-medium">{facturaData.emisor.nombre}</p>
-                  <p>NIT: {facturaData.emisor.nit}</p>
-                  {facturaData.emisor.nrc && <p>NRC: {facturaData.emisor.nrc}</p>}
-                  <p>Dirección: {facturaData.emisor.direccion}</p>
-                  <p>Teléfono: {facturaData.emisor.telefono}</p>
-                  {facturaData.emisor.correo && <p>Correo: {facturaData.emisor.correo}</p>}
+                  <p className="font-medium">{facturaData.emisor.nombre || "Nombre no disponible"}</p>
+                  <p>NIT: {facturaData.emisor.nit || "NIT no disponible"}</p>
+                  <p>NRC: {facturaData.emisor.nrc || "NRC no disponible"}</p>
+                  <p>Teléfono: {facturaData.emisor.telefono || "Teléfono no disponible"}</p>
+                  <p>Correo: {facturaData.emisor.correo || "Correo no disponible"}</p>
+                  <p>Sucursal: {facturaData.emisor.sucursal || "Sucursal no disponible"}</p>
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded">
                   <h2 className="font-semibold mb-3 text-lg">Cliente</h2>
-                  <p className="font-medium">{facturaData.cliente.nombre}</p>
-                  <p>Documento: {facturaData.cliente.documento}</p>
-                  <p>Dirección: {facturaData.cliente.direccion}</p>
-                  <p>Teléfono: {facturaData.cliente.telefono}</p>
-                  {facturaData.cliente.correo && <p>Correo: {facturaData.cliente.correo}</p>}
+                  <p className="font-medium">{facturaData.cliente.nombre || "Cliente no disponible"}</p>
+                  <p>Documento: {facturaData.cliente.documento || "Documento no disponible"}</p>
+                  <p>Teléfono: {facturaData.cliente.telefono || "Teléfono no disponible"}</p>
+                  <p>Correo: {facturaData.cliente.correo || "Correo no disponible"}</p>
                 </div>
               </div>
 
@@ -281,37 +279,39 @@ export default function FacturaDetallePage() {
                   )}
                 </div>
 
+                {/* Tabla de productos */}
                 <div className="mb-6">
-                  <h3 className="font-semibold mb-3 text-lg">Detalles de la factura</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full bg-white border">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="py-2 px-4 border">Código</th>
-                          <th className="py-2 px-4 border">Descripción</th>
-                          <th className="py-2 px-4 border">Cantidad</th>
-                          <th className="py-2 px-4 border">P. Unitario</th>
-                          <th className="py-2 px-4 border">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {facturaData.productos.map((producto, index) => (
-                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="py-2 px-4 border">{producto.codigo}</td>
-                            <td className="py-2 px-4 border">
-                              {producto.nombre}
-                              {producto.descripcion && producto.descripcion !== "Sin descripción" && (
-                                <p className="text-sm text-gray-500">{producto.descripcion}</p>
-                              )}
-                            </td>
-                            <td className="py-2 px-4 border text-center">{producto.cantidad}</td>
-                            <td className="py-2 px-4 border text-right">{formatCurrency(producto.precioUnitario)}</td>
-                            <td className="py-2 px-4 border text-right">{formatCurrency(producto.total)}</td>
+                  <h3 className="font-semibold mb-3 text-lg">Productos/Servicios</h3>
+                  {facturaData.productos && facturaData.productos.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full bg-white border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="py-2 px-4 border-b text-left">Descripción</th>
+                            <th className="py-2 px-4 border-b text-center">Cantidad</th>
+                            <th className="py-2 px-4 border-b text-right">Precio Unitario</th>
+                            <th className="py-2 px-4 border-b text-right">Subtotal</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {facturaData.productos.map((producto, index) => (
+                            <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                              <td className="py-2 px-4 border-b">{producto.descripcion || "Producto"}</td>
+                              <td className="py-2 px-4 border-b text-center">{Math.floor(producto.cantidad)|| 1}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.precioUnitario || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.total || 0)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded">
+                      <p className="text-yellow-800 flex items-center">
+                        <FaBox className="mr-2" /> No hay productos registrados para esta factura
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Totales */}
@@ -322,12 +322,12 @@ export default function FacturaDetallePage() {
                       <span className="font-medium">{formatCurrency(facturaData.factura.subtotal)}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b">
-                      <span className="font-medium">IVA (13%):</span>
-                      <span className="font-medium">{formatCurrency(facturaData.factura.iva)}</span>
+                      <span className="font-medium">IVA:</span>
+                      <span className="font-medium">{formatCurrency(facturaData.factura.valoriva)}</span>
                     </div>
                     <div className="flex justify-between py-2">
                       <span className="font-bold">Total:</span>
-                      <span className="font-bold">{formatCurrency(facturaData.factura.total)}</span>
+                      <span className="font-bold">{formatCurrency(facturaData.factura.totalapagar)}</span>
                     </div>
                   </div>
                 </div>
@@ -335,14 +335,16 @@ export default function FacturaDetallePage() {
                 {/* Total en letras */}
                 <div className="mt-6 p-4 bg-gray-50 rounded">
                   <p className="font-semibold">Total en letras:</p>
-                  <p className="italic">{facturaData.factura.valorLetras || "No disponible"}</p>
+                  <p className="italic">{facturaData.factura.valorletras || "No disponible"}</p>
                 </div>
 
                 {/* Información adicional */}
                 <div className="mt-4 p-4 bg-gray-50 rounded">
                   <p className="font-semibold">Información adicional:</p>
-                  <p>Forma de pago: {facturaData.factura.formaPago || "No especificado"}</p>
+                  <p>Forma de pago: {facturaData.factura.formapago || "No especificado"}</p>
+                  <p>Tipo de venta: {facturaData.factura.tipoventa || "No especificado"}</p>
                   <p>Estado: {facturaData.factura.estado || "No especificado"}</p>
+                  <p>N° Control: {facturaData.factura.ncontrol || "No disponible"}</p>
                 </div>
               </div>
             </div>
