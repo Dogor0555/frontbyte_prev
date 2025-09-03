@@ -36,6 +36,16 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   // --- Emisor (vendedor logueado) ---
   const [actividadEconomica, setActividadEconomica] = useState("");
   const [correoVendedor, setCorreoVendedor] = useState("");
+  // --- Receptor (cliente de la factura) ---
+  const [tipoDocumentoReceptor, setTipoDocumentoReceptor] = useState("");
+  const [numeroDocumentoReceptor, setNumeroDocumentoReceptor] = useState("");
+  const [nombreReceptor, setNombreReceptor] = useState("");
+  const [direccionReceptor, setDireccionReceptor] = useState("");
+  const [correoReceptor, setCorreoReceptor] = useState("");
+  const [telefonoReceptor, setTelefonoReceptor] = useState("");
+  const [complementoReceptor, setComplementoReceptor] = useState(""); // <- editable para este DTE
+  const [tipoDocumentoLabel, setTipoDocumentoLabel] = useState("Documento");
+
 
   // Inicializar correo desde user o, si no hay, desde localStorage
   useEffect(() => {
@@ -212,22 +222,58 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setShowClientDetails(true);
   };
 
+
+
+  // Determina etiqueta y valor del documento principal del cliente
+  const getTipoDocumentoInfo = (cli) => {
+    if (!cli) return { label: "Documento", value: "" };
+
+    const code = (cli.tipodocumento ?? "").toString().padStart(2, "0");
+    // Mapeo principal según DTE (SV)
+    const map = {
+      "13": { label: "DUI", value: cli.dui },
+      "36": { label: "NIT", value: cli.nit },
+      "03": { label: "Pasaporte", value: cli.pasaporte },
+      // Si en el futuro agregas más tipos, extiende aquí:
+      // "XX": { label: "Carnet de Residente", value: cli.carnetresidente },
+      // "YY": { label: "NRC", value: cli.nrc },
+    };
+
+    if (map[code]?.value) return map[code];
+
+    // Fallback por disponibilidad, por si no coincide el código o el campo viene vacío
+    if (cli.nit) return { label: "NIT", value: cli.nit };
+    if (cli.dui) return { label: "DUI", value: cli.dui };
+    if (cli.pasaporte) return { label: "Pasaporte", value: cli.pasaporte };
+    if (cli.nrc) return { label: "NRC", value: cli.nrc };
+    if (cli.carnetresidente) return { label: "Carnet de Residente", value: cli.carnetresidente };
+
+    return { label: "Documento", value: "" };
+  };
+
   // Seleccionar cliente después de ver sus detalles
   const selectCliente = () => {
     setCliente(selectedClient);
     setNombreCliente(selectedClient.nombre);
 
-    // Determinar qué documento mostrar según el tipo
-    if (selectedClient.tipodocumento === "13") {
-      setDocumentoCliente(selectedClient.dui || "");
-    } else if (selectedClient.tipodocumento === "36") {
-      setDocumentoCliente(selectedClient.nit || "");
-    } else if (selectedClient.tipodocumento === "03") {
-      setDocumentoCliente(selectedClient.pasaporte || "");
-    } else {
-      setDocumentoCliente(selectedClient.nit || selectedClient.dui || selectedClient.pasaporte || "");
-    }
 
+    const { label, value } = getTipoDocumentoInfo(selectedClient);
+    setTipoDocumentoLabel(label);
+    setDocumentoCliente(value ?? "");
+    const numeroDoc = selectedClient.tipodocumento === "13" ? selectedClient.dui
+      : selectedClient.tipodocumento === "36" ? selectedClient.nit
+        : selectedClient.tipodocumento === "03" ? selectedClient.pasaporte
+          : selectedClient.tipodocumento === "02" ? selectedClient.carnetresidente
+            : (selectedClient.nit ?? selectedClient.dui ?? selectedClient.pasaporte ?? selectedClient.carnetresidente ?? "");
+    setNumeroDocumentoReceptor(numeroDoc ?? "");
+
+    setNombreReceptor(selectedClient.nombre ?? "");
+    // Dirección guardada del cliente en BD (tu módulo de clientes usa 'complemento' como dirección detallada)
+    setDireccionReceptor(selectedClient.complemento ?? "");           // <- solo lectura en DTE
+    setCorreoReceptor(selectedClient.correo ?? "");
+    setTelefonoReceptor(selectedClient.telefono ?? "");
+    // Complemento del DTE: lo limpiamos para que el cajero escriba algo específico de esta factura (opcional)
+    setComplementoReceptor("");
     setSearchTerm("");
     setShowClientList(false);
     setShowClientDetails(false);
@@ -370,31 +416,29 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       <input
                         type="text"
                         value={searchTerm}
-                        onChange={(e) => {
-                          setSearchTerm(e.target.value);
-                          setShowClientList(true);
-                        }}
-                        className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        onChange={(e) => { setSearchTerm(e.target.value); setShowClientList(true); }}
+                        className="w-full pl-10 p-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-700 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Buscar cliente"
                       />
                     </div>
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Documento</label>
-                    <input
-                      type="text"
-                      value={documentoCliente}
-                      readOnly
-                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
-                    />
+                    <label className="block text-sm font-medium text-gray-800">
+                      Documento ({getTipoDocumentoInfo(selectedClient).label})
+                    </label>
+                    <p className="mt-1 p-2 bg-gray-50 rounded-md text-gray-900">
+                      {getTipoDocumentoInfo(selectedClient).value || "N/A"}
+                    </p>
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                     <input
                       type="text"
                       value={nombreCliente}
                       readOnly
-                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                     />
                   </div>
                   <div>
@@ -576,15 +620,95 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 </div>
               </div>
               {/* ---------------- FIN DATOS DEL EMISOR ----------------- */}
+              {/* ------------------ DATOS DEL RECEPTOR ------------------ */}
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6 text-black">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Datos del Receptor</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Tipo de Documento */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de documento</label>
+                    <input
+                      type="text"
+                      value={cliente ? getTipoDocumentoInfo(cliente).label : "--"}
+                      readOnly
+                      aria-label="Tipo de documento"
+                      placeholder="Tipo de documento"
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                    />
+                  </div>
+                  {/* Número de Documento */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Número de documento</label>
+                    <input
+                      type="text"
+                      value={documentoCliente}
+                      readOnly
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 placeholder:text-gray-700"
+                      placeholder="—"
+                    />
+                  </div>
 
+                  {/* Nombre del Receptor */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del receptor</label>
+                    <input
+                      type="text"
+                      value={nombreReceptor}
+                      readOnly
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                      placeholder="—"
+                    />
+                  </div>
 
+                  {/* Dirección (desde BD del cliente) */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+                    <input
+                      type="text"
+                      value={direccionReceptor}
+                      readOnly
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                      placeholder="—"
+                    />
+                  </div>
 
+                  {/* Complemento (texto libre SOLO para esta factura) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                    <input
+                      type="text"
+                      value={complementoReceptor}
+                      onChange={(e) => setComplementoReceptor(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Ej. Entregar en bodega 2, contacto: Juan"
+                    />
+                  </div>
 
-
-
-
-
-
+                  {/* Correo del Receptor */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+                    <input
+                      type="email"
+                      value={correoReceptor}
+                      readOnly
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                      placeholder="—"
+                    />
+                  </div>
+                  {/* Teléfono del Receptor */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                    <input
+                      type="text"
+                      value={telefonoReceptor}
+                      readOnly
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                      placeholder="—"
+                    />
+                  </div>
+                </div>
+              </div>
+              {/* ---------------- FIN DATOS DEL RECEPTOR ----------------- */}
               {/* Botones de acción */}
               <div className="flex justify-end space-x-4">
                 <button className="flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
@@ -1303,10 +1427,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   <div
                     key={cliente.id}
                     onClick={() => showClientDetailsPopup(cliente)}
-                    className="p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer"
+                    className="p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer text-gray-800"
                   >
                     <div className="font-medium">{cliente.nombre}</div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-800">
                       {cliente.nit || cliente.dui || "Sin documento"}
                     </div>
                   </div>
@@ -1337,7 +1461,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Nombre</label>
-                <p className="mt-1 p-2 bg-gray-50 rounded-md">{selectedClient.nombre}</p>
+                <p className="mt-1 p-2 bg-gray-50 rounded-md text-gray-900">{selectedClient.nombre}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Documento</label>
