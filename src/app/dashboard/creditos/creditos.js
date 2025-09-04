@@ -3,9 +3,10 @@ import { useState, useEffect } from "react";
 import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
+import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 
-export default function CreditosView() {
+export default function CreditosView({ user, hasHaciendaToken, haciendaStatus }) {
   const [creditos, setCreditos] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
@@ -235,6 +236,12 @@ export default function CreditosView() {
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
+        <Navbar 
+          user={user} 
+          hasHaciendaToken={hasHaciendaToken} 
+          haciendaStatus={haciendaStatus} 
+          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        />
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="md:hidden fixed left-2 top-2 z-10 p-2 rounded-md bg-white shadow-md text-gray-600"

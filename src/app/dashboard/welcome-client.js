@@ -11,6 +11,7 @@ import {
 } from "react-icons/fa";
 import Sidebar from "./components/sidebar";
 import Footer from "./components/footer";
+import Navbar from "./components/navbar";
 import { useRouter } from "next/navigation";
 
 export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }) {
@@ -92,63 +93,13 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
           {/* Navbar */}
-          <header className="sticky top-0 bg-white backdrop-blur-md bg-opacity-90 shadow-sm z-20">
-            <div className="flex items-center justify-between h-16 px-4 md:px-6">
-              <div className="flex items-center">
-                <button
-                  className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none"
-                  onClick={toggleSidebar}
-                  aria-label={sidebarOpen ? "Cerrar menú" : "Abrir menú"}
-                >
-                  {sidebarOpen ? (
-                    <FaTimes className="h-6 w-6" />
-                  ) : (
-                    <FaBars className="h-6 w-6" />
-                  )}
-                </button>
-
-                <div className="relative ml-4 md:ml-6 hidden sm:block">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                    <FaSearch className="text-gray-400" />
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Buscar..."
-                    className="py-2 pl-10 pr-4 w-48 md:w-64 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-4">
-                {/* Estado de conexión con Hacienda */}
-                <div
-                  className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                    haciendaConnection.connected
-                      ? "bg-green-100 text-green-800"
-                      : "bg-yellow-100 text-yellow-800"
-                  }`}
-                >
-                  {haciendaConnection.connected ? (
-                    <FaCheckCircle className="mr-1" />
-                  ) : (
-                    <FaExclamationTriangle className="mr-1" />
-                  )}
-                  <span>
-                    {haciendaConnection.connected
-                      ? `Hacienda: ${formatTimeLeft(haciendaConnection.expiresIn)}`
-                      : "Hacienda: Desconectado"}
-                  </span>
-                </div>
-
-                <span className="mr-2 text-xs md:text-sm text-black font-medium truncate max-w-24 md:max-w-none">
-                  {userName}
-                </span>
-                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center justify-center text-white font-medium">
-                  {userName.charAt(0)}
-                </div>
-              </div>
-            </div>
-          </header>
+          <Navbar 
+            user={user}
+            hasHaciendaToken={hasHaciendaToken}
+            haciendaStatus={haciendaStatus}
+            onToggleSidebar={toggleSidebar}
+            sidebarOpen={sidebarOpen}
+          />
 
           {/* Welcome Content */}
           <main className="flex-1 p-4 md:p-6 overflow-y-auto">

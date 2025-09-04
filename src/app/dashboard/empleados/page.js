@@ -14,17 +14,18 @@ export default async function EmpleadosPage() {
         .join("; ");
 
     // Verificar autenticación y obtener información completa
-    const authResult = await checkAuthStatus(cookie);
+    const authStatus = await checkAuthStatus(cookie);
     
-    console.log("Usuario completo desde checkAuthStatus:", authResult.user); // DEBUG
+    console.log("Usuario completo desde checkAuthStatus:", authStatus.user);
+    console.log("AuthStatus completo:", authStatus);
     
-    if (!authResult.isAuthenticated || !authResult.user) {
+    if (!authStatus.isAuthenticated || !authStatus.user) {
         redirect("/auth/login");
     }
 
     // Verificar si el usuario es administrador
-    if (authResult.user.rol !== "admin") {
-        console.log("Redirigiendo - Usuario no es admin. Rol:", authResult.user.rol);
+    if (authStatus.user.rol !== "admin") {
+        console.log("Redirigiendo - Usuario no es admin. Rol:", authStatus.user.rol);
         redirect("/dashboard/unauthorized");
     }
 
@@ -45,7 +46,7 @@ export default async function EmpleadosPage() {
 
         const data = await response.json();
         empleados = data.empleados || [];
-        console.log("Empleados obtenidos:", empleados.length); // DEBUG
+        console.log("Empleados obtenidos:", empleados.length);
     } catch (error) {
         console.error("Error al obtener los empleados:", error);
     }
@@ -59,7 +60,12 @@ export default async function EmpleadosPage() {
                 </div>
             }
         >
-            <Empleados initialEmpleados={empleados} user={authResult.user} />
+            <Empleados 
+                initialEmpleados={empleados} 
+                user={authStatus.user}
+                hasHaciendaToken={authStatus.hasHaciendaToken}
+                haciendaStatus={authStatus.haciendaStatus}
+            />
         </Suspense>
     );
 }

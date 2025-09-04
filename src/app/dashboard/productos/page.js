@@ -3,60 +3,67 @@ import Productos from "./productos";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { checkAuth } from "../../../lib/auth";
-import { isAdmin } from "../../services/auth";
+import { checkAuthStatus } from "../../services/auth";
 
 export default async function Produc() {
-  // Obtener las cookies del usuario
-  const cookieStore = await cookies();
-  const cookie = cookieStore
-    .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join("; ");
+    // Obtener cookies en el servidor
+    const cookieStore = await cookies();
+    const cookie = cookieStore
+        .getAll()
+        .map((c) => `${c.name}=${c.value}`)
+        .join("; ");
 
-  // Verificar la autenticación del lado del servidor
-  const user = await checkAuth(cookie);
-
-  // Si el usuario no está autenticado, redirigir al login
-  if (!user) {
-    redirect("/auth/login"); 
-  }
-
-  // Verificar el rol del usuario y redirigir si no es admin
-  if (user.rol !== 'admin') {
-    redirect("/unauthorized");
-  }
-
-  // Obtener las empresas del usuario
-  let productos = [];
-  try {
-    const response = await fetch("http://localhost:3000/productos/getAll", {
-      method: "GET",
-      headers: {
-        Cookie: cookie,
-      },
-      credentials: "include",
-    });
-
-    if (!response.ok) {
-      throw new Error("Error al obtener los productos");
+    // Verificar autenticación y obtener información completa
+    const authStatus = await checkAuthStatus(cookie);
+    
+    console.log("Usuario completo desde checkAuthStatus:", authStatus.user);
+    console.log("AuthStatus completo:", authStatus);
+    
+    if (!authStatus.isAuthenticated || !authStatus.user) {
+        redirect("/auth/login");
     }
 
-    productos = await response.json();
-  } catch (error) {
-    console.error("Error al obtener los productos:", error);
-  }
+    // Verificar si el usuario es administrador
+    if (authStatus.user.rol !== "admin") {
+        console.log("Redirigiendo - Usuario no es admin. Rol:", authStatus.user.rol);
+        redirect("/dashboard/unauthorized");
+    }
 
-  // Pasar los productos y el usuario como props al Client Component
-  return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-        </div>
-      }
-    >
-      <Productos initialProductos={productos} user={user} />
-    </Suspense>
-  );
+    // Obtener las empresas del usuario
+    let productos = [];
+    try {
+        const response = await fetch("http://localhost:3000/productos/getAll", {
+            method: "GET",
+            headers: {
+                Cookie: cookie,
+            },
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error("Error al obtener los productos");
+        }
+        
+        productos = await response.json();
+    } catch (error) {
+        console.error("Error al obtener los productos:", error);
+    }
+
+    // Pasar los productos y el usuario como props al Client Component
+    return (
+        <Suspense
+            fallback={
+                <div className="flex items-center justify-center min-h-screen">
+                    <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+            }
+        >
+            <Productos 
+                initialProductos={productos}
+                user={authStatus.user} // ← CORREGIDO: usar authStatus.user en lugar de user
+                hasHaciendaToken={authStatus.hasHaciendaToken}
+                haciendaStatus={authStatus.haciendaStatus}
+            />
+        </Suspense>
+    );
 }

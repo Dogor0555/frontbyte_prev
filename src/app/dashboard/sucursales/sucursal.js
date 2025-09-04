@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { FaSearch, FaBars, FaPlus, FaTimes, FaEdit, FaTrash, FaSave } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
+import Navbar from "../components/navbar";
 
 /* =========================================
    Config / Utils
@@ -88,7 +89,7 @@ function ConfirmDialog({
 /* =========================================
    Página principal
 ========================================= */
-export default function Sucursales({ initialData, user }) {
+export default function Sucursales({ initialData, user, hasHaciendaToken, haciendaStatus }) {
   /* ---------- Layout / Responsive ---------- */
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -354,24 +355,12 @@ export default function Sucursales({ initialData, user }) {
 
         {/* Panel derecho */}
         <div className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="sticky top-0 bg-white backdrop-blur-md bg-opacity-90 shadow-sm z-20">
-            <div className="flex items-center justify-between h-16 px-4 md:px-6">
-              <div className="flex items-center gap-2">
-                <button className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none" onClick={toggleSidebar} aria-label={sidebarOpen ? "Cerrar menú" : "Abrir menú"}>
-                  {sidebarOpen ? <FaTimes className="h-6 w-6" /> : <FaBars className="h-6 w-6" />}
-                </button>
-                <h2 className="hidden md:block text-xl font-semibold text-gray-800">Sucursales</h2>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {user?.name && <span className="hidden sm:block text-sm text-black font-medium truncate max-w-[180px]">{user.name}</span>}
-                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center justify-center text-white font-medium">
-                  {user?.name ? user.name.charAt(0) : "U"}
-                </div>
-              </div>
-            </div>
-          </header>
+          {/* Header */} 
+          <Navbar 
+              user={user}
+              hasHaciendaToken={hasHaciendaToken}
+              haciendaStatus={haciendaStatus}
+          />
 
           {/* Contenido */}
           <div className="flex-1 p-4 md:p-6">

@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
+import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 
-export default function FacturasView() {
+export default function FacturasView( { user, hasHaciendaToken, haciendaStatus } ) {
   const [facturas, setFacturas] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
-  const [ordenFecha, setOrdenFecha] = useState("reciente"); // "reciente" o "antigua"
+  const [ordenFecha, setOrdenFecha] = useState("reciente");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -237,12 +238,21 @@ export default function FacturasView() {
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
+        
+        <Navbar 
+          user={user} 
+          hasHaciendaToken={hasHaciendaToken} 
+          haciendaStatus={haciendaStatus} 
+          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        />
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="md:hidden fixed left-2 top-2 z-10 p-2 rounded-md bg-white shadow-md text-gray-600"
         >
           ☰
         </button>
+
+        
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="max-w-6xl mx-auto">

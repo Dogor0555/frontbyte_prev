@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
+import Navbar from "../components/navbar";
 import Select from "react-select";
 import {
   FaPlus,
@@ -14,7 +15,7 @@ import {
   FaBars,
 } from "react-icons/fa";
 
-export default function Clientes({ initialClientes = [], user }) {
+export default function Clientes({ initialClientes = [], user, hasHaciendaToken, haciendaStatus }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -2810,34 +2811,11 @@ export default function Clientes({ initialClientes = [], user }) {
         </div>
 
         <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 bg-white backdrop-blur-md bg-opacity-90 shadow-sm z-20">
-            <div className="flex items-center justify-between h-16 px-4 md:px-6">
-              <div className="flex items-center">
-                <button
-                  className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none"
-                  onClick={toggleSidebar}
-                  aria-label={sidebarOpen ? "Cerrar menú" : "Abrir menú"}
-                >
-                  {sidebarOpen ? (
-                    <FaTimes className="h-6 w-6" />
-                  ) : (
-                    <FaBars className="h-6 w-6" />
-                  )}
-                </button>
-              </div>
-
-              <div className="flex items-center">
-                {user?.name && (
-                  <span className="mr-2 text-xs md:text-sm text-black font-medium truncate max-w-24 md:max-w-none">
-                    {user.name}
-                  </span>
-                )}
-                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center justify-center text-white font-medium">
-                  {user?.name ? user.name.charAt(0) : "U"}
-                </div>
-              </div>
-            </div>
-          </header>
+                <Navbar 
+                    user={user}
+                    hasHaciendaToken={hasHaciendaToken}
+                    haciendaStatus={haciendaStatus}
+                />
 
           <div className="flex-1 p-4 md:p-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">

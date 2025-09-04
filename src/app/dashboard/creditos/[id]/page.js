@@ -20,7 +20,7 @@ export default function CreditoDetallePage() {
     const fetchCredito = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/creditos-completos/${numeroCredito}`, {
+        const response = await fetch(`http://localhost:3000/creditos/${numeroCredito}/completo`, {
           credentials: "include",
           headers: {
             'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export default function CreditoDetallePage() {
       
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = `CRD-${creditoData.credito.numero}.pdf`;
+      link.download = `CRD-${creditoData.credito.numero || creditoData.credito.codigo || '0000'}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -172,6 +172,9 @@ export default function CreditoDetallePage() {
     }
   };
 
+  const numeroCreditoMostrar = creditoData.credito.numero || 
+                              (creditoData.credito.codigo ? creditoData.credito.codigo.replace('DTE-CR', '') : '0000');
+
   return (
     <div className="flex min-h-screen bg-blue-50">
       {/* Sidebar para desktop */}
@@ -239,7 +242,7 @@ export default function CreditoDetallePage() {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
                     <FaFileAlt className="mr-2 text-xl" />
-                    <span className="font-semibold text-xl">CRD-{creditoData.credito.numero?.toString().padStart(4, '0') || '0000'}</span>
+                    <span className="font-semibold text-xl">CRD-{numeroCreditoMostrar.toString().padStart(4, '0')}</span>
                   </div>
                   <span className="text-xs px-2 py-1 rounded bg-green-700">
                     CRÉDITO FISCAL
@@ -254,8 +257,8 @@ export default function CreditoDetallePage() {
                   <p className="font-medium">{creditoData.emisor.nombre}</p>
                   <p>NIT: {creditoData.emisor.nit}</p>
                   {creditoData.emisor.nrc && <p>NRC: {creditoData.emisor.nrc}</p>}
-                  <p>Dirección: {creditoData.emisor.direccion}</p>
-                  <p>Teléfono: {creditoData.emisor.telefono}</p>
+                  <p>Dirección: {creditoData.emisor.direccion || creditoData.emisor.complemento || "No disponible"}</p>
+                  <p>Teléfono: {creditoData.emisor.telefono || "No disponible"}</p>
                   {creditoData.emisor.correo && <p>Correo: {creditoData.emisor.correo}</p>}
                 </div>
 
@@ -264,8 +267,8 @@ export default function CreditoDetallePage() {
                   <p className="font-medium">{creditoData.cliente.nombre}</p>
                   <p>NIT: {creditoData.cliente.nit}</p>
                   {creditoData.cliente.nrc && <p>NRC: {creditoData.cliente.nrc}</p>}
-                  <p>Dirección: {creditoData.cliente.direccion}</p>
-                  <p>Teléfono: {creditoData.cliente.telefono}</p>
+                  <p>Dirección: {creditoData.cliente.direccion || creditoData.cliente.complemento || "No disponible"}</p>
+                  <p>Teléfono: {creditoData.cliente.telefono || "No disponible"}</p>
                   {creditoData.cliente.correo && <p>Correo: {creditoData.cliente.correo}</p>}
                 </div>
               </div>
@@ -299,9 +302,6 @@ export default function CreditoDetallePage() {
                             <td className="py-2 px-4 border">{producto.codigo}</td>
                             <td className="py-2 px-4 border">
                               {producto.nombre}
-                              {producto.descripcion && producto.descripcion !== "Sin descripción" && (
-                                <p className="text-sm text-gray-500">{producto.descripcion}</p>
-                              )}
                             </td>
                             <td className="py-2 px-4 border text-center">{producto.cantidad}</td>
                             <td className="py-2 px-4 border text-right">{formatCurrency(producto.precioUnitario)}</td>
@@ -334,14 +334,15 @@ export default function CreditoDetallePage() {
                 {/* Total en letras */}
                 <div className="mt-6 p-4 bg-gray-50 rounded">
                   <p className="font-semibold">Total en letras:</p>
-                  <p className="italic">{creditoData.credito.valorLetras || "No disponible"}</p>
+                  <p className="italic">{creditoData.credito.valorLetras || creditoData.credito.valorletras || "No disponible"}</p>
                 </div>
 
                 {/* Información adicional */}
                 <div className="mt-4 p-4 bg-gray-50 rounded">
                   <p className="font-semibold">Información adicional:</p>
-                  <p>Forma de pago: {creditoData.credito.formaPago || "No especificado"}</p>
+                  <p>Forma de pago: {creditoData.credito.formaPago || creditoData.credito.formapago || "No especificado"}</p>
                   <p>Estado: {creditoData.credito.estado || "No especificado"}</p>
+                  {creditoData.credito.tipo && <p>Tipo: {creditoData.credito.tipo}</p>}
                 </div>
               </div>
             </div>
