@@ -3,77 +3,57 @@ import FacturacionViewComplete from "./dteFactura.js";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { checkAuth } from "../../../lib/auth";
+import { checkAuth } from "../../../lib/auth"; // <-- ajusta la ruta si la tienes en otro lado
 
 export default async function FacturacionPage() {
-  // Obtener las cookies del usuario (usando await)
-  const cookieStore = await cookies();
+  // Leer cookies del request (SSR)
+  const cookieStore = cookies(); // no es necesario 'await'
   const cookie = cookieStore
     .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
+    .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  // Verificar la autenticación del lado del servidor
-  const user = await checkAuth(cookie);
-
-  // Si el usuario no está autenticado, redirigir al login
+  // Autenticación SSR
+  const user = await checkAuth(cookie); // devuelve null si no hay sesión
   if (!user) {
     redirect("/auth/login");
   }
 
-  // Obtener los productos y clientes disponibles
+  // Cargar datos
   let productos = [];
   let clientes = [];
 
   try {
-    // Obtener productos
+    // Productos
     const productosResponse = await fetch("http://localhost:3000/productos/getAll", {
       method: "GET",
-      headers: {
-        Cookie: cookie,
-      },
+      headers: { Cookie: cookie },
       credentials: "include",
+      cache: "no-store",
     });
-
-    if (!productosResponse.ok) {
-      throw new Error("Error al obtener los productos");
-    }
-    
+    if (!productosResponse.ok) throw new Error("Error al obtener los productos");
     const productosData = await productosResponse.json();
-    
-    // Asegurarnos de que productos sea un array
-    if (Array.isArray(productosData)) {
-      productos = productosData;
-    } else if (productosData && Array.isArray(productosData.data)) {
-      productos = productosData.data;
-    } else {
-      console.error("Formato de productos inesperado:", productosData);
-      productos = [];
-    }
+    productos = Array.isArray(productosData)
+      ? productosData
+      : Array.isArray(productosData?.data)
+      ? productosData.data
+      : [];
 
-    // Obtener clientes
+    // Clientes
     const clientesResponse = await fetch("http://localhost:3000/clientes/getAllCli", {
       method: "GET",
-      headers: {
-        Cookie: cookie,
-      },
+      headers: { Cookie: cookie },
       credentials: "include",
+      cache: "no-store",
     });
-
     if (clientesResponse.ok) {
       const clientesData = await clientesResponse.json();
-      
-      // Asegurarnos de que clientes sea un array
-      if (Array.isArray(clientesData)) {
-        clientes = clientesData;
-      } else if (clientesData && Array.isArray(clientesData.data)) {
-        clientes = clientesData.data;
-      } else {
-        console.error("Formato de clientes inesperado:", clientesData);
-        clientes = [];
-      }
+      clientes = Array.isArray(clientesData)
+        ? clientesData
+        : Array.isArray(clientesData?.data)
+        ? clientesData.data
+        : [];
     }
-
   } catch (error) {
     console.error("Error al obtener los datos:", error);
   }
@@ -87,7 +67,11 @@ export default async function FacturacionPage() {
         </div>
       }
     >
-      <FacturacionViewComplete initialProductos={productos} initialClientes={clientes} user={user} />
+      <FacturacionViewComplete
+        initialProductos={productos}
+        initialClientes={clientes}
+        user={user}
+      />
     </Suspense>
   );
 }

@@ -33,10 +33,46 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [cargandoProductos, setCargandoProductos] = useState(false);
   const [errorCargaProductos, setErrorCargaProductos] = useState(null);
-  
+  // --- Emisor (vendedor logueado) ---
+  const [actividadEconomica, setActividadEconomica] = useState("");
+  const [correoVendedor, setCorreoVendedor] = useState("");
+  // --- Receptor (cliente de la factura) ---
+  const [tipoDocumentoReceptor, setTipoDocumentoReceptor] = useState("");
+  const [numeroDocumentoReceptor, setNumeroDocumentoReceptor] = useState("");
+  const [nombreReceptor, setNombreReceptor] = useState("");
+  const [direccionReceptor, setDireccionReceptor] = useState("");
+  const [correoReceptor, setCorreoReceptor] = useState("");
+  const [telefonoReceptor, setTelefonoReceptor] = useState("");
+  const [complementoReceptor, setComplementoReceptor] = useState(""); // <- editable para este DTE
+  const [tipoDocumentoLabel, setTipoDocumentoLabel] = useState("Documento");
+
+
+  // Inicializar correo desde user o, si no hay, desde localStorage
+  useEffect(() => {
+    // 1) Desde el user que viene del SSR (si tu page.js lo pasa)
+    const fromUser =
+      (user && (user.correoEmpleado || user.emailemp || user.email)) || "";
+
+    if (fromUser) {
+      setCorreoVendedor(fromUser);
+      return;
+    }
+
+    // 2) Fallback desde localStorage (el login ya guarda 'empleado' con correo)
+    try {
+      const emp = JSON.parse(localStorage.getItem("empleado"));
+      if (emp?.correo) setCorreoVendedor(emp.correo);
+    } catch {
+      /* ignore */
+    }
+  }, [user]);
+
+
+
+
   const ticketRef = useRef();
 
-  
+
 
   // Catálogo de unidades
   const [unidades, setUnidades] = useState([
@@ -126,7 +162,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       const fetchProductos = async () => {
         setCargandoProductos(true);
         setErrorCargaProductos(null);
-        
+
         try {
           const response = await fetch('http://localhost:3000/productos/getAll', {
             method: 'GET',
@@ -135,7 +171,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
             },
             credentials: 'include'
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             setProductosCargados(data);
@@ -152,7 +188,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           setCargandoProductos(false);
         }
       };
-      
+
       fetchProductos();
     }
   }, [showModal, modalType]);
@@ -186,22 +222,58 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setShowClientDetails(true);
   };
 
+
+
+  // Determina etiqueta y valor del documento principal del cliente
+  const getTipoDocumentoInfo = (cli) => {
+    if (!cli) return { label: "Documento", value: "" };
+
+    const code = (cli.tipodocumento ?? "").toString().padStart(2, "0");
+    // Mapeo principal según DTE (SV)
+    const map = {
+      "13": { label: "DUI", value: cli.dui },
+      "36": { label: "NIT", value: cli.nit },
+      "03": { label: "Pasaporte", value: cli.pasaporte },
+      // Si en el futuro agregas más tipos, extiende aquí:
+      // "XX": { label: "Carnet de Residente", value: cli.carnetresidente },
+      // "YY": { label: "NRC", value: cli.nrc },
+    };
+
+    if (map[code]?.value) return map[code];
+
+    // Fallback por disponibilidad, por si no coincide el código o el campo viene vacío
+    if (cli.nit) return { label: "NIT", value: cli.nit };
+    if (cli.dui) return { label: "DUI", value: cli.dui };
+    if (cli.pasaporte) return { label: "Pasaporte", value: cli.pasaporte };
+    if (cli.nrc) return { label: "NRC", value: cli.nrc };
+    if (cli.carnetresidente) return { label: "Carnet de Residente", value: cli.carnetresidente };
+
+    return { label: "Documento", value: "" };
+  };
+
   // Seleccionar cliente después de ver sus detalles
   const selectCliente = () => {
     setCliente(selectedClient);
     setNombreCliente(selectedClient.nombre);
-    
-    // Determinar qué documento mostrar según el tipo
-    if (selectedClient.tipodocumento === "13") {
-      setDocumentoCliente(selectedClient.dui || "");
-    } else if (selectedClient.tipodocumento === "36") {
-      setDocumentoCliente(selectedClient.nit || "");
-    } else if (selectedClient.tipodocumento === "03") {
-      setDocumentoCliente(selectedClient.pasaporte || "");
-    } else {
-      setDocumentoCliente(selectedClient.nit || selectedClient.dui || selectedClient.pasaporte || "");
-    }
-    
+
+
+    const { label, value } = getTipoDocumentoInfo(selectedClient);
+    setTipoDocumentoLabel(label);
+    setDocumentoCliente(value ?? "");
+    const numeroDoc = selectedClient.tipodocumento === "13" ? selectedClient.dui
+      : selectedClient.tipodocumento === "36" ? selectedClient.nit
+        : selectedClient.tipodocumento === "03" ? selectedClient.pasaporte
+          : selectedClient.tipodocumento === "02" ? selectedClient.carnetresidente
+            : (selectedClient.nit ?? selectedClient.dui ?? selectedClient.pasaporte ?? selectedClient.carnetresidente ?? "");
+    setNumeroDocumentoReceptor(numeroDoc ?? "");
+
+    setNombreReceptor(selectedClient.nombre ?? "");
+    // Dirección guardada del cliente en BD (tu módulo de clientes usa 'complemento' como dirección detallada)
+    setDireccionReceptor(selectedClient.complemento ?? "");           // <- solo lectura en DTE
+    setCorreoReceptor(selectedClient.correo ?? "");
+    setTelefonoReceptor(selectedClient.telefono ?? "");
+    // Complemento del DTE: lo limpiamos para que el cajero escriba algo específico de esta factura (opcional)
+    setComplementoReceptor("");
     setSearchTerm("");
     setShowClientList(false);
     setShowClientDetails(false);
@@ -255,14 +327,14 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   // Función para agregar item desde el modal
   const agregarItemDesdeModal = (tipo, datos) => {
     const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
-    
+
     const newItem = {
       id: newId,
       tipo: tipo,
       ...datos,
       total: datos.cantidad * datos.precioUnitario * (1 - (datos.descuento || 0) / 100)
     };
-    
+
     setItems([...items, newItem]);
     setShowModal(false);
     setModalType("");
@@ -278,16 +350,16 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   // Función para calcular el total del producto en el modal
   const calcularTotalProducto = () => {
     if (!productoSeleccionado) return;
-    
+
     const cantidad = parseFloat(document.getElementById('cantidadProducto')?.value) || 1;
     const precio = parseFloat(productoSeleccionado.precio) || 0;
     const impuestoSelect = document.getElementById('impuestoProducto');
     const tasaImpuesto = impuestoSelect.value === "20" ? 0.13 : impuestoSelect.value === "21" ? 0.15 : 0;
-    
+
     const subtotal = cantidad * precio;
     const impuesto = subtotal * tasaImpuesto;
     const total = subtotal + impuesto;
-    
+
     document.getElementById('totalProducto').textContent = `$${total.toFixed(2)}`;
   };
 
@@ -296,7 +368,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     const producto = productosCargados.find(p => p.id === parseInt(productoId));
     if (producto) {
       setProductoSeleccionado(producto);
-      
+
       // Calcular total inicial
       setTimeout(() => {
         calcularTotalProducto();
@@ -344,31 +416,29 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       <input
                         type="text"
                         value={searchTerm}
-                        onChange={(e) => {
-                          setSearchTerm(e.target.value);
-                          setShowClientList(true);
-                        }}
-                        className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        onChange={(e) => { setSearchTerm(e.target.value); setShowClientList(true); }}
+                        className="w-full pl-10 p-2 border border-gray-300 rounded-md text-gray-900 placeholder:text-gray-700 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Buscar cliente"
                       />
                     </div>
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Documento</label>
-                    <input
-                      type="text"
-                      value={documentoCliente}
-                      readOnly
-                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
-                    />
+                    <label className="block text-sm font-medium text-gray-800">
+                      Documento ({getTipoDocumentoInfo(selectedClient).label})
+                    </label>
+                    <p className="mt-1 p-2 bg-gray-50 rounded-md text-gray-900">
+                      {getTipoDocumentoInfo(selectedClient).value || "N/A"}
+                    </p>
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                     <input
                       type="text"
                       value={nombreCliente}
                       readOnly
-                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                     />
                   </div>
                   <div>
@@ -512,6 +582,133 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 </button>
               </div>
 
+              {/* ------------------ DATOS DEL EMISOR ------------------ */}
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6 text-black">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Datos del Emisor</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Actividad Económica */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Actividad Económica
+                    </label>
+                    <select
+                      value={actividadEconomica}
+                      onChange={(e) => setActividadEconomica(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Seleccione...</option>
+                      <option value="47739">47739 - Venta al por menor de otros productos n.c.p.</option>
+                      <option value="47411">47411 - Venta al por menor de computadoras y equipo periférico</option>
+                      <option value="96092">96092 - Servicios n.c.p.</option>
+                    </select>
+                  </div>
+
+                  {/* Correo del vendedor (solo lectura) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Correo electrónico (vendedor)
+                    </label>
+                    <input
+                      type="email"
+                      value={correoVendedor}
+                      readOnly
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                      placeholder="No disponible"
+                    />
+                  </div>
+                </div>
+              </div>
+              {/* ---------------- FIN DATOS DEL EMISOR ----------------- */}
+              {/* ------------------ DATOS DEL RECEPTOR ------------------ */}
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6 text-black">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Datos del Receptor</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Tipo de Documento */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de documento</label>
+                    <input
+                      type="text"
+                      value={cliente ? getTipoDocumentoInfo(cliente).label : "--"}
+                      readOnly
+                      aria-label="Tipo de documento"
+                      placeholder="Tipo de documento"
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                    />
+                  </div>
+                  {/* Número de Documento */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Número de documento</label>
+                    <input
+                      type="text"
+                      value={documentoCliente}
+                      readOnly
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 placeholder:text-gray-700"
+                      placeholder="—"
+                    />
+                  </div>
+
+                  {/* Nombre del Receptor */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del receptor</label>
+                    <input
+                      type="text"
+                      value={nombreReceptor}
+                      readOnly
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                      placeholder="—"
+                    />
+                  </div>
+
+                  {/* Dirección (desde BD del cliente) */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+                    <input
+                      type="text"
+                      value={direccionReceptor}
+                      readOnly
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                      placeholder="—"
+                    />
+                  </div>
+
+                  {/* Complemento (texto libre SOLO para esta factura) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                    <input
+                      type="text"
+                      value={complementoReceptor}
+                      onChange={(e) => setComplementoReceptor(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Ej. Entregar en bodega 2, contacto: Juan"
+                    />
+                  </div>
+
+                  {/* Correo del Receptor */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+                    <input
+                      type="email"
+                      value={correoReceptor}
+                      readOnly
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                      placeholder="—"
+                    />
+                  </div>
+                  {/* Teléfono del Receptor */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                    <input
+                      type="text"
+                      value={telefonoReceptor}
+                      readOnly
+                      className="w-full p-2 border border-gray-300 rounded-md bg-gray-50"
+                      placeholder="—"
+                    />
+                  </div>
+                </div>
+              </div>
+              {/* ---------------- FIN DATOS DEL RECEPTOR ----------------- */}
               {/* Botones de acción */}
               <div className="flex justify-end space-x-4">
                 <button className="flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
@@ -537,7 +734,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           <div className="bg-white rounded-lg p-6 w-11/12 max-w-md">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Agregar Detalle</h2>
             <p className="text-gray-600 mb-6">Seleccione el tipo de detalle que desea agregar:</p>
-            
+
             <div className="grid grid-cols-1 gap-4">
               <button
                 onClick={() => selectTipoDetalle("producto")}
@@ -625,16 +822,16 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   <div className="border-b border-gray-200 pb-2">
                     <h3 className="font-semibold text-gray-900 text-lg">Item DTE</h3>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo:</label>
                     <select className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                       <option value="1">1 - Bien</option>
                       <option value="2">2 - Servicio</option>
-                      <option value="3">3 - Bien y Servicio</option>              
+                      <option value="3">3 - Bien y Servicio</option>
                     </select>
                   </div>
-                  
+
                   {/* Cantidad y Unidad */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -659,7 +856,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       />
                     </div>
                   </div>
-                  
+
                   {/* Campos para nombre y precio (solo lectura) */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-900 mb-2">Nombre Producto</label>
@@ -672,7 +869,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       placeholder="Seleccione un producto"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-900 mb-2">Precio</label>
                     <input
@@ -683,7 +880,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       value={productoSeleccionado ? `$${parseFloat(productoSeleccionado.precio).toFixed(2)}` : "$0.00"}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo Venta</label>
                     <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -699,7 +896,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   <div className="border-b border-gray-200 pb-2">
                     <h3 className="font-semibold text-gray-900 text-lg">Buscar Producto</h3>
                   </div>
-                  
+
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <label className="block text-sm font-semibold text-gray-900">
@@ -707,7 +904,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       </label>
                       <span className="text-xs text-red-600">Requerido</span>
                     </div>
-                    
+
                     {/* Campo de búsqueda */}
                     <div className="relative mb-3">
                       <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -722,18 +919,18 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         }}
                       />
                     </div>
-                    
+
                     {cargandoProductos && (
                       <div className="text-center py-4">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
                         <p className="text-sm text-gray-600 mt-2">Cargando productos...</p>
                       </div>
                     )}
-                    
+
                     {errorCargaProductos && (
                       <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                         <p className="text-sm">Error: {errorCargaProductos}</p>
-                        <button 
+                        <button
                           onClick={() => window.location.reload()}
                           className="text-red-600 underline text-xs mt-1"
                         >
@@ -741,21 +938,20 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         </button>
                       </div>
                     )}
-                    
+
                     {/* Lista de productos filtrados - Solo se muestra cuando hay búsqueda */}
                     {searchTerm && searchTerm.length >= 2 ? (
                       <div className="border border-gray-300 rounded-lg h-96 overflow-y-auto">
                         {productosCargados
-                          .filter(producto => 
-                            producto.nombre.toLowerCase().includes(searchTerm) || 
+                          .filter(producto =>
+                            producto.nombre.toLowerCase().includes(searchTerm) ||
                             producto.codigo.toLowerCase().includes(searchTerm)
                           )
                           .map((producto) => (
-                            <div 
+                            <div
                               key={producto.id}
-                              className={`p-3 border-b border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors ${
-                                productoSeleccionado?.id === producto.id ? 'bg-blue-100 border-l-4 border-l-blue-500' : ''
-                              }`}
+                              className={`p-3 border-b border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors ${productoSeleccionado?.id === producto.id ? 'bg-blue-100 border-l-4 border-l-blue-500' : ''
+                                }`}
                               onClick={() => {
                                 setProductoSeleccionado(producto);
                                 calcularTotalProducto();
@@ -769,18 +965,18 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                             </div>
                           ))
                         }
-                        
+
                         {/* Mensaje si no hay resultados de búsqueda */}
-                        {productosCargados.filter(producto => 
-                          producto.nombre.toLowerCase().includes(searchTerm) || 
+                        {productosCargados.filter(producto =>
+                          producto.nombre.toLowerCase().includes(searchTerm) ||
                           producto.codigo.toLowerCase().includes(searchTerm)
                         ).length === 0 && (
-                          <div className="p-6 text-center text-gray-500">
-                            <FaSearch className="mx-auto mb-2 text-2xl text-gray-400" />
-                            <p>No se encontraron productos</p>
-                            <p className="text-xs mt-1">con el término "{searchTerm}"</p>
-                          </div>
-                        )}
+                            <div className="p-6 text-center text-gray-500">
+                              <FaSearch className="mx-auto mb-2 text-2xl text-gray-400" />
+                              <p>No se encontraron productos</p>
+                              <p className="text-xs mt-1">con el término "{searchTerm}"</p>
+                            </div>
+                          )}
                       </div>
                     ) : (
                       /* Estado inicial - instrucciones de búsqueda */
@@ -805,10 +1001,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   <div className="border-b border-gray-200 pb-2">
                     <h3 className="font-semibold text-gray-900 text-lg">Información de tributos</h3>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-900 mb-2">Impuesto:</label>
-                    <select 
+                    <select
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       onChange={calcularTotalProducto}
                       id="impuestoProducto"
@@ -857,24 +1053,24 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       <option value="A9">A9 - Sacos Sintéticos</option>
                     </select>
                   </div>
-                  
+
                   {/* Resumen de totales */}
                   <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-6 rounded-xl border border-gray-200">
                     <h4 className="font-semibold text-gray-900 mb-4 text-center">Resumen del Item</h4>
-                    
+
                     <div className="space-y-3">
-                     
-                      
+
+
                       <div className="flex justify-between py-2">
                         <span className="text-gray-700">Descuento:</span>
                         <span className="font-semibold text-gray-900" id="descuentoProducto">$0.00</span>
                       </div>
-                      
+
                       <div className="flex justify-between py-2">
                         <span className="text-gray-700">IVA:</span>
                         <span className="font-semibold text-gray-900" id="ivaProducto">$0.00</span>
                       </div>
-                      
+
                       <div className="border-t border-gray-300 pt-3 mt-3">
                         <div className="flex justify-between">
                           <span className="text-lg font-semibold text-gray-900">Total:</span>
@@ -883,7 +1079,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Información del producto seleccionado */}
                   {productoSeleccionado && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -911,7 +1107,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   <FaTimes className="mr-2" />
                   Cancelar
                 </button>
-                
+
                 <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
                   <button
                     onClick={() => setModalType("selector")}
@@ -925,10 +1121,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         alert("Por favor seleccione un producto");
                         return;
                       }
-                      
+
                       const cantidad = parseFloat(document.getElementById('cantidadProducto').value) || 1;
                       const precio = parseFloat(productoSeleccionado.precio) || 0;
-                      
+
                       agregarItemDesdeModal("producto", {
                         descripcion: productoSeleccionado.nombre,
                         cantidad: cantidad,
@@ -976,7 +1172,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
             <div className="p-6 flex-1 overflow-y-auto">
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-6 text-xl">Otros montos No Afectos</h4>
-                
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-4xl mx-auto">
                   {/* Columna izquierda - Descripción */}
                   <div>
@@ -991,7 +1187,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       placeholder="Descripción"
                     />
                   </div>
-                  
+
                   {/* Columna derecha - Monto */}
                   <div>
                     <div className="flex justify-between items-center mb-3">
@@ -1014,7 +1210,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   </div>
                 </div>
               </div>
-              
+
               {/* Botones de acción */}
               <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-6 pt-6 border-t border-gray-200">
                 <button
@@ -1027,18 +1223,18 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   <FaTimes className="mr-2" />
                   Cancelar
                 </button>
-                
+
                 <button
                   onClick={() => {
                     // Lógica para agregar el monto no afecto
                     const descripcion = document.getElementById('descripcionNoAfecto').value.trim();
                     const monto = parseFloat(document.getElementById('montoNoAfecto').value) || 0;
-                    
+
                     if (!descripcion || monto <= 0) {
                       alert("Por favor complete todos los campos requeridos");
                       return;
                     }
-                    
+
                     // Agregar con unidad de medida 99 (Otra)
                     agregarItemDesdeModal("noAfecto", {
                       descripcion: descripcion,
@@ -1085,7 +1281,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
               {/* Impuestos/Tasas con afección al IVA */}
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-4">Impuestos/Tasas con afección al IVA</h4>
-                
+
                 {/* Impuesto */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Impuesto</label>
@@ -1135,7 +1331,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     <option value="D5">D5 - Otras tasas casos especiales</option>
                   </select>
                 </div>
-                
+
                 {/* Grid de descripción y monto */}
                 <div className="grid grid-cols-1 gap-4 mb-4">
                   <div>
@@ -1148,7 +1344,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     />
                   </div>
                 </div>
-                
+
                 {/* Grid de Monto y Tipo */}
                 <div className="grid grid-cols-2 gap-6 mb-4">
                   <div>
@@ -1163,10 +1359,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     />
                     <span className="text-xs text-red-600">Requerido.</span>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
-                    <select 
+                    <select
                       id="tipoImpuesto"
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
@@ -1193,12 +1389,12 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     const descripcion = document.getElementById('descripcionImpuesto').value.trim();
                     const monto = parseFloat(document.getElementById('montoImpuesto').value) || 0;
                     const tipo = document.getElementById('tipoImpuesto').value;
-                    
+
                     if (!descripcion || monto <= 0) {
                       alert("Por favor complete todos los campos requeridos");
                       return;
                     }
-                    
+
                     // Agregar con unidad de medida 99 (Otra)
                     agregarItemDesdeModal("impuestos", {
                       descripcion: descripcion,
@@ -1231,10 +1427,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   <div
                     key={cliente.id}
                     onClick={() => showClientDetailsPopup(cliente)}
-                    className="p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer"
+                    className="p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer text-gray-800"
                   >
                     <div className="font-medium">{cliente.nombre}</div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-800">
                       {cliente.nit || cliente.dui || "Sin documento"}
                     </div>
                   </div>
@@ -1265,7 +1461,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Nombre</label>
-                <p className="mt-1 p-2 bg-gray-50 rounded-md">{selectedClient.nombre}</p>
+                <p className="mt-1 p-2 bg-gray-50 rounded-md text-gray-900">{selectedClient.nombre}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Documento</label>
