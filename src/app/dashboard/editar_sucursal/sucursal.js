@@ -388,7 +388,7 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
             {/* Formulario de Sucursal */}
             <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-4 md:p-6 w-full max-w-full overflow-x-hidden">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <FaStore className="text-blue-500" /> Datos de la Sucursal
+                <FaBuilding className="text-blue-500" /> Datos de la Sucursal
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
