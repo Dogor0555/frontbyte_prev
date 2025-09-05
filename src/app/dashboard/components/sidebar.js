@@ -78,6 +78,7 @@ export default function Sidebar({ onOpenPerfil }) {
     { name: "Creditos", icon: <FaFileAlt />, href: "/dashboard/creditos" },
     // { name: "Clientes", icon: <FaUsers />, href: "#", subMenu: [...], menuKey: "clients" },
     { name: "Reportes", icon: <FaChartBar />, href: "/dashboard/reportes" },
+    {name: "editar sucursal", icon: <FaBuilding />, href: "/dashboard/editar_sucursal" },
   ];
 
   // Menú admin o configuración
@@ -89,7 +90,7 @@ export default function Sidebar({ onOpenPerfil }) {
       subMenu: [
         { name: "Empleados", icon: <FaUserTie />, href: "/dashboard/empleados" },
         { name: "Productos", icon: <FaBoxOpen />, href: "/dashboard/productos" },
-        { name: "Sucursales", icon: <FaBuilding />, href: "/dashboard/sucursales" },
+        //{ name: "Sucursales", icon: <FaBuilding />, href: "/dashboard/sucursales" },
         { name: "Clientes", icon: <FaBuilding />, href: "/dashboard/clientes" },
       ],
       menuKey: "admin",

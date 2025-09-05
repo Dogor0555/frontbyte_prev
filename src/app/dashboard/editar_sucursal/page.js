@@ -1,52 +1,51 @@
-// src/app/dashboard/sucursales/page.js
-import Sucursales from "./sucursal";
+import Sucursal from "./sucursal";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
 
-export default async function PageSucursales() {
-    // Obtener cookies en el servidor
+export default async function SucursalPage() {
     const cookieStore = await cookies();
     const cookie = cookieStore
         .getAll()
         .map((c) => `${c.name}=${c.value}`)
         .join("; ");
 
-    // Verificar autenticación y obtener información completa
     const authStatus = await checkAuthStatus(cookie);
     
     console.log("Usuario completo desde checkAuthStatus:", authStatus.user);
-    console.log("AuthStatus completo:", authStatus);
     
     if (!authStatus.isAuthenticated || !authStatus.user) {
         redirect("/auth/login");
     }
 
-    // Verificar si el usuario es administrador
-    if (authStatus.user.rol !== "...") {
-        console.log("Redirigiendo - Usuario no es admin. Rol:", authStatus.user.rol);
+    if (authStatus.user.rol !== "admin" && authStatus.user.rol !== "manager") {
+        console.log("Redirigiendo - Usuario no tiene permisos. Rol:", authStatus.user.rol);
         redirect("/dashboard/unauthorized");
     }
 
-    // Obtener las sucursales
-    let initial = { ok: true, data: [], meta: { total: 0, page: 1, limit: 10, pages: 1 } };
+    let sucursalData = null;
     try {
-        const resp = await fetch("http://localhost:3000/sucursal/getAll?page=1&limit=10", {
+        const response = await fetch(`http://localhost:3000/sucursal/${authStatus.user.idsucursal}`, {
             method: "GET",
-            headers: { 
+            headers: {
                 Cookie: cookie,
+                "Content-Type": "application/json",
+                "Accept": "application/json"
             },
             credentials: "include",
-            cache: "no-store",
         });
         
-        const json = await resp.json();
-        initial = Array.isArray(json)
-            ? { ok: true, data: json, meta: { total: json.length, page: 1, limit: 10, pages: 1 } }
-            : json;
+        if (!response.ok) {
+            throw new Error(`Error ${response.status} al obtener la sucursal`);
+        }
+
+        const data = await response.json();
+        
+        sucursalData = data.data || null;
+        console.log("Sucursal obtenida:", sucursalData);
     } catch (error) {
-        console.error("Error al obtener las sucursales:", error);
+        console.error("Error al obtener la sucursal:", error);
     }
 
     return (
@@ -57,8 +56,8 @@ export default async function PageSucursales() {
                 </div>
             }
         >
-            <Sucursales 
-                initialData={initial}
+            <Sucursal 
+                sucursal={sucursalData} 
                 user={authStatus.user}
                 hasHaciendaToken={authStatus.hasHaciendaToken}
                 haciendaStatus={authStatus.haciendaStatus}

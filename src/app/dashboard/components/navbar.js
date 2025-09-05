@@ -1,4 +1,3 @@
-// src/components/Navbar.js
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,7 +9,6 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus }) {
     expiresIn: haciendaStatus?.seconds_left || 0
   });
 
-  // Actualizar estado de conexión cuando cambien las props
   useEffect(() => {
     setHaciendaConnection({
       connected: hasHaciendaToken,
@@ -30,16 +28,13 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus }) {
     return `${minutes} minutos`;
   };
 
-    // Versión simplificada sin información de usuario
     return (
     <header className="sticky top-0 bg-white backdrop-blur-md bg-opacity-90 shadow-sm z-20">
         <div className="flex items-center justify-between h-16 px-4 md:px-6">
-        {/* Título siempre a la izquierda */}
         <div className="flex items-center">
             <h1 className="text-xl font-bold text-gray-800">Sistema de Facturación</h1>
         </div>
 
-        {/* Solo estado de Hacienda a la derecha */}
         <div
             className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${
             haciendaConnection.connected && haciendaConnection.expiresIn > 0
