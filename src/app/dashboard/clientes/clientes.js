@@ -18,6 +18,7 @@ import {
 export default function Clientes({ initialClientes = [], user, hasHaciendaToken, haciendaStatus }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [clienteToEdit, setClienteToEdit] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [clientes, setClientes] = useState(initialClientes || []);
   const [filteredClientes, setFilteredClientes] = useState(
@@ -2504,6 +2505,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
     codactividad: "",
     descactividad: "",
     personanatural: false, // checkbox
+    tipodocumento: "13", 
   });
 
   const resetFormData = () => {
@@ -2523,6 +2525,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
       codactividad: "",
       descactividad: "",
       personanatural: false,
+      tipodocumento: "13", 
     });
   };
 
@@ -2624,7 +2627,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
     }
   };
 
-  const handleSaveNewCliente = async (e) => {
+const handleSaveNewCliente = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
       setShowErrorModal(true);
@@ -2632,6 +2635,19 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
     }
 
     try {
+      // Preparar datos para enviar
+      const datosEnviar = {
+        ...formData,
+        // Asegurarse de que los campos vacíos sean null en lugar de string vacío
+        dui: formData.dui || null,
+        pasaporte: formData.pasaporte || null,
+        nit: formData.nit || null,
+        nrc: formData.nrc || null,
+        carnetresidente: formData.carnetresidente || null,
+        codactividad: formData.codactividad || null,
+        descactividad: formData.descactividad || null,
+      };
+
       const response = await fetch("http://localhost:3000/clientes/addCli", {
         method: "POST",
         headers: {
@@ -2639,7 +2655,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
           Cookie: document.cookie,
         },
         credentials: "include",
-        body: JSON.stringify(formData),
+        body: JSON.stringify(datosEnviar),
       });
 
       if (!response.ok) {
@@ -2661,7 +2677,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
     }
   };
 
-  const handleUpdateCliente = async (e) => {
+const handleUpdateCliente = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -2670,6 +2686,19 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
     }
 
     try {
+      // Preparar datos para enviar
+      const datosEnviar = {
+        ...formData,
+        // Asegurarse de que los campos vacíos sean null en lugar de string vacío
+        dui: formData.dui || null,
+        pasaporte: formData.pasaporte || null,
+        nit: formData.nit || null,
+        nrc: formData.nrc || null,
+        carnetresidente: formData.carnetresidente || null,
+        codactividad: formData.codactividad || null,
+        descactividad: formData.descactividad || null,
+      };
+
       const response = await fetch(
         `http://localhost:3000/clientes/updateCli/${clienteToEdit.idcliente}`,
         {
@@ -2679,7 +2708,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
             Cookie: document.cookie,
           },
           credentials: "include",
-          body: JSON.stringify(tempFormData),
+          body: JSON.stringify(datosEnviar),
         }
       );
 
@@ -2691,14 +2720,8 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
       }
 
       setShowEditModal(false);
-      setFormData({
-        nombre: "",
-        tipodocumento: "",
-        numerodocumento: "",
-        correo: "",
-        telefono: "",
-        estado: true,
-      });
+      resetFormData();
+      setClienteToEdit(null);
       fetchClientes();
     } catch (error) {
       console.error("Error al actualizar el cliente:", error);
@@ -2708,6 +2731,8 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
       setShowErrorModal(true);
     }
   };
+
+  
 
   const handleToggleEstado = async (clienteId, nuevoEstado) => {
     try {
@@ -2765,10 +2790,31 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
     }
   };
 
-  const handleEditClick = (cliente) => {
-    setFormData({
+const handleEditClick = (cliente) => {
+    // Limpiar y preparar los datos del cliente para edición
+    const datosCliente = {
       ...cliente,
-    });
+      // Asegurar que los valores null/undefined sean strings vacíos
+      nombre: cliente.nombre || "",
+      nombrecomercial: cliente.nombrecomercial || "",
+      dui: cliente.dui || "",
+      pasaporte: cliente.pasaporte || "",
+      nit: cliente.nit || "",
+      nrc: cliente.nrc || "",
+      carnetresidente: cliente.carnetresidente || "",
+      correo: cliente.correo || "",
+      telefono: cliente.telefono || "",
+      departamento: cliente.departamento || "",
+      municipio: cliente.municipio || "",
+      complemento: cliente.complemento || "",
+      codactividad: cliente.codactividad || "",
+      descactividad: cliente.descactividad || "",
+      personanatural: cliente.personanatural !== false, // Por defecto true si no está definido
+      tipodocumento: cliente.tipodocumento || "13",
+    };
+    
+    setClienteToEdit(cliente);
+    setFormData(datosCliente);
     setShowEditModal(true);
   };
 
@@ -2815,6 +2861,8 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                     user={user}
                     hasHaciendaToken={hasHaciendaToken}
                     haciendaStatus={haciendaStatus}
+                    onToggleSidebar={toggleSidebar}
+                    sidebarOpen={sidebarOpen}
                 />
 
           <div className="flex-1 p-4 md:p-6">
@@ -2868,9 +2916,6 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                         Teléfono
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Estado
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Acciones
                       </th>
                     </tr>
@@ -2900,17 +2945,6 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {cliente.telefono}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <span
-                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                cliente.estado
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {cliente.estado ? "Activo" : "Inactivo"}
-                            </span>
-                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button
                               onClick={() => handleEditClick(cliente)}
@@ -2918,28 +2952,6 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                               aria-label="Editar"
                             >
                               <FaEdit />
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleToggleEstado(
-                                  cliente.idcliente,
-                                  !cliente.estado
-                                )
-                              }
-                              className={`mr-2 ${
-                                cliente.estado
-                                  ? "text-red-600 hover:text-red-800"
-                                  : "text-green-600 hover:text-green-800"
-                              }`}
-                              aria-label={
-                                cliente.estado ? "Desactivar" : "Activar"
-                              }
-                            >
-                              {cliente.estado ? (
-                                <FaToggleOff />
-                              ) : (
-                                <FaToggleOn />
-                              )}
                             </button>
                             <button
                               onClick={() =>
@@ -3102,8 +3114,10 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                       setFormData({
                         ...formData,
                         personanatural: true,
+                        tipodocumento: "13", // DUI por defecto para persona natural
                         // Limpiar campos de persona jurídica
                         nit: "",
+                        nrc: "",
                         carnetresidente: "",
                         codactividad: "",
                         descactividad: "",
@@ -3130,8 +3144,10 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                       setFormData({
                         ...formData,
                         personanatural: false,
+                        tipodocumento: "36", // NIT por defecto para persona jurídica
                         // Limpiar campos de persona natural
                         dui: "",
+                        pasaporte: "",
                       })
                     }
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
@@ -3145,7 +3161,109 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                 </div>
               </div>
 
-              {/* Nombre */}
+              {/* Tipo de Documento */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Documento
+                </label>
+                <select
+                  value={formData.tipodocumento}
+                  onChange={(e) => setFormData({ ...formData, tipodocumento: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  required
+                >
+                  {tiposDocumento.map((doc) => (
+                    <option key={doc.codigo} value={doc.codigo}>
+                      {doc.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Campos según tipo de documento */}
+              {formData.tipodocumento === "13" && ( // DUI
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    DUI
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.dui || ""}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/\D/g, "");
+                      if (val.length > 8)
+                        val = val.slice(0, 8) + "-" + val.slice(8, 9);
+                      setFormData({ ...formData, dui: val });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                    maxLength={10}
+                    required={formData.tipodocumento === "13"}
+                  />
+                </div>
+              )}
+
+              {formData.tipodocumento === "03" && ( // Pasaporte
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Pasaporte
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.pasaporte || ""}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^A-Za-z0-9]/g, "");
+                      setFormData({ ...formData, pasaporte: value });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                    maxLength={LIMITES.PASAPORTE}
+                    required={formData.tipodocumento === "03"}
+                  />
+                </div>
+              )}
+
+              {formData.tipodocumento === "36" && ( // NIT
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    NIT
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nit || ""}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/\D/g, "");
+                      if (val.length > 4)
+                        val = val.slice(0, 4) + "-" + val.slice(4);
+                      if (val.length > 11)
+                        val = val.slice(0, 11) + "-" + val.slice(11);
+                      if (val.length > 15)
+                        val = val.slice(0, 15) + "-" + val.slice(15, 16);
+                      setFormData({ ...formData, nit: val });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                    maxLength={17}
+                    required={formData.tipodocumento === "36"}
+                  />
+                </div>
+              )}
+
+              {formData.tipodocumento === "02" && ( // Carnet de Residente
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Carnet de Residente
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.carnetresidente || ""}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^A-Za-z0-9]/g, "");
+                      setFormData({ ...formData, carnetresidente: value });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                    maxLength={LIMITES.CARNETRESIDENTE}
+                    required={formData.tipodocumento === "02"}
+                  />
+                </div>
+              )}
               {/* Nombre */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -3169,74 +3287,6 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                   required
                 />
               </div>
-
-              {/* Campos de documentos */}
-              {/* DUI siempre visible */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  DUI
-                </label>
-                <input
-                  type="text"
-                  value={formData.dui}
-                  onChange={(e) => {
-                    let val = e.target.value.replace(/\D/g, "");
-                    if (val.length > 8)
-                      val = val.slice(0, 8) + "-" + val.slice(8, 9);
-                    setFormData({ ...formData, dui: val });
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
-                  maxLength={10}
-                  required
-                />
-              </div>
-
-              {/* Campos solo para Persona Jurídica */}
-              {!formData.personanatural && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      NIT
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.nit}
-                      onChange={(e) => {
-                        let val = e.target.value.replace(/\D/g, "");
-                        if (val.length > 4)
-                          val = val.slice(0, 4) + "-" + val.slice(4);
-                        if (val.length > 11)
-                          val = val.slice(0, 11) + "-" + val.slice(11);
-                        if (val.length > 15)
-                          val = val.slice(0, 15) + "-" + val.slice(15, 16);
-                        setFormData({ ...formData, nit: val });
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
-                      maxLength={17}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      NRC
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.nrc}
-                      onChange={(e) => {
-                        // Permitimos solo números y un guion opcional
-                        const value = e.target.value.replace(/[^0-9-]/g, "");
-                        setFormData({ ...formData, nrc: value });
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
-                      maxLength={9} // 7 dígitos + guion + 1 dígito
-                      pattern="^(\d{6,7}|\d{6}-\d{1})$"
-                      title="El NRC debe ser de 6 o 7 dígitos, o con guion y 1 dígito verificador (ej: 123456 o 123456-7)"
-                      required={!formData.personanatural} // requerido solo para persona jurídica
-                    />
-                  </div>
-                </>
-              )}
 
               {/* Teléfono y Correo (para ambos tipos) */}
               <div>
@@ -3387,7 +3437,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                 </div>
               )}
 
-              {/* Botones */}
+             {/* Botones */}
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -3412,7 +3462,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
       )}
 
       {/* Modal de Editar Cliente */}
-      {showEditModal && (
+ {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">

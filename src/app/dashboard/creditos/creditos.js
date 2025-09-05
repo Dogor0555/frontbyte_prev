@@ -236,12 +236,13 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Navbar 
-          user={user} 
-          hasHaciendaToken={hasHaciendaToken} 
-          haciendaStatus={haciendaStatus} 
-          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        />
+                <Navbar 
+                    user={user}
+                    hasHaciendaToken={hasHaciendaToken}
+                    haciendaStatus={haciendaStatus}
+                    onToggleSidebar={toggleSidebar}
+                    sidebarOpen={sidebarOpen}
+                />
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="md:hidden fixed left-2 top-2 z-10 p-2 rounded-md bg-white shadow-md text-gray-600"

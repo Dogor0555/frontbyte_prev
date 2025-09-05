@@ -311,11 +311,13 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
           </div>
 
           <div className="flex-1 flex flex-col min-w-0">
-            <Navbar 
-              user={user}
-              hasHaciendaToken={hasHaciendaToken}
-              haciendaStatus={haciendaStatus}
-            />
+                <Navbar 
+                    user={user}
+                    hasHaciendaToken={hasHaciendaToken}
+                    haciendaStatus={haciendaStatus}
+                    onToggleSidebar={toggleSidebar}
+                    sidebarOpen={sidebarOpen}
+                />
 
             <div className="flex-1 flex items-center justify-center">
               <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
