@@ -349,20 +349,16 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <Navbar 
-            user={user}
-            hasHaciendaToken={hasHaciendaToken}
-            haciendaStatus={haciendaStatus}
+              user={user}
+              hasHaciendaToken={hasHaciendaToken}
+              haciendaStatus={haciendaStatus}
+              onToggleSidebar={toggleSidebar}
+              sidebarOpen={sidebarOpen}
           />
 
           <div className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
               <div className="flex items-center">
-                <button
-                  onClick={toggleSidebar}
-                  className="mr-3 text-gray-700 hover:text-gray-900 md:hidden"
-                >
-                  <FaBars className="h-5 w-5" />
-                </button>
                 <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
                   Información de Sucursal
                 </h2>

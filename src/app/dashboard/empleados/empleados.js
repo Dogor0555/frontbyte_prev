@@ -568,6 +568,14 @@ export default function Empleados({
     });
   };
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const empleadosPorPagina = 5;
+  const totalPaginas = Math.ceil(filteredEmpleados.length / empleadosPorPagina);
+  const empleadosPagina = filteredEmpleados.slice(
+    (currentPage - 1) * empleadosPorPagina,
+    currentPage * empleadosPorPagina
+  );
+
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
       {isMobile && sidebarOpen && (
@@ -653,9 +661,9 @@ export default function Empleados({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {filteredEmpleados &&
-                      Array.isArray(filteredEmpleados) &&
-                      filteredEmpleados.slice(0, 10).map((empleado) => (
+                    {empleadosPagina &&
+                      Array.isArray(empleadosPagina) &&
+                      empleadosPagina.map((empleado) => (
                         <tr
                           key={empleado.idempleado}
                           className="hover:bg-gray-50 transition-colors"
@@ -733,14 +741,34 @@ export default function Empleados({
                       ))}
                   </tbody>
                 </table>
+                {/* Paginación */}
+                <div className="flex justify-center items-center py-4 space-x-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1 rounded-md border ${currentPage === 1 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                  >
+                    Anterior
+                  </button>
+                  <span className="px-2 text-sm text-gray-700">
+                    Página {currentPage} de {totalPaginas}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPaginas, p + 1))}
+                    disabled={currentPage === totalPaginas || totalPaginas === 0}
+                    className={`px-3 py-1 rounded-md border ${currentPage === totalPaginas || totalPaginas === 0 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                  >
+                    Siguiente
+                  </button>
+                </div>
               </div>
             </div>
 
             <div className="md:hidden">
               <div className="space-y-4">
-                {filteredEmpleados &&
-                  Array.isArray(filteredEmpleados) &&
-                  filteredEmpleados.slice(0, 10).map((empleado) => (
+                {empleadosPagina &&
+                  Array.isArray(empleadosPagina) &&
+                  empleadosPagina.map((empleado) => (
                     <div
                       key={empleado.idempleado}
                       className="bg-white rounded-lg border border-gray-200 shadow-sm p-4"
@@ -837,6 +865,26 @@ export default function Empleados({
                     </div>
                   ))}
               </div>
+              {/* Paginación móvil */}
+              <div className="flex justify-center items-center py-4 space-x-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1 rounded-md border ${currentPage === 1 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                >
+                  Anterior
+                </button>
+                <span className="px-2 text-sm text-gray-700">
+                  Página {currentPage} de {totalPaginas}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPaginas, p + 1))}
+                  disabled={currentPage === totalPaginas || totalPaginas === 0}
+                  className={`px-3 py-1 rounded-md border ${currentPage === totalPaginas || totalPaginas === 0 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                >
+                  Siguiente
+                </button>
+              </div>
             </div>
           </div>
 
@@ -900,7 +948,7 @@ export default function Empleados({
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                     required
-                    style={{ color: formData.tipodocumento ? '#111827' : '#4b5563' }} // gris-600 cuando está "Seleccionar"
+                    style={{ color: formData.tipodocumento ? '#111827' : '#4b5563' }}
                   >
                     <option value="" disabled className="text-gray-600">
                       Seleccionar
@@ -995,7 +1043,7 @@ export default function Empleados({
                   onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
-                  style={{ color: formData.rol ? '#111827' : '#4b5563' }} // gris-600 cuando está "Seleccionar"
+                  style={{ color: formData.rol ? '#111827' : '#4b5563' }}
                 >
                   <option value="" disabled className="text-gray-600">
                     Seleccionar
@@ -1014,7 +1062,6 @@ export default function Empleados({
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Sucursal
                 </label>
-                {/* Campo visible solo lectura con nombre + ID */}
                 <input
                   type="text"
                   value={
@@ -1247,8 +1294,7 @@ export default function Empleados({
                 {/* Visible solo lectura: muestra la sucursal del empleado */}
                 <input
                   type="text"
-                  value={`ID ${formData.idsucursal}`}   // Si querés y tenés el nombre, podés usar: `${formData.sucursal?.nombre} (ID ${formData.idsucursal})`
-                  readOnly
+                  value={`ID ${formData.idsucursal}`} 
                   className="
                   w-full px-3 py-2
                   border border-gray-200 bg-gray-50

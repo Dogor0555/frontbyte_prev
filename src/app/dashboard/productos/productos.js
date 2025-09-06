@@ -497,6 +497,14 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         });
     };
 
+      const [currentPage, setCurrentPage] = useState(1);
+      const productosPorPagina = 5;
+      const totalPaginas = Math.ceil(filteredProductos.length / productosPorPagina);
+      const productosPagina = filteredProductos.slice(
+        (currentPage - 1) * productosPorPagina,
+        currentPage * productosPorPagina
+      );
+
     return (
         <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
             {isMobile && sidebarOpen && (
@@ -578,7 +586,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                        {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.slice(0, 10).map((producto) => (
+                                        {productosPagina && Array.isArray(productosPagina) && productosPagina.slice(0, 10).map((producto) => (
                                             <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.nombre}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.codigo}</td>
@@ -617,6 +625,26 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                         ))}
                                     </tbody>
                                 </table>
+                                {/* Paginación */}
+                                <div className="flex justify-center items-center py-4 space-x-2">
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className={`px-3 py-1 rounded-md border ${currentPage === 1 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                                >
+                                    Anterior
+                                </button>
+                                <span className="px-2 text-sm text-gray-700">
+                                    Página {currentPage} de {totalPaginas}
+                                </span>
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPaginas, p + 1))}
+                                    disabled={currentPage === totalPaginas || totalPaginas === 0}
+                                    className={`px-3 py-1 rounded-md border ${currentPage === totalPaginas || totalPaginas === 0 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                                >
+                                    Siguiente
+                                </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -676,6 +704,26 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                        {/* Paginación móvil */}
+                        <div className="flex justify-center items-center py-4 space-x-2">
+                            <button
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className={`px-3 py-1 rounded-md border ${currentPage === 1 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                            >
+                            Anterior
+                            </button>
+                            <span className="px-2 text-sm text-gray-700">
+                            Página {currentPage} de {totalPaginas}
+                            </span>
+                            <button
+                            onClick={() => setCurrentPage((p) => Math.min(totalPaginas, p + 1))}
+                            disabled={currentPage === totalPaginas || totalPaginas === 0}
+                            className={`px-3 py-1 rounded-md border ${currentPage === totalPaginas || totalPaginas === 0 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                            >
+                            Siguiente
+                            </button>
                         </div>
                     </div>
 
