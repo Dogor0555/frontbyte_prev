@@ -3,19 +3,20 @@ import Reportes from "../reportes/reporte";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { checkAuth } from "../../../lib/auth";
+import { checkAuthStatus } from "../../services/auth";
 
 export default async function PageReportes() {
-  // cookies del request (SSR)
-  const cookieStore = await cookies();
-  const cookie = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join("; ");
+    const cookieStore = await cookies();
+    const cookie = cookieStore
+        .getAll()
+        .map((c) => `${c.name}=${c.value}`)
+        .join("; ");
 
-  // auth SSR
-  const user = await checkAuth(cookie);
-  if (!user) redirect("/auth/login");
-
-  // (opcional) podrías precargar algo aquí y pasarlo como prop
-  // pero el componente cliente ya hace sus fetch con filtros
+    const authStatus = await checkAuthStatus(cookie);
+    
+    if (!authStatus.isAuthenticated || !authStatus.user) {
+        redirect("/auth/login");
+    }
 
   return (
     <Suspense
@@ -25,7 +26,10 @@ export default async function PageReportes() {
         </div>
       }
     >
-      <Reportes user={user} cookie={cookie} />
+      <Reportes 
+        user={authStatus.user}
+        hasHaciendaToken={authStatus.hasHaciendaToken}
+        haciendaStatus={authStatus.haciendaStatus} />
     </Suspense>
   );
 }

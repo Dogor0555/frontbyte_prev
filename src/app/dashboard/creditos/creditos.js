@@ -7,6 +7,7 @@ import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 
 export default function CreditosView({ user, hasHaciendaToken, haciendaStatus }) {
+    const [isMobile, setIsMobile] = useState(false);
   const [creditos, setCreditos] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
@@ -214,6 +215,24 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     setSidebarOpen(!sidebarOpen);
   };
 
+    useEffect(() => {
+  const checkMobile = () => {
+    setIsMobile(window.innerWidth < 768);
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    } else {
+      setSidebarOpen(true); 
+    }
+  };
+  
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -224,7 +243,10 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
 
   return (
     <div className="flex min-h-screen bg-blue-50">
-      <div className="hidden md:block">
+      <div className={`md:static fixed z-40 h-full transition-all duration-300 ${
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      } ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}
+      >
         <Sidebar />
       </div>
 

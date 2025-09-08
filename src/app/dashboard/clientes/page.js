@@ -16,9 +16,6 @@ export default async function ClientesPage() {
     // Verificar autenticación y obtener información completa
     const authStatus = await checkAuthStatus(cookie);
     
-    console.log("Usuario completo desde checkAuthStatus:", authStatus.user);
-    console.log("AuthStatus completo:", authStatus);
-    
     if (!authStatus.isAuthenticated || !authStatus.user) {
         redirect("/auth/login");
     }

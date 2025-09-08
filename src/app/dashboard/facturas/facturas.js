@@ -7,6 +7,7 @@ import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 
 export default function FacturasView( { user, hasHaciendaToken, haciendaStatus } ) {
+  const [isMobile, setIsMobile] = useState(false);
   const [facturas, setFacturas] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
@@ -215,6 +216,24 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
+  
+  useEffect(() => {
+  const checkMobile = () => {
+    setIsMobile(window.innerWidth < 768);
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    } else {
+      setSidebarOpen(true); 
+    }
+  };
+  
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -226,7 +245,10 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
 
   return (
     <div className="flex min-h-screen bg-blue-50">
-      <div className="hidden md:block">
+      <div className={`md:static fixed z-40 h-full transition-all duration-300 ${
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      } ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}
+      >
         <Sidebar />
       </div>
 
@@ -237,25 +259,19 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
         ></div>
       )}
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        
-                <Navbar 
-                    user={user}
-                    hasHaciendaToken={hasHaciendaToken}
-                    haciendaStatus={haciendaStatus}
-                    onToggleSidebar={toggleSidebar}
-                    sidebarOpen={sidebarOpen}
-                />
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="md:hidden fixed left-2 top-2 z-10 p-2 rounded-md bg-white shadow-md text-gray-600"
-        >
-          ☰
-        </button>
+      <div className="flex-1 flex flex-col h-full overflow-y-auto">
 
-        
-
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+          <Navbar 
+            user={user}
+            hasHaciendaToken={hasHaciendaToken}
+            haciendaStatus={haciendaStatus}
+            onToggleSidebar={toggleSidebar}
+            sidebarOpen={sidebarOpen}
+          />
+        </div>
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
+
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
               <div>
