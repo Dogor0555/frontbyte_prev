@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuth } from "../../../lib/auth"; // <-- ajusta la ruta si la tienes en otro lado
+import { checkAuthStatus } from "../../services/auth";
 
 export default async function FacturacionPage() {
   // Leer cookies del request (SSR)
@@ -19,9 +20,12 @@ export default async function FacturacionPage() {
     redirect("/auth/login");
   }
 
+  const authStatus = await checkAuthStatus(cookie);
+  
   // Cargar datos
   let productos = [];
   let clientes = [];
+  let sucursalData = null;
 
   try {
     // Productos
@@ -46,6 +50,7 @@ export default async function FacturacionPage() {
       credentials: "include",
       cache: "no-store",
     });
+
     if (clientesResponse.ok) {
       const clientesData = await clientesResponse.json();
       clientes = Array.isArray(clientesData)
@@ -53,6 +58,21 @@ export default async function FacturacionPage() {
         : Array.isArray(clientesData?.data)
         ? clientesData.data
         : [];
+    }
+
+    const sucursalResponse = await fetch(`http://localhost:3000/sucursal/${authStatus.user.idsucursal}`, {
+      method: "GET",
+      headers: { Cookie: cookie }, 
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (sucursalResponse.ok) {
+      const sucursalResult = await sucursalResponse.json();
+      sucursalData = sucursalResult.data; 
+      console.log("Sucursal del usuario:", sucursalData);
+    } else {
+      console.error("Error al obtener datos de sucursal");
     }
   } catch (error) {
     console.error("Error al obtener los datos:", error);
@@ -71,6 +91,7 @@ export default async function FacturacionPage() {
         initialProductos={productos}
         initialClientes={clientes}
         user={user}
+        sucursalUsuario={sucursalData}
       />
     </Suspense>
   );

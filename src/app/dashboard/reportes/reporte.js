@@ -120,6 +120,8 @@ function LineChart({ data = [], xKey = "fecha", yKey = "monto", height = 140 }) 
   );
 }
 
+
+
 /* --------------------------------- View ---------------------------------- */
 
 export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatus }) {
@@ -132,6 +134,9 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
     d.setDate(1);
     return toISO(d);
   }, []);
+
+  // log para ver usuario desde las props
+console.log("Reporte - User:", user);
 
   const [desde, setDesde] = useState(startMonth);
   const [hasta, setHasta] = useState(today);
