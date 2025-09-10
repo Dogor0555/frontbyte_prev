@@ -1,4 +1,3 @@
-// components/modals/ProductModal.js
 import { useState, useEffect } from "react";
 import { FaTimes, FaPlus, FaSearch } from "react-icons/fa";
 
@@ -17,12 +16,14 @@ export default function ProductModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [cantidad, setCantidad] = useState(1);
   const [impuestoSeleccionado, setImpuestoSeleccionado] = useState("20");
+  const [tipoVenta, setTipoVenta] = useState("1"); 
 
   const limpiarFormulario = () => {
     setProductoSeleccionado(null);
     setSearchTerm("");
     setCantidad(1);
     setImpuestoSeleccionado("20");
+    setTipoVenta("1");
   };
 
   useEffect(() => {
@@ -53,15 +54,30 @@ export default function ProductModal({
       return;
     }
 
+    let tipoItem;
+    switch (tipoVenta) {
+      case "1": // Gravado
+        tipoItem = "producto";
+        break;
+      case "2": // Exento
+        tipoItem = "noAfecto";
+        break;
+      case "3": // No sujeto
+        tipoItem = "noAfecto"; 
+        break;
+      default:
+        tipoItem = "producto";
+    }
+
     onAddItem({
       descripcion: productoSeleccionado.nombre,
       cantidad: cantidad,
       precioUnitario: parseFloat(productoSeleccionado.precio) || 0,
       descuento: 0,
-      unidadMedida: productoSeleccionado.unidad || "59"
+      unidadMedida: productoSeleccionado.unidad || "59",
+      tipo: tipoItem 
     });
     
-    // Limpiar después de agregar
     limpiarFormulario();
   };
 
@@ -147,7 +163,11 @@ export default function ProductModal({
 
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo Venta</label>
-                <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <select 
+                  value={tipoVenta}
+                  onChange={(e) => setTipoVenta(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
                   <option value="1">Gravado</option>
                   <option value="2">Exento</option>
                   <option value="3">No sujeto</option>
@@ -347,6 +367,9 @@ export default function ProductModal({
                   </p>
                   <p className="text-xs text-green-600 mt-1">
                     Código: {productoSeleccionado.codigo}
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    Tipo: {tipoVenta === "1" ? "Gravado" : tipoVenta === "2" ? "Exento" : "No sujeto"}
                   </p>
                 </div>
               )}

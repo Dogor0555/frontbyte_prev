@@ -366,7 +366,9 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                     <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
                       <div className="flex items-center text-gray-600">
                         <FaCalendarAlt className="mr-1 text-blue-500 text-xs" />
-                        <span className="text-xs">{formatDate(factura.fechaemision)}</span>
+                        <span className="text-xs">
+                          {new Date(factura.fechaemision).toISOString().split("T")[0]}
+                        </span>
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                         factura.documentofirmado && factura.documentofirmado !== "null"
@@ -384,7 +386,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                         <span className="text-xs font-medium">Cliente</span>
                       </div>
                       <p className="text-gray-900 text-sm font-medium truncate pl-3">
-                        {factura.nombentrega || 'Cliente no especificado'}
+                        {factura.nombrecibe || 'Cliente no especificado'}
                       </p>
                       {factura.docuentrega && (
                         <p className="text-xs text-gray-500 pl-3 mt-0.5">DUI: {factura.docuentrega}</p>
