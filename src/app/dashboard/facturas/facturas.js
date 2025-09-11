@@ -243,35 +243,39 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
     );
   }
 
-  return (
-    <div className="flex min-h-screen bg-blue-50">
-      <div className={`md:static fixed z-40 h-full transition-all duration-300 ${
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
-      } ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}
-      >
-        <Sidebar />
+return (
+  <div className="flex h-screen bg-blue-50 overflow-hidden">
+    <div className={`fixed md:relative z-20 h-screen ${
+      sidebarOpen ? "translate-x-0" : "-translate-x-full"
+    } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}
+    >
+      <Sidebar />
+    </div>
+
+
+    {/* Overlay para móviles */}
+    {sidebarOpen && (
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+      ></div>
+    )}
+
+    <div className="flex-1 flex flex-col min-w-0">  
+      {/* Navbar */}
+      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+        <Navbar 
+          user={user}
+          hasHaciendaToken={hasHaciendaToken}
+          haciendaStatus={haciendaStatus}
+          onToggleSidebar={toggleSidebar}
+          sidebarOpen={sidebarOpen}
+        />
       </div>
 
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-        ></div>
-      )}
-
-      <div className="flex-1 flex flex-col h-full overflow-y-auto">
-
-        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
-          <Navbar 
-            user={user}
-            hasHaciendaToken={hasHaciendaToken}
-            haciendaStatus={haciendaStatus}
-            onToggleSidebar={toggleSidebar}
-            sidebarOpen={sidebarOpen}
-          />
-        </div>
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-
+      {/* Contenido con scroll */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 md:p-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
               <div>
@@ -282,7 +286,6 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                 </p>
               </div>
 
-              {/* 🔎 Búsqueda + Filtro por estado + Orden por fecha */}
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 <div className="relative w-full md:w-64">
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -327,14 +330,13 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
               </div>
             </div>
 
-            {/* Listado en formato tarjeta-factura (más compacto) */}
+            {/* Listado en formato tarjeta-factura */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {currentItems.map((factura) => (
                 <div
                   key={factura.iddtefactura}
                   className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-200"
                 >
-                  {/* Encabezado de factura con azul sólido */}
                   <div className="bg-blue-600 text-white p-3">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center">
@@ -501,39 +503,106 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                 </div>
               ))}
             </div>
-
-            {/* Paginación */}
             {facturasOrdenadas.length > itemsPerPage && (
               <div className="flex justify-center mt-6">
                 <nav className="inline-flex rounded-md shadow">
+                  {/* Botón Anterior */}
                   <button
                     onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
                     disabled={currentPage === 1}
                     className={`px-3 py-1 rounded-l-md border ${
-                      currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white text-gray-700 hover:bg-gray-50'
+                      currentPage === 1 
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <FaChevronLeft />
+                    <FaChevronLeft className="text-sm" />
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
-                    <button
-                      key={number}
-                      onClick={() => paginate(number)}
-                      className={`px-3 py-1 border-t border-b ${
-                        currentPage === number ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      {number}
-                    </button>
-                  ))}
+                  
+                  {/* Botones de página - Responsive */}
+                  {(() => {
+                    const pages = [];
+                    const maxVisiblePages = isMobile ? 3 : 5;
+                    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+                    if (endPage - startPage + 1 < maxVisiblePages) {
+                      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                    }
+
+                    if (startPage > 1) {
+                      pages.push(
+                        <button
+                          key={1}
+                          onClick={() => paginate(1)}
+                          className={`px-3 py-1 border-t border-b ${
+                            1 === currentPage ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          1
+                        </button>
+                      );
+                      
+                      if (startPage > 2) {
+                        pages.push(
+                          <span key="ellipsis-start" className="px-2 py-1 border-t border-b bg-white text-gray-500">
+                            ...
+                          </span>
+                        );
+                      }
+                    }
+                    
+                    // Páginas visibles
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(
+                        <button
+                          key={i}
+                          onClick={() => paginate(i)}
+                          className={`px-3 py-1 border-t border-b ${
+                            i === currentPage ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+
+                    if (endPage < totalPages) {
+                      if (endPage < totalPages - 1) {
+                        pages.push(
+                          <span key="ellipsis-end" className="px-2 py-1 border-t border-b bg-white text-gray-500">
+                            ...
+                          </span>
+                        );
+                      }
+                      
+                      pages.push(
+                        <button
+                          key={totalPages}
+                          onClick={() => paginate(totalPages)}
+                          className={`px-3 py-1 border-t border-b ${
+                            totalPages === currentPage ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {totalPages}
+                        </button>
+                      );
+                    }
+                    
+                    return pages;
+                  })()}
+                  
+                  {/* Botón Siguiente */}
                   <button
                     onClick={() => paginate(currentPage < totalPages ? currentPage + 1 : totalPages)}
                     disabled={currentPage === totalPages}
                     className={`px-3 py-1 rounded-r-md border ${
-                      currentPage === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white text-gray-700 hover:bg-gray-50'
+                      currentPage === totalPages 
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <FaChevronRight />
+                    <FaChevronRight className="text-sm" />
                   </button>
                 </nav>
               </div>
@@ -554,11 +623,12 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
               </div>
             )}
           </div>
-        </main>
-
-        {/* Footer */}
-        <Footer />
+        </div>
       </div>
+
+      {/* Footer */}
+      <Footer />
     </div>
-  );
+  </div>
+);
 }

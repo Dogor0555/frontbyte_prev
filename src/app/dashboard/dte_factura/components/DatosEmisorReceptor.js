@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { codigoactividad } from "../data/data";
 
 const LIMITES = {
@@ -50,6 +50,62 @@ const DatosEmisorReceptor = ({
 }) => {
   const [activeTab, setActiveTab] = useState("emisor");
   const [errores, setErrores] = useState({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [clientes, setClientes] = useState([]);
+  const [filteredClientes, setFilteredClientes] = useState([]);
+  const [showClientList, setShowClientList] = useState(false);
+  const [loadingClientes, setLoadingClientes] = useState(false);
+
+  // Cargar clientes al montar el componente
+  useEffect(() => {
+    const fetchClientes = async () => {
+      setLoadingClientes(true);
+      try {
+        const response = await fetch("http://localhost:3000/clientes/getAllCli", {
+          method: "GET",
+          credentials: "include", // ← Esto es lo importante
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setClientes(data.data);
+          }
+        } else {
+          console.error("Error en la respuesta:", response.status);
+          // Opcional: mostrar mensaje al usuario
+        }
+      } catch (error) {
+        console.error("Error al cargar clientes:", error);
+      } finally {
+        setLoadingClientes(false);
+      }
+    };
+
+    fetchClientes();
+  }, []);
+
+  // Filtrar clientes según término de búsqueda
+  useEffect(() => {
+    if (searchTerm.trim() === "") {
+      setFilteredClientes([]);
+      setShowClientList(false);
+      return;
+    }
+
+    const filtered = clientes.filter(cliente => 
+      cliente.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.dui?.includes(searchTerm) ||
+      cliente.nit?.includes(searchTerm) ||
+      cliente.pasaporte?.includes(searchTerm)
+    );
+
+    setFilteredClientes(filtered);
+    setShowClientList(filtered.length > 0);
+  }, [searchTerm, clientes]);
 
   const validarCampo = (campo, valor, limite) => {
     if (valor.length > limite) {
@@ -148,6 +204,36 @@ const DatosEmisorReceptor = ({
     if (validarCampo('numeroDocumentoReceptor', valor, limite)) {
       setNumeroDocumentoReceptor(valor);
     }
+  };
+
+  const selectCliente = (cliente) => {
+    setTipoDocumentoReceptor(cliente.tipodocumento || "");
+    
+    let numeroDoc = "";
+    switch (cliente.tipodocumento) {
+      case "13": 
+        numeroDoc = cliente.dui || "";
+        break;
+      case "36":
+        numeroDoc = cliente.nit || "";
+        break;
+      case "03":
+        numeroDoc = cliente.pasaporte || "";
+        break;
+      case "02":
+        numeroDoc = cliente.carnetresidente || "";
+        break;
+      default:
+        numeroDoc = cliente.nit || cliente.dui || cliente.pasaporte || cliente.carnetresidente || "";
+    }
+    
+    setNumeroDocumentoReceptor(numeroDoc);
+    setNombreReceptor(cliente.nombre || "");
+    setDireccionReceptor(cliente.complemento || "");
+    setCorreoReceptor(cliente.correo || "");
+    setTelefonoReceptor(cliente.telefono || "");
+    setSearchTerm("");
+    setShowClientList(false);
   };
 
   return (
@@ -285,6 +371,47 @@ const DatosEmisorReceptor = ({
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Datos del Receptor</h2>
           
+          {/* Barra de búsqueda de clientes */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Buscar Cliente
+            </label>
+            <div className="flex">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Buscar por nombre, DUI, NIT..."
+              />
+              {loadingClientes && (
+                <div className="absolute right-3 top-9">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                </div>
+              )}
+            </div>
+            
+            {/* Lista de clientes filtrados */}
+            {showClientList && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {filteredClientes.map((cliente) => (
+                  <div
+                    key={cliente.idcliente}
+                    className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                    onClick={() => selectCliente(cliente)}
+                  >
+                    <div className="font-medium">{cliente.nombre}</div>
+                    <div className="text-sm text-gray-600">
+                      {cliente.dui && `DUI: ${cliente.dui}`}
+                      {cliente.nit && `NIT: ${cliente.nit}`}
+                      {cliente.pasaporte && `Pasaporte: ${cliente.pasaporte}`}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Tipo de Documento */}
             <div>
@@ -385,7 +512,7 @@ const DatosEmisorReceptor = ({
               </p>
             </div>
 
-            {/* Complemento */}
+            {/* Complemento 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Complemento
@@ -406,7 +533,7 @@ const DatosEmisorReceptor = ({
               <p className="text-gray-500 text-xs mt-1">
                 {complementoReceptor.length}/{LIMITES.COMPLEMENTO} caracteres
               </p>
-            </div>
+            </div> */}
 
             {/* Correo electrónico */}
             <div>

@@ -120,7 +120,7 @@ export default function FormaPago({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Monto (pendiente: {montoRestante.toLocaleString('es-SV', { style: 'currency', currency: 'USD' })})
+            Monto:
           </label>
           <input
             type="number"

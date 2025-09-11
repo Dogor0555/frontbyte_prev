@@ -1077,7 +1077,11 @@ useEffect(() => {
                 totalFactura={total}
               />
 
-              <DatosEntrega onDatosEntregaChange={handleDatosEntregaChange} />
+              <DatosEntrega 
+                onDatosEntregaChange={handleDatosEntregaChange}
+                receptorDocumento={numeroDocumentoReceptor}
+                receptorNombre={nombreReceptor}
+              />
 
               {/* Botones de acción */}
               <div className="flex justify-end space-x-4">

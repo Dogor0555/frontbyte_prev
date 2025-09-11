@@ -16,7 +16,22 @@ export default function ProductModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [cantidad, setCantidad] = useState(1);
   const [impuestoSeleccionado, setImpuestoSeleccionado] = useState("20");
-  const [tipoVenta, setTipoVenta] = useState("1"); 
+  const [tipoVenta, setTipoVenta] = useState("1");
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detectar si es móvil
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+    };
+  }, []);
 
   const limpiarFormulario = () => {
     setProductoSeleccionado(null);
@@ -45,7 +60,7 @@ export default function ProductModal({
     const tasaImpuesto = impuestoSeleccionado === "20" ? 0.13 : impuestoSeleccionado === "21" ? 0.15 : 0;
     const impuesto = subtotal * tasaImpuesto;
     
-    return subtotal + impuesto;
+    return subtotal;
   };
 
   const handleAgregarItem = () => {
@@ -56,13 +71,13 @@ export default function ProductModal({
 
     let tipoItem;
     switch (tipoVenta) {
-      case "1": // Gravado
+      case "1": 
         tipoItem = "producto";
         break;
-      case "2": // Exento
+      case "2": 
         tipoItem = "noAfecto";
         break;
-      case "3": // No sujeto
+      case "3":
         tipoItem = "noAfecto"; 
         break;
       default:
@@ -87,7 +102,7 @@ export default function ProductModal({
 
   return (
     <div className="text-black fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl h-[85vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Encabezado */}
         <div className="bg-gray-800 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
           <h2 className="text-xl font-bold">Agregar Producto o Servicio</h2>
@@ -99,8 +114,9 @@ export default function ProductModal({
           </button>
         </div>
 
-        <div className="p-6 flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 h-full">
+        {/* Contenido con scroll */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             {/* Columna izquierda - Información básica del producto */}
             <div className="space-y-5">
               <div className="border-b border-gray-200 pb-2">
@@ -375,27 +391,31 @@ export default function ProductModal({
               )}
             </div>
           </div>
+        </div>
 
-          {/* Botones de acción */}
-          <div className="mt-8 flex flex-col sm:flex-row justify-between items-center border-t border-gray-200 pt-6">
+        {/* Botones de acción - Ahora fijos en la parte inferior en móviles */}
+        <div className={`bg-white border-t border-gray-200 p-4 ${
+          isMobile ? "sticky bottom-0 shadow-md" : ""
+        }`}>
+          <div className="flex flex-col sm:flex-row justify-between items-center">
             <button
               onClick={handleClose}
-              className="px-6 py-3 bg-gray-300 text-gray-900 font-semibold rounded-lg hover:bg-gray-400 transition-colors flex items-center mb-3 sm:mb-0"
+              className="px-6 py-3 bg-gray-300 text-gray-900 font-semibold rounded-lg hover:bg-gray-400 transition-colors flex items-center justify-center mb-3 sm:mb-0 w-full sm:w-auto"
             >
               <FaTimes className="mr-2" />
               Cancelar
             </button>
 
-            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
               <button
                 onClick={onBackToSelector}
-                className="px-6 py-3 bg-gray-200 text-gray-900 font-semibold rounded-lg hover:bg-gray-300 transition-colors"
+                className="px-6 py-3 bg-gray-200 text-gray-900 font-semibold rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center w-full sm:w-auto"
               >
                 Agregar Documentos
               </button>
               <button
                 onClick={handleAgregarItem}
-                className="px-8 py-3 bg-blue-700 text-white font-semibold rounded-lg hover:bg-blue-800 transition-colors flex items-center shadow-md"
+                className="px-8 py-3 bg-blue-700 text-white font-semibold rounded-lg hover:bg-blue-800 transition-colors flex items-center justify-center shadow-md w-full sm:w-auto"
               >
                 <FaPlus className="mr-2" />
                 Agregar Item

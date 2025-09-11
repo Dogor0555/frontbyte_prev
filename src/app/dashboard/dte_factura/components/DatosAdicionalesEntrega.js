@@ -1,13 +1,25 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-export default function DatosEntrega({ onDatosEntregaChange }) {
+export default function DatosEntrega({ 
+  onDatosEntregaChange,
+  receptorDocumento = "",
+  receptorNombre = ""
+}) {
   const [datosEntrega, setDatosEntrega] = useState({
     emisorDocumento: "",
     emisorNombre: "",
-    receptorDocumento: "",
-    receptorNombre: ""
+    receptorDocumento: receptorDocumento,
+    receptorNombre: receptorNombre
   });
+
+  useEffect(() => {
+    setDatosEntrega(prev => ({
+      ...prev,
+      receptorDocumento: receptorDocumento,
+      receptorNombre: receptorNombre
+    }));
+  }, [receptorDocumento, receptorNombre]);
 
   const handleChange = (field, value) => {
     const nuevosDatos = {
@@ -27,7 +39,7 @@ export default function DatosEntrega({ onDatosEntregaChange }) {
       <h2 className="text-xl font-semibold text-gray-800 mb-4">Datos adicionales entrega</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Responsable de Emitir */}
+        {/* Responsable de Emitir (editable) */}
         <div className="space-y-4">
           <h3 className="font-medium text-gray-700">Responsable de emitir documento</h3>
           
@@ -58,7 +70,7 @@ export default function DatosEntrega({ onDatosEntregaChange }) {
           </div>
         </div>
         
-        {/* Responsable de Recibir */}
+        {/* Responsable de Recibir (automático) */}
         <div className="space-y-4">
           <h3 className="font-medium text-gray-700">Responsable de recibir documento</h3>
           
@@ -70,7 +82,7 @@ export default function DatosEntrega({ onDatosEntregaChange }) {
               type="text"
               value={datosEntrega.receptorDocumento}
               onChange={(e) => handleChange("receptorDocumento", e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
               placeholder="Número de documento"
             />
           </div>
@@ -83,7 +95,7 @@ export default function DatosEntrega({ onDatosEntregaChange }) {
               type="text"
               value={datosEntrega.receptorNombre}
               onChange={(e) => handleChange("receptorNombre", e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
               placeholder="Nombre completo"
             />
           </div>
