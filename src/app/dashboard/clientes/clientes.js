@@ -558,7 +558,7 @@ const handleEditClick = (cliente) => {
   );
 
   return (
-      <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50 overflow-hidden">
+      <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50 overflow-y-auto">
         {isMobile && sidebarOpen && (
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-30"
@@ -618,9 +618,9 @@ const handleEditClick = (cliente) => {
                 </div>
               </div>
               
-              <div className="flex-1 overflow-hidden flex flex-col bg-white rounded-lg shadow border border-gray-200">
+              <div className="flex-1 overflow-auto flex flex-col bg-white rounded-lg shadow border border-gray-200">
                 {/* Tabla para Desktop */}
-                <div className="hidden md:block">
+                <div className="hidden md:block overflow-auto">
                   <table className="min-w-full bg-white border border-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
