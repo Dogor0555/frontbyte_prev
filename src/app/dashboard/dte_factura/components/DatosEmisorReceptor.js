@@ -61,9 +61,9 @@ const DatosEmisorReceptor = ({
     const fetchClientes = async () => {
       setLoadingClientes(true);
       try {
-        const response = await fetch("http://localhost:3000/clientes/getAllCli", {
+        const response = await fetch("http://localhost:3000/clientes/activos", {
           method: "GET",
-          credentials: "include", // ← Esto es lo importante
+          credentials: "include", 
           headers: {
             "Content-Type": "application/json",
           },
@@ -76,7 +76,6 @@ const DatosEmisorReceptor = ({
           }
         } else {
           console.error("Error en la respuesta:", response.status);
-          // Opcional: mostrar mensaje al usuario
         }
       } catch (error) {
         console.error("Error al cargar clientes:", error);
@@ -88,7 +87,6 @@ const DatosEmisorReceptor = ({
     fetchClientes();
   }, []);
 
-  // Filtrar clientes según término de búsqueda
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredClientes([]);

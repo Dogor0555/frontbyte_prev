@@ -436,34 +436,50 @@ const handleUpdateCliente = async (e) => {
 
   
 
-  const handleToggleEstado = async (clienteId, nuevoEstado) => {
-    try {
-      const response = await fetch(
-        `http://localhost:3000/clientes/toggle-estado/${clienteId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: document.cookie,
-          },
-          credentials: "include",
-          body: JSON.stringify({ estado: nuevoEstado }),
-        }
-      );
-
-      if (!response.ok) {
-        setErrorMessage("Error al cambiar el estado del cliente.");
-        setShowErrorModal(true);
-        return;
+const handleToggleEstado = async (clienteId, nuevoEstado) => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/clientes/${clienteId}/estado`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: document.cookie,
+        },
+        credentials: "include",
+        body: JSON.stringify({ activo: nuevoEstado }),
       }
+    );
 
-      fetchClientes();
-    } catch (error) {
-      console.error("Error al cambiar el estado del cliente:", error);
-      setErrorMessage("Error al cambiar el estado del cliente.");
+    if (!response.ok) {
+      const errorData = await response.json();
+      setErrorMessage(errorData.message || "Error al cambiar el estado del cliente.");
       setShowErrorModal(true);
+      return;
     }
-  };
+
+    setClientes(prevClientes => 
+      prevClientes.map(cliente => 
+        cliente.idcliente === clienteId 
+          ? { ...cliente, activo: nuevoEstado } 
+          : cliente
+      )
+    );
+    
+    setFilteredClientes(prevFiltered => 
+      prevFiltered.map(cliente => 
+        cliente.idcliente === clienteId 
+          ? { ...cliente, activo: nuevoEstado } 
+          : cliente
+      )
+    );
+    
+  } catch (error) {
+    console.error("Error al cambiar el estado del cliente:", error);
+    setErrorMessage("Error al cambiar el estado del cliente.");
+    setShowErrorModal(true);
+  }
+};
 
   const handleDeleteCliente = async (clienteId) => {
     try {
@@ -492,7 +508,7 @@ const handleUpdateCliente = async (e) => {
     }
   };
 
-const handleEditClick = (cliente) => {
+  const handleEditClick = (cliente) => {
     const datosCliente = {
       ...cliente,
       nombre: cliente.nombre || "",
@@ -517,6 +533,7 @@ const handleEditClick = (cliente) => {
     setFormData(datosCliente);
     setShowEditModal(true);
   };
+
 
   const handleDeleteClick = (clienteId) => {
     setClienteToDelete(clienteId);
@@ -639,6 +656,10 @@ const handleEditClick = (cliente) => {
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Teléfono
                         </th>
+                        {/* Nueva columna para el estado */}
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Estado
+                        </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Acciones
                         </th>
@@ -689,8 +710,30 @@ const handleEditClick = (cliente) => {
                               <td className="px-4 py-4 text-sm text-gray-900 text-center">
                                 {cliente.telefono}
                               </td>
+                              {/* Nueva celda para el estado */}
+                              <td className="px-4 py-4 text-sm text-gray-900 text-center">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  cliente.activo 
+                                    ? "bg-green-100 text-green-800" 
+                                    : "bg-red-100 text-red-800"
+                                }`}>
+                                  {cliente.activo ? "Activo" : "Inactivo"}
+                                </span>
+                              </td>
                               <td className="px-4 py-4 text-sm font-medium text-center">
                                 <div className="flex justify-center space-x-2">
+                                  <button
+                                    onClick={() => handleToggleEstado(cliente.idcliente, !cliente.activo)}
+                                    className={`p-1 rounded-full transition-colors ${
+                                      cliente.activo 
+                                        ? "text-green-600 hover:text-green-800 hover:bg-green-50" 
+                                        : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                    }`}
+                                    aria-label={cliente.activo ? "Desactivar" : "Activar"}
+                                    title={cliente.activo ? "Desactivar cliente" : "Activar cliente"}
+                                  >
+                                    {cliente.activo ? <FaToggleOn size={20} /> : <FaToggleOff size={20} />}
+                                  </button>
                                   <button
                                     onClick={() => handleEditClick(cliente)}
                                     className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50 transition-colors"
@@ -743,7 +786,6 @@ const handleEditClick = (cliente) => {
                     {filteredClientes &&
                       Array.isArray(filteredClientes) &&
                       filteredClientes.map((cliente) => {
-                        // Obtener el nombre del tipo de documento
                         const tipoDoc = tiposDocumento.find(
                           (doc) => doc.codigo === cliente.tipodocumento
                         );
@@ -773,6 +815,18 @@ const handleEditClick = (cliente) => {
                               </div>
                               <div className="flex space-x-2">
                                 <button
+                                  onClick={() => handleToggleEstado(cliente.idcliente, !cliente.activo)}
+                                  className={`p-2 rounded-full transition-colors ${
+                                    cliente.activo 
+                                      ? "text-green-600 hover:text-green-800 hover:bg-green-50" 
+                                      : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                  }`}
+                                  aria-label={cliente.activo ? "Desactivar" : "Activar"}
+                                  title={cliente.activo ? "Desactivar cliente" : "Activar cliente"}
+                                >
+                                  {cliente.activo ? <FaToggleOn size={18} /> : <FaToggleOff size={18} />}
+                                </button>
+                                <button
                                   onClick={() => handleEditClick(cliente)}
                                   className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50"
                                   aria-label="Editar"
@@ -792,6 +846,18 @@ const handleEditClick = (cliente) => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 text-sm">
+                              {/* Estado en vista móvil */}
+                              <div className="col-span-2">
+                                <span className="font-medium text-gray-500">Estado:</span>
+                                <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  cliente.activo 
+                                    ? "bg-green-100 text-green-800" 
+                                    : "bg-red-100 text-red-800"
+                                }`}>
+                                  {cliente.activo ? "Activo" : "Inactivo"}
+                                </span>
+                              </div>
+                              
                               <div>
                                 <span className="font-medium text-gray-500">Tipo Persona:</span>
                                 <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
