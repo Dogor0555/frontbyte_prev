@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt,FaDownload,FaChevronDown,FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
@@ -18,6 +18,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
   const [pdfLoading, setPdfLoading] = useState(null);
   const [anulando, setAnulando] = useState(null);
   const [reTransmitiendo, setReTransmitiendo] = useState(null);
+  const [openDownloadMenu, setOpenDownloadMenu] = useState(null);
   const itemsPerPage = 6;
   const router = useRouter();
 
@@ -40,6 +41,17 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
     };
     fetchFacturas();
   }, []);
+
+  useEffect(() => {
+  const handleClickOutside = () => {
+    setOpenDownloadMenu(null);
+  };
+
+  document.addEventListener('click', handleClickOutside);
+  return () => {
+    document.removeEventListener('click', handleClickOutside);
+  };
+}, []);
 
   // Función para ordenar facturas por fecha
   const ordenarFacturasPorFecha = (facturas) => {
@@ -138,6 +150,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
       
       alert('Factura anulada exitosamente');
     } catch (error) {
+
       console.error('Error al anular:', error);
       alert('Error: ' + error.message);
     } finally {
@@ -171,6 +184,43 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
       alert('Error: ' + error.message);
     } finally {
       setReTransmitiendo(null);
+    }
+  };
+
+  const handleDownloadJSON = async (iddtefactura) => {
+    try {
+      const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { 
+        type: 'application/json' 
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `factura-${iddtefactura}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Error descargando JSON:', error);
+      alert(`Error al descargar JSON: ${error.message}`);
+    } finally {
+      setPdfLoading(null);
     }
   };
 
@@ -434,71 +484,89 @@ return (
                       Detalles
                     </button>
 
-                    {/* Botón de Re-transmitir para contingencias */}
-                    {puedeReTransmitir(factura) && (
-                      <button
-                        onClick={() => handleReTransmitir(factura.iddtefactura)}
-                        disabled={reTransmitiendo === factura.iddtefactura}
-                        className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                          reTransmitiendo === factura.iddtefactura
-                            ? 'bg-gray-400 text-gray-700'
-                            : 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                        }`}
-                      >
-                        {reTransmitiendo === factura.iddtefactura ? (
-                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
-                        ) : (
-                          <FaSync className="mr-1 text-xs" />
-                        )}
-                        Re-transmitir
-                      </button>
-                    )}
-
-                    {/* Botón de Anular */}
-                    {puedeAnular(factura) && (
-                      <button
-                        onClick={() => handleAnularFactura(factura.iddtefactura)}
-                        disabled={anulando === factura.iddtefactura}
-                        className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                          anulando === factura.iddtefactura
-                            ? 'bg-gray-400 text-gray-700'
-                            : 'bg-red-500 hover:bg-red-600 text-white'
-                        }`}
-                      >
-                        {anulando === factura.iddtefactura ? (
-                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
-                        ) : (
-                          <FaBan className="mr-1 text-xs" />
-                        )}
-                        Anular
-                      </button>
-                    )}
-
-                    {/* Botón de Descargar PDF */}
-                    <button
-                      onClick={() => handleGeneratePDF(factura.iddtefactura, factura.numerofacturausuario)}
-                      disabled={pdfLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
-                      className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                        pdfLoading === factura.iddtefactura
-                          ? 'bg-gray-400 text-gray-700'
-                          : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
-                            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                            : 'bg-red-500 hover:bg-red-600 text-white'
-                      }`}
-                      title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Factura no firmada" : "Descargar DTE en PDF"}
-                    >
-                      {pdfLoading === factura.iddtefactura ? (
-                        <>
-                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
-                          Generando
-                        </>
-                      ) : (
-                        <>
-                          <FaFilePdf className="mr-1 text-xs" />
-                          PDF
-                        </>
+                    {/* Botones de acción */}
+                    <div className="flex items-center gap-1">
+                      {/* Botón de Re-transmitir */}
+                      {puedeReTransmitir(factura) && (
+                        <button
+                          onClick={() => handleReTransmitir(factura.iddtefactura)}
+                          disabled={reTransmitiendo === factura.iddtefactura}
+                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                            reTransmitiendo === factura.iddtefactura
+                              ? 'bg-gray-400 text-gray-700'
+                              : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                          }`}
+                        >
+                          {reTransmitiendo === factura.iddtefactura ? (
+                            <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                          ) : (
+                            <FaSync className="mr-1 text-xs" />
+                          )}
+                          Re-transmitir
+                        </button>
                       )}
-                    </button>
+
+                      {/* Botón de Anular */}
+                      {puedeAnular(factura) && (
+                        <button
+                          onClick={() => handleAnularFactura(factura.iddtefactura)}
+                          disabled={anulando === factura.iddtefactura}
+                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                            anulando === factura.iddtefactura
+                              ? 'bg-gray-400 text-gray-700'
+                              : 'bg-red-500 hover:bg-red-600 text-white'
+                          }`}
+                        >
+                          {anulando === factura.iddtefactura ? (
+                            <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                          ) : (
+                            <FaBan className="mr-1 text-xs" />
+                          )}
+                          Anular
+                        </button>
+                      )}
+
+                      {/* Botón de Descargar PDF */}
+                      <button
+                        onClick={() => handleGeneratePDF(factura.iddtefactura, factura.numerofacturausuario)}
+                        disabled={pdfLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
+                        className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                          pdfLoading === factura.iddtefactura
+                            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                            : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
+                              ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                              : 'bg-red-500 hover:bg-red-600 text-white'
+                        }`}
+                        title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Factura no firmada" : "Descargar DTE en PDF"}
+                      >
+                        {pdfLoading === factura.iddtefactura ? (
+                          <>
+                            <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                            Generando
+                          </>
+                        ) : (
+                          <>
+                            <FaFilePdf className="mr-1 text-xs" />
+                            PDF
+                          </>
+                        )}
+                      </button>
+
+                      {/* Botón de Descargar JSON */}
+                      <button
+                        onClick={() => handleDownloadJSON(factura.iddtefactura)}
+                        disabled={!(factura.documentofirmado && factura.documentofirmado !== "null")}
+                        className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                          !(factura.documentofirmado && factura.documentofirmado !== "null")
+                            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                            : 'bg-green-500 hover:bg-green-600 text-white'
+                        }`}
+                        title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Factura no firmada" : "Descargar DTE en JSON"}
+                      >
+                        <FaFileCode className="mr-1 text-xs" />
+                        JSON
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

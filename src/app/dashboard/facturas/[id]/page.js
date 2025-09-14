@@ -273,7 +273,7 @@ export default function FacturaDetallePage() {
               <div className="p-5 border-t">
                 <div className="flex items-center mb-4 text-gray-600">
                   <FaCalendarAlt className="mr-2 text-blue-500" />
-                  <span className="font-medium">Fecha: {formatDate(facturaData.factura.fechaemision)}</span>
+                  <span className="font-medium">Fecha: {facturaData.factura.fechaemision.split("T")[0]}</span>
                   {facturaData.factura.horaemision && (
                     <span className="font-medium ml-2">Hora: {facturaData.factura.horaemision}</span>
                   )}

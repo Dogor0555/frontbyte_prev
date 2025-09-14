@@ -8,6 +8,7 @@ import {
   FaBuilding,
   FaMapMarkerAlt,
   FaPhone,
+  FaChevronDown,
   FaGlobe,
   FaEnvelope,
   FaUser,
@@ -18,6 +19,10 @@ import {
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
+
+import { municipios } from "./data/municipios";
+import { departamentos } from "./data/departamentos";
+import { codactividad } from "./data/codactividad";
 
 const API_BASE = "http://localhost:3000";
 
@@ -44,6 +49,11 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [okMsg, setOkMsg] = useState("");
+  const [departamentoOptions, setDepartamentoOptions] = useState([]);
+  const [municipioOptions, setMunicipioOptions] = useState([]);
+  const [actividadOptions, setActividadOptions] = useState([]);
+  const [filteredMunicipios, setFilteredMunicipios] = useState([]);
+  const [filteredActividades, setFilteredActividades] = useState([]);
 
   const [form, setForm] = useState({
     nombre: sucursal?.nombre ?? "",
@@ -159,6 +169,70 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
       form.municipio.trim() !== (sucursal.municipio ?? "").trim()
     );
   }, [form, sucursal]);
+
+    useEffect(() => {
+    setDepartamentoOptions(departamentos);
+    setMunicipioOptions(municipios);
+    setActividadOptions(codactividad);
+    if (form.departamento) {
+      const municipiosFiltrados = municipios.filter(
+        m => m.departamento === form.departamento
+      );
+      setFilteredMunicipios(municipiosFiltrados);
+    } else {
+      setFilteredMunicipios([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (form.departamento) {
+      const municipiosFiltrados = municipios.filter(
+        m => m.departamento === form.departamento
+      );
+      setFilteredMunicipios(municipiosFiltrados);
+
+      if (form.municipio) {
+        const municipioValido = municipiosFiltrados.some(
+          m => m.codigo === form.municipio
+        );
+        if (!municipioValido) {
+          setForm(prev => ({ ...prev, municipio: "" }));
+        }
+      }
+    } else {
+      setFilteredMunicipios([]);
+      setForm(prev => ({ ...prev, municipio: "" }));
+    }
+  }, [form.departamento]);
+
+  useEffect(() => {
+    if (form.codactividad) {
+      const actividadEncontrada = codactividad.find(
+        a => a.codigo === form.codactividad
+      );
+      if (actividadEncontrada) {
+        setForm(prev => ({ ...prev, desactividad: actividadEncontrada.nombre }));
+      } else {
+        setForm(prev => ({ ...prev, desactividad: "" }));
+      }
+    }
+  }, [form.codactividad]);
+
+
+  const filterActividades = (searchTerm) => {
+    if (!searchTerm) {
+      setFilteredActividades([]);
+      return;
+    }
+    
+    const filtered = codactividad.filter(
+      a => a.codigo.includes(searchTerm) || 
+           a.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredActividades(filtered.slice(0, 10));
+  };
+
+
 
   const canSubmit = useMemo(() => {
     if (saving) return false;
@@ -466,13 +540,41 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="min-w-0">
                   <Label>Código de Actividad</Label>
-                  <input
-                    type="text"
-                    value={form.codactividad}
-                    onChange={(e) => setForm({...form, codactividad: e.target.value})}
-                    disabled={user.rol !== "admin"}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={form.codactividad}
+                      onChange={(e) => {
+                        setForm({...form, codactividad: e.target.value});
+                        filterActividades(e.target.value);
+                      }}
+                      onFocus={(e) => filterActividades(e.target.value)}
+                      disabled={user.rol !== "admin"}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
+                      placeholder="Buscar por código o nombre"
+                    />
+                    {filteredActividades.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {filteredActividades.map((actividad) => (
+                          <div
+                            key={actividad.codigo}
+                            className="px-3 py-2 cursor-pointer hover:bg-blue-50"
+                            onClick={() => {
+                              setForm({
+                                ...form,
+                                codactividad: actividad.codigo,
+                                desactividad: actividad.nombre
+                              });
+                              setFilteredActividades([]);
+                            }}
+                          >
+                            <div className="font-medium">{actividad.codigo}</div>
+                            <div className="text-sm text-gray-600">{actividad.nombre}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="min-w-0">
@@ -480,9 +582,8 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
                   <input
                     type="text"
                     value={form.desactividad}
-                    onChange={(e) => setForm({...form, desactividad: e.target.value})}
-                    disabled={user.rol !== "admin"}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
+                    readOnly
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500 bg-gray-100"
                   />
                 </div>
               </div>
@@ -540,26 +641,46 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="min-w-0">
                   <Label>Departamento</Label>
-                  <input
-                    type="text"
-                    value={form.departamento}
-                    onChange={(e) => setForm({...form, departamento: e.target.value})}
-                    maxLength={LIMITES.DEPARTAMENTO}
-                    disabled={user.rol !== "admin"}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
-                  />
+                  <div className="relative">
+                    <select
+                      value={form.departamento}
+                      onChange={(e) => setForm({...form, departamento: e.target.value})}
+                      disabled={user.rol !== "admin"}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:ring-1 focus:ring-blue-500 appearance-none"
+                    >
+                      <option value="">Seleccionar departamento</option>
+                      {departamentoOptions.map((depto) => (
+                        <option key={depto.codigo} value={depto.codigo}>
+                          {depto.codigo} - {depto.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                      <FaChevronDown className="h-4 w-4 text-gray-400" />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="min-w-0">
                   <Label>Municipio</Label>
-                  <input
-                    type="text"
-                    value={form.municipio}
-                    onChange={(e) => setForm({...form, municipio: e.target.value})}
-                    maxLength={LIMITES.MUNICIPIO}
-                    disabled={user.rol !== "admin"}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
-                  />
+                  <div className="relative">
+                    <select
+                      value={form.municipio}
+                      onChange={(e) => setForm({...form, municipio: e.target.value})}
+                      disabled={user.rol !== "admin" || !form.departamento}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:ring-1 focus:ring-blue-500 appearance-none"
+                    >
+                      <option value="">Seleccionar municipio</option>
+                      {filteredMunicipios.map((mun) => (
+                        <option key={mun.codigo} value={mun.codigo}>
+                          {mun.codigo} - {mun.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                      <FaChevronDown className="h-4 w-4 text-gray-400" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
