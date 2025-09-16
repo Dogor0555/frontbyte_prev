@@ -133,30 +133,40 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
     setAnulando(facturaId);
     try {
       const response = await fetch(`http://localhost:3000/facturas/${facturaId}/anular`, {
-        method: 'POST',
-        credentials: 'include'
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tipoAnulacion: "2", 
+          motivoAnulacion: "Se emitió con datos incorrectos",
+        }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al anular factura');
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.descripcionMsg || data.error || "Error al anular factura");
       }
 
-      setFacturas(prev => prev.map(factura => 
-        factura.iddtefactura === facturaId 
-          ? { ...factura, estado: 'ANULADO' }
-          : factura
-      ));
-      
-      alert('Factura anulada exitosamente');
-    } catch (error) {
+      setFacturas((prev) =>
+        prev.map((factura) =>
+          factura.iddtefactura === facturaId
+            ? { ...factura, estado: "ANULADO" }
+            : factura
+        )
+      );
 
-      console.error('Error al anular:', error);
-      alert('Error: ' + error.message);
+      alert("Factura anulada exitosamente");
+    } catch (error) {
+      console.error("Error al anular:", error);
+      alert("Error: " + error.message);
     } finally {
       setAnulando(null);
     }
   };
+
 
   const handleReTransmitir = async (facturaId) => {
     setReTransmitiendo(facturaId);
@@ -192,30 +202,34 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
       const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
         method: 'GET',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      
-      const blob = new Blob([JSON.stringify(data, null, 2)], { 
-        type: 'application/json' 
-      });
-      
+      // Leer el header con el nombre del archivo
+      const disposition = response.headers.get("Content-Disposition");
+      let filename = `factura-${iddtefactura}.json`; // fallback
+      if (disposition && disposition.includes("filename=")) {
+        filename = disposition
+          .split("filename=")[1]
+          .replace(/"/g, ""); // quitar comillas
+      }
+
+      // Descargar como blob
+      const blob = await response.blob();
+
+      // Crear link de descarga
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `factura-${iddtefactura}.json`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
+
     } catch (error) {
       console.error('Error descargando JSON:', error);
       alert(`Error al descargar JSON: ${error.message}`);
@@ -224,40 +238,51 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
     }
   };
 
-  const handleGeneratePDF = async (facturaId, numeroFactura) => {
-    setPdfLoading(facturaId);
-    try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-pdf?code=VERIFICATION_CODE`, {
-        credentials: "include"
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          throw new Error(errorText || "Error al descargar PDF");
-        }
-        throw new Error(errorData.detalles || errorData.error || "Error al descargar PDF");
+
+const handleGeneratePDF = async (facturaId) => {
+  setPdfLoading(facturaId);
+  try {
+    const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-pdf`, {
+      credentials: "include"
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        throw new Error(errorText || "Error al descargar PDF");
       }
-      
-      const pdfBlob = await response.blob();
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = `FAC-${numeroFactura || facturaId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(pdfUrl);
-    } catch (error) {
-      console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
-    } finally {
-      setPdfLoading(null);
+      throw new Error(errorData.detalles || errorData.error || "Error al descargar PDF");
     }
-  };
+    
+    const disposition = response.headers.get("Content-Disposition");
+    let filename = `FAC-${facturaId}.pdf`;
+    if (disposition && disposition.includes("filename=")) {
+      filename = disposition
+        .split("filename=")[1]
+        .replace(/"/g, "");
+    }
+
+    const pdfBlob = await response.blob();
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(pdfUrl);
+
+  } catch (error) {
+    console.error("Error al generar PDF:", error);
+    alert("Error al generar el PDF: " + error.message);
+  } finally {
+    setPdfLoading(null);
+  }
+};
+
 
   const handleViewDetails = (facturaId) => {
     router.push(`/dashboard/facturas/${facturaId}`);
