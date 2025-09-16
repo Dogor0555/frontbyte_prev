@@ -21,7 +21,8 @@ export default function ProductModal({
   const [isMobile, setIsMobile] = useState(false);
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(false);
   const [stockDisponible, setStockDisponible] = useState(0);
-  const [tributos, setTributos] = useState([]); // Nuevo estado para array de tributos
+  const [tributos, setTributos] = useState([]);
+  const [productosFiltrados, setProductosFiltrados] = useState([]);
 
   // Detectar si es móvil
   useEffect(() => {
@@ -36,6 +37,29 @@ export default function ProductModal({
       window.removeEventListener("resize", checkMobile);
     };
   }, []);
+
+  // Filtrar productos según el tipo seleccionado
+  useEffect(() => {
+    if (!productosCargados || !Array.isArray(productosCargados)) return;
+    
+    let productosFiltrados = [];
+    
+    switch (tipoProducto) {
+      case "1": // Bienes solamente
+        productosFiltrados = productosCargados.filter(p => !p.es_servicio);
+        break;
+      case "2": // Servicios solamente
+        productosFiltrados = productosCargados.filter(p => p.es_servicio);
+        break;
+      case "3": // Bienes y servicios
+        productosFiltrados = productosCargados;
+        break;
+      default:
+        productosFiltrados = productosCargados;
+    }
+    
+    setProductosFiltrados(productosFiltrados);
+  }, [tipoProducto, productosCargados]);
 
   // Actualizar stock disponible cuando se selecciona un producto
   useEffect(() => {
@@ -54,7 +78,7 @@ export default function ProductModal({
     setTipoVenta("1");
     setMostrarAlertaStock(false);
     setStockDisponible(0);
-    setTributos([]); // Limpiar tributos también
+    setTributos([]);
   };
 
   useEffect(() => {
@@ -125,7 +149,6 @@ export default function ProductModal({
       "C5": 0.08, // Bebidas alcohólicas 8%
       "C6": 0.39, // Tabaco cigarrillos 39%
       "C7": 1.00, // Tabaco cigarros 100%
-      // Agrega más tasas según sea necesario
     };
     
     const tasa = tasas[codigoImpuesto] || 0;
@@ -179,7 +202,7 @@ export default function ProductModal({
     }
 
     // Verificar si es un servicio (no aplica control de stock)
-    const esServicio = tipoProducto === "2" || tipoProducto === "3";
+    const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     
     // Verificar stock solo para productos (no servicios)
     if (!esServicio && productoSeleccionado.stock !== undefined && productoSeleccionado.stock !== null) {
@@ -213,8 +236,8 @@ export default function ProductModal({
     }
 
     // Enviar información de stock para actualización posterior
-    // SOLO para productos (tipoVenta = "1"), no para servicios
-    const esServicio = tipoProducto === "2" || tipoProducto === "3";
+    // SOLO para productos (no servicios)
+    const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
     
     onAddItem({
@@ -224,11 +247,12 @@ export default function ProductModal({
       descuento: 0,
       unidadMedida: productoSeleccionado.unidad || "59",
       tipo: tipoItem,
-      tributos: tributos, // ← AQUÍ SE ENVÍA EL ARRAY DE TRIBUTOS
+      tributos: tributos,
       // Información adicional para actualizar stock posteriormente
       productoId: !esServicio ? productoSeleccionado.id : null,
       actualizarStock: necesitaActualizarStock,
-      stockAnterior: !esServicio ? productoSeleccionado.stock : null
+      stockAnterior: !esServicio ? productoSeleccionado.stock : null,
+      esServicio: esServicio
     });
     
     limpiarFormulario();
@@ -247,7 +271,7 @@ export default function ProductModal({
 
   const subtotal = productoSeleccionado ? cantidad * parseFloat(productoSeleccionado.precio) || 0 : 0;
   const total = calcularTotal();
-  const esServicio = tipoProducto === "2" || tipoProducto === "3";
+  const esServicio = tipoProducto === "2" || tipoProducto === "3" || (productoSeleccionado && productoSeleccionado.es_servicio);
   const stockInsuficiente = !esServicio && productoSeleccionado && 
                            productoSeleccionado.stock !== undefined && 
                            productoSeleccionado.stock !== null && 
@@ -316,13 +340,23 @@ export default function ProductModal({
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo:</label>
                 <select
                   value={tipoProducto}
-                  onChange={(e) => setTipoProducto(e.target.value)}
+                  onChange={(e) => {
+                    setTipoProducto(e.target.value);
+                    setProductoSeleccionado(null); // Limpiar selección al cambiar tipo
+                  }}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="1">1 - Bien</option>
                   <option value="2">2 - Servicio</option>
                   <option value="3">3 - Bien y Servicio</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {tipoProducto === "1" 
+                    ? "Mostrando solo productos (bienes)" 
+                    : tipoProducto === "2" 
+                    ? "Mostrando solo servicios" 
+                    : "Mostrando productos y servicios"}
+                </p>
               </div>
 
               {/* Cantidad y Unidad */}
@@ -408,6 +442,13 @@ export default function ProductModal({
             <div className="space-y-5">
               <div className="border-b border-gray-200 pb-2">
                 <h3 className="font-semibold text-gray-900 text-lg">Buscar Producto</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  {tipoProducto === "1" 
+                    ? "Mostrando solo productos (bienes)" 
+                    : tipoProducto === "2" 
+                    ? "Mostrando solo servicios" 
+                    : "Mostrando productos y servicios"}
+                </p>
               </div>
 
               <div>
@@ -452,7 +493,7 @@ export default function ProductModal({
                 {/* Lista de productos filtrados */}
                 {searchTerm.length >= 2 ? (
                   <div className="border border-gray-300 rounded-lg h-96 overflow-y-auto">
-                    {productosCargados
+                    {productosFiltrados
                       .filter(producto =>
                         producto.nombre.toLowerCase().includes(searchTerm) ||
                         producto.codigo.toLowerCase().includes(searchTerm)
@@ -472,22 +513,23 @@ export default function ProductModal({
                               ${parseFloat(producto.precio).toFixed(2)}
                             </span>
                           </div>
-                          {producto.stock !== undefined && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              Stock: {producto.stock}
-                            </div>
-                          )}
+                          <div className="text-xs text-gray-500 mt-1 flex justify-between">
+                            <span>Tipo: {producto.es_servicio ? "Servicio" : "Producto"}</span>
+                            {!producto.es_servicio && producto.stock !== undefined && (
+                              <span>Stock: {producto.stock}</span>
+                            )}
+                          </div>
                         </div>
                       ))
                     }
 
-                    {productosCargados.filter(producto =>
+                    {productosFiltrados.filter(producto =>
                       producto.nombre.toLowerCase().includes(searchTerm) ||
                       producto.codigo.toLowerCase().includes(searchTerm)
                     ).length === 0 && (
                       <div className="p-6 text-center text-gray-500">
                         <FaSearch className="mx-auto mb-2 text-2xl text-gray-400" />
-                        <p>No se encontraron productos</p>
+                        <p>No se encontraron {tipoProducto === "1" ? "productos" : tipoProducto === "2" ? "servicios" : "items"}</p>
                         <p className="text-xs mt-1">con el término "{searchTerm}"</p>
                       </div>
                     )}
@@ -496,11 +538,17 @@ export default function ProductModal({
                   <div className="border border-gray-200 rounded-lg h-96 bg-gray-50 flex items-center justify-center">
                     <div className="text-center text-gray-500 px-6">
                       <FaSearch className="mx-auto mb-4 text-4xl text-gray-300" />
-                      <h4 className="text-lg font-medium text-gray-700 mb-2">Buscar Productos</h4>
+                      <h4 className="text-lg font-medium text-gray-700 mb-2">
+                        {tipoProducto === "1" 
+                          ? "Buscar Productos" 
+                          : tipoProducto === "2" 
+                          ? "Buscar Servicios" 
+                          : "Buscar Productos y Servicios"}
+                      </h4>
                       <p className="text-sm mb-2">Escriba al menos 2 caracteres para comenzar la búsqueda</p>
                       <div className="text-xs text-gray-400 space-y-1">
-                        <p>• Puede buscar por nombre del producto</p>
-                        <p>• O por código del producto</p>
+                        <p>• Puede buscar por nombre</p>
+                        <p>• O por código</p>
                         <p>• Los resultados aparecerán automáticamente</p>
                       </div>
                     </div>
@@ -639,9 +687,12 @@ export default function ProductModal({
                     Código: {productoSeleccionado.codigo}
                   </p>
                   <p className="text-xs text-green-600 mt-1">
-                    Tipo: {tipoVenta === "1" ? "Gravado" : tipoVenta === "2" ? "Exento" : "No sujeto"}
+                    Tipo: {productoSeleccionado.es_servicio ? "Servicio" : "Producto"}
                   </p>
-                  {!esServicio && productoSeleccionado.stock !== undefined && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Tipo Venta: {tipoVenta === "1" ? "Gravado" : tipoVenta === "2" ? "Exento" : "No sujeto"}
+                  </p>
+                  {!productoSeleccionado.es_servicio && productoSeleccionado.stock !== undefined && (
                     <p className="text-xs text-green-600 mt-1">
                       Stock: {productoSeleccionado.stock}
                     </p>

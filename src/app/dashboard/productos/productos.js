@@ -39,7 +39,8 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         unidad: "",
         precio: 0,
         preciooferta: 0,
-        stock: 0
+        stock: 0,
+        es_servicio: false 
     });
     const [stockIncrement, setStockIncrement] = useState(0);
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -329,7 +330,8 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                 unidad: "",
                 precio: 0,
                 preciooferta: 0,
-                stock: 0
+                stock: 0,
+                //es_servicio: false
             });
             setSelectedUnidad("");
             fetchProductos();
@@ -844,6 +846,25 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                     {codigoError && <p className="text-red-500 text-sm mt-1">{codigoError}</p>}
                                     <p className="text-xs text-gray-500 mt-1">{formData.codigo.length}/{LIMITES.CODIGO} caracteres</p>
                                 </div>
+                                {/* Nuevo campo: Es Servicio */}
+                                <div className="mb-4">
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="es_servicio"
+                                            name="es_servicio"
+                                            checked={formData.es_servicio}
+                                            onChange={(e) => setFormData({ ...formData, es_servicio: e.target.checked })}
+                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        />
+                                        <label htmlFor="es_servicio" className="ml-2 block text-sm text-gray-900">
+                                            ¿Es un servicio?
+                                        </label>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Marque esta casilla si está agregando un servicio en lugar de un producto físico.
+                                    </p>
+                                </div>
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="unidad">
                                         Unidad
@@ -993,6 +1014,25 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                     />
                                     {codigoError && <p className="text-red-500 text-sm mt-1">{codigoError}</p>}
                                     <p className="text-xs text-gray-500 mt-1">{formData.codigo.length}/{LIMITES.CODIGO} caracteres</p>
+                                </div>
+                                                                {/* Nuevo campo: Es Servicio */}
+                                <div className="mb-4">
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="es_servicio_edit"
+                                            name="es_servicio"
+                                            checked={formData.es_servicio}
+                                            onChange={(e) => setFormData({ ...formData, es_servicio: e.target.checked })}
+                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        />
+                                        <label htmlFor="es_servicio_edit" className="ml-2 block text-sm text-gray-900">
+                                            ¿Es un servicio?
+                                        </label>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Marque esta casilla si es un servicio en lugar de un producto físico.
+                                    </p>
                                 </div>
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="unidad">
