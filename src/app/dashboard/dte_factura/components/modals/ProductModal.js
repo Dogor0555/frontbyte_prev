@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FaTimes, FaPlus, FaSearch, FaExclamationTriangle } from "react-icons/fa";
+import { FaTimes, FaPlus, FaSearch, FaExclamationTriangle, FaTrash } from "react-icons/fa";
 
 export default function ProductModal({
   isOpen,
@@ -21,6 +21,7 @@ export default function ProductModal({
   const [isMobile, setIsMobile] = useState(false);
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(false);
   const [stockDisponible, setStockDisponible] = useState(0);
+  const [tributos, setTributos] = useState([]); // Nuevo estado para array de tributos
 
   // Detectar si es móvil
   useEffect(() => {
@@ -53,6 +54,7 @@ export default function ProductModal({
     setTipoVenta("1");
     setMostrarAlertaStock(false);
     setStockDisponible(0);
+    setTributos([]); // Limpiar tributos también
   };
 
   useEffect(() => {
@@ -66,15 +68,108 @@ export default function ProductModal({
     onClose();
   };
 
+  // Función para obtener descripción del impuesto por código
+  const obtenerDescripcionImpuesto = (codigo) => {
+    const impuestos = {
+      "20": "Impuesto al Valor Agregado 13%",
+      "59": "Turismo: por alojamiento (5%)",
+      "71": "Turismo: salida del país por vía aérea $7.00",
+      "D1": "FOVIAL ($0.20 Ctvs. por galón)",
+      "C8": "COTRANS ($0.10 Ctvs. por galón)",
+      "D5": "Otras tasas casos especiales",
+      "D4": "Otros impuestos casos especiales",
+      "C5": "Impuesto ad-valorem por diferencial de precios de Bebidas Alcohólicas (8%)",
+      "C6": "Impuesto ad-valorem por diferencial de precios al tabaco cigarrillos (39%)",
+      "C7": "Impuesto ad-valorem por diferencial de precios al tabaco cigarros (100%)",
+      "19": "Fabricante de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes o Estimulante",
+      "28": "Importador de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizante o Estimulante",
+      "31": "Detallistas o Expendedores de Bebidas Alcohólicas",
+      "32": "Fabricante de Cerveza",
+      "33": "Importador de Cerveza",
+      "34": "Fabricante de Productos de Tabaco",
+      "35": "Importador de Productos de Tabaco",
+      "36": "Fabricante de Armas de Fuego, Municiones y Artículos Similares",
+      "37": "Importador de Arma de Fuego, Munición y Artículos Similares",
+      "38": "Fabricante de Explosivos",
+      "39": "Importador de Explosivos",
+      "42": "Fabricante de Productos Pirotécnicos",
+      "43": "Importador de Productos Pirotécnicos",
+      "44": "Productor de Tabaco",
+      "50": "Distribuidor de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizante o Estimulante",
+      "51": "Bebidas Alcohólicas",
+      "52": "Cerveza",
+      "53": "Productos del Tabaco",
+      "54": "Bebidas Carbonatadas o Gaseosas Simples o Endulzadas",
+      "55": "Otros Específicos",
+      "58": "Alcohol",
+      "77": "Importador de Jugos, Néctares, Bebidas con Jugo y Refrescos",
+      "78": "Distribuidor de Jugos, Néctares, Bebidas con Jugo y Refrescos",
+      "79": "Sobre Llamadas Telefónicas Provenientes del Ext.",
+      "85": "Detallista de Jugos, Néctares, Bebidas con Jugo y Refrescos",
+      "86": "Fabricante de Preparaciones Concentradas o en Polvo para la Elaboración de Bebidas",
+      "91": "Fabricante de Jugos, Néctares, Bebidas con Jugo y Refrescos",
+      "92": "Importador de Preparaciones Concentradas o en Polvo para la Elaboración de Bebidas",
+      "A1": "Específicos y Ad-valorem",
+      "A5": "Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes o Estimulantes",
+      "A7": "Alcohol Etílico",
+      "A9": "Sacos Sintéticos"
+    };
+    return impuestos[codigo] || "Impuesto no especificado";
+  };
+
+  // Función para calcular el valor de un impuesto
+  const calcularValorImpuesto = (codigoImpuesto, subtotal) => {
+    const tasas = {
+      "20": 0.13, // IVA 13%
+      "59": 0.05, // Turismo 5%
+      "C5": 0.08, // Bebidas alcohólicas 8%
+      "C6": 0.39, // Tabaco cigarrillos 39%
+      "C7": 1.00, // Tabaco cigarros 100%
+      // Agrega más tasas según sea necesario
+    };
+    
+    const tasa = tasas[codigoImpuesto] || 0;
+    return subtotal * tasa;
+  };
+
+  // Función para agregar un tributo al array
+  const agregarTributo = () => {
+    if (!productoSeleccionado) return;
+    
+    const subtotal = cantidad * parseFloat(productoSeleccionado.precio) || 0;
+    const valorImpuesto = calcularValorImpuesto(impuestoSeleccionado, subtotal);
+    
+    const nuevoTributo = {
+      codigo: impuestoSeleccionado,
+      descripcion: obtenerDescripcionImpuesto(impuestoSeleccionado),
+      valor: parseFloat(valorImpuesto.toFixed(2))
+    };
+
+    // Verificar si el tributo ya existe
+    const existe = tributos.some(t => t.codigo === nuevoTributo.codigo);
+    
+    if (!existe) {
+      setTributos([...tributos, nuevoTributo]);
+    } else {
+      alert("Este impuesto ya ha sido agregado");
+    }
+  };
+
+  // Función para eliminar un tributo
+  const eliminarTributo = (codigo) => {
+    setTributos(tributos.filter(t => t.codigo !== codigo));
+  };
+
   const calcularTotal = () => {
     if (!productoSeleccionado) return 0;
     
     const precio = parseFloat(productoSeleccionado.precio) || 0;
     const subtotal = cantidad * precio;
-    const tasaImpuesto = impuestoSeleccionado === "20" ? 0.13 : impuestoSeleccionado === "21" ? 0.15 : 0;
-    const impuesto = subtotal * tasaImpuesto;
     
-    return subtotal;
+    // Calcular total de impuestos
+    const totalImpuestos = tributos.reduce((sum, tributo) => sum + tributo.valor, 0);
+    
+    return subtotal + totalImpuestos;
   };
 
   const handleAgregarItem = () => {
@@ -129,8 +224,8 @@ export default function ProductModal({
       descuento: 0,
       unidadMedida: productoSeleccionado.unidad || "59",
       tipo: tipoItem,
+      tributos: tributos, // ← AQUÍ SE ENVÍA EL ARRAY DE TRIBUTOS
       // Información adicional para actualizar stock posteriormente
-      // SOLO se incluye si NO es un servicio
       productoId: !esServicio ? productoSeleccionado.id : null,
       actualizarStock: necesitaActualizarStock,
       stockAnterior: !esServicio ? productoSeleccionado.stock : null
@@ -150,6 +245,7 @@ export default function ProductModal({
 
   if (!isOpen) return null;
 
+  const subtotal = productoSeleccionado ? cantidad * parseFloat(productoSeleccionado.precio) || 0 : 0;
   const total = calcularTotal();
   const esServicio = tipoProducto === "2" || tipoProducto === "3";
   const stockInsuficiente = !esServicio && productoSeleccionado && 
@@ -420,55 +516,88 @@ export default function ProductModal({
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Impuesto:</label>
-                <select
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={impuestoSeleccionado}
-                  onChange={(e) => setImpuestoSeleccionado(e.target.value)}
-                >
-                      <option value="20">20 - Impuesto al Valor Agregado 13%</option>
-                      <option value="59">59 - Turismo: por alojamiento (5%)</option>
-                      <option value="71">71 - Turismo: salida del país por vía aérea $7.00</option>
-                      <option value="D1">D1 - FOVIAL ($0.20 Ctvs. por galón)</option>
-                      <option value="C8">C8 - COTRANS ($0.10 Ctvs. por galón)</option>
-                      <option value="D5">D5 - Otras tasas casos especiales</option>
-                      <option value="D4">D4 - Otros impuestos casos especiales</option>
-                      <option value="C5">C5 - Impuesto ad- valorem por diferencial de precios de Bebidas Alcohólicas (8%)</option>
-                      <option value="C6">C6 - Impuesto ad- valorem por diferencial de precios al tabaco cigarrillos (39%)</option>
-                      <option value="C7">C7 - Impuesto ad- valorem por diferencial de precios al tabaco cigarros (100%)</option>
-                      <option value="19">19 - Fabricante de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes o Estimulante</option>
-                      <option value="28">28 - Importador de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizante o Estimulante</option>
-                      <option value="31">31 - Detallistas o Expendedores de Bebidas Alcohólicas</option>
-                      <option value="32">32 - Fabricante de Cerveza</option>
-                      <option value="33">33 - Importador de Cerveza</option>
-                      <option value="34">34 - Fabricante de Productos de Tabaco</option>
-                      <option value="35">35 - Importador de Productos de Tabaco</option>
-                      <option value="36">36 - Fabricante de Armas de Fuego, Municiones y Artículos. Similares</option>
-                      <option value="37">37 - Importador de Arma de Fueg,Munición y Artis. Simil</option>
-                      <option value="38">38 - Fabricante de Explosivos</option>
-                      <option value="39">39 - Importador de Explosivos</option>
-                      <option value="42">42 - Fabricante de Productos Pirotécnicos</option>
-                      <option value="43">43 - Importador de Productos Pirotécnicos</option>
-                      <option value="44">44 - Productor de Tabaco</option>
-                      <option value="50">50 - Distribuidor de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizante o Estimulante</option>
-                      <option value="51">51 - Bebidas Alcohólicas</option>
-                      <option value="52">52 - Cerveza</option>
-                      <option value="53">53 - Productos del Tabaco</option>
-                      <option value="54">54 - Bebidas Carbonatadas o Gaseosas Simples o Endulzadas</option>
-                      <option value="55">55 - Otros Específicos</option>
-                      <option value="58">58 - Alcohol</option>
-                      <option value="77">77 - Importador de Jugos, Néctares, Bebidas con Jugo y Refrescos</option>
-                      <option value="78">78 - Distribuidor de Jugos, Néctares, Bebidas con Jugo y Refrescos</option>
-                      <option value="79">79 - Sobre Llamadas Telefónicas Provenientes del Ext.</option>
-                      <option value="85">85 - Detallista de Jugos, Néctares, Bebidas con Jugo и Refrescos</option>
-                      <option value="86">86 - Fabricante de Preparaciones Concentradas o en Polvo para la Elaboración de Bebidas</option>
-                      <option value="91">91 - Fabricante de Jugos, Néctares, Bebidas con Jugo y Refrescos</option>
-                      <option value="92">92 - Importador de Preparaciones Concentradas o en Polvo para la Elaboración de Bebidas</option>
-                      <option value="A1">A1 - Específicos y Ad-valorem</option>
-                      <option value="A5">A5 - Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes o Estimulantes</option>
-                      <option value="A7">A7 - Alcohol Etílico</option>
-                      <option value="A9">A9 - Sacos Sintéticos</option>
-                </select>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Seleccionar Impuesto:</label>
+                <div className="flex gap-2 mb-2">
+                  <select
+                    className="flex-1 p-3 border w-1/2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={impuestoSeleccionado}
+                    onChange={(e) => setImpuestoSeleccionado(e.target.value)}
+                  >
+                    <option value="20">20 - Impuesto al Valor Agregado 13%</option>
+                    <option value="59">59 - Turismo: por alojamiento (5%)</option>
+                    <option value="71">71 - Turismo: salida del país por vía aérea $7.00</option>
+                    <option value="D1">D1 - FOVIAL ($0.20 Ctvs. por galón)</option>
+                    <option value="C8">C8 - COTRANS ($0.10 Ctvs. por galón)</option>
+                    <option value="D5">D5 - Otras tasas casos especiales</option>
+                    <option value="D4">D4 - Otros impuestos casos especiales</option>
+                    <option value="C5">C5 - Impuesto ad- valorem por diferencial de precios de Bebidas Alcohólicas (8%)</option>
+                    <option value="C6">C6 - Impuesto ad- valorem por diferencial de precios al tabaco cigarrillos (39%)</option>
+                    <option value="C7">C7 - Impuesto ad- valorem por diferencial de precios al tabaco cigarros (100%)</option>
+                    <option value="19">19 - Fabricante de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes o Estimulante</option>
+                    <option value="28">28 - Importador de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizante o Estimulante</option>
+                    <option value="31">31 - Detallistas o Expendedores de Bebidas Alcohólicas</option>
+                    <option value="32">32 - Fabricante de Cerveza</option>
+                    <option value="33">33 - Importador de Cerveza</option>
+                    <option value="34">34 - Fabricante de Productos de Tabaco</option>
+                    <option value="35">35 - Importador de Productos de Tabaco</option>
+                    <option value="36">36 - Fabricante de Armas de Fuego, Municiones y Artículos. Similares</option>
+                    <option value="37">37 - Importador de Arma de Fueg,Munición y Artis. Simil</option>
+                    <option value="38">38 - Fabricante de Explosivos</option>
+                    <option value="39">39 - Importador de Explosivos</option>
+                    <option value="42">42 - Fabricante de Productos Pirotécnicos</option>
+                    <option value="43">43 - Importador de Productos Pirotécnicos</option>
+                    <option value="44">44 - Productor de Tabaco</option>
+                    <option value="50">50 - Distribuidor de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizante o Estimulante</option>
+                    <option value="51">51 - Bebidas Alcohólicas</option>
+                    <option value="52">52 - Cerveza</option>
+                    <option value="53">53 - Productos del Tabaco</option>
+                    <option value="54">54 - Bebidas Carbonatadas o Gaseosas Simples o Endulzadas</option>
+                    <option value="55">55 - Otros Específicos</option>
+                    <option value="58">58 - Alcohol</option>
+                    <option value="77">77 - Importador de Jugos, Néctares, Bebidas con Jugo y Refrescos</option>
+                    <option value="78">78 - Distribuidor de Jugos, Néctares, Bebidas con Jugo y Refrescos</option>
+                    <option value="79">79 - Sobre Llamadas Telefónicas Provenientes del Ext.</option>
+                    <option value="85">85 - Detallista de Jugos, Néctares, Bebidas con Jugo и Refrescos</option>
+                    <option value="86">86 - Fabricante de Preparaciones Concentradas o en Polvo para la Elaboración de Bebidas</option>
+                    <option value="91">91 - Fabricante de Jugos, Néctares, Bebidas con Jugo y Refrescos</option>
+                    <option value="92">92 - Importador de Preparaciones Concentradas o en Polvo para la Elaboración de Bebidas</option>
+                    <option value="A1">A1 - Específicos y Ad-valorem</option>
+                    <option value="A5">A5 - Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes o Estimulantes</option>
+                    <option value="A7">A7 - Alcohol Etílico</option>
+                    <option value="A9">A9 - Sacos Sintéticos</option>
+                  </select>
+                  <button
+                    onClick={agregarTributo}
+                    className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={!productoSeleccionado}
+                  >
+                    <FaPlus />
+                  </button>
+                </div>
+
+                {/* Lista de tributos agregados */}
+                {tributos.length > 0 && (
+                  <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                    <h4 className="font-semibold text-gray-900 mb-2">Tributos agregados:</h4>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {tributos.map((tributo, index) => (
+                        <div key={index} className="flex justify-between items-center p-2 bg-white rounded border">
+                          <div className="flex-1">
+                            <div className="text-sm font-medium">{tributo.codigo}</div>
+                            <div className="text-xs text-gray-600">{tributo.descripcion}</div>
+                            <div className="text-xs font-semibold">${tributo.valor.toFixed(2)}</div>
+                          </div>
+                          <button
+                            onClick={() => eliminarTributo(tributo.codigo)}
+                            className="text-red-500 hover:text-red-700 ml-2"
+                          >
+                            <FaTrash size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Resumen de totales */}
@@ -476,15 +605,18 @@ export default function ProductModal({
                 <h4 className="font-semibold text-gray-900 mb-4 text-center">Resumen del Item</h4>
                 <div className="space-y-3">
                   <div className="flex justify-between py-2">
-                    <span className="text-gray-700">Descuento:</span>
-                    <span className="font-semibold text-gray-900">$0.00</span>
+                    <span className="text-gray-700">Subtotal:</span>
+                    <span className="font-semibold text-gray-900">${subtotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-700">IVA:</span>
-                    <span className="font-semibold text-gray-900">
-                      ${(total - (cantidad * (productoSeleccionado?.precio || 0))).toFixed(2)}
-                    </span>
-                  </div>
+                  
+                  {/* Impuestos */}
+                  {tributos.map((tributo, index) => (
+                    <div key={index} className="flex justify-between py-1">
+                      <span className="text-gray-700 text-sm">{tributo.codigo}:</span>
+                      <span className="font-semibold text-gray-900 text-sm">${tributo.valor.toFixed(2)}</span>
+                    </div>
+                  ))}
+                  
                   <div className="border-t border-gray-300 pt-3 mt-3">
                     <div className="flex justify-between">
                       <span className="text-lg font-semibold text-gray-900">Total:</span>

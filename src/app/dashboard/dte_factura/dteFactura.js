@@ -401,7 +401,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
         ventanosuj: 0.00,
         ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
         ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-        tributos: null,
+        tributos: item.tributos,
         psv: 0,
         nogravado: 0.00,
         ivaitem: parseFloat(ivaItem.toFixed(2)) 
