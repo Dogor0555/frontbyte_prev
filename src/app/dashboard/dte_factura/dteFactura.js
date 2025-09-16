@@ -143,57 +143,57 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   ]);
 
   const guardarFactura = async () => {
-      if (guardandoFactura) return;
+    if (guardandoFactura) return;
+    
+    if (items.length === 0) {
+      alert("La factura debe tener al menos un item antes de guardar");
+      return;
+    }
+    
+    try {
+      setGuardandoFactura(true); 
       
-      if (items.length === 0) {
-        alert("La factura debe tener al menos un item antes de guardar");
+      const datosFactura = prepararDatosFactura();
+      
+      if (!datosFactura.formapago) {
+        alert("Error: No se pudo determinar la forma de pago");
+        setGuardandoFactura(false); 
         return;
       }
       
-      try {
-        setGuardandoFactura(true); 
-        
-        const datosFactura = prepararDatosFactura();
-        
-        if (!datosFactura.formapago) {
-          alert("Error: No se pudo determinar la forma de pago");
-          setGuardandoFactura(false); 
-          return;
-        }
-        
-        console.log("Enviando encabezado:", datosFactura);
-        
-        const responseEncabezado = await fetch("http://localhost:3000/facturas/encabezado", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify(datosFactura)
-        });
+      console.log("Enviando encabezado:", datosFactura);
+      
+      const responseEncabezado = await fetch("http://localhost:3000/facturas/encabezado", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(datosFactura)
+      });
 
-        if (responseEncabezado.ok) {
-          const result = await responseEncabezado.json();
-          console.log("Encabezado de factura guardado:", result);
-          
-          const detallesGuardados = await guardarDetallesFactura(result.iddtefactura);
-          
-          if (detallesGuardados) {
-            setShowConfirmModal(false);
-            alert(`Factura ${result.ncontrol} guardada exitosamente`);
-            reiniciarEstados();
-          }
-        } else {
-          const errorText = await responseEncabezado.text();
-          throw new Error(`Error del servidor: ${errorText}`);
+      if (responseEncabezado.ok) {
+        const result = await responseEncabezado.json();
+        console.log("Encabezado de factura guardado:", result);
+        
+        const detallesGuardados = await guardarDetallesFactura(result.iddtefactura);
+        
+        if (detallesGuardados) {
+          setShowConfirmModal(false);
+          alert(`Factura ${result.ncontrol} guardada exitosamente`);
+          reiniciarEstados();
         }
-      } catch (error) {
-        console.error("Error:", error);
-        alert("Error al guardar la factura: " + error.message);
-      } finally {
-        setGuardandoFactura(false);
+      } else {
+        const errorText = await responseEncabezado.text();
+        throw new Error(`Error del servidor: ${errorText}`);
       }
-    };
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al guardar la factura: " + error.message);
+    } finally {
+      setGuardandoFactura(false);
+    }
+  };
 
   const reiniciarFormulario = () => {
     setItems([]);
@@ -332,6 +332,45 @@ const verDatosFactura = () => {
   alert("Datos de factura mostrados en consola. Revisa la consola del navegador (F12).");
 };
 
+const actualizarStockProductos = async (itemsFactura) => {
+  try {
+    // Filtrar solo items que son productos, necesitan actualización de stock y NO son servicios
+    const productosParaActualizar = itemsFactura.filter(item => 
+      item.actualizarStock && item.productoId && item.tipo === "producto"
+    );
+
+    console.log("Productos a actualizar stock:", productosParaActualizar);
+
+    // Actualizar stock para cada producto
+    for (const producto of productosParaActualizar) {
+      try {
+        const response = await fetch(`http://localhost:3000/productos/decrementStock/${producto.productoId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ cantidad: producto.cantidad })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`Stock actualizado para producto ${producto.productoId}:`, result);
+        } else {
+          console.error(`Error al actualizar stock para producto ${producto.productoId}:`, response.statusText);
+        }
+      } catch (error) {
+        console.error(`Error al actualizar stock para producto ${producto.productoId}:`, error);
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error general en actualización de stock:", error);
+    throw error;
+  }
+};
+
 const guardarDetallesFactura = async (iddtefactura) => {
   try {
     const detalles = items.map((item, index) => {
@@ -369,7 +408,6 @@ const guardarDetallesFactura = async (iddtefactura) => {
       };
     });
 
-
     const datosDetalles = {
       transmitir: true,
       idEnvio: Math.floor(1000 + Math.random() * 9000),
@@ -388,6 +426,10 @@ const guardarDetallesFactura = async (iddtefactura) => {
     if (responseDetalles.ok) {
       const resultDetalles = await responseDetalles.json();
       console.log("Detalles de factura guardados:", resultDetalles);
+      
+      // ACTUALIZAR STOCK DESPUÉS DE GUARDAR LOS DETALLES
+      await actualizarStockProductos(items);
+      
       return true;
     } else {
       const errorText = await responseDetalles.text();

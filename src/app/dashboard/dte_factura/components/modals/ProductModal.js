@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FaTimes, FaPlus, FaSearch } from "react-icons/fa";
+import { FaTimes, FaPlus, FaSearch, FaExclamationTriangle } from "react-icons/fa";
 
 export default function ProductModal({
   isOpen,
@@ -17,7 +17,10 @@ export default function ProductModal({
   const [cantidad, setCantidad] = useState(1);
   const [impuestoSeleccionado, setImpuestoSeleccionado] = useState("20");
   const [tipoVenta, setTipoVenta] = useState("1");
+  const [tipoProducto, setTipoProducto] = useState("1");
   const [isMobile, setIsMobile] = useState(false);
+  const [mostrarAlertaStock, setMostrarAlertaStock] = useState(false);
+  const [stockDisponible, setStockDisponible] = useState(0);
 
   // Detectar si es móvil
   useEffect(() => {
@@ -33,12 +36,23 @@ export default function ProductModal({
     };
   }, []);
 
+  // Actualizar stock disponible cuando se selecciona un producto
+  useEffect(() => {
+    if (productoSeleccionado) {
+      setStockDisponible(productoSeleccionado.stock || 0);
+    } else {
+      setStockDisponible(0);
+    }
+  }, [productoSeleccionado]);
+
   const limpiarFormulario = () => {
     setProductoSeleccionado(null);
     setSearchTerm("");
     setCantidad(1);
     setImpuestoSeleccionado("20");
     setTipoVenta("1");
+    setMostrarAlertaStock(false);
+    setStockDisponible(0);
   };
 
   useEffect(() => {
@@ -69,6 +83,25 @@ export default function ProductModal({
       return;
     }
 
+    // Verificar si es un servicio (no aplica control de stock)
+    const esServicio = tipoProducto === "2" || tipoProducto === "3";
+    
+    // Verificar stock solo para productos (no servicios)
+    if (!esServicio && productoSeleccionado.stock !== undefined && productoSeleccionado.stock !== null) {
+      const stockSuficiente = cantidad <= productoSeleccionado.stock;
+      
+      if (!stockSuficiente) {
+        // Mostrar alerta de stock insuficiente pero permitir continuar
+        setMostrarAlertaStock(true);
+        return;
+      }
+    }
+
+    // Si pasa la validación de stock o es un servicio, proceder
+    agregarItemConfirmado();
+  };
+
+  const agregarItemConfirmado = () => {
     let tipoItem;
     switch (tipoVenta) {
       case "1": 
@@ -84,24 +117,84 @@ export default function ProductModal({
         tipoItem = "producto";
     }
 
+    // Enviar información de stock para actualización posterior
+    // SOLO para productos (tipoVenta = "1"), no para servicios
+    const esServicio = tipoProducto === "2" || tipoProducto === "3";
+    const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
+    
     onAddItem({
       descripcion: productoSeleccionado.nombre,
       cantidad: cantidad,
       precioUnitario: parseFloat(productoSeleccionado.precio) || 0,
       descuento: 0,
       unidadMedida: productoSeleccionado.unidad || "59",
-      tipo: tipoItem 
+      tipo: tipoItem,
+      // Información adicional para actualizar stock posteriormente
+      // SOLO se incluye si NO es un servicio
+      productoId: !esServicio ? productoSeleccionado.id : null,
+      actualizarStock: necesitaActualizarStock,
+      stockAnterior: !esServicio ? productoSeleccionado.stock : null
     });
     
     limpiarFormulario();
   };
 
+  const continuarSinStock = () => {
+    setMostrarAlertaStock(false);
+    agregarItemConfirmado();
+  };
+
+  const cancelarVentaSinStock = () => {
+    setMostrarAlertaStock(false);
+  };
+
   if (!isOpen) return null;
 
   const total = calcularTotal();
+  const esServicio = tipoProducto === "2" || tipoProducto === "3";
+  const stockInsuficiente = !esServicio && productoSeleccionado && 
+                           productoSeleccionado.stock !== undefined && 
+                           productoSeleccionado.stock !== null && 
+                           cantidad > productoSeleccionado.stock;
 
   return (
     <div className="text-black fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      {/* Modal de alerta de stock insuficiente */}
+      {mostrarAlertaStock && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-60 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center mb-4">
+              <FaExclamationTriangle className="text-yellow-500 text-2xl mr-3" />
+              <h3 className="text-lg font-semibold">Stock Insuficiente</h3>
+            </div>
+            
+            <p className="text-gray-700 mb-4">
+              El stock disponible es <span className="font-bold">{productoSeleccionado.stock}</span> unidades, 
+              pero está intentando vender <span className="font-bold">{cantidad}</span> unidades.
+            </p>
+            
+            <p className="text-gray-700 mb-6">
+              ¿Desea continuar con la venta? El stock se actualizará al procesar la factura.
+            </p>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelarVentaSinStock}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={continuarSinStock}
+                className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Encabezado */}
         <div className="bg-gray-800 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
@@ -125,7 +218,11 @@ export default function ProductModal({
 
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo:</label>
-                <select className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <select
+                  value={tipoProducto}
+                  onChange={(e) => setTipoProducto(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
                   <option value="1">1 - Bien</option>
                   <option value="2">2 - Servicio</option>
                   <option value="3">3 - Bien y Servicio</option>
@@ -189,6 +286,26 @@ export default function ProductModal({
                   <option value="3">No sujeto</option>
                 </select>
               </div>
+
+              {/* Información de stock (solo para productos) */}
+              {!esServicio && productoSeleccionado && productoSeleccionado.stock !== undefined && (
+                <div className={`p-3 rounded-lg border ${
+                  stockInsuficiente ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'
+                }`}>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Stock disponible:</span>
+                    <span className={`font-bold ${stockInsuficiente ? 'text-red-600' : 'text-blue-600'}`}>
+                      {productoSeleccionado.stock}
+                    </span>
+                  </div>
+                  {stockInsuficiente && (
+                    <div className="flex items-center mt-2 text-red-600 text-sm">
+                      <FaExclamationTriangle className="mr-1" />
+                      <span>Stock insuficiente - Se venderá en negativo</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Columna central - BUSCADOR DE PRODUCTOS */}
@@ -259,6 +376,11 @@ export default function ProductModal({
                               ${parseFloat(producto.precio).toFixed(2)}
                             </span>
                           </div>
+                          {producto.stock !== undefined && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Stock: {producto.stock}
+                            </div>
+                          )}
                         </div>
                       ))
                     }
@@ -387,6 +509,11 @@ export default function ProductModal({
                   <p className="text-xs text-green-600 mt-1">
                     Tipo: {tipoVenta === "1" ? "Gravado" : tipoVenta === "2" ? "Exento" : "No sujeto"}
                   </p>
+                  {!esServicio && productoSeleccionado.stock !== undefined && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Stock: {productoSeleccionado.stock}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -415,10 +542,12 @@ export default function ProductModal({
               </button>
               <button
                 onClick={handleAgregarItem}
-                className="px-8 py-3 bg-blue-700 text-white font-semibold rounded-lg hover:bg-blue-800 transition-colors flex items-center justify-center shadow-md w-full sm:w-auto"
+                className={`px-8 py-3 text-white font-semibold rounded-lg transition-colors flex items-center justify-center shadow-md w-full sm:w-auto ${
+                  stockInsuficiente ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-700 hover:bg-blue-800'
+                }`}
               >
                 <FaPlus className="mr-2" />
-                Agregar Item
+                {stockInsuficiente ? 'Vender con stock negativo' : 'Agregar Item'}
               </button>
             </div>
           </div>
