@@ -171,26 +171,31 @@ export default function ProductModal({
     return subtotal * tasa;
   };
 
-  const agregarTributo = () => {
-    if (!productoSeleccionado) return;
-    
-    const subtotal = cantidad * parseFloat(productoSeleccionado.precio) || 0;
-    const valorImpuesto = calcularValorImpuesto(impuestoSeleccionado, subtotal);
-    
-    const nuevoTributo = {
-      codigo: impuestoSeleccionado,
-      descripcion: obtenerDescripcionImpuesto(impuestoSeleccionado),
-      valor: parseFloat(valorImpuesto.toFixed(2))
-    };
-
-    const existe = tributos.some(t => t.codigo === nuevoTributo.codigo);
-    
-    if (!existe) {
-      setTributos([...tributos, nuevoTributo]);
-    } else {
-      alert("Este impuesto ya ha sido agregado");
-    }
+const agregarTributo = () => {
+  if (!productoSeleccionado) return;
+  
+  if (tipoVenta === "2" && impuestoSeleccionado === "20") {
+    alert("No puede agregar IVA a un producto exento");
+    return;
+  }
+  
+  const subtotal = cantidad * parseFloat(productoSeleccionado.precio) || 0;
+  const valorImpuesto = calcularValorImpuesto(impuestoSeleccionado, subtotal);
+  
+  const nuevoTributo = {
+    codigo: impuestoSeleccionado,
+    descripcion: obtenerDescripcionImpuesto(impuestoSeleccionado),
+    valor: parseFloat(valorImpuesto.toFixed(2))
   };
+
+  const existe = tributos.some(t => t.codigo === nuevoTributo.codigo);
+  
+  if (!existe) {
+    setTributos([...tributos, nuevoTributo]);
+  } else {
+    alert("Este impuesto ya ha sido agregado");
+  }
+};
 
   const eliminarTributo = (codigo) => {
     if (tipoVenta === "1" && codigo === "20") {
@@ -207,9 +212,11 @@ export default function ProductModal({
     const precio = parseFloat(productoSeleccionado.precio) || 0;
     const subtotal = cantidad * precio;
 
-    const totalImpuestos = tributos.reduce((sum, tributo) => sum + tributo.valor, 0);
+    // Filtrar los tributos que no son IVA (código "20")
+    const impuestosNoIVA = tributos.filter(tributo => tributo.codigo !== "20");
+    const totalImpuestos = impuestosNoIVA.reduce((sum, tributo) => sum + tributo.valor, 0);
     
-    return subtotal;
+    return subtotal + totalImpuestos;
   };
 
   const handleAgregarItem = () => {
