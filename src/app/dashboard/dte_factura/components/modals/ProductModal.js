@@ -260,7 +260,8 @@ const agregarTributo = () => {
     onAddItem({
       descripcion: productoSeleccionado.nombre,
       cantidad: cantidad,
-      precioUnitario: parseFloat(productoSeleccionado.precio) || 0,
+      // para incluir impuestos (productoSeleccionado.preciounitario)
+      precioUnitario: parseFloat(total / cantidad) || 0,
       descuento: 0,
       unidadMedida: productoSeleccionado.unidad || "59",
       tipo: tipoItem,
