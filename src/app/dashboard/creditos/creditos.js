@@ -1,13 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 
 export default function CreditosView({ user, hasHaciendaToken, haciendaStatus }) {
-    const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [creditos, setCreditos] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
@@ -18,6 +18,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   const [pdfLoading, setPdfLoading] = useState(null);
   const [anulando, setAnulando] = useState(null);
   const [reTransmitiendo, setReTransmitiendo] = useState(null);
+  const [openDownloadMenu, setOpenDownloadMenu] = useState(null);
   const itemsPerPage = 6;
   const router = useRouter();
 
@@ -42,15 +43,27 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     fetchCreditos();
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDownloadMenu(null);
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
+
+  // Función para ordenar créditos por fecha
   const ordenarCreditosPorFecha = (creditos) => {
     return [...creditos].sort((a, b) => {
       const fechaA = new Date(a.fechaemision || 0);
       const fechaB = new Date(b.fechaemision || 0);
       
       if (ordenFecha === "reciente") {
-        return fechaB - fechaA;
+        return fechaB - fechaA; // Más reciente primero
       } else {
-        return fechaA - fechaB;
+        return fechaA - fechaB; // Más antigua primero
       }
     });
   };
@@ -71,6 +84,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
       })
     : [];
 
+  // Aplicar ordenamiento por fecha
   const creditosOrdenados = ordenarCreditosPorFecha(creditosFiltrados);
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -119,25 +133,35 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     setAnulando(creditoId);
     try {
       const response = await fetch(`http://localhost:3000/creditos/${creditoId}/anular`, {
-        method: 'POST',
-        credentials: 'include'
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tipoAnulacion: "2", 
+          motivoAnulacion: "Se emitió con datos incorrectos",
+        }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al anular crédito');
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.descripcionMsg || data.error || "Error al anular crédito");
       }
 
-      setCreditos(prev => prev.map(credito => 
-        credito.iddtecredito === creditoId 
-          ? { ...credito, estado: 'ANULADO' }
-          : credito
-      ));
-      
-      alert('Crédito anulado exitosamente');
+      setCreditos((prev) =>
+        prev.map((credito) =>
+          credito.iddtecredito === creditoId
+            ? { ...credito, estado: "ANULADO" }
+            : credito
+        )
+      );
+
+      alert("Crédito anulado exitosamente");
     } catch (error) {
-      console.error('Error al anular:', error);
-      alert('Error: ' + error.message);
+      console.error("Error al anular:", error);
+      alert("Error: " + error.message);
     } finally {
       setAnulando(null);
     }
@@ -172,6 +196,47 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     }
   };
 
+  const handleDownloadJSON = async (iddtecredito) => {
+    try {
+      const response = await fetch(`http://localhost:3000/creditos/${iddtecredito}/descargar-json`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      // Leer el header con el nombre del archivo
+      const disposition = response.headers.get("Content-Disposition");
+      let filename = `credito-${iddtecredito}.json`; // fallback
+      if (disposition && disposition.includes("filename=")) {
+        filename = disposition
+          .split("filename=")[1]
+          .replace(/"/g, ""); // quitar comillas
+      }
+
+      // Descargar como blob
+      const blob = await response.blob();
+
+      // Crear link de descarga
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Error descargando JSON:', error);
+      alert(`Error al descargar JSON: ${error.message}`);
+    } finally {
+      setPdfLoading(null);
+    }
+  };
+
   const handleGeneratePDF = async (creditoId) => {
     setPdfLoading(creditoId);
     try {
@@ -190,15 +255,24 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
         throw new Error(errorData.detalles || errorData.error || "Error al descargar PDF");
       }
       
+      const disposition = response.headers.get("Content-Disposition");
+      let filename = `CRD-${creditoId}.pdf`;
+      if (disposition && disposition.includes("filename=")) {
+        filename = disposition
+          .split("filename=")[1]
+          .replace(/"/g, "");
+      }
+
       const pdfBlob = await response.blob();
       const pdfUrl = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = `CRD-${creditoId}.pdf`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(pdfUrl);
+
     } catch (error) {
       console.error("Error al generar PDF:", error);
       alert("Error al generar el PDF: " + error.message);
@@ -214,17 +288,17 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
-
-    useEffect(() => {
-  const checkMobile = () => {
-    setIsMobile(window.innerWidth < 768);
-    if (window.innerWidth < 768) {
-      setSidebarOpen(false);
-    } else {
-      setSidebarOpen(true); 
-    }
-  };
   
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true); 
+      }
+    };
+    
     checkMobile();
     window.addEventListener("resize", checkMobile);
     
@@ -242,318 +316,404 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   }
 
   return (
-    <div className="flex min-h-screen bg-blue-50">
-      <div className={`md:static fixed z-40 h-full transition-all duration-300 ${
+    <div className="flex h-screen bg-blue-50 overflow-hidden">
+      <div className={`fixed md:relative z-20 h-screen ${
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
-      } ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}
+      } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}
       >
         <Sidebar />
       </div>
 
+      {/* Overlay para móviles */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
           onClick={() => setSidebarOpen(!sidebarOpen)}
         ></div>
       )}
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-                <Navbar 
-                    user={user}
-                    hasHaciendaToken={hasHaciendaToken}
-                    haciendaStatus={haciendaStatus}
-                    onToggleSidebar={toggleSidebar}
-                    sidebarOpen={sidebarOpen}
-                />
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="md:hidden fixed left-2 top-2 z-10 p-2 rounded-md bg-white shadow-md text-gray-600"
-        >
-          ☰
-        </button>
+      <div className="flex-1 flex flex-col min-w-0">  
+        {/* Navbar */}
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+          <Navbar 
+            user={user}
+            hasHaciendaToken={hasHaciendaToken}
+            haciendaStatus={haciendaStatus}
+            onToggleSidebar={toggleSidebar}
+            sidebarOpen={sidebarOpen}
+          />
+        </div>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Mis Créditos Fiscales</h1>
-                <p className="text-gray-600">
-                  {creditos.length} {creditos.length === 1 ? "documento" : "documentos"} registrados
-                  {searchTerm && ` (${creditosFiltrados.length} encontrados)`}
-                </p>
-              </div>
+        {/* Contenido con scroll */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 md:p-6">
+            <div className="max-w-6xl mx-auto">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Mis Créditos Fiscales</h1>
+                  <p className="text-gray-600">
+                    {creditos.length} {creditos.length === 1 ? "documento" : "documentos"} registrados
+                    {searchTerm && ` (${creditosFiltrados.length} encontrados)`}
+                  </p>
+                </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <div className="relative w-full md:w-64">
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por código, cliente o número..."
-                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    value={searchTerm}
+                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                  <div className="relative w-full md:w-64">
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por código, cliente o número..."
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                    />
+                  </div>
+
+                  <select
+                    value={estadoFiltro}
                     onChange={(e) => {
-                      setSearchTerm(e.target.value);
+                      setEstadoFiltro(e.target.value);
                       setCurrentPage(1);
                     }}
-                  />
+                    className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
+                  >
+                    <option value="">Todos los estados</option>
+                    <option value="ANULADO">ANULADO</option>
+                    <option value="TRANSMITIDO">TRANSMITIDO</option>
+                    <option value="RE-TRANSMITIDO">RE-TRANSMITIDO</option>
+                    <option value="CONTINGENCIA">CONTINGENCIA</option>
+                  </select>
+
+                  <select
+                    value={ordenFecha}
+                    onChange={(e) => {
+                      setOrdenFecha(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
+                  >
+                    <option value="reciente">Más reciente</option>
+                    <option value="antigua">Más antigua</option>
+                  </select>
                 </div>
-
-                <select
-                  value={estadoFiltro}
-                  onChange={(e) => {
-                    setEstadoFiltro(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
-                >
-                  <option value="">Todos los estados</option>
-                  <option value="ANULADO">ANULADO</option>
-                  <option value="TRANSMITIDO">TRANSMITIDO</option>
-                  <option value="RE-TRANSMITIDO">RE-TRANSMITIDO</option>
-                  <option value="CONTINGENCIA">CONTINGENCIA</option>
-                  <option value="pendiente">PENDIENTE</option>
-                </select>
-
-                <select
-                  value={ordenFecha}
-                  onChange={(e) => {
-                    setOrdenFecha(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
-                >
-                  <option value="reciente">Más reciente</option>
-                  <option value="antigua">Más antigua</option>
-                </select>
               </div>
-            </div>
 
-            {/* Listado en formato tarjeta-crédito */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {currentItems.map((credito) => (
-                <div
-                  key={credito.iddtecredito}
-                  className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-200"
-                >
-                  {/* Encabezado de crédito con verde sólido */}
-                  <div className="bg-green-600 text-white p-3">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center">
-                        <div className="bg-white/20 p-1 rounded mr-2">
-                          <FaFileAlt className="text-white text-xs" />
+              {/* Listado en formato tarjeta-crédito */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {currentItems.map((credito) => (
+                  <div
+                    key={credito.iddtecredito}
+                    className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-200"
+                  >
+                    <div className="bg-green-600 text-white p-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center">
+                          <div className="bg-white/20 p-1 rounded mr-2">
+                            <FaFileAlt className="text-white text-xs" />
+                          </div>
+                          <div>
+                            <span className="font-semibold text-xs block">CRÉDITO</span>
+                            <span className="text-xs font-light opacity-90">
+                              #{credito.iddtecredito?.toString().padStart(4, '0')}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="font-semibold text-xs block">CRÉDITO</span>
-                          <span className="text-xs font-light opacity-90">
-                            #{credito.iddtecredito?.toString().padStart(4, '0')}
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          credito.estado === 'TRANSMITIDO' ? 'bg-green-500/30 text-green-100' :
+                          credito.estado === 'RE-TRANSMITIDO' ? 'bg-blue-500/30 text-blue-100' :
+                          credito.estado === 'CONTINGENCIA' ? 'bg-yellow-500/30 text-yellow-100' :
+                          credito.estado === 'ANULADO' ? 'bg-red-500/30 text-red-100' :
+                          'bg-gray-500/30 text-gray-100'
+                        }`}>
+                          {credito.estado?.toUpperCase() || 'PENDIENTE'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Cuerpo de crédito */}
+                    <div className="p-4">
+                      {/* Línea de estado */}
+                      <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
+                        <div className="flex items-center text-gray-600">
+                          <FaCalendarAlt className="mr-1 text-green-500 text-xs" />
+                          <span className="text-xs">
+                            {new Date(credito.fechaemision).toISOString().split("T")[0]}
                           </span>
                         </div>
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          credito.documentofirmado && credito.documentofirmado !== "null"
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {credito.documentofirmado && credito.documentofirmado !== "null" ? "FIRMADO" : "NO FIRMADO"}
+                        </span>
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        credito.estado === 'TRANSMITIDO' ? 'bg-green-500/30 text-green-100' :
-                        credito.estado === 'RE-TRANSMITIDO' ? 'bg-blue-500/30 text-blue-100' :
-                        credito.estado === 'CONTINGENCIA' ? 'bg-yellow-500/30 text-yellow-100' :
-                        credito.estado === 'ANULADO' ? 'bg-red-500/30 text-red-100' :
-                        'bg-gray-500/30 text-gray-100'
-                      }`}>
-                        {credito.estado?.toUpperCase() || 'PENDIENTE'}
-                      </span>
+
+                      {/* Información del cliente */}
+                      <div className="mb-3">
+                        <div className="flex items-center text-gray-700 mb-1">
+                          <FaUser className="mr-1 text-green-500 text-xs" />
+                          <span className="text-xs font-medium">Empresa</span>
+                        </div>
+                        <p className="text-gray-900 text-sm font-medium truncate pl-3">
+                          {credito.personas_juridica?.nombre || 'Empresa no especificada'}
+                        </p>
+                        {credito.personas_juridica?.nit && (
+                          <p className="text-xs text-gray-500 pl-3 mt-0.5">NIT: {credito.personas_juridica.nit}</p>
+                        )}
+                      </div>
+
+                      {/* Información de control */}
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        <div>
+                          <div className="text-xs text-gray-500 mb-0.5">Código</div>
+                          <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded">
+                            {credito.codigogen || 'N/A'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-0.5">Control</div>
+                          <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded truncate">
+                            {credito.ncontrol || 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Total */}
+                      <div className="border-t border-gray-100 pt-2">
+                        <div className="flex justify-between items-center">
+                          <div className="text-xs text-gray-500">Total a pagar</div>
+                          <div className="text-lg font-bold text-green-600">
+                            {formatCurrency(credito.totalapagar || credito.montototalope || 0)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pie de crédito - Acciones */}
+                    <div className="bg-gray-50 px-3 py-2 flex flex-wrap gap-1 justify-between border-t border-gray-100">
+                      {/* Botón de Detalles */}
+                      <button
+                        onClick={() => handleViewDetails(credito.iddtecredito)}
+                        className="flex items-center text-green-600 hover:text-green-800 px-2 py-1 rounded text-xs font-medium"
+                        title="Ver detalles completos"
+                      >
+                        <FaFileAlt className="mr-1 text-xs" />
+                        Detalles
+                      </button>
+
+                      {/* Botones de acción */}
+                      <div className="flex items-center gap-1">
+                        {/* Botón de Re-transmitir */}
+                        {puedeReTransmitir(credito) && (
+                          <button
+                            onClick={() => handleReTransmitir(credito.iddtecredito)}
+                            disabled={reTransmitiendo === credito.iddtecredito}
+                            className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                              reTransmitiendo === credito.iddtecredito
+                                ? 'bg-gray-400 text-gray-700'
+                                : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                            }`}
+                          >
+                            {reTransmitiendo === credito.iddtecredito ? (
+                              <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                            ) : (
+                              <FaSync className="mr-1 text-xs" />
+                            )}
+                            Re-transmitir
+                          </button>
+                        )}
+
+                        {/* Botón de Anular */}
+                        {puedeAnular(credito) && (
+                          <button
+                            onClick={() => handleAnularCredito(credito.iddtecredito)}
+                            disabled={anulando === credito.iddtecredito}
+                            className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                              anulando === credito.iddtecredito
+                                ? 'bg-gray-400 text-gray-700'
+                                : 'bg-red-500 hover:bg-red-600 text-white'
+                            }`}
+                          >
+                            {anulando === credito.iddtecredito ? (
+                              <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                            ) : (
+                              <FaBan className="mr-1 text-xs" />
+                            )}
+                            Anular
+                          </button>
+                        )}
+
+                        {/* Botón de Descargar PDF */}
+                        <button
+                          onClick={() => handleGeneratePDF(credito.iddtecredito)}
+                          disabled={pdfLoading === credito.iddtecredito || !(credito.documentofirmado && credito.documentofirmado !== "null")}
+                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                            pdfLoading === credito.iddtecredito
+                              ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                              : (!(credito.documentofirmado && credito.documentofirmado !== "null"))
+                                ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                                : 'bg-red-500 hover:bg-red-600 text-white'
+                          }`}
+                          title={!(credito.documentofirmado && credito.documentofirmado !== "null") ? "No se puede descargar: Crédito no firmado" : "Descargar DTE en PDF"}
+                        >
+                          {pdfLoading === credito.iddtecredito ? (
+                            <>
+                              <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                              Generando
+                            </>
+                          ) : (
+                            <>
+                              <FaFilePdf className="mr-1 text-xs" />
+                              PDF
+                            </>
+                          )}
+                        </button>
+
+                        {/* Botón de Descargar JSON */}
+                        <button
+                          onClick={() => handleDownloadJSON(credito.iddtecredito)}
+                          disabled={!(credito.documentofirmado && credito.documentofirmado !== "null")}
+                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                            !(credito.documentofirmado && credito.documentofirmado !== "null")
+                              ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                              : 'bg-green-500 hover:bg-green-600 text-white'
+                          }`}
+                          title={!(credito.documentofirmado && credito.documentofirmado !== "null") ? "No se puede descargar: Crédito no firmado" : "Descargar DTE en JSON"}
+                        >
+                          <FaFileCode className="mr-1 text-xs" />
+                          JSON
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Cuerpo de crédito */}
-                  <div className="p-4">
-                    {/* Línea de estado */}
-                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-                      <div className="flex items-center text-gray-600">
-                        <FaCalendarAlt className="mr-1 text-green-500 text-xs" />
-                        <span className="text-xs">{formatDate(credito.fechaemision)}</span>
-                      </div>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        credito.documentofirmado && credito.documentofirmado !== "null"
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {credito.documentofirmado && credito.documentofirmado !== "null" ? "FIRMADO" : "NO FIRMADO"}
-                      </span>
-                    </div>
-
-                    {/* Información del cliente */}
-                    <div className="mb-3">
-                      <div className="flex items-center text-gray-700 mb-1">
-                        <FaUser className="mr-1 text-green-500 text-xs" />
-                        <span className="text-xs font-medium">Empresa</span>
-                      </div>
-                      <p className="text-gray-900 text-sm font-medium truncate pl-3">
-                        {credito.personas_juridica?.nombre || 'Empresa no especificada'}
-                      </p>
-                      {credito.personas_juridica?.nit && (
-                        <p className="text-xs text-gray-500 pl-3 mt-0.5">NIT: {credito.personas_juridica.nit}</p>
-                      )}
-                    </div>
-
-                    {/* Información de control */}
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      <div>
-                        <div className="text-xs text-gray-500 mb-0.5">Código</div>
-                        <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded">
-                          {credito.codigogen || 'N/A'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-0.5">Control</div>
-                        <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded truncate">
-                          {credito.ncontrol || 'N/A'}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Total */}
-                    <div className="border-t border-gray-100 pt-2">
-                      <div className="flex justify-between items-center">
-                        <div className="text-xs text-gray-500">Total a pagar</div>
-                        <div className="text-lg font-bold text-green-600">
-                          {formatCurrency(credito.totalapagar || credito.montototalope || 0)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Pie de crédito - Acciones */}
-                  <div className="bg-gray-50 px-3 py-2 flex flex-wrap gap-1 justify-between border-t border-gray-100">
-                    {/* Botón de Detalles */}
+                ))}
+              </div>
+              {creditosOrdenados.length > itemsPerPage && (
+                <div className="flex justify-center mt-6">
+                  <nav className="inline-flex rounded-md shadow">
+                    {/* Botón Anterior */}
                     <button
-                      onClick={() => handleViewDetails(credito.iddtecredito)}
-                      className="flex items-center text-green-600 hover:text-green-800 px-2 py-1 rounded text-xs font-medium"
-                      title="Ver detalles completos"
-                    >
-                      <FaFileAlt className="mr-1 text-xs" />
-                      Detalles
-                    </button>
-
-                    {/* Botón de Re-transmitir para contingencias */}
-                    {puedeReTransmitir(credito) && (
-                      <button
-                        onClick={() => handleReTransmitir(credito.iddtecredito)}
-                        disabled={reTransmitiendo === credito.iddtecredito}
-                        className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                          reTransmitiendo === credito.iddtecredito
-                            ? 'bg-gray-400 text-gray-700'
-                            : 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                        }`}
-                      >
-                        {reTransmitiendo === credito.iddtecredito ? (
-                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
-                        ) : (
-                          <FaSync className="mr-1 text-xs" />
-                        )}
-                        Re-transmitir
-                      </button>
-                    )}
-
-                    {/* Botón de Anular */}
-                    {puedeAnular(credito) && (
-                      <button
-                        onClick={() => handleAnularCredito(credito.iddtecredito)}
-                        disabled={anulando === credito.iddtecredito}
-                        className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                          anulando === credito.iddtecredito
-                            ? 'bg-gray-400 text-gray-700'
-                            : 'bg-red-500 hover:bg-red-600 text-white'
-                        }`}
-                      >
-                        {anulando === credito.iddtecredito ? (
-                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
-                        ) : (
-                          <FaBan className="mr-1 text-xs" />
-                        )}
-                        Anular
-                      </button>
-                    )}
-
-                    {/* Botón de Descargar PDF */}
-                    <button
-                      onClick={() => handleGeneratePDF(credito.iddtecredito)}
-                      disabled={pdfLoading === credito.iddtecredito || !(credito.documentofirmado && credito.documentofirmado !== "null")}
-                      className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                        pdfLoading === credito.iddtecredito
-                          ? 'bg-gray-400 text-gray-700'
-                          : (!(credito.documentofirmado && credito.documentofirmado !== "null"))
-                            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                            : 'bg-red-500 hover:bg-red-600 text-white'
+                      onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-1 rounded-l-md border ${
+                        currentPage === 1 
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
                       }`}
-                      title={!(credito.documentofirmado && credito.documentofirmado !== "null") ? "No se puede descargar: Crédito no firmado" : "Descargar DTE en PDF"}
                     >
-                      {pdfLoading === credito.iddtecredito ? (
-                        <>
-                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
-                          Generando
-                        </>
-                      ) : (
-                        <>
-                          <FaFilePdf className="mr-1 text-xs" />
-                          PDF
-                        </>
-                      )}
+                      <FaChevronLeft className="text-sm" />
                     </button>
-                  </div>
+                    
+                    {/* Botones de página - Responsive */}
+                    {(() => {
+                      const pages = [];
+                      const maxVisiblePages = isMobile ? 3 : 5;
+                      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+                      if (endPage - startPage + 1 < maxVisiblePages) {
+                        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                      }
+
+                      if (startPage > 1) {
+                        pages.push(
+                          <button
+                            key={1}
+                            onClick={() => paginate(1)}
+                            className={`px-3 py-1 border-t border-b ${
+                              1 === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            1
+                          </button>
+                        );
+                        
+                        if (startPage > 2) {
+                          pages.push(
+                            <span key="ellipsis-start" className="px-2 py-1 border-t border-b bg-white text-gray-500">
+                              ...
+                            </span>
+                          );
+                        }
+                      }
+                      
+                      // Páginas visibles
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => paginate(i)}
+                            className={`px-3 py-1 border-t border-b ${
+                              i === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+
+                      if (endPage < totalPages) {
+                        if (endPage < totalPages - 1) {
+                          pages.push(
+                            <span key="ellipsis-end" className="px-2 py-1 border-t border-b bg-white text-gray-500">
+                              ...
+                            </span>
+                          );
+                        }
+                        
+                        pages.push(
+                          <button
+                            key={totalPages}
+                            onClick={() => paginate(totalPages)}
+                            className={`px-3 py-1 border-t border-b ${
+                              totalPages === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {totalPages}
+                          </button>
+                        );
+                      }
+                      
+                      return pages;
+                    })()}
+                    
+                    {/* Botón Siguiente */}
+                    <button
+                      onClick={() => paginate(currentPage < totalPages ? currentPage + 1 : totalPages)}
+                      disabled={currentPage === totalPages}
+                      className={`px-3 py-1 rounded-r-md border ${
+                        currentPage === totalPages 
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <FaChevronRight className="text-sm" />
+                    </button>
+                  </nav>
                 </div>
-              ))}
+              )}
+
+              {/* Mensaje cuando no hay resultados */}
+              {creditosOrdenados.length === 0 && (
+                <div className="text-center py-10">
+                  <div className="text-gray-400 mb-3">
+                    <FaFileAlt className="inline-block text-4xl" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-700">
+                    {creditos.length === 0 ? 'No hay créditos registrados' : 'No se encontraron coincidencias'}
+                  </h3>
+                  <p className="text-gray-500 mt-1">
+                    {creditos.length === 0 ? 'Comienza creando tu primer crédito fiscal' : 'Intenta con otros términos de búsqueda'}
+                  </p>
+                </div>
+              )}
             </div>
-
-            {/* Paginación */}
-            {creditosOrdenados.length > itemsPerPage && (
-              <div className="flex justify-center mt-6">
-                <nav className="inline-flex rounded-md shadow">
-                  <button
-                    onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
-                    disabled={currentPage === 1}
-                    className={`px-3 py-1 rounded-l-md border ${
-                      currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <FaChevronLeft />
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
-                    <button
-                      key={number}
-                      onClick={() => paginate(number)}
-                      className={`px-3 py-1 border-t border-b ${
-                        currentPage === number ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      {number}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => paginate(currentPage < totalPages ? currentPage + 1 : totalPages)}
-                    disabled={currentPage === totalPages}
-                    className={`px-3 py-1 rounded-r-md border ${
-                      currentPage === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <FaChevronRight />
-                  </button>
-                </nav>
-              </div>
-            )}
-
-            {/* Mensaje cuando no hay resultados */}
-            {creditosOrdenados.length === 0 && (
-              <div className="text-center py-10">
-                <div className="text-gray-400 mb-3">
-                  <FaFileAlt className="inline-block text-4xl" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-700">
-                  {creditos.length === 0 ? 'No hay créditos registrados' : 'No se encontraron coincidencias'}
-                </h3>
-                <p className="text-gray-500 mt-1">
-                  {creditos.length === 0 ? 'Comienza creando tu primer crédito fiscal' : 'Intenta con otros términos de búsqueda'}
-                </p>
-              </div>
-            )}
           </div>
-        </main>
+        </div>
 
         {/* Footer */}
         <Footer />

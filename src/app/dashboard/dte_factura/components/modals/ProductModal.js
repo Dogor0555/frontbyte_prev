@@ -212,7 +212,6 @@ const agregarTributo = () => {
     const precio = parseFloat(productoSeleccionado.precio) || 0;
     const subtotal = cantidad * precio;
 
-    // Filtrar los tributos que no son IVA (código "20")
     const impuestosNoIVA = tributos.filter(tributo => tributo.codigo !== "20");
     const totalImpuestos = impuestosNoIVA.reduce((sum, tributo) => sum + tributo.valor, 0);
     

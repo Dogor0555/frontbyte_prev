@@ -78,6 +78,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     fechaEmision: "",
     horaEmision: ""
   });
+  const [totalModal, setTotalModal] = useState(0);
+  const [errorValidacion, setErrorValidacion] = useState("");
 
   // Inicializar correo desde user o, si no hay, desde localStorage
   useEffect(() => {
@@ -142,11 +144,44 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     { codigo: "99", nombre: "Otra" },
   ]);
 
+  const validarDatosFactura = () => {
+    if (!nombreReceptor.trim()) {
+      const mensaje = "El nombre del cliente es obligatorio";
+      setErrorValidacion(mensaje);
+      alert(mensaje);
+      return false;
+    }
+    
+    if (!numeroDocumentoReceptor.trim()) {
+      const mensaje = "El documento del cliente es obligatorio";
+      setErrorValidacion(mensaje);
+      alert(mensaje);
+      return false;
+    }
+    
+    if (items.length === 0) {
+      const mensaje = "Debe agregar al menos un item a la factura";
+      setErrorValidacion(mensaje);
+      alert(mensaje);
+      return false;
+    }
+    
+    if (formasPago.length === 0) {
+      const mensaje = "Debe especificar al menos una forma de pago";
+      setErrorValidacion(mensaje);
+      alert(mensaje);
+      return false;
+    }
+    
+    setErrorValidacion("");
+    return true;
+  };
+
+
   const guardarFactura = async () => {
     if (guardandoFactura) return;
     
-    if (items.length === 0) {
-      alert("La factura debe tener al menos un item antes de guardar");
+    if (!validarDatosFactura()) {
       return;
     }
     
@@ -216,7 +251,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   };
 
 const reiniciarEstados = () => {
-  // Reiniciar estados del cliente/receptor
   setCliente(null);
   setNombreCliente("");
   setDocumentoCliente("");
@@ -228,27 +262,19 @@ const reiniciarEstados = () => {
   setTelefonoReceptor("");
   setComplementoReceptor("");
   setTipoDocumentoLabel("Documento");
-  
-  // Reiniciar estados de items y totales
   setItems([]);
   setSumaopesinimpues(0);
   setTotaldescuento(0);
   setVentasgrabadas(0);
   setValoriva(0);
   setTotal(0);
-  
-  // Reiniciar descuentos
   setDescuentoGrabadasMonto(0);
   setDescuentoExentasMonto(0);
   setExentasConDescuentoState(0);
   setGravadasSinDescuentoState(0);
   setExentasSinDescuentoState(0);
-  
-  // Reiniciar formas de pago
   setCondicionPago("Contado");
   setFormasPago([]);
-  
-  // Reiniciar datos de entrega
   setDatosEntrega({
     emisorDocumento: "",
     emisorNombre: "",
@@ -256,22 +282,15 @@ const reiniciarEstados = () => {
     receptorNombre: ""
   });
   
-  // Reiniciar fecha de vencimiento (30 días después)
   const nextMonth = new Date();
   nextMonth.setDate(nextMonth.getDate() + 30);
   setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
-  
-  // Obtener nuevo número de factura
   obtenerUltimoNumeroFactura();
-  
-  // Cerrar modales si están abiertos
   setShowModal(false);
   setShowDiscountModal(false);
   setShowConfirmModal(false);
   setShowClientList(false);
   setShowClientDetails(false);
-  
-  // Limpiar búsqueda
   setSearchTerm("");
 };
 
@@ -864,6 +883,7 @@ useEffect(() => {
     setShowModal(false);
     setModalType("");
     setProductoSeleccionado(null);
+    setTotalModal(0); 
   };
 
   const obtenerNombreUnidad = (codigoUnidad) => {
@@ -927,6 +947,17 @@ useEffect(() => {
           <div className="max-w-6xl mx-auto">
             {/* Tarjeta principal */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+
+              {/* Mostrar mensaje de error si existe */}
+              {errorValidacion && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                  <div className="flex items-center">
+                    <FaExclamationTriangle className="mr-2" />
+                    <span>{errorValidacion}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Datos del cliente */}
               <DatosEmisorReceptor
                 tipoDocumentoReceptor={tipoDocumentoReceptor}
@@ -1171,6 +1202,7 @@ useEffect(() => {
         onClose={() => {
           setShowModal(false);
           setProductoSeleccionado(null);
+          setTotalModal(0);
         }}
         onAddItem={(itemData) => agregarItemDesdeModal("producto", itemData)}
         onBackToSelector={() => setModalType("selector")}
@@ -1179,6 +1211,8 @@ useEffect(() => {
         errorCargaProductos={errorCargaProductos}
         unidades={unidades}
         obtenerNombreUnidad={obtenerNombreUnidad}
+        totalCalculado={totalModal} 
+        onTotalChange={setTotalModal}
       />
 
       {/* Modal para Monto No Afecto */}
