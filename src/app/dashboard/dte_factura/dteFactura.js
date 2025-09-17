@@ -786,7 +786,6 @@ useEffect(() => {
     setShowClientDetails(false);
   };
 
-  // Actualizar un item de la factura
   const handleItemChange = (id, field, value) => {
     const updatedItems = items.map((item) => {
       if (item.id === id) {
@@ -802,12 +801,10 @@ useEffect(() => {
     setItems(updatedItems);
   };
 
-  // Eliminar un item de la factura
   const removeItem = (id) => {
     setItems(items.filter((item) => item.id !== id));
   };
 
-  // Inicializar fecha de vencimiento (30 días después)
   useEffect(() => {
     const today = new Date();
     const nextMonth = new Date(today);

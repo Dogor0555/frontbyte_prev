@@ -24,7 +24,6 @@ export default function ProductModal({
   const [tributos, setTributos] = useState([]);
   const [productosFiltrados, setProductosFiltrados] = useState([]);
 
-  // Detectar si es móvil
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -38,20 +37,19 @@ export default function ProductModal({
     };
   }, []);
 
-  // Filtrar productos según el tipo seleccionado
   useEffect(() => {
     if (!productosCargados || !Array.isArray(productosCargados)) return;
     
     let productosFiltrados = [];
     
     switch (tipoProducto) {
-      case "1": // Bienes solamente
+      case "1":
         productosFiltrados = productosCargados.filter(p => !p.es_servicio);
         break;
-      case "2": // Servicios solamente
+      case "2":
         productosFiltrados = productosCargados.filter(p => p.es_servicio);
         break;
-      case "3": // Bienes y servicios
+      case "3": 
         productosFiltrados = productosCargados;
         break;
       default:
@@ -61,7 +59,6 @@ export default function ProductModal({
     setProductosFiltrados(productosFiltrados);
   }, [tipoProducto, productosCargados]);
 
-  // Actualizar stock disponible cuando se selecciona un producto
   useEffect(() => {
     if (productoSeleccionado) {
       setStockDisponible(productoSeleccionado.stock || 0);
@@ -69,6 +66,27 @@ export default function ProductModal({
       setStockDisponible(0);
     }
   }, [productoSeleccionado]);
+
+  useEffect(() => {
+    if (tipoVenta === "1" && productoSeleccionado) {
+      const ivaExiste = tributos.some(t => t.codigo === "20");
+      
+      if (!ivaExiste) {
+        const subtotal = cantidad * parseFloat(productoSeleccionado.precio) || 0;
+        const valorImpuesto = calcularValorImpuesto("20", subtotal);
+        
+        const ivaTributo = {
+          codigo: "20",
+          descripcion: obtenerDescripcionImpuesto("20"),
+          valor: parseFloat(valorImpuesto.toFixed(2))
+        };
+        
+        setTributos([ivaTributo]);
+      }
+    } else if (tipoVenta !== "1") {
+      setTributos(tributos.filter(t => t.codigo !== "20"));
+    }
+  }, [tipoVenta, productoSeleccionado, cantidad]);
 
   const limpiarFormulario = () => {
     setProductoSeleccionado(null);
@@ -92,7 +110,6 @@ export default function ProductModal({
     onClose();
   };
 
-  // Función para obtener descripción del impuesto por código
   const obtenerDescripcionImpuesto = (codigo) => {
     const impuestos = {
       "20": "Impuesto al Valor Agregado 13%",
@@ -141,21 +158,19 @@ export default function ProductModal({
     return impuestos[codigo] || "Impuesto no especificado";
   };
 
-  // Función para calcular el valor de un impuesto
   const calcularValorImpuesto = (codigoImpuesto, subtotal) => {
     const tasas = {
-      "20": 0.13, // IVA 13%
-      "59": 0.05, // Turismo 5%
-      "C5": 0.08, // Bebidas alcohólicas 8%
-      "C6": 0.39, // Tabaco cigarrillos 39%
-      "C7": 1.00, // Tabaco cigarros 100%
+      "20": 0.13, 
+      "59": 0.05, 
+      "C5": 0.08,
+      "C6": 0.39, 
+      "C7": 1.00, 
     };
     
     const tasa = tasas[codigoImpuesto] || 0;
     return subtotal * tasa;
   };
 
-  // Función para agregar un tributo al array
   const agregarTributo = () => {
     if (!productoSeleccionado) return;
     
@@ -168,7 +183,6 @@ export default function ProductModal({
       valor: parseFloat(valorImpuesto.toFixed(2))
     };
 
-    // Verificar si el tributo ya existe
     const existe = tributos.some(t => t.codigo === nuevoTributo.codigo);
     
     if (!existe) {
@@ -178,8 +192,12 @@ export default function ProductModal({
     }
   };
 
-  // Función para eliminar un tributo
   const eliminarTributo = (codigo) => {
+    if (tipoVenta === "1" && codigo === "20") {
+      alert("No puede eliminar el IVA de un producto gravado");
+      return;
+    }
+    
     setTributos(tributos.filter(t => t.codigo !== codigo));
   };
 
@@ -188,11 +206,10 @@ export default function ProductModal({
     
     const precio = parseFloat(productoSeleccionado.precio) || 0;
     const subtotal = cantidad * precio;
-    
-    // Calcular total de impuestos
+
     const totalImpuestos = tributos.reduce((sum, tributo) => sum + tributo.valor, 0);
     
-    return subtotal + totalImpuestos;
+    return subtotal;
   };
 
   const handleAgregarItem = () => {
@@ -201,21 +218,17 @@ export default function ProductModal({
       return;
     }
 
-    // Verificar si es un servicio (no aplica control de stock)
     const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     
-    // Verificar stock solo para productos (no servicios)
     if (!esServicio && productoSeleccionado.stock !== undefined && productoSeleccionado.stock !== null) {
       const stockSuficiente = cantidad <= productoSeleccionado.stock;
       
       if (!stockSuficiente) {
-        // Mostrar alerta de stock insuficiente pero permitir continuar
         setMostrarAlertaStock(true);
         return;
       }
     }
 
-    // Si pasa la validación de stock o es un servicio, proceder
     agregarItemConfirmado();
   };
 
@@ -235,8 +248,6 @@ export default function ProductModal({
         tipoItem = "producto";
     }
 
-    // Enviar información de stock para actualización posterior
-    // SOLO para productos (no servicios)
     const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
     
@@ -248,7 +259,6 @@ export default function ProductModal({
       unidadMedida: productoSeleccionado.unidad || "59",
       tipo: tipoItem,
       tributos: tributos,
-      // Información adicional para actualizar stock posteriormente
       productoId: !esServicio ? productoSeleccionado.id : null,
       actualizarStock: necesitaActualizarStock,
       stockAnterior: !esServicio ? productoSeleccionado.stock : null,
@@ -342,7 +352,7 @@ export default function ProductModal({
                   value={tipoProducto}
                   onChange={(e) => {
                     setTipoProducto(e.target.value);
-                    setProductoSeleccionado(null); // Limpiar selección al cambiar tipo
+                    setProductoSeleccionado(null);
                   }}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
@@ -561,6 +571,11 @@ export default function ProductModal({
             <div className="space-y-5">
               <div className="border-b border-gray-200 pb-2">
                 <h3 className="font-semibold text-gray-900 text-lg">Información de tributos</h3>
+                {tipoVenta === "1" && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    El IVA (20) se ha agregado automáticamente para productos gravados
+                  </p>
+                )}
               </div>
 
               <div>
@@ -638,6 +653,8 @@ export default function ProductModal({
                           <button
                             onClick={() => eliminarTributo(tributo.codigo)}
                             className="text-red-500 hover:text-red-700 ml-2"
+                            disabled={tipoVenta === "1" && tributo.codigo === "20"}
+                            title={tipoVenta === "1" && tributo.codigo === "20" ? "No puede eliminar el IVA de un producto gravado" : "Eliminar impuesto"}
                           >
                             <FaTrash size={14} />
                           </button>
@@ -657,82 +674,46 @@ export default function ProductModal({
                     <span className="font-semibold text-gray-900">${subtotal.toFixed(2)}</span>
                   </div>
                   
-                  {/* Impuestos */}
                   {tributos.map((tributo, index) => (
-                    <div key={index} className="flex justify-between py-1">
-                      <span className="text-gray-700 text-sm">{tributo.codigo}:</span>
-                      <span className="font-semibold text-gray-900 text-sm">${tributo.valor.toFixed(2)}</span>
+                    <div key={index} className="flex justify-between py-1 border-t border-gray-100">
+                      <span className="text-sm text-gray-600">{tributo.codigo}:</span>
+                      <span className="text-sm font-medium text-gray-900">${tributo.valor.toFixed(2)}</span>
                     </div>
                   ))}
                   
-                  <div className="border-t border-gray-300 pt-3 mt-3">
-                    <div className="flex justify-between">
-                      <span className="text-lg font-semibold text-gray-900">Total:</span>
-                      <span className="text-xl font-bold text-blue-700">
-                        ${total.toFixed(2)}
-                      </span>
-                    </div>
+                  <div className="flex justify-between py-3 border-t border-gray-300 mt-2">
+                    <span className="text-lg font-semibold text-gray-900">Total:</span>
+                    <span className="text-xl font-bold text-blue-700">${total.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
-
-              {/* Información del producto seleccionado */}
-              {productoSeleccionado && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-green-800 mb-2">Producto Seleccionado</h4>
-                  <p className="text-sm text-green-700">
-                    <strong>{productoSeleccionado.nombre}</strong>
-                  </p>
-                  <p className="text-xs text-green-600 mt-1">
-                    Código: {productoSeleccionado.codigo}
-                  </p>
-                  <p className="text-xs text-green-600 mt-1">
-                    Tipo: {productoSeleccionado.es_servicio ? "Servicio" : "Producto"}
-                  </p>
-                  <p className="text-xs text-green-600 mt-1">
-                    Tipo Venta: {tipoVenta === "1" ? "Gravado" : tipoVenta === "2" ? "Exento" : "No sujeto"}
-                  </p>
-                  {!productoSeleccionado.es_servicio && productoSeleccionado.stock !== undefined && (
-                    <p className="text-xs text-green-600 mt-1">
-                      Stock: {productoSeleccionado.stock}
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Botones de acción - Ahora fijos en la parte inferior en móviles */}
-        <div className={`bg-white border-t border-gray-200 p-4 ${
-          isMobile ? "sticky bottom-0 shadow-md" : ""
-        }`}>
-          <div className="flex flex-col sm:flex-row justify-between items-center">
+        {/* Pie de página con botones */}
+        <div className="bg-gray-100 px-6 py-4 flex justify-between items-center flex-shrink-0">
+          <button
+            onClick={onBackToSelector}
+            className="px-5 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+          >
+            Volver al Selector
+          </button>
+          
+          <div className="flex space-x-3">
             <button
               onClick={handleClose}
-              className="px-6 py-3 bg-gray-300 text-gray-900 font-semibold rounded-lg hover:bg-gray-400 transition-colors flex items-center justify-center mb-3 sm:mb-0 w-full sm:w-auto"
+              className="px-5 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
             >
-              <FaTimes className="mr-2" />
               Cancelar
             </button>
-
-            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-              <button
-                onClick={onBackToSelector}
-                className="px-6 py-3 bg-gray-200 text-gray-900 font-semibold rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center w-full sm:w-auto"
-              >
-                Agregar Documentos
-              </button>
-              <button
-                onClick={handleAgregarItem}
-                className={`px-8 py-3 text-white font-semibold rounded-lg transition-colors flex items-center justify-center shadow-md w-full sm:w-auto ${
-                  stockInsuficiente ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-700 hover:bg-blue-800'
-                }`}
-              >
-                <FaPlus className="mr-2" />
-                {stockInsuficiente ? 'Vender con stock negativo' : 'Agregar Item'}
-              </button>
-            </div>
+            <button
+              onClick={handleAgregarItem}
+              disabled={!productoSeleccionado}
+              className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
+            >
+              Agregar Item
+            </button>
           </div>
         </div>
       </div>
