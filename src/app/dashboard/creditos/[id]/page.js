@@ -1,3 +1,4 @@
+// src/app/dashboard/creditos/[id]/page.js
 "use client";
 import { useState, useEffect } from "react";
 import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser } from "react-icons/fa";
@@ -17,31 +18,57 @@ export default function CreditoDetallePage() {
   const router = useRouter();
 
   useEffect(() => {
-    const fetchCredito = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`http://localhost:3000/creditos/${numeroCredito}/completo`, {
-          credentials: "include",
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Error al cargar crédito");
-        }
-        
-        const data = await response.json();
-        setCreditoData(data);
-      } catch (err) {
-        console.error("Error al cargar crédito:", err);
-        setError(err.message || "Ocurrió un error al cargar el crédito");
-      } finally {
-        setLoading(false);
+const fetchCredito = async () => {
+  try {
+    setLoading(true);
+    const response = await fetch(`http://localhost:3000/creditos/${numeroCredito}/productos`, {
+      credentials: "include",
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
-    };
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = "Error al cargar crédito";
+      
+      try {
+        // Intentar parsear como JSON por si acaso
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorMessage;
+      } catch {
+        // Si no es JSON, usar el texto plano
+        errorMessage = errorText || errorMessage;
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    // Manejar diferentes tipos de respuesta
+    const contentType = response.headers.get('content-type');
+    let data;
+    
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      // Si no es JSON, intentar parsear el texto
+      const text = await response.text();
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Formato de respuesta no válido");
+      }
+    }
+    
+    setCreditoData(data);
+  } catch (err) {
+    console.error("Error al cargar crédito:", err);
+    setError(err.message || "Ocurrió un error al cargar el crédito");
+  } finally {
+    setLoading(false);
+  }
+};
     
     if (numeroCredito) {
       fetchCredito();
@@ -51,7 +78,7 @@ export default function CreditoDetallePage() {
   const handleGeneratePDF = async () => {
     setGenerandoPDF(true);
     try {
-      if (!creditoData?.credito?.documentofirmado) {
+      if (!creditoData?.factura?.documentofirmado) {
         throw new Error("El crédito no tiene documento firmado");
       }
 
@@ -62,9 +89,9 @@ export default function CreditoDetallePage() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          token: creditoData.credito.documentofirmado,
+          token: creditoData.factura.documentofirmado,
           tipo: "credito",
-          creditoId: creditoData.credito.id
+          creditoId: creditoData.factura.iddtefactura
         }),
         credentials: "include"
       });
@@ -76,7 +103,7 @@ export default function CreditoDetallePage() {
       
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = `CRD-${creditoData.credito.numero || creditoData.credito.codigo || '0000'}.pdf`;
+      link.download = `CRD-${creditoData.factura.numerofacturausuario || '0000'}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -114,10 +141,10 @@ export default function CreditoDetallePage() {
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                 <p>{error}</p>
                 <button 
-                  onClick={() => router.back()} 
+                  onClick={() => router.push('/dashboard/creditos')} 
                   className="mt-2 bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded"
                 >
-                  <FaArrowLeft className="inline mr-1" /> Volver
+                  <FaArrowLeft className="inline mr-1" /> Volver a créditos
                 </button>
               </div>
             </div>
@@ -141,10 +168,10 @@ export default function CreditoDetallePage() {
               <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
                 <p>No se encontró el crédito solicitado</p>
                 <button 
-                  onClick={() => router.back()} 
+                  onClick={() => router.push('/dashboard/creditos')} 
                   className="mt-2 bg-yellow-500 hover:bg-yellow-700 text-white py-1 px-3 rounded"
                 >
-                  <FaArrowLeft className="inline mr-1" /> Volver
+                  <FaArrowLeft className="inline mr-1" /> Volver a créditos
                 </button>
               </div>
             </div>
@@ -171,9 +198,6 @@ export default function CreditoDetallePage() {
       return "Fecha no disponible";
     }
   };
-
-  const numeroCreditoMostrar = creditoData.credito.numero || 
-                              (creditoData.credito.codigo ? creditoData.credito.codigo.replace('DTE-CR', '') : '0000');
 
   return (
     <div className="flex min-h-screen bg-blue-50">
@@ -205,7 +229,7 @@ export default function CreditoDetallePage() {
           <div className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">
               <button 
-                onClick={() => router.back()}
+                onClick={() => router.push('/dashboard/creditos')}
                 className="flex items-center text-green-600 hover:text-green-800"
               >
                 <FaArrowLeft className="mr-1" /> Volver a créditos
@@ -213,10 +237,10 @@ export default function CreditoDetallePage() {
               
               <button
                 onClick={handleGeneratePDF}
-                disabled={generandoPDF || !creditoData?.credito?.documentofirmado}
+                disabled={generandoPDF || !creditoData?.factura?.documentofirmado}
                 className={`flex items-center px-4 py-2 rounded ${
                   generandoPDF ? 'bg-gray-400' : 
-                  !creditoData?.credito?.documentofirmado ? 'bg-gray-500' : 
+                  !creditoData?.factura?.documentofirmado ? 'bg-gray-500' : 
                   'bg-red-600 hover:bg-red-700'
                 } text-white`}
               >
@@ -224,7 +248,7 @@ export default function CreditoDetallePage() {
                   <>
                     <FaSpinner className="animate-spin mr-2" /> Generando...
                   </>
-                ) : !creditoData?.credito?.documentofirmado ? (
+                ) : !creditoData?.factura?.documentofirmado ? (
                   <>
                     <FaFilePdf className="mr-2" /> PDF no disponible
                   </>
@@ -242,7 +266,7 @@ export default function CreditoDetallePage() {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
                     <FaFileAlt className="mr-2 text-xl" />
-                    <span className="font-semibold text-xl">CRD-{numeroCreditoMostrar.toString().padStart(4, '0')}</span>
+                    <span className="font-semibold text-xl">CRD-{creditoData.factura.numerofacturausuario.toString().padStart(4, '0')}</span>
                   </div>
                   <span className="text-xs px-2 py-1 rounded bg-green-700">
                     CRÉDITO FISCAL
@@ -257,17 +281,15 @@ export default function CreditoDetallePage() {
                   <p className="font-medium">{creditoData.emisor.nombre}</p>
                   <p>NIT: {creditoData.emisor.nit}</p>
                   {creditoData.emisor.nrc && <p>NRC: {creditoData.emisor.nrc}</p>}
-                  <p>Dirección: {creditoData.emisor.direccion || creditoData.emisor.complemento || "No disponible"}</p>
                   <p>Teléfono: {creditoData.emisor.telefono || "No disponible"}</p>
                   {creditoData.emisor.correo && <p>Correo: {creditoData.emisor.correo}</p>}
+                  {creditoData.emisor.sucursal && <p>Sucursal: {creditoData.emisor.sucursal}</p>}
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded">
                   <h2 className="font-semibold mb-3 text-lg">Cliente</h2>
                   <p className="font-medium">{creditoData.cliente.nombre}</p>
-                  <p>NIT: {creditoData.cliente.nit}</p>
-                  {creditoData.cliente.nrc && <p>NRC: {creditoData.cliente.nrc}</p>}
-                  <p>Dirección: {creditoData.cliente.direccion || creditoData.cliente.complemento || "No disponible"}</p>
+                  <p>Documento: {creditoData.cliente.documento || "No disponible"}</p>
                   <p>Teléfono: {creditoData.cliente.telefono || "No disponible"}</p>
                   {creditoData.cliente.correo && <p>Correo: {creditoData.cliente.correo}</p>}
                 </div>
@@ -277,9 +299,9 @@ export default function CreditoDetallePage() {
               <div className="p-5 border-t">
                 <div className="flex items-center mb-4 text-gray-600">
                   <FaCalendarAlt className="mr-2 text-green-500" />
-                  <span className="font-medium">Fecha: {formatDate(creditoData.credito.fechaemision)}</span>
-                  {creditoData.credito.horaemision && (
-                    <span className="font-medium ml-2">Hora: {creditoData.credito.horaemision}</span>
+                  <span className="font-medium">Fecha: {formatDate(creditoData.factura.fechaemision)}</span>
+                  {creditoData.factura.horaemision && (
+                    <span className="font-medium ml-2">Hora: {creditoData.factura.horaemision}</span>
                   )}
                 </div>
 
@@ -289,7 +311,6 @@ export default function CreditoDetallePage() {
                     <table className="min-w-full bg-white border">
                       <thead>
                         <tr className="bg-gray-100">
-                          <th className="py-2 px-4 border">Código</th>
                           <th className="py-2 px-4 border">Descripción</th>
                           <th className="py-2 px-4 border">Cantidad</th>
                           <th className="py-2 px-4 border">P. Unitario</th>
@@ -299,11 +320,10 @@ export default function CreditoDetallePage() {
                       <tbody>
                         {creditoData.productos.map((producto, index) => (
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="py-2 px-4 border">{producto.codigo}</td>
                             <td className="py-2 px-4 border">
-                              {producto.nombre}
+                              {producto.descripcion}
                             </td>
-                            <td className="py-2 px-4 border text-center">{producto.cantidad}</td>
+                            <td className="py-2 px-4 border text-center">{Number(producto.cantidad).toFixed(0)}</td>
                             <td className="py-2 px-4 border text-right">{formatCurrency(producto.precioUnitario)}</td>
                             <td className="py-2 px-4 border text-right">{formatCurrency(producto.total)}</td>
                           </tr>
@@ -318,15 +338,15 @@ export default function CreditoDetallePage() {
                   <div className="w-full md:w-1/3 bg-gray-50 p-4 rounded">
                     <div className="flex justify-between py-2 border-b">
                       <span className="font-medium">Subtotal:</span>
-                      <span className="font-medium">{formatCurrency(creditoData.credito.subtotal)}</span>
+                      <span className="font-medium">{formatCurrency(creditoData.factura.subtotal)}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b">
-                      <span className="font-medium">IVA (13%):</span>
-                      <span className="font-medium">{formatCurrency(creditoData.credito.iva)}</span>
+                      <span className="font-medium">IVA:</span>
+                      <span className="font-medium">{formatCurrency(creditoData.factura.valoriva)}</span>
                     </div>
                     <div className="flex justify-between py-2">
                       <span className="font-bold">Total:</span>
-                      <span className="font-bold">{formatCurrency(creditoData.credito.total)}</span>
+                      <span className="font-bold">{formatCurrency(creditoData.factura.totalapagar)}</span>
                     </div>
                   </div>
                 </div>
@@ -334,15 +354,16 @@ export default function CreditoDetallePage() {
                 {/* Total en letras */}
                 <div className="mt-6 p-4 bg-gray-50 rounded">
                   <p className="font-semibold">Total en letras:</p>
-                  <p className="italic">{creditoData.credito.valorLetras || creditoData.credito.valorletras || "No disponible"}</p>
+                  <p className="italic">{creditoData.factura.valorletras || "No disponible"}</p>
                 </div>
 
                 {/* Información adicional */}
                 <div className="mt-4 p-4 bg-gray-50 rounded">
                   <p className="font-semibold">Información adicional:</p>
-                  <p>Forma de pago: {creditoData.credito.formaPago || creditoData.credito.formapago || "No especificado"}</p>
-                  <p>Estado: {creditoData.credito.estado || "No especificado"}</p>
-                  {creditoData.credito.tipo && <p>Tipo: {creditoData.credito.tipo}</p>}
+                  <p>Forma de pago: {creditoData.factura.formapago || "No especificado"}</p>
+                  <p>Tipo de venta: {creditoData.factura.tipoventa || "No especificado"}</p>
+                  <p>Estado: {creditoData.factura.estado || "No especificado"}</p>
+                  <p>Número de control: {creditoData.factura.ncontrol || "No disponible"}</p>
                 </div>
               </div>
             </div>

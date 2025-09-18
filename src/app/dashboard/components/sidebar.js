@@ -77,6 +77,7 @@ export default function Sidebar({ onOpenPerfil }) {
     { name: "Facturas", icon: <FaFileAlt />, href: "/dashboard/facturas" },
     { name: "Creditos", icon: <FaFileAlt />, href: "/dashboard/creditos" },
     // { name: "Clientes", icon: <FaUsers />, href: "#", subMenu: [...], menuKey: "clients" },
+    { name: "Libro de Ventas", icon: <FaChartBar />, href: "/dashboard/libro_de_ventas" },
     { name: "Reportes", icon: <FaChartBar />, href: "/dashboard/reportes" },
     {name: "editar sucursal", icon: <FaBuilding />, href: "/dashboard/editar_sucursal" },
   ];
