@@ -537,7 +537,7 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="text-black grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="min-w-0">
                   <Label>Código de Actividad</Label>
                   <div className="relative">
