@@ -1107,7 +1107,7 @@ useEffect(() => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-700">Monto Total de la operación:</span>
-                      <span className="font-medium">{formatMoney(ventasgrabadas)}</span>
+                      <span className="font-medium">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-700">IVA (13%):</span>
