@@ -80,6 +80,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   });
   const [totalModal, setTotalModal] = useState(0);
   const [errorValidacion, setErrorValidacion] = useState("");
+  const [emisorDocumento, setEmisorDocumento] = useState("");
+  const [emisorNombre, setEmisorNombre] = useState("");
 
   // Inicializar correo desde user o, si no hay, desde localStorage
   useEffect(() => {
@@ -837,6 +839,9 @@ useEffect(() => {
         setActividadEconomica(`${sucursalUsuario.codactividad}`);
         setDireccionEmisor(sucursalUsuario.complemento || "");
         setTelefonoEmisor(sucursalUsuario.telefono || "");
+
+        setEmisorDocumento(sucursalUsuario.usuario.nit || sucursalUsuario.dui || "");
+        setEmisorNombre(sucursalUsuario.usuario.nombre || sucursalUsuario.usuario.razonsocial || "");
         
         if (!correoVendedor && sucursalUsuario.usuario?.correo) {
           setCorreoVendedor(sucursalUsuario.usuario.correo);
@@ -1151,6 +1156,8 @@ useEffect(() => {
                 onDatosEntregaChange={handleDatosEntregaChange}
                 receptorDocumento={numeroDocumentoReceptor}
                 receptorNombre={nombreReceptor}
+                emisorDocumento={emisorDocumento}
+                emisorNombre={emisorNombre}
               />
 
               {/* Botones de acción */}

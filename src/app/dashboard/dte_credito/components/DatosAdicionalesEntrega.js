@@ -4,22 +4,27 @@ import { useState, useEffect } from "react";
 export default function DatosEntrega({ 
   onDatosEntregaChange,
   receptorDocumento = "",
-  receptorNombre = ""
+  receptorNombre = "",
+  emisorDocumento = "",
+  emisorNombre = ""
 }) {
   const [datosEntrega, setDatosEntrega] = useState({
-    emisorDocumento: "",
-    emisorNombre: "",
+    emisorDocumento: emisorDocumento,
+    emisorNombre: emisorNombre,
     receptorDocumento: receptorDocumento,
     receptorNombre: receptorNombre
   });
 
+  // Actualizar datos cuando cambien las props
   useEffect(() => {
     setDatosEntrega(prev => ({
       ...prev,
+      emisorDocumento: emisorDocumento,
+      emisorNombre: emisorNombre,
       receptorDocumento: receptorDocumento,
       receptorNombre: receptorNombre
     }));
-  }, [receptorDocumento, receptorNombre]);
+  }, [emisorDocumento, emisorNombre, receptorDocumento, receptorNombre]);
 
   const handleChange = (field, value) => {
     const nuevosDatos = {
@@ -39,7 +44,7 @@ export default function DatosEntrega({
       <h2 className="text-xl font-semibold text-gray-800 mb-4">Datos adicionales entrega</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Responsable de Emitir (editable) */}
+        {/* Responsable de Emitir (editable pero precargado) */}
         <div className="space-y-4">
           <h3 className="font-medium text-gray-700">Responsable de emitir documento</h3>
           
