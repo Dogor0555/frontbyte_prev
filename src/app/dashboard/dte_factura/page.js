@@ -1,4 +1,3 @@
-// src/app/dashboard/facturacion/page.js
 import FacturacionViewComplete from "./dteFactura.js";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";

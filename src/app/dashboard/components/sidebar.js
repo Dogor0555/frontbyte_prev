@@ -22,19 +22,18 @@ import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
 import { useState, useEffect } from "react";
 
-// (La prop onOpenPerfil ya no se usa; el botón empuja siempre a /dashboard/perfil)
 export default function Sidebar({ onOpenPerfil }) {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [empleado, setEmpleado] = useState(null);
   const [openMenus, setOpenMenus] = useState({
     dtes: false,
+    facturas: false,
     clients: false,
     admin: false,
   });
 
   useEffect(() => {
-    // Obtener información del empleado desde localStorage
     const empleadoData = localStorage.getItem("empleado");
     if (empleadoData) {
       setEmpleado(JSON.parse(empleadoData));
@@ -61,7 +60,6 @@ export default function Sidebar({ onOpenPerfil }) {
     }));
   };
 
-  // Menú base
   const menuItems = [
     { name: "Inicio", icon: <FaHome />, href: "/dashboard" },
     {
@@ -74,15 +72,22 @@ export default function Sidebar({ onOpenPerfil }) {
       ],
       menuKey: "dtes",
     },
-    { name: "Facturas", icon: <FaFileAlt />, href: "/dashboard/facturas" },
+    {
+      name: "Facturas",
+      icon: <FaFileAlt />,
+      href: "#",
+      subMenu: [
+        { name: "Ver Facturas", icon: <FaFileAlt />, href: "/dashboard/facturas" },
+        { name: "Anular Facturas", icon: <FaFileAlt />, href: "/dashboard/anular_facturas" },
+      ],
+      menuKey: "facturas",
+    },
     { name: "Creditos", icon: <FaFileAlt />, href: "/dashboard/creditos" },
-    // { name: "Clientes", icon: <FaUsers />, href: "#", subMenu: [...], menuKey: "clients" },
     { name: "Libro de Ventas", icon: <FaChartBar />, href: "/dashboard/libro_de_ventas" },
     { name: "Reportes", icon: <FaChartBar />, href: "/dashboard/reportes" },
     {name: "editar sucursal", icon: <FaBuilding />, href: "/dashboard/editar_sucursal" },
   ];
 
-  // Menú admin o configuración
   if (empleado && isAdmin(empleado)) {
     menuItems.push({
       name: "Administración",
@@ -91,7 +96,6 @@ export default function Sidebar({ onOpenPerfil }) {
       subMenu: [
         { name: "Empleados", icon: <FaUserTie />, href: "/dashboard/empleados" },
         { name: "Productos", icon: <FaBoxOpen />, href: "/dashboard/productos" },
-        //{ name: "Sucursales", icon: <FaBuilding />, href: "/dashboard/sucursales" },
         { name: "Clientes", icon: <FaBuilding />, href: "/dashboard/clientes" },
       ],
       menuKey: "admin",
@@ -100,13 +104,11 @@ export default function Sidebar({ onOpenPerfil }) {
     menuItems.push({ name: "Configuración", icon: <FaCog />, href: "#" });
   }
 
-  // Label dinámico según rol
   const perfilLabel = empleado && isAdmin(empleado) ? "Editar Perfil" : "Ver Perfil";
 
   return (
     <aside className="bg-blue-900 h-full w-64">
       <div className="flex flex-col h-full">
-        {/* Logo y Título */}
         <div className="bg-blue-800 flex items-center justify-center h-20 border-b border-blue-700">
           <div className="bg-white relative h-14 w-14 rounded-full overflow-hidden shadow-md">
             <Image src={logo} alt="Byte Fusion Soluciones" fill className="object-cover" />
@@ -116,7 +118,6 @@ export default function Sidebar({ onOpenPerfil }) {
           </div>
         </div>
 
-        {/* Navegación */}
         <nav className="flex-1 py-4 px-2 overflow-y-auto">
           <ul className="space-y-2">
             {menuItems.map(({ name, icon, href, subMenu, menuKey }) => (
@@ -138,7 +139,6 @@ export default function Sidebar({ onOpenPerfil }) {
                       <ul className="pl-6 space-y-2">
                         {subMenu.map(({ name, icon, href }) => (
                           <li key={name}>
-                            {/* Puedes reemplazar este <a> por <Link> si quieres navegación client-side en subitems */}
                             <a
                               href={href}
                               className="flex items-center px-4 py-3 text-blue-100 rounded-lg transition-all duration-300 hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 hover:text-white hover:shadow-md hover:shadow-blue-500/20 hover:backdrop-blur-sm"
@@ -165,7 +165,6 @@ export default function Sidebar({ onOpenPerfil }) {
           </ul>
         </nav>
 
-        {/* Información del empleado */}
         {empleado && (
           <div className="p-4 border-t border-blue-700 bg-blue-800">
             <div className="text-blue-100 text-sm">
@@ -175,12 +174,11 @@ export default function Sidebar({ onOpenPerfil }) {
           </div>
         )}
 
-        {/* ÚNICO botón de Perfil: ahora con <Link> para forzar SPA + scroll={false} */}
         {empleado && (
           <div className="bg-blue-800 p-4 border-t border-blue-700">
             <Link
               href="/dashboard/perfil"
-              scroll={false} // ✅ asegura SPA sin ajustar scroll
+              scroll={false}
               className="flex items-center justify-center w-full px-4 py-3 text-blue-200 border border-blue-600 rounded-md transition-all duration-200 hover:bg-blue-700 hover:text-white hover:border-blue-500"
             >
               <FaUserAlt className="text-base" />
@@ -189,7 +187,6 @@ export default function Sidebar({ onOpenPerfil }) {
           </div>
         )}
 
-        {/* Logout */}
         <div className="bg-blue-800 p-4 border-t border-blue-700">
           <button
             onClick={handleLogout}

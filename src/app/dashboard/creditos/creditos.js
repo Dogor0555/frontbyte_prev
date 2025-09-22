@@ -134,8 +134,9 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
 
   const handleAnularCredito = async (creditoId) => {
     setAnulando(creditoId);
+    console.log(creditoId)
     try {
-      const response = await fetch(`http://localhost:3000/creditos/${creditoId}/anular`, {
+      const response = await fetch(`http://localhost:3000/facturas/${creditoId}/anular`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -173,7 +174,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   const handleReTransmitir = async (creditoId) => {
     setReTransmitiendo(creditoId);
     try {
-      const response = await fetch(`http://localhost:3000/creditos/${creditoId}/contingencia`, {
+      const response = await fetch(`http://localhost:3000/facturas/${creditoId}/contingencia`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -243,7 +244,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   const handleGeneratePDF = async (creditoId) => {
     setPdfLoading(creditoId);
     try {
-      const response = await fetch(`http://localhost:3000/creditos/${creditoId}/descargar-pdf`, {
+      const response = await fetch(`http://localhost:3000/facturas/${creditoId}/descargar-pdf`, {
         credentials: "include"
       });
       
@@ -533,7 +534,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                         {/* Botón de Anular */}
                         {puedeAnular(credito) && (
                           <button
-                            onClick={() => handleAnularCredito(credito.iddtecredito)}
+                            onClick={() => handleAnularCredito(credito.iddtefactura)}
                             disabled={anulando === credito.iddtecredito}
                             className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
                               anulando === credito.iddtecredito
@@ -552,10 +553,10 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
 
                         {/* Botón de Descargar PDF */}
                         <button
-                          onClick={() => handleGeneratePDF(credito.iddtecredito)}
-                          disabled={pdfLoading === credito.iddtecredito || !(credito.documentofirmado && credito.documentofirmado !== "null")}
+                          onClick={() => handleGeneratePDF(credito.iddtefactura)}
+                          disabled={pdfLoading === credito.iddtefactura || !(credito.documentofirmado && credito.documentofirmado !== "null")}
                           className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                            pdfLoading === credito.iddtecredito
+                            pdfLoading === credito.iddtefactura
                               ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
                               : (!(credito.documentofirmado && credito.documentofirmado !== "null"))
                                 ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
@@ -563,7 +564,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                           }`}
                           title={!(credito.documentofirmado && credito.documentofirmado !== "null") ? "No se puede descargar: Crédito no firmado" : "Descargar DTE en PDF"}
                         >
-                          {pdfLoading === credito.iddtecredito ? (
+                          {pdfLoading === credito.iddtefactura ? (
                             <>
                               <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
                               Generando
