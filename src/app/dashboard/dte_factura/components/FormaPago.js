@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaPlus, FaTrash, FaMoneyBill, FaCreditCard, FaExchangeAlt, FaFileInvoiceDollar } from "react-icons/fa";
+import { FaPlus, FaTrash, FaMoneyBill, FaCreditCard, FaExchangeAlt, FaFileInvoiceDollar, FaSyncAlt } from "react-icons/fa";
 
 export default function FormaPago({ 
   condicionPago, 
@@ -19,7 +19,58 @@ export default function FormaPago({
   useEffect(() => {
     const totalPagado = formasPago.reduce((sum, pago) => sum + pago.monto, 0);
     setMontoRestante(totalFactura - totalPagado);
+    
+    if (formasPago.length === 0 && totalFactura > 0) {
+      setMontoPago(totalFactura.toFixed(2));
+    }
   }, [formasPago, totalFactura]);
+
+  const sincronizarFormasPago = () => {
+    if (formasPago.length === 0 && totalFactura > 0) {
+      const nuevaFormaPago = {
+        id: Date.now(),
+        formaPago: formaPagoSeleccionada,
+        monto: totalFactura,
+        numeroDocumento: numeroDocumento || null,
+        plazo: condicionPago === "Crédito" ? `${plazo} ${periodo}` : null
+      };
+      
+      setFormasPago([nuevaFormaPago]);
+      setMontoRestante(0);
+      setMontoPago("");
+    } else {
+      const totalPagado = formasPago.reduce((sum, pago) => sum + pago.monto, 0);
+      const diferencia = totalFactura - totalPagado;
+      
+      if (diferencia !== 0) {
+        if (formasPago.length > 0) {
+          const formasPagoActualizadas = [...formasPago];
+          const ultimaFormaPago = formasPagoActualizadas[formasPagoActualizadas.length - 1];
+          
+          const nuevoMonto = Math.max(0, ultimaFormaPago.monto + diferencia);
+          formasPagoActualizadas[formasPagoActualizadas.length - 1] = {
+            ...ultimaFormaPago,
+            monto: nuevoMonto
+          };
+          
+          setFormasPago(formasPagoActualizadas);
+        }
+      }
+    }
+  };
+
+  // Sincronizar automáticamente cuando cambie el total de la factura
+  useEffect(() => {
+    if (totalFactura > 0 && formasPago.length > 0) {
+      const totalPagado = formasPago.reduce((sum, pago) => sum + pago.monto, 0);
+      
+      // Si hay una diferencia significativa (> 0.01), sugerir sincronización
+      if (Math.abs(totalFactura - totalPagado) > 0.01) {
+        // No sincronizar automáticamente, solo actualizar el monto restante
+        // El usuario decidirá si quiere sincronizar
+      }
+    }
+  }, [totalFactura, formasPago]);
 
   const tiposFormaPago = [
     { codigo: "01", nombre: "Billetes y Monedas" },
@@ -47,7 +98,9 @@ export default function FormaPago({
       return;
     }
 
-    if (parseFloat(montoPago) > montoRestante) {
+    const monto = parseFloat(montoPago);
+    
+    if (monto > montoRestante) {
       alert("El monto no puede ser mayor al saldo pendiente");
       return;
     }
@@ -55,7 +108,7 @@ export default function FormaPago({
     const nuevoPago = {
       id: Date.now(),
       formaPago: formaPagoSeleccionada,
-      monto: parseFloat(montoPago),
+      monto: monto,
       numeroDocumento: numeroDocumento || null,
       plazo: condicionPago === "Crédito" ? `${plazo} ${periodo}` : null
     };
@@ -70,9 +123,29 @@ export default function FormaPago({
     setFormasPago(formasPago.filter(pago => pago.id !== id));
   };
 
+  // Función para limpiar todas las formas de pago
+  const limpiarFormasPago = () => {
+    setFormasPago([]);
+    setMontoPago(totalFactura > 0 ? totalFactura.toFixed(2) : "");
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">Forma de Pago</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-gray-800">Forma de Pago</h2>
+        
+        {/* Botón para sincronizar automáticamente */}
+        {formasPago.length > 0 && Math.abs(montoRestante) > 0.01 && (
+          <button
+            onClick={sincronizarFormasPago}
+            className="flex items-center bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-sm"
+            title="Sincronizar formas de pago con el total actual"
+          >
+            <FaSyncAlt className="mr-1" />
+            Sincronizar
+          </button>
+        )}
+      </div>
       
       {/* Condición de la Operación */}
       <div className="mb-6">
@@ -101,6 +174,46 @@ export default function FormaPago({
         </div>
       </div>
 
+      {/* Información del total */}
+      <div className="bg-blue-50 p-3 rounded-lg mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+          <div>
+            <span className="font-medium">Total Factura:</span>
+            <span className="ml-2 font-semibold">
+              {totalFactura.toLocaleString('es-SV', { style: 'currency', currency: 'USD' })}
+            </span>
+          </div>
+          <div>
+            <span className="font-medium">Total Pagado:</span>
+            <span className="ml-2 font-semibold">
+              {formasPago.reduce((sum, pago) => sum + pago.monto, 0)
+                .toLocaleString('es-SV', { style: 'currency', currency: 'USD' })}
+            </span>
+          </div>
+          <div>
+            <span className="font-medium">Saldo Pendiente:</span>
+            <span className={`ml-2 font-semibold ${
+              montoRestante > 0 ? 'text-red-600' : 
+              montoRestante < 0 ? 'text-orange-600' : 'text-green-600'
+            }`}>
+              {montoRestante.toLocaleString('es-SV', { style: 'currency', currency: 'USD' })}
+            </span>
+          </div>
+        </div>
+        
+        {/* Mensaje de advertencia si hay desfase */}
+        {Math.abs(montoRestante) > 0.01 && (
+          <div className={`mt-2 text-xs ${
+            montoRestante > 0 ? 'text-red-600' : 'text-orange-600'
+          }`}>
+            {montoRestante > 0 
+              ? `Falta cubrir ${montoRestante.toLocaleString('es-SV', { style: 'currency', currency: 'USD' })}`
+              : `Hay un excedente de ${(-montoRestante).toLocaleString('es-SV', { style: 'currency', currency: 'USD' })}`
+            }
+          </div>
+        )}
+      </div>
+
       {/* Detalle de forma de pago */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div>
@@ -126,12 +239,15 @@ export default function FormaPago({
             type="number"
             min="0.01"
             step="0.01"
-            max={montoRestante}
+            max={montoRestante > 0 ? montoRestante : totalFactura}
             value={montoPago}
             onChange={(e) => setMontoPago(e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             placeholder="0.00"
           />
+          <div className="text-xs text-gray-500 mt-1">
+            Máximo: {montoRestante > 0 ? montoRestante.toLocaleString('es-SV', { style: 'currency', currency: 'USD' }) : totalFactura.toLocaleString('es-SV', { style: 'currency', currency: 'USD' })}
+          </div>
         </div>
 
         <div>
@@ -174,13 +290,13 @@ export default function FormaPago({
         )}
       </div>
 
-      {/* Botón para agregar forma de pago */}
-      <div className="mb-6">
+      {/* Botones para agregar forma de pago y limpiar */}
+      <div className="flex space-x-4 mb-6">
         <button
           onClick={agregarFormaPago}
-          disabled={montoRestante <= 0}
+          disabled={montoRestante <= 0 || !montoPago || parseFloat(montoPago) <= 0}
           className={`flex items-center px-4 py-2 rounded-md ${
-            montoRestante <= 0 
+            montoRestante <= 0 || !montoPago || parseFloat(montoPago) <= 0
               ? 'bg-gray-400 cursor-not-allowed' 
               : 'bg-blue-600 hover:bg-blue-700'
           } text-white`}
@@ -188,6 +304,29 @@ export default function FormaPago({
           <FaPlus className="mr-2" />
           Agregar Forma de Pago
         </button>
+
+        {formasPago.length > 0 && (
+          <button
+            onClick={limpiarFormasPago}
+            className="flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md"
+          >
+            <FaTrash className="mr-2" />
+            Limpiar Todo
+          </button>
+        )}
+
+        {/* Botón para agregar automáticamente el total restante */}
+        {montoRestante > 0.01 && formasPago.length > 0 && (
+          <button
+            onClick={() => {
+              setMontoPago(montoRestante.toFixed(2));
+            }}
+            className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+          >
+            <FaMoneyBill className="mr-2" />
+            Usar Saldo Pendiente
+          </button>
+        )}
       </div>
 
       {/* Listado de formas de pago registradas */}
@@ -195,7 +334,10 @@ export default function FormaPago({
         <h3 className="text-lg font-semibold text-gray-800 mb-3">Formas de Pago Registradas</h3>
         
         {formasPago.length === 0 ? (
-          <p className="text-gray-500 italic">No se han registrado formas de pago</p>
+          <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg">
+            <FaMoneyBill className="mx-auto text-gray-400 text-3xl mb-2" />
+            <p className="text-gray-500 italic">No se han registrado formas de pago</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
@@ -231,6 +373,7 @@ export default function FormaPago({
                       <button
                         onClick={() => eliminarFormaPago(pago.id)}
                         className="text-red-600 hover:text-red-800"
+                        title="Eliminar forma de pago"
                       >
                         <FaTrash />
                       </button>
@@ -250,7 +393,10 @@ export default function FormaPago({
                 </tr>
                 <tr>
                   <td className="px-4 py-2 font-semibold">Saldo Pendiente:</td>
-                  <td className="px-4 py-2 font-semibold">
+                  <td className={`px-4 py-2 font-semibold ${
+                    montoRestante > 0 ? 'text-red-600' : 
+                    montoRestante < 0 ? 'text-orange-600' : 'text-green-600'
+                  }`}>
                     {montoRestante.toLocaleString('es-SV', { style: 'currency', currency: 'USD' })}
                   </td>
                   <td className="px-4 py-2" colSpan={condicionPago === "Crédito" ? 2 : 1}></td>
