@@ -17,6 +17,14 @@ import {
   FaFileInvoice,
   FaFileAlt,
   FaUserTie,
+  FaCreditCard,
+  FaBook,
+  FaChartLine,
+  FaEdit,
+  FaEye,
+  FaBan,
+  FaChevronDown,
+  FaChevronRight,
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -32,6 +40,7 @@ export default function Sidebar({ onOpenPerfil }) {
     clients: false,
     admin: false,
   });
+  const [hoveredItem, setHoveredItem] = useState(null);
 
   useEffect(() => {
     const empleadoData = localStorage.getItem("empleado");
@@ -74,18 +83,18 @@ export default function Sidebar({ onOpenPerfil }) {
     },
     {
       name: "Facturas",
-      icon: <FaFileAlt />,
+      icon: <FaFileInvoice />,
       href: "#",
       subMenu: [
-        { name: "Ver Facturas", icon: <FaFileAlt />, href: "/dashboard/facturas" },
-        { name: "Anular Facturas", icon: <FaFileAlt />, href: "/dashboard/anular_facturas" },
+        { name: "Ver Facturas", icon: <FaEye />, href: "/dashboard/facturas" },
+        { name: "Anular Facturas", icon: <FaBan />, href: "/dashboard/anular_facturas" },
       ],
       menuKey: "facturas",
     },
-    { name: "Creditos", icon: <FaFileAlt />, href: "/dashboard/creditos" },
-    { name: "Libro de Ventas", icon: <FaChartBar />, href: "/dashboard/libro_de_ventas" },
-    { name: "Reportes", icon: <FaChartBar />, href: "/dashboard/reportes" },
-    {name: "editar sucursal", icon: <FaBuilding />, href: "/dashboard/editar_sucursal" },
+    { name: "Creditos", icon: <FaCreditCard />, href: "/dashboard/creditos" },
+    { name: "Libro de Ventas", icon: <FaBook />, href: "/dashboard/libro_de_ventas" },
+    { name: "Reportes", icon: <FaChartLine />, href: "/dashboard/reportes" },
+    {name: "Editar Sucursal", icon: <FaEdit />, href: "/dashboard/editar_sucursal" },
   ];
 
   if (empleado && isAdmin(empleado)) {
@@ -107,94 +116,197 @@ export default function Sidebar({ onOpenPerfil }) {
   const perfilLabel = empleado && isAdmin(empleado) ? "Editar Perfil" : "Ver Perfil";
 
   return (
-    <aside className="bg-blue-900 h-full w-64">
+    <aside className="bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 h-full w-64 shadow-2xl">
       <div className="flex flex-col h-full">
-        <div className="bg-blue-800 flex items-center justify-center h-20 border-b border-blue-700">
-          <div className="bg-white relative h-14 w-14 rounded-full overflow-hidden shadow-md">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-800 to-blue-700 flex items-center justify-center h-20 border-b border-blue-600/50 shadow-lg">
+          <div className="bg-white relative h-14 w-14 rounded-full overflow-hidden shadow-lg ring-4 ring-blue-300/30">
             <Image src={logo} alt="Byte Fusion Soluciones" fill className="object-cover" />
           </div>
           <div className="ml-3">
-            <span className="text-blue-50 font-semibold text-lg">Facturador</span>
+            <span className="text-white font-bold text-lg tracking-wide drop-shadow-sm">Facturador</span>
           </div>
         </div>
 
-        <nav className="flex-1 py-4 px-2 overflow-y-auto">
-          <ul className="space-y-2">
+        {/* Navigation */}
+        <nav className="flex-1 py-6 px-3 overflow-y-auto">
+          <ul className="space-y-1">
             {menuItems.map(({ name, icon, href, subMenu, menuKey }) => (
               <li key={name}>
                 {subMenu ? (
-                  <div>
-                    <a
-                      href="#"
-                      className="flex items-center px-4 py-3 text-blue-100 rounded-lg transition-all duration-300 hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 hover:text-white hover:shadow-md hover:shadow-blue-500/20 hover:backdrop-blur-sm"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleMenu(menuKey);
-                      }}
+                  <div className="group">
+                    {/* Parent Menu Item */}
+                    <button
+                      className={`
+                        w-full flex items-center justify-between px-4 py-3 text-blue-100 rounded-xl 
+                        transition-all duration-300 ease-out group-hover:scale-105
+                        ${openMenus[menuKey] 
+                          ? 'bg-gradient-to-r from-sky-500/80 to-cyan-500/80 text-white shadow-lg shadow-blue-500/25 ring-1 ring-white/20' 
+                          : 'hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 hover:text-white hover:shadow-md hover:shadow-blue-500/20'
+                        }
+                      `}
+                      onClick={() => toggleMenu(menuKey)}
+                      onMouseEnter={() => setHoveredItem(menuKey)}
+                      onMouseLeave={() => setHoveredItem(null)}
                     >
-                      <span className="text-lg">{icon}</span>
-                      <span className="ml-3">{name}</span>
-                    </a>
-                    {openMenus[menuKey] && (
-                      <ul className="pl-6 space-y-2">
-                        {subMenu.map(({ name, icon, href }) => (
-                          <li key={name}>
-                            <a
-                              href={href}
-                              className="flex items-center px-4 py-3 text-blue-100 rounded-lg transition-all duration-300 hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 hover:text-white hover:shadow-md hover:shadow-blue-500/20 hover:backdrop-blur-sm"
+                      <div className="flex items-center">
+                        <span className={`text-lg transition-all duration-300 ${hoveredItem === menuKey ? 'scale-110' : ''}`}>
+                          {icon}
+                        </span>
+                        <span className="ml-3 font-medium">{name}</span>
+                      </div>
+                      <span className={`
+                        text-sm transition-all duration-300 ease-out
+                        ${openMenus[menuKey] ? 'rotate-180' : 'rotate-0'}
+                      `}>
+                        <FaChevronDown />
+                      </span>
+                    </button>
+                    
+                    {/* Submenu with smooth animation */}
+                    <div className={`
+                      overflow-hidden transition-all duration-300 ease-out
+                      ${openMenus[menuKey] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
+                    `}>
+                      <ul className="mt-2 ml-4 space-y-1 border-l-2 border-blue-400/30 pl-4">
+                        {subMenu.map(({ name: subName, icon: subIcon, href: subHref }, index) => (
+                          <li 
+                            key={subName}
+                            className={`
+                              transform transition-all duration-300 ease-out
+                              ${openMenus[menuKey] 
+                                ? `translate-x-0 opacity-100` 
+                                : 'translate-x-4 opacity-0'
+                              }
+                            `}
+                            style={{
+                              transitionDelay: openMenus[menuKey] ? `${index * 50}ms` : '0ms'
+                            }}
+                          >
+                            <Link
+                              href={subHref}
+                              className="
+                                flex items-center px-3 py-2.5 text-blue-200 rounded-lg 
+                                transition-all duration-300 ease-out relative overflow-hidden
+                                hover:bg-gradient-to-r hover:from-indigo-500/40 hover:to-purple-500/40 
+                                hover:text-white hover:shadow-md hover:shadow-indigo-500/20
+                                hover:translate-x-1 hover:scale-105
+                                before:absolute before:left-0 before:top-0 before:h-full before:w-1 
+                                before:bg-gradient-to-b before:from-cyan-400 before:to-blue-500 
+                                before:transform before:scale-y-0 before:transition-transform 
+                                before:duration-300 hover:before:scale-y-100
+                              "
+                              onMouseEnter={() => setHoveredItem(`${menuKey}-${subName}`)}
+                              onMouseLeave={() => setHoveredItem(null)}
                             >
-                              <span className="text-lg">{icon}</span>
-                              <span className="ml-3">{name}</span>
-                            </a>
+                              <span className={`
+                                text-base transition-all duration-300 
+                                ${hoveredItem === `${menuKey}-${subName}` ? 'scale-110 text-cyan-300' : ''}
+                              `}>
+                                {subIcon}
+                              </span>
+                              <span className="ml-3 text-sm font-medium">{subName}</span>
+                            </Link>
                           </li>
                         ))}
                       </ul>
-                    )}
+                    </div>
                   </div>
                 ) : (
-                  <a
+                  <Link
                     href={href}
-                    className="flex items-center px-4 py-3 text-blue-100 rounded-lg transition-all duration-300 hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 hover:text-white hover:shadow-md hover:shadow-blue-500/20 hover:backdrop-blur-sm"
+                    className="
+                      flex items-center px-4 py-3 text-blue-100 rounded-xl 
+                      transition-all duration-300 ease-out group relative overflow-hidden
+                      hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 
+                      hover:text-white hover:shadow-md hover:shadow-blue-500/20 
+                      hover:scale-105 hover:translate-x-1
+                      before:absolute before:left-0 before:top-0 before:h-full before:w-1 
+                      before:bg-gradient-to-b before:from-cyan-400 before:to-blue-500 
+                      before:transform before:scale-y-0 before:transition-transform 
+                      before:duration-300 hover:before:scale-y-100
+                    "
+                    onMouseEnter={() => setHoveredItem(name)}
+                    onMouseLeave={() => setHoveredItem(null)}
                   >
-                    <span className="text-lg">{icon}</span>
-                    <span className="ml-3">{name}</span>
-                  </a>
+                    <span className={`
+                      text-lg transition-all duration-300 
+                      ${hoveredItem === name ? 'scale-110 text-cyan-300' : ''}
+                    `}>
+                      {icon}
+                    </span>
+                    <span className="ml-3 font-medium">{name}</span>
+                  </Link>
                 )}
               </li>
             ))}
           </ul>
         </nav>
 
+        {/* Employee Info */}
         {empleado && (
-          <div className="p-4 border-t border-blue-700 bg-blue-800">
-            <div className="text-blue-100 text-sm">
-              <div className="font-medium">{empleado.nombre}</div>
-              <div className="text-blue-200 text-xs capitalize">{empleado.rol}</div>
+          <div className="p-4 border-t border-blue-600/50 bg-gradient-to-r from-blue-800/80 to-blue-700/80 backdrop-blur-sm">
+            <div className="text-blue-100 text-sm bg-blue-900/30 rounded-lg p-3 border border-blue-600/30">
+              <div className="font-semibold text-white">{empleado.nombre}</div>
+              <div className="text-blue-200 text-xs capitalize mt-1 flex items-center">
+                <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
+                {empleado.rol}
+              </div>
             </div>
           </div>
         )}
 
+        {/* Profile Button */}
         {empleado && (
-          <div className="bg-blue-800 p-4 border-t border-blue-700">
+          <div className="bg-gradient-to-r from-blue-800/80 to-blue-700/80 p-4 border-t border-blue-600/50">
             <Link
               href="/dashboard/perfil"
               scroll={false}
-              className="flex items-center justify-center w-full px-4 py-3 text-blue-200 border border-blue-600 rounded-md transition-all duration-200 hover:bg-blue-700 hover:text-white hover:border-blue-500"
+              className="
+                flex items-center justify-center w-full px-4 py-3 text-blue-200 
+                border border-blue-500/50 rounded-xl transition-all duration-300 
+                hover:bg-gradient-to-r hover:from-blue-600/60 hover:to-indigo-600/60 
+                hover:text-white hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/25
+                hover:scale-105 group relative overflow-hidden
+                before:absolute before:inset-0 before:bg-gradient-to-r 
+                before:from-transparent before:via-white/5 before:to-transparent 
+                before:transform before:-skew-x-12 before:-translate-x-full 
+                before:transition-transform before:duration-700 
+                hover:before:translate-x-full
+              "
             >
-              <FaUserAlt className="text-base" />
-              <span className="ml-3">{perfilLabel}</span>
+              <FaUserAlt className="text-base group-hover:scale-110 transition-transform duration-300" />
+              <span className="ml-3 font-medium">{perfilLabel}</span>
             </Link>
           </div>
         )}
 
-        <div className="bg-blue-800 p-4 border-t border-blue-700">
+        {/* Logout Button */}
+        <div className="bg-gradient-to-r from-blue-800/80 to-blue-700/80 p-4 border-t border-blue-600/50">
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="flex items-center justify-center w-full px-4 py-3 text-blue-200 border border-blue-600 rounded-md transition-all duration-200 hover:bg-blue-700 hover:text-white hover:border-blue-500 disabled:opacity-50"
+            className="
+              flex items-center justify-center w-full px-4 py-3 text-blue-200 
+              border border-red-500/50 rounded-xl transition-all duration-300 
+              hover:bg-gradient-to-r hover:from-red-600/60 hover:to-rose-600/60 
+              hover:text-white hover:border-red-400 hover:shadow-lg hover:shadow-red-500/25
+              disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 
+              group relative overflow-hidden
+              before:absolute before:inset-0 before:bg-gradient-to-r 
+              before:from-transparent before:via-white/5 before:to-transparent 
+              before:transform before:-skew-x-12 before:-translate-x-full 
+              before:transition-transform before:duration-700 
+              hover:before:translate-x-full
+            "
           >
-            <FaSignOutAlt className="text-base" />
-            <span className="ml-3">{isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}</span>
+            <FaSignOutAlt className={`
+              text-base transition-all duration-300 
+              ${isLoggingOut ? 'animate-spin' : 'group-hover:scale-110'}
+            `} />
+            <span className="ml-3 font-medium">
+              {isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}
+            </span>
           </button>
         </div>
       </div>
