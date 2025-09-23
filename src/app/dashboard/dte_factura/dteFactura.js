@@ -537,7 +537,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
         fechaemision: fechaEmision,
         horaemision: horaEmision,
         transaccioncontable: `TRX-${numeroFactura}`,
-        tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "credito",
+        tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "crédito",
         formapago: formapagoValue,
         estado: "",
 
@@ -575,7 +575,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
         montototaloperacion: parseFloat(subtotal.toFixed(2)),
         totalpagar: parseFloat(totalPagar.toFixed(2)), 
         totalpagar: parseFloat(totalPagar.toFixed(2)),
-        totalletras: convertirNumeroALetras(totalPagar),
+        totalletras: convertirNumeroALetras(totalPagar) + " DÓLARES",
         totaliva: parseFloat(ivaIncluido.toFixed(2)),
         saldofavor: 0.00,
 

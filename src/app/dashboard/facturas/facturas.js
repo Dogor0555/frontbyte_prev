@@ -463,7 +463,7 @@ return (
                       <div className="flex items-center text-gray-600">
                         <FaCalendarAlt className="mr-1 text-blue-500 text-xs" />
                         <span className="text-xs">
-                          {new Date(factura.fechaemision).toISOString().split("T")[0]}
+                           {`${new Date(factura.fechaemision).toISOString().split("T")[0]} ${factura.horaemision}`}
                         </span>
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${

@@ -32,7 +32,7 @@ export default function FormaPago({
         formaPago: formaPagoSeleccionada,
         monto: totalFactura,
         numeroDocumento: numeroDocumento || null,
-        plazo: condicionPago === "Crédito" ? `${plazo} ${periodo}` : null
+        plazo: condicionPago === "crédito" ? `${plazo} ${periodo}` : null
       };
       
       setFormasPago([nuevaFormaPago]);
@@ -75,7 +75,7 @@ export default function FormaPago({
   const tiposFormaPago = [
     { codigo: "01", nombre: "Billetes y Monedas" },
     { codigo: "02", nombre: "Tarjeta Débito" },
-    { codigo: "03", nombre: "Tarjeta Crédito" },
+    { codigo: "03", nombre: "Tarjeta crédito" },
     { codigo: "04", nombre: "Cheque" },
     { codigo: "05", nombre: "Transferencia–Depósito Bancario" },
     { codigo: "06", nombre: "Dinero electrónico" },
@@ -110,7 +110,7 @@ export default function FormaPago({
       formaPago: formaPagoSeleccionada,
       monto: monto,
       numeroDocumento: numeroDocumento || null,
-      plazo: condicionPago === "Crédito" ? `${plazo} ${periodo}` : null
+      plazo: condicionPago === "crédito" ? `${plazo} ${periodo}` : null
     };
 
     setFormasPago([...formasPago, nuevoPago]);
@@ -164,12 +164,12 @@ export default function FormaPago({
           <label className="inline-flex items-center">
             <input
               type="radio"
-              value="Crédito"
-              checked={condicionPago === "Crédito"}
-              onChange={() => setCondicionPago("Crédito")}
+              value="crédito"
+              checked={condicionPago === "crédito"}
+              onChange={() => setCondicionPago("crédito")}
               className="form-radio h-4 w-4 text-blue-600"
             />
-            <span className="ml-2">Crédito</span>
+            <span className="ml-2">crédito</span>
           </label>
         </div>
       </div>
@@ -261,7 +261,7 @@ export default function FormaPago({
           />
         </div>
 
-        {condicionPago === "Crédito" && (
+        {condicionPago === "crédito" && (
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Plazo</label>
@@ -346,7 +346,7 @@ export default function FormaPago({
                   <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Forma de Pago</th>
                   <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Monto</th>
                   <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">N° Documento</th>
-                  {condicionPago === "Crédito" && (
+                  {condicionPago === "crédito" && (
                     <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Plazo</th>
                   )}
                   <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Acciones</th>
@@ -364,7 +364,7 @@ export default function FormaPago({
                     <td className="px-4 py-2 border-b">
                       {pago.numeroDocumento || "N/A"}
                     </td>
-                    {condicionPago === "Crédito" && (
+                    {condicionPago === "crédito" && (
                       <td className="px-4 py-2 border-b">
                         {pago.plazo || "N/A"}
                       </td>
@@ -388,7 +388,7 @@ export default function FormaPago({
                     {formasPago.reduce((sum, pago) => sum + pago.monto, 0)
                       .toLocaleString('es-SV', { style: 'currency', currency: 'USD' })}
                   </td>
-                  <td className="px-4 py-2 border-t" colSpan={condicionPago === "Crédito" ? 2 : 1}></td>
+                  <td className="px-4 py-2 border-t" colSpan={condicionPago === "crédito" ? 2 : 1}></td>
                   <td className="px-4 py-2 border-t"></td>
                 </tr>
                 <tr>
@@ -399,7 +399,7 @@ export default function FormaPago({
                   }`}>
                     {montoRestante.toLocaleString('es-SV', { style: 'currency', currency: 'USD' })}
                   </td>
-                  <td className="px-4 py-2" colSpan={condicionPago === "Crédito" ? 2 : 1}></td>
+                  <td className="px-4 py-2" colSpan={condicionPago === "crédito" ? 2 : 1}></td>
                   <td className="px-4 py-2"></td>
                 </tr>
               </tfoot>

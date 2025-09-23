@@ -37,7 +37,7 @@ export default function Sidebar({ onOpenPerfil }) {
   const [openMenus, setOpenMenus] = useState({
     dtes: false,
     facturas: false,
-    clients: false,
+    creditos: false, // Nuevo menú para créditos
     admin: false,
   });
   const [hoveredItem, setHoveredItem] = useState(null);
@@ -91,7 +91,16 @@ export default function Sidebar({ onOpenPerfil }) {
       ],
       menuKey: "facturas",
     },
-    { name: "Creditos", icon: <FaCreditCard />, href: "/dashboard/creditos" },
+    {
+      name: "Creditos",
+      icon: <FaCreditCard />,
+      href: "#",
+      subMenu: [
+        { name: "Ver Créditos", icon: <FaEye />, href: "/dashboard/creditos" },
+        { name: "Anular Créditos", icon: <FaBan />, href: "/dashboard/anular_creditos" },
+      ],
+      menuKey: "creditos",
+    },
     { name: "Libro de Ventas", icon: <FaBook />, href: "/dashboard/libro_de_ventas" },
     { name: "Reportes", icon: <FaChartLine />, href: "/dashboard/reportes" },
     {name: "Editar Sucursal", icon: <FaEdit />, href: "/dashboard/editar_sucursal" },

@@ -537,7 +537,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
         fechaemision: fechaEmision,
         horaemision: horaEmision,
         transaccioncontable: `TRX-${numeroFactura}`,
-        tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "credito",
+        tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "crédito",
         formapago: formapagoValue,
         estado: "",
 
