@@ -56,8 +56,26 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
   // Función para ordenar facturas por fecha
   const ordenarFacturasPorFecha = (facturas) => {
     return [...facturas].sort((a, b) => {
-      const fechaA = new Date(a.fechaemision || 0);
-      const fechaB = new Date(b.fechaemision || 0);
+      // Crear fechas combinando fechaemision y horaemision
+      const crearFechaCompleta = (factura) => {
+        if (!factura.fechaemision) return new Date(0);
+        
+        // Si ya tiene hora incluida en fechaemision (formato ISO)
+        if (factura.fechaemision.includes('T') && !factura.fechaemision.endsWith('Z')) {
+          return new Date(factura.fechaemision);
+        }
+        
+        // Combinar fechaemision y horaemision
+        const fechaStr = factura.fechaemision.split('T')[0]; // Obtener solo la fecha
+        const horaStr = factura.horaemision || '00:00:00';
+        
+        // Crear fecha en formato ISO (ajustar a UTC si es necesario)
+        const fechaHoraStr = `${fechaStr}T${horaStr}Z`;
+        return new Date(fechaHoraStr);
+      };
+
+      const fechaA = crearFechaCompleta(a);
+      const fechaB = crearFechaCompleta(b);
       
       if (ordenFecha === "reciente") {
         return fechaB - fechaA; // Más reciente primero
@@ -115,8 +133,9 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
     
     if (!['TRANSMITIDO', 'RE-TRANSMITIDO'].includes(factura.estado)) return false;
     
-    if (factura.fechaemision) {
-      const fechaEmision = new Date(factura.fechaemision);
+    if (factura.fechaemision && factura.horaemision) {
+      const fechaHoraStr = `${factura.fechaemision.split("T")[0]}T${factura.horaemision}Z`;
+      const fechaEmision = new Date(fechaHoraStr);
       const ahora = new Date();
       const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
       return horasTranscurridas <= 24;

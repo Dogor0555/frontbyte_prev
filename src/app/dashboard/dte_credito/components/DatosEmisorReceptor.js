@@ -58,34 +58,37 @@ const DatosEmisorReceptor = ({
 
   // Cargar clientes al montar el componente
   useEffect(() => {
-    const fetchClientes = async () => {
-      setLoadingClientes(true);
-      try {
-        const response = await fetch("http://localhost:3000/clientes/activos", {
-          method: "GET",
-          credentials: "include", 
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            setClientes(data.data);
+      const fetchClientes = async () => {
+        setLoadingClientes(true);
+        try {
+          const response = await fetch("http://localhost:3000/clientes/activos", {
+            method: "GET",
+            credentials: "include", 
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+              const clientesFiltrados = data.data.filter(cliente => 
+                cliente.personanatural === false
+              );
+              setClientes(clientesFiltrados);
+            }
+          } else {
+            console.error("Error en la respuesta:", response.status);
           }
-        } else {
-          console.error("Error en la respuesta:", response.status);
+        } catch (error) {
+          console.error("Error al cargar clientes:", error);
+        } finally {
+          setLoadingClientes(false);
         }
-      } catch (error) {
-        console.error("Error al cargar clientes:", error);
-      } finally {
-        setLoadingClientes(false);
-      }
-    };
+      };
 
-    fetchClientes();
-  }, []);
+      fetchClientes();
+    }, []);
 
   useEffect(() => {
     if (searchTerm.trim() === "") {
