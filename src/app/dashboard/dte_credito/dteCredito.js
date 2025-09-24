@@ -533,7 +533,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
         sellorec: "", 
         modelofac: "01",
         verjson: "1.0",
-        tipotran: "2",
+        tipotran: "1",
         fechaemision: fechaEmision,
         horaemision: horaEmision,
         transaccioncontable: `TRX-${numeroFactura}`,
