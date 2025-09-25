@@ -25,6 +25,9 @@ import {
   FaBan,
   FaChevronDown,
   FaChevronRight,
+   // Nuevos iconos para notas
+  FaArrowCircleUp,    // Para nota de débito
+  FaArrowCircleDown, 
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -88,6 +91,8 @@ export default function Sidebar({ onOpenPerfil }) {
       subMenu: [
         { name: "Ver Facturas", icon: <FaEye />, href: "/dashboard/facturas" },
         { name: "Anular Facturas", icon: <FaBan />, href: "/dashboard/anular_facturas" },
+        { name: "Enviar nota de Débito", icon: <FaArrowCircleUp />, href: "/dashboard/creditos" },
+
       ],
       menuKey: "facturas",
     },
@@ -98,6 +103,8 @@ export default function Sidebar({ onOpenPerfil }) {
       subMenu: [
         { name: "Ver Créditos", icon: <FaEye />, href: "/dashboard/creditos" },
         { name: "Anular Créditos", icon: <FaBan />, href: "/dashboard/anular_creditos" },
+        { name: "Enviar nota de Crédito", icon: <FaArrowCircleDown />, href: "/dashboard/creditos" },
+
       ],
       menuKey: "creditos",
     },
