@@ -37,7 +37,7 @@ export default function Sidebar({ onOpenPerfil }) {
   const [openMenus, setOpenMenus] = useState({
     dtes: false,
     facturas: false,
-    creditos: false,
+    creditos: false, // Nuevo menú para créditos
     admin: false,
   });
   const [hoveredItem, setHoveredItem] = useState(null);
@@ -103,8 +103,7 @@ export default function Sidebar({ onOpenPerfil }) {
     },
     { name: "Libro de Ventas", icon: <FaBook />, href: "/dashboard/libro_de_ventas" },
     { name: "Reportes", icon: <FaChartLine />, href: "/dashboard/reportes" },
-    { name: "Editar Sucursal", icon: <FaEdit />, href: "/dashboard/editar_sucursal" },
-    { name: "Mi Perfil", icon: <FaUserAlt />, href: "/dashboard/perfil" },
+    {name: "Editar Sucursal", icon: <FaEdit />, href: "/dashboard/editar_sucursal" },
   ];
 
   if (empleado && isAdmin(empleado)) {
@@ -122,6 +121,8 @@ export default function Sidebar({ onOpenPerfil }) {
   } else {
     menuItems.push({ name: "Configuración", icon: <FaCog />, href: "#" });
   }
+
+  const perfilLabel = empleado && isAdmin(empleado) ? "Editar Perfil" : "Ver Perfil";
 
   return (
     <aside className="bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 h-full w-64 shadow-2xl">
@@ -261,6 +262,31 @@ export default function Sidebar({ onOpenPerfil }) {
                 {empleado.rol}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Profile Button */}
+        {empleado && (
+          <div className="bg-gradient-to-r from-blue-800/80 to-blue-700/80 p-4 border-t border-blue-600/50">
+            <Link
+              href="/dashboard/editar_perfil"
+              scroll={false}
+              className="
+                flex items-center justify-center w-full px-4 py-3 text-blue-200 
+                border border-blue-500/50 rounded-xl transition-all duration-300 
+                hover:bg-gradient-to-r hover:from-blue-600/60 hover:to-indigo-600/60 
+                hover:text-white hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/25
+                hover:scale-105 group relative overflow-hidden
+                before:absolute before:inset-0 before:bg-gradient-to-r 
+                before:from-transparent before:via-white/5 before:to-transparent 
+                before:transform before:-skew-x-12 before:-translate-x-full 
+                before:transition-transform before:duration-700 
+                hover:before:translate-x-full
+              "
+            >
+              <FaUserAlt className="text-base group-hover:scale-110 transition-transform duration-300" />
+              <span className="ml-3 font-medium">{perfilLabel}</span>
+            </Link>
           </div>
         )}
 
