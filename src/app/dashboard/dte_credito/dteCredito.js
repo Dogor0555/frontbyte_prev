@@ -617,8 +617,9 @@ const guardarDetallesFactura = async (iddtefactura) => {
     };
 
     const entero = Math.floor(numero);
+    const decimales = Math.round((numero - entero) * 100);
 
-    if (entero === 0) return "CERO";
+    if (entero === 0) return `CERO CON ${decimales.toString().padStart(2, "0")}/100`;
 
     let partes = [];
     let resto = entero;
@@ -639,7 +640,10 @@ const guardarDetallesFactura = async (iddtefactura) => {
       partes.push(convertirMenorQueMil(resto));
     }
 
-    return partes.join(" ");
+    const textoEntero = partes.join(" ");
+    const textoDecimales = `${decimales.toString().padStart(2, "0")}/100`;
+
+    return `${textoEntero} CON ${textoDecimales} DÓLARES`;
   };
 
   useEffect(() => {
