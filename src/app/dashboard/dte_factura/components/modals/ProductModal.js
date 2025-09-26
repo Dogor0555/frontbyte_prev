@@ -665,7 +665,6 @@ const agregarTributo = () => {
                           <div className="flex-1">
                             <div className="text-sm font-medium">{tributo.codigo}</div>
                             <div className="text-xs text-gray-600">{tributo.descripcion}</div>
-                            <div className="text-xs font-semibold">${tributo.valor.toFixed(2)}</div>
                           </div>
                           <button
                             onClick={() => eliminarTributo(tributo.codigo)}
@@ -694,7 +693,6 @@ const agregarTributo = () => {
                   {tributos.map((tributo, index) => (
                     <div key={index} className="flex justify-between py-1 border-t border-gray-100">
                       <span className="text-sm text-gray-600">{tributo.codigo}:</span>
-                      <span className="text-sm font-medium text-gray-900">${tributo.valor.toFixed(2)}</span>
                     </div>
                   ))}
                   

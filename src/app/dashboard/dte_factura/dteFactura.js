@@ -82,6 +82,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [errorValidacion, setErrorValidacion] = useState("");
   const [emisorDocumento, setEmisorDocumento] = useState("");
   const [emisorNombre, setEmisorNombre] = useState("");
+  // Agregar después de los otros estados
+const [tributosDetallados, setTributosDetallados] = useState({});
 
   // Inicializar correo desde user o, si no hay, desde localStorage
   useEffect(() => {
@@ -575,7 +577,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
         montototaloperacion: parseFloat(subtotal.toFixed(2)),
         totalpagar: parseFloat(totalPagar.toFixed(2)), 
         totalpagar: parseFloat(totalPagar.toFixed(2)),
-        totalletras: convertirNumeroALetras(totalPagar),
+        totalletras: convertirNumeroALetras(totalPagar) + " DÓLARES",
         totaliva: parseFloat(ivaIncluido.toFixed(2)),
         saldofavor: 0.00,
 
@@ -617,9 +619,8 @@ const guardarDetallesFactura = async (iddtefactura) => {
     };
 
     const entero = Math.floor(numero);
-    const decimales = Math.round((numero - entero) * 100);
 
-    if (entero === 0) return `CERO CON ${decimales.toString().padStart(2, "0")}/100`;
+    if (entero === 0) return "CERO";
 
     let partes = [];
     let resto = entero;
@@ -640,12 +641,8 @@ const guardarDetallesFactura = async (iddtefactura) => {
       partes.push(convertirMenorQueMil(resto));
     }
 
-    const textoEntero = partes.join(" ");
-    const textoDecimales = `${decimales.toString().padStart(2, "0")}/100`;
-
-    return `${textoEntero} CON ${textoDecimales} DÓLARES`;
+    return partes.join(" ");
   };
-
 
   useEffect(() => {
     const checkIsMobile = () => {
@@ -703,51 +700,107 @@ const guardarDetallesFactura = async (iddtefactura) => {
       (cliente?.dui?.toString() || "").includes(searchTerm.toLowerCase())
   ) : [];
 
-useEffect(() => {
-  const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
-  
-  const descuentoItems = items.reduce((sum, item) => 
-    sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0);
 
-  const gravadasBase = items
-    .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-    .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
-  
-  const exentasBase = items
-    .filter(item => item.tipo === "noAfecto")
-    .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
 
-  const descuentoGrabadas = descuentoGrabadasMonto;
-  const descuentoExentas = descuentoExentasMonto;
-  
-  const descuentoTotal = descuentoItems + descuentoGrabadas + descuentoExentas;
-  
-  const gravadasConDescuento = gravadasBase - 
-    (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
-    descuentoGrabadas;
-  
-  const exentasConDescuento = exentasBase - 
-    (items.filter(item => item.tipo === "noAfecto")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
-    descuentoExentas;
+  useEffect(() => {
+    const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const descuentoItems = items.reduce((sum, item) => 
+      sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0);
 
-  const tasaIVA = 13; 
-  const ivaIncluido = gravadasConDescuento > 0 ? 
-    (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
+    const gravadasBase = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const exentasBase = items
+      .filter(item => item.tipo === "noAfecto")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
 
-  const total = gravadasConDescuento + exentasConDescuento;
+    const descuentoGrabadas = descuentoGrabadasMonto;
+    const descuentoExentas = descuentoExentasMonto;
+    
+    const descuentoTotal = descuentoItems + descuentoGrabadas + descuentoExentas;
+    
+    const gravadasConDescuento = gravadasBase - 
+      (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
+      descuentoGrabadas;
+    
+    const exentasConDescuento = exentasBase - 
+      (items.filter(item => item.tipo === "noAfecto")
+        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
+      descuentoExentas;
 
-  setSumaopesinimpues(parseFloat(suma.toFixed(2)));
-  setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
-  setVentasgrabadas(parseFloat(gravadasConDescuento.toFixed(2)));
-  setValoriva(parseFloat(ivaIncluido.toFixed(2))); 
-  setTotal(parseFloat(total.toFixed(2)));
+    // Calcular tributos detallados
+    const nuevosTributos = {};
+    
+    items.forEach(item => {
+      if (item.tributos && Array.isArray(item.tributos)) {
+        item.tributos.forEach(tributo => {
+          const subtotalItem = item.precioUnitario * item.cantidad;
+          const descuentoItem = subtotalItem * (item.descuento / 100);
+          const baseImponible = subtotalItem - descuentoItem;
+          
+          // Calcular el valor del tributo para este item
+          let valorTributo = 0;
+          
+          if (tributo.codigo === "20") {
+            // IVA 13%
+            valorTributo = baseImponible * 0.13;
+          } else {
+            // Para otros tributos, usar el valor calculado o calcularlo
+            valorTributo = tributo.valor || 0;
+          }
+          
+          if (nuevosTributos[tributo.codigo]) {
+            nuevosTributos[tributo.codigo].valor += valorTributo;
+          } else {
+            nuevosTributos[tributo.codigo] = {
+              codigo: tributo.codigo,
+              descripcion: tributo.descripcion || obtenerDescripcionTributo(tributo.codigo),
+              valor: valorTributo
+            };
+          }
+        });
+      }
+    });
+    
+    setTributosDetallados(nuevosTributos);
+
+    const tasaIVA = 13; 
+    const ivaIncluido = gravadasConDescuento > 0 ? 
+      (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
+
+    const total = gravadasConDescuento + exentasConDescuento;
+
+    setSumaopesinimpues(parseFloat(suma.toFixed(2)));
+    setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
+    setVentasgrabadas(parseFloat(gravadasConDescuento.toFixed(2)));
+    setValoriva(parseFloat(ivaIncluido.toFixed(2))); 
+    setTotal(parseFloat(total.toFixed(2)));
+    
+    setGravadasSinDescuentoState(parseFloat(gravadasBase.toFixed(2)));
+    setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
+    setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
+  }, [items, descuentoGrabadasMonto, descuentoExentasMonto]);
+
+
+  const obtenerDescripcionTributo = (codigo) => {
+  const tributosMap = {
+    "20": "IVA 13%",
+    "59": "Turismo: por alojamiento (5%)",
+    "71": "Turismo: salida del país por vía aérea $7.00",
+    "D1": "FOVIAL ($0.20 por galón)",
+    "C8": "COTRANS ($0.10 por galón)",
+    "D5": "Otras tasas casos especiales",
+    "D4": "Otros impuestos casos especiales",
+    "C5": "Impuesto ad-valorem bebidas alcohólicas (8%)",
+    "C6": "Impuesto ad-valorem tabaco cigarrillos (39%)",
+    "C7": "Impuesto ad-valorem tabaco cigarros (100%)",
+  };
   
-  setGravadasSinDescuentoState(parseFloat(gravadasBase.toFixed(2)));
-  setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
-  setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
-}, [items, descuentoGrabadasMonto, descuentoExentasMonto]);
+  return tributosMap[codigo] || `Tributo ${codigo}`;
+};
 
   const showClientDetailsPopup = (cliente) => {
     setSelectedClient(cliente);
@@ -1085,6 +1138,7 @@ useEffect(() => {
               </div>
 
               {/* Totales */}
+              {/* Totales */}
               <div className="bg-gray-50 p-4 rounded-lg mb-6 text-black">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -1114,15 +1168,25 @@ useEffect(() => {
                       <span className="font-semibold">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
                   </div>
+                  
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-700">Monto Total de la operación:</span>
                       <span className="font-medium">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">IVA (13%):</span>
-                      <span className="font-medium">{formatMoney(valoriva)}</span>
-                    </div>
+                    
+                    {/* Mostrar tributos desglosados */}
+                    {Object.values(tributosDetallados).map((tributo) => (
+                      <div key={tributo.codigo} className="flex justify-between text-sm">
+                        <span className="text-gray-600">
+                          {tributo.codigo} - {tributo.descripcion}:
+                        </span>
+                        <span className="font-medium text-green-600">
+                          +{formatMoney(tributo.valor)}
+                        </span>
+                      </div>
+                    ))}
+                    
                     <div className="flex justify-between pt-2 border-t border-gray-300">
                       <span className="text-gray-900 font-bold text-lg">Total a pagar:</span>
                       <span className="text-blue-800 font-bold text-lg">{formatMoney(total)}</span>
