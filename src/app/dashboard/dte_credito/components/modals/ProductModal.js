@@ -294,6 +294,9 @@ const agregarTributo = () => {
                            productoSeleccionado.stock !== null && 
                            cantidad > productoSeleccionado.stock;
 
+  // Verificar si es producto exento (tipoVenta === "2")
+  const esExento = tipoVenta === "2";
+
   return (
     <div className="text-black fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
       {/* Modal de alerta de stock insuficiente */}
@@ -361,7 +364,7 @@ const agregarTributo = () => {
                     setTipoProducto(e.target.value);
                     setProductoSeleccionado(null);
                   }}
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="1">1 - Bien</option>
                   <option value="2">2 - Servicio</option>
@@ -385,7 +388,7 @@ const agregarTributo = () => {
                     min="1"
                     value={cantidad}
                     onChange={(e) => setCantidad(parseFloat(e.target.value) || 1)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -393,7 +396,7 @@ const agregarTributo = () => {
                   <input
                     type="text"
                     readOnly
-                    className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={productoSeleccionado ? obtenerNombreUnidad(productoSeleccionado.unidad) : "Unidad"}
                   />
                 </div>
@@ -405,7 +408,7 @@ const agregarTributo = () => {
                 <input
                   type="text"
                   readOnly
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={productoSeleccionado ? productoSeleccionado.nombre : ""}
                   placeholder="Seleccione un producto"
                 />
@@ -416,7 +419,7 @@ const agregarTributo = () => {
                 <input
                   type="text"
                   readOnly
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={productoSeleccionado ? `$${parseFloat(productoSeleccionado.precio).toFixed(2)}` : "$0.00"}
                 />
               </div>
@@ -426,7 +429,7 @@ const agregarTributo = () => {
                 <select 
                   value={tipoVenta}
                   onChange={(e) => setTipoVenta(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="1">Gravado</option>
                   <option value="2">Exento</option>
@@ -437,11 +440,11 @@ const agregarTributo = () => {
               {/* Información de stock (solo para productos) */}
               {!esServicio && productoSeleccionado && productoSeleccionado.stock !== undefined && (
                 <div className={`p-3 rounded-lg border ${
-                  stockInsuficiente ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
+                  stockInsuficiente ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'
                 }`}>
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">Stock disponible:</span>
-                    <span className={`font-bold ${stockInsuficiente ? 'text-red-600' : 'text-green-600'}`}>
+                    <span className={`font-bold ${stockInsuficiente ? 'text-red-600' : 'text-blue-600'}`}>
                       {productoSeleccionado.stock}
                     </span>
                   </div>
@@ -482,7 +485,7 @@ const agregarTributo = () => {
                   <input
                     type="text"
                     placeholder="Escriba al menos 2 caracteres para buscar..."
-                    className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value.toLowerCase())}
                   />
@@ -490,7 +493,7 @@ const agregarTributo = () => {
 
                 {cargandoProductos && (
                   <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
                     <p className="text-sm text-gray-600 mt-2">Cargando productos...</p>
                   </div>
                 )}
@@ -518,8 +521,8 @@ const agregarTributo = () => {
                       .map((producto) => (
                         <div
                           key={producto.id}
-                          className={`p-3 border-b border-gray-200 cursor-pointer hover:bg-green-50 transition-colors ${
-                            productoSeleccionado?.id === producto.id ? 'bg-green-100 border-l-4 border-l-green-500' : ''
+                          className={`p-3 border-b border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors ${
+                            productoSeleccionado?.id === producto.id ? 'bg-blue-100 border-l-4 border-l-blue-500' : ''
                           }`}
                           onClick={() => setProductoSeleccionado(producto)}
                         >
@@ -579,8 +582,13 @@ const agregarTributo = () => {
               <div className="border-b border-gray-200 pb-2">
                 <h3 className="font-semibold text-gray-900 text-lg">Información de tributos</h3>
                 {tipoVenta === "1" && (
-                  <p className="text-xs text-green-600 mt-1">
+                  <p className="text-xs text-blue-600 mt-1">
                     El IVA (20) se ha agregado automáticamente para productos gravados
+                  </p>
+                )}
+                {esExento && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Los productos exentos no pueden tener tributos/impuestos
                   </p>
                 )}
               </div>
@@ -589,9 +597,10 @@ const agregarTributo = () => {
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Seleccionar Impuesto:</label>
                 <div className="flex gap-2 mb-2">
                   <select
-                    className="flex-1 p-3 border w-1/2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className="flex-1 p-3 border w-1/2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={impuestoSeleccionado}
                     onChange={(e) => setImpuestoSeleccionado(e.target.value)}
+                    disabled={esExento}
                   >
                     <option value="20">20 - Impuesto al Valor Agregado 13%</option>
                     <option value="59">59 - Turismo: por alojamiento (5%)</option>
@@ -638,8 +647,9 @@ const agregarTributo = () => {
                   </select>
                   <button
                     onClick={agregarTributo}
-                    className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                    disabled={!productoSeleccionado}
+                    className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={!productoSeleccionado || esExento}
+                    title={esExento ? "No se pueden agregar tributos a productos exentos" : "Agregar tributo"}
                   >
                     <FaPlus />
                   </button>
@@ -660,8 +670,8 @@ const agregarTributo = () => {
                           <button
                             onClick={() => eliminarTributo(tributo.codigo)}
                             className="text-red-500 hover:text-red-700 ml-2"
-                            disabled={tipoVenta === "1" && tributo.codigo === "20"}
-                            title={tipoVenta === "1" && tributo.codigo === "20" ? "No puede eliminar el IVA de un producto gravado" : "Eliminar impuesto"}
+                            disabled={(tipoVenta === "1" && tributo.codigo === "20") || esExento}
+                            title={esExento ? "No se pueden eliminar tributos de productos exentos" : (tipoVenta === "1" && tributo.codigo === "20" ? "No puede eliminar el IVA de un producto gravado" : "Eliminar impuesto")}
                           >
                             <FaTrash size={14} />
                           </button>
@@ -673,7 +683,7 @@ const agregarTributo = () => {
               </div>
 
               {/* Resumen de totales */}
-              <div className="bg-gradient-to-r from-gray-50 to-green-50 p-6 rounded-xl border border-gray-200">
+              <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-6 rounded-xl border border-gray-200">
                 <h4 className="font-semibold text-gray-900 mb-4 text-center">Resumen del Item</h4>
                 <div className="space-y-3">
                   <div className="flex justify-between py-2">
@@ -690,7 +700,7 @@ const agregarTributo = () => {
                   
                   <div className="flex justify-between py-3 border-t border-gray-300 mt-2">
                     <span className="text-lg font-semibold text-gray-900">Total:</span>
-                    <span className="text-xl font-bold text-green-700">${total.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-blue-700">${total.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -699,10 +709,10 @@ const agregarTributo = () => {
         </div>
 
         {/* Pie de página con botones */}
-        <div className="bg-gray-100 px-6 py-4 flex justify-between items-center flex-shrink-0">
+        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-between items-center flex-shrink-0">
           <button
             onClick={onBackToSelector}
-            className="px-5 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+            className="px-6 py-2.5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors font-medium"
           >
             Volver al Selector
           </button>
@@ -710,14 +720,14 @@ const agregarTributo = () => {
           <div className="flex space-x-3">
             <button
               onClick={handleClose}
-              className="px-5 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+              className="px-6 py-2.5 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition-colors font-medium"
             >
               Cancelar
             </button>
             <button
               onClick={handleAgregarItem}
+              className="px-8 py-2.5 bg-green-700 text-white rounded-lg hover:bg-green-600 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
               disabled={!productoSeleccionado}
-              className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-green-300 disabled:cursor-not-allowed"
             >
               Agregar Item
             </button>

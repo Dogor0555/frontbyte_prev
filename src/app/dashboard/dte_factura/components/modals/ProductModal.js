@@ -294,6 +294,9 @@ const agregarTributo = () => {
                            productoSeleccionado.stock !== null && 
                            cantidad > productoSeleccionado.stock;
 
+  // Verificar si es producto exento (tipoVenta === "2")
+  const esExento = tipoVenta === "2";
+
   return (
     <div className="text-black fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
       {/* Modal de alerta de stock insuficiente */}
@@ -583,6 +586,11 @@ const agregarTributo = () => {
                     El IVA (20) se ha agregado automáticamente para productos gravados
                   </p>
                 )}
+                {esExento && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Los productos exentos no pueden tener tributos/impuestos
+                  </p>
+                )}
               </div>
 
               <div>
@@ -592,6 +600,7 @@ const agregarTributo = () => {
                     className="flex-1 p-3 border w-1/2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={impuestoSeleccionado}
                     onChange={(e) => setImpuestoSeleccionado(e.target.value)}
+                    disabled={esExento}
                   >
                     <option value="20">20 - Impuesto al Valor Agregado 13%</option>
                     <option value="59">59 - Turismo: por alojamiento (5%)</option>
@@ -638,8 +647,9 @@ const agregarTributo = () => {
                   </select>
                   <button
                     onClick={agregarTributo}
-                    className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    disabled={!productoSeleccionado}
+                    className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={!productoSeleccionado || esExento}
+                    title={esExento ? "No se pueden agregar tributos a productos exentos" : "Agregar tributo"}
                   >
                     <FaPlus />
                   </button>
@@ -660,8 +670,8 @@ const agregarTributo = () => {
                           <button
                             onClick={() => eliminarTributo(tributo.codigo)}
                             className="text-red-500 hover:text-red-700 ml-2"
-                            disabled={tipoVenta === "1" && tributo.codigo === "20"}
-                            title={tipoVenta === "1" && tributo.codigo === "20" ? "No puede eliminar el IVA de un producto gravado" : "Eliminar impuesto"}
+                            disabled={(tipoVenta === "1" && tributo.codigo === "20") || esExento}
+                            title={esExento ? "No se pueden eliminar tributos de productos exentos" : (tipoVenta === "1" && tributo.codigo === "20" ? "No puede eliminar el IVA de un producto gravado" : "Eliminar impuesto")}
                           >
                             <FaTrash size={14} />
                           </button>
@@ -699,10 +709,10 @@ const agregarTributo = () => {
         </div>
 
         {/* Pie de página con botones */}
-        <div className="bg-gray-100 px-6 py-4 flex justify-between items-center flex-shrink-0">
+        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-between items-center flex-shrink-0">
           <button
             onClick={onBackToSelector}
-            className="px-5 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+            className="px-6 py-2.5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors font-medium"
           >
             Volver al Selector
           </button>
@@ -710,14 +720,14 @@ const agregarTributo = () => {
           <div className="flex space-x-3">
             <button
               onClick={handleClose}
-              className="px-5 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+              className="px-6 py-2.5 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition-colors font-medium"
             >
               Cancelar
             </button>
             <button
               onClick={handleAgregarItem}
+              className="px-8 py-2.5 bg-blue-700 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
               disabled={!productoSeleccionado}
-              className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
             >
               Agregar Item
             </button>
