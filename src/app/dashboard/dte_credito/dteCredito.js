@@ -527,13 +527,14 @@ const guardarDetallesFactura = async (iddtefactura) => {
     const tasaIVA = 13;
     const ivaIncluido = gravadasConDescuento > 0 ? 
       (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
-
+    
       return {
         idcliente: cliente?.id || 1,
+        tipo_dte: "03",
         sellorec: "", 
         modelofac: "01",
-        verjson: "1.0",
-        tipotran: "1",
+        verjson: "3.0",
+        tipotran: "01",
         fechaemision: fechaEmision,
         horaemision: horaEmision,
         transaccioncontable: `TRX-${numeroFactura}`,

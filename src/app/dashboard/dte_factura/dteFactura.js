@@ -1138,7 +1138,6 @@ const guardarDetallesFactura = async (iddtefactura) => {
               </div>
 
               {/* Totales */}
-              {/* Totales */}
               <div className="bg-gray-50 p-4 rounded-lg mb-6 text-black">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
