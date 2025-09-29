@@ -540,7 +540,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
     
       return {
         idcliente: cliente?.id || 1,
-        tipo_dte: "01",
+        tipo_dte: "03",
         sellorec: "", 
         modelofac: "01",
         verjson: "3.0",

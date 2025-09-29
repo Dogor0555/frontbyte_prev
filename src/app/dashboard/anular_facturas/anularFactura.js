@@ -58,16 +58,37 @@ export default function AnularFacturaView({ user, hasHaciendaToken, haciendaStat
     fetchFacturas();
   }, []);
 
-  const puedeAnular = (factura) => {
+  const puedeAnular = async (factura) => {
     if (!factura) return false;
     if (factura.estado === 'INVALIDADO') return false;
     if (!['TRANSMITIDO', 'RE-TRANSMITIDO'].includes(factura.estado)) return false;
     
     if (factura.fechaemision) {
-      const fechaEmision = new Date(factura.fechaemision);
-      const ahora = new Date();
-      const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
-      return horasTranscurridas <= 24;
+      try {
+        // Obtener la hora del servidor
+        const response = await fetch("http://localhost:3000/api/server-time", {
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error("Error al obtener hora del servidor");
+        }
+        
+        const serverTimeData = await response.json();
+        const serverTime = new Date(serverTimeData.serverTime);
+        
+        const fechaEmision = new Date(factura.fechaemision);
+        const horasTranscurridas = (serverTime - fechaEmision) / (1000 * 60 * 60);
+        
+        return horasTranscurridas <= 24;
+      } catch (error) {
+        console.error("Error al verificar tiempo con servidor:", error);
+        // Fallback: usar hora del cliente si falla la llamada al servidor
+        const fechaEmision = new Date(factura.fechaemision);
+        const ahora = new Date();
+        const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
+        return horasTranscurridas <= 24;
+      }
     }
     
     return false;
