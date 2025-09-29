@@ -212,7 +212,14 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       if (responseEncabezado.ok) {
         const result = await responseEncabezado.json();
         console.log("Encabezado de factura guardado:", result);
-        
+
+        // Validar que iddtefactura sea un número válido antes de enviar detalles
+        if (result.iddtefactura === null || result.iddtefactura === undefined || isNaN(result.iddtefactura)) {
+          alert("Error: El iddtefactura recibido es inválido.");
+          setGuardandoFactura(false);
+          return;
+        }
+
         const detallesGuardados = await guardarDetallesFactura(result.iddtefactura);
         
         if (detallesGuardados) {
@@ -394,6 +401,9 @@ const actualizarStockProductos = async (itemsFactura) => {
 
 const guardarDetallesFactura = async (iddtefactura) => {
   try {
+    // Convertir iddtefactura a entero antes de usarlo
+    const idFacturaInt = parseInt(iddtefactura, 10);
+
     const detalles = items.map((item, index) => {
       const subtotalItem = item.precioUnitario * item.cantidad;
       const descuentoItem = subtotalItem * (item.descuento / 100);
@@ -437,7 +447,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
 
     console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
 
-    const responseDetalles = await fetch(`http://localhost:3000/facturas/${iddtefactura}/detalles`, {
+    const responseDetalles = await fetch(`http://localhost:3000/creditos/${idFacturaInt}/detalles`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -530,7 +540,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
     
       return {
         idcliente: cliente?.id || 1,
-        tipo_dte: "03",
+        tipo_dte: "01",
         sellorec: "", 
         modelofac: "01",
         verjson: "3.0",
