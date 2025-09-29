@@ -553,7 +553,6 @@ const guardarDetallesFactura = async (iddtefactura) => {
         valorletras: convertirNumeroALetras(totalPagar),
         tipocontingencia: "",
         motivocontin: "",
-
         totalnosuj: 0.00,
         totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
         totalgravada: parseFloat(gravadasConDescuento.toFixed(2)),
