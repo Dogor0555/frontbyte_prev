@@ -121,10 +121,16 @@ export default function EditClientModal({
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    const formDataToSend = {
+      ...formData,
+      nit: formData.nit ? formData.nit.replace(/-/g, '') : formData.nit
+    };
+    
     if (validateForm()) {
-      onUpdate(e);
+      onUpdate(e, formDataToSend); 
     }
   };
+
 
   const handleTipoPersonaChange = (isNatural) => {
     setFormData({

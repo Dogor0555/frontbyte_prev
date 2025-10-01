@@ -269,7 +269,8 @@ const agregarTributo = () => {
       productoId: !esServicio ? productoSeleccionado.id : null,
       actualizarStock: necesitaActualizarStock,
       stockAnterior: !esServicio ? productoSeleccionado.stock : null,
-      esServicio: esServicio
+      esServicio: esServicio,
+      tipoProducto: tipoProducto
     });
     
     limpiarFormulario();

@@ -58,6 +58,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [correoReceptor, setCorreoReceptor] = useState("");
   const [telefonoReceptor, setTelefonoReceptor] = useState("");
   const [complementoReceptor, setComplementoReceptor] = useState("");
+  const [idReceptor, setIdReceptor] = useState(null);
   const [tipoDocumentoLabel, setTipoDocumentoLabel] = useState("Documento");
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [descuentoGrabadasMonto, setDescuentoGrabadasMonto] = useState(0);
@@ -325,10 +326,13 @@ const verDatosFactura = () => {
     const esExento = item.tipo === "noAfecto";
 
     const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+    tipoProducto = item.tipoProducto;
+
+    console.log("tipo produc", tipoProducto);
 
     return {
       numitem: index + 1,
-      tipoitem: "1",
+      tipoitem: tipoProducto,
       numerodocumento: null,
       cantidad: parseFloat(item.cantidad.toFixed(2)),
       codigo: codigoItem,
@@ -401,7 +405,6 @@ const actualizarStockProductos = async (itemsFactura) => {
 
 const guardarDetallesFactura = async (iddtefactura) => {
   try {
-    // Convertir iddtefactura a entero antes de usarlo
     const idFacturaInt = parseInt(iddtefactura, 10);
 
     const detalles = items.map((item, index) => {
@@ -458,7 +461,6 @@ const guardarDetallesFactura = async (iddtefactura) => {
       const resultDetalles = await responseDetalles.json();
       console.log("Detalles de factura guardados:", resultDetalles);
       
-      // ACTUALIZAR STOCK DESPUÉS DE GUARDAR LOS DETALLES
       await actualizarStockProductos(items);
       
       return true;
@@ -499,7 +501,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
 
   const prepararDatosFactura = () => {
     const subtotal = sumaopesinimpues - totaldescuento;
-    const totalPagar = total;
+    const totalPagar = subtotal + valoriva;
     
     const ahora = new Date();
     const fechaEmision = fechaHoraEmision.fechaEmision || ahora.toISOString().split('T')[0];
@@ -510,7 +512,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
     if (formasPago && formasPago.length > 0) {
       const metodoPago = formasPago[0]?.metodo?.toLowerCase() || "";
       
-    if (formasPago && formasPago.length > 0) {
+      if (formasPago && formasPago.length > 0) {
         const metodoPago = formasPago[0]?.metodo || "";
         formapagoValue = metodoPago || "Efectivo";
       }
@@ -534,73 +536,86 @@ const guardarDetallesFactura = async (iddtefactura) => {
         .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
       descuentoExentasMonto;
 
-    const tasaIVA = 13;
+    const tasaIVA = 0.13;
     const ivaIncluido = gravadasConDescuento > 0 ? 
-      (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
+      (gravadasConDescuento * tasaIVA) : 0;
+
+    const montototaloperacion = subtotal + ivaIncluido;
+
+    const tributosResumen = [];
     
-      return {
-        idcliente: cliente?.id || 1,
-        tipo_dte: "03",
-        sellorec: "", 
-        modelofac: "01",
-        verjson: "3.0",
-        tipotran: "01",
-        fechaemision: fechaEmision,
-        horaemision: horaEmision,
-        transaccioncontable: `TRX-${numeroFactura}`,
-        tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "crédito",
-        formapago: formapagoValue,
-        estado: "",
+    if (gravadasConDescuento > 0) {
+      tributosResumen.push({
+        codigo: "20",
+        descripcion: "Impuesto al valor agregado (13%)",
+        valor: parseFloat(ivaIncluido.toFixed(2))
+      });
+    }
 
-        sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
-        totaldescuento: parseFloat(totaldescuento.toFixed(2)),
-        valoriva: parseFloat(ivaIncluido.toFixed(2)), 
-        subtotal: parseFloat(subtotal.toFixed(2)),
-        ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
-        montototalope: parseFloat(subtotal.toFixed(2)),
-        totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
-        totalapagar: parseFloat(totalPagar.toFixed(2)),
-        valorletras: convertirNumeroALetras(totalPagar),
-        tipocontingencia: "",
-        motivocontin: "",
-        totalnosuj: 0.00,
-        totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
-        totalgravada: parseFloat(gravadasConDescuento.toFixed(2)),
-        subtotalventas: parseFloat(subtotal.toFixed(2)),
+    return {
+      idcliente: idReceptor,
+      tipo_dte: "03",
+      sellorec: "", 
+      modelofac: "01",
+      verjson: "3.0",
+      tipotran: "01",
+      fechaemision: fechaEmision,
+      horaemision: horaEmision,
+      transaccioncontable: `TRX-${numeroFactura}`,
+      tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "crédito",
+      formapago: formapagoValue,
+      estado: "",
 
-        descunosuj: 0.00,
-        descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
-        descugravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
-        porcentajedescuento: totaldescuento > 0 ? parseFloat(((totaldescuento / sumaopesinimpues) * 100).toFixed(2)) : 0.00,
-        totaldescu: parseFloat(totaldescuento.toFixed(2)),
-        tributosf: null,
-        codigot: "",
-        descripciont: "",
-        valort: 0.00,
+      // RESUMEN CON TRIBUTOS
+      sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
+      totaldescuento: parseFloat(totaldescuento.toFixed(2)),
+      valoriva: parseFloat(ivaIncluido.toFixed(2)), 
+      subtotal: parseFloat(subtotal.toFixed(2)),
+      ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
+      montototalope: parseFloat(montototaloperacion.toFixed(2)),
+      totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
+      totalapagar: parseFloat(total.toFixed(2)), 
+      valorletras: convertirNumeroALetras(total),
+      tipocontingencia: "",
+      motivocontin: "",
+      totalnosuj: 0.00,
+      totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
+      totalgravada: parseFloat(gravadasConDescuento.toFixed(2)),
+      subtotalventas: parseFloat(subtotal.toFixed(2)),
 
-        ivaperci1: parseFloat(ivaIncluido.toFixed(2)),
-        ivarete1: 0.00,
-        reterenta: 0.00,
+      descunosuj: 0.00,
+      descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
+      descugravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
+      porcentajedescuento: totaldescuento > 0 ? parseFloat(((totaldescuento / sumaopesinimpues) * 100).toFixed(2)) : 0.00,
+      totaldescu: parseFloat(totaldescuento.toFixed(2)),
+      
+      tributosf: tributosResumen.length > 0 ? tributosResumen : null,
+      codigot: "",
+      descripciont: "",
+      valort: 0.00,
 
-        montototaloperacion: parseFloat(subtotal.toFixed(2)),
-        totalpagar: parseFloat(totalPagar.toFixed(2)), 
-        totalpagar: parseFloat(totalPagar.toFixed(2)),
-        totalletras: convertirNumeroALetras(totalPagar),
-        totaliva: parseFloat(ivaIncluido.toFixed(2)),
-        saldofavor: 0.00,
+      ivaperci1: 0.00,
+      ivarete1: 0.00,
+      reterenta: 0.00,
 
-        condicionoperacion: 1,
-        codigo: "01",
-        montopago: parseFloat(totalPagar.toFixed(2)),
-        referencia: "",
-        plazo: null,
-        periodo: null,
-        numpagoelectronico: "",
-        nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
-        docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
+      montototaloperacion: parseFloat(montototaloperacion.toFixed(2)), 
+      totalpagar: parseFloat(totalPagar.toFixed(2)), 
+      totalletras: convertirNumeroALetras(totalPagar),
+      totaliva: parseFloat(ivaIncluido.toFixed(2)),
+      saldofavor: 0.00,
 
-        documentofirmado: null
-      };
+      condicionoperacion: 1,
+      codigo: "01",
+      montopago: parseFloat(totalPagar.toFixed(2)),
+      referencia: "",
+      plazo: null,
+      periodo: null,
+      numpagoelectronico: "",
+      nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
+      docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
+
+      documentofirmado: null
+    };
   };
 
   const convertirNumeroALetras = (numero) => {
@@ -712,51 +727,53 @@ const guardarDetallesFactura = async (iddtefactura) => {
       (cliente?.dui?.toString() || "").includes(searchTerm.toLowerCase())
   ) : [];
 
-useEffect(() => {
-  const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
-  
-  const descuentoItems = items.reduce((sum, item) => 
-    sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0);
+  useEffect(() => {
+    const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const descuentoItems = items.reduce((sum, item) => 
+      sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0);
 
-  const gravadasBase = items
-    .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-    .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
-  
-  const exentasBase = items
-    .filter(item => item.tipo === "noAfecto")
-    .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    const gravadasBase = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const exentasBase = items
+      .filter(item => item.tipo === "noAfecto")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
 
-  const descuentoGrabadas = descuentoGrabadasMonto;
-  const descuentoExentas = descuentoExentasMonto;
-  
-  const descuentoTotal = descuentoItems + descuentoGrabadas + descuentoExentas;
-  
-  const gravadasConDescuento = gravadasBase - 
-    (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
-    descuentoGrabadas;
-  
-  const exentasConDescuento = exentasBase - 
-    (items.filter(item => item.tipo === "noAfecto")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
-    descuentoExentas;
+    const descuentoGrabadas = descuentoGrabadasMonto;
+    const descuentoExentas = descuentoExentasMonto;
+    
+    const descuentoTotal = descuentoItems + descuentoGrabadas + descuentoExentas;
+    
+    const gravadasConDescuento = gravadasBase - 
+      (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
+      descuentoGrabadas;
+    
+    const exentasConDescuento = exentasBase - 
+      (items.filter(item => item.tipo === "noAfecto")
+        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
+      descuentoExentas;
 
-  const tasaIVA = 13; 
-  const ivaIncluido = gravadasConDescuento > 0 ? 
-    (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
+    const tasaIVA = 0.13; // Cambiado a decimal
+    const ivaIncluido = gravadasConDescuento > 0 ? 
+      (gravadasConDescuento * tasaIVA) : 0; // CORREGIDO: multiplicación directa
 
-  const total = gravadasConDescuento + exentasConDescuento;
+    const subtotal = suma - descuentoTotal;
+    // CORRECCIÓN: total debe ser subtotal + IVA
+    const total = subtotal + ivaIncluido;
 
-  setSumaopesinimpues(parseFloat(suma.toFixed(2)));
-  setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
-  setVentasgrabadas(parseFloat(gravadasConDescuento.toFixed(2)));
-  setValoriva(parseFloat(ivaIncluido.toFixed(2))); 
-  setTotal(parseFloat(total.toFixed(2)));
-  
-  setGravadasSinDescuentoState(parseFloat(gravadasBase.toFixed(2)));
-  setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
-  setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
-}, [items, descuentoGrabadasMonto, descuentoExentasMonto]);
+    setSumaopesinimpues(parseFloat(suma.toFixed(2)));
+    setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
+    setVentasgrabadas(parseFloat(gravadasConDescuento.toFixed(2)));
+    setValoriva(parseFloat(ivaIncluido.toFixed(2))); 
+    setTotal(parseFloat(total.toFixed(2)));
+    
+    setGravadasSinDescuentoState(parseFloat(gravadasBase.toFixed(2)));
+    setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
+    setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
+  }, [items, descuentoGrabadasMonto, descuentoExentasMonto]);
 
   const showClientDetailsPopup = (cliente) => {
     setSelectedClient(cliente);
@@ -993,6 +1010,8 @@ useEffect(() => {
                 setTelefonoReceptor={setTelefonoReceptor}
                 complementoReceptor={complementoReceptor}
                 setComplementoReceptor={setComplementoReceptor}
+                idReceptor={idReceptor}
+                setIdReceptor={setIdReceptor}
                 
                 actividadEconomica={actividadEconomica}
                 setActividadEconomica={setActividadEconomica}
@@ -1004,6 +1023,8 @@ useEffect(() => {
                 setTelefonoEmisor={setTelefonoEmisor}
 
                 actividadesEconomicas={codactividad}
+                cliente={cliente}
+                setCliente={setCliente}
               />
 
               {/* Detalle de Factura */}

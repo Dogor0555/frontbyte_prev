@@ -91,7 +91,7 @@ export default function Sidebar({ onOpenPerfil }) {
       subMenu: [
         { name: "Ver Facturas", icon: <FaEye />, href: "/dashboard/facturas" },
         { name: "Anular Facturas", icon: <FaBan />, href: "/dashboard/anular_facturas" },
-        { name: "Enviar nota de Débito", icon: <FaArrowCircleUp />, href: "/dashboard/creditos" },
+        { name: "Enviar nota de Débito", icon: <FaArrowCircleUp />, href: "/dashboard/nota_debito" },
 
       ],
       menuKey: "facturas",
