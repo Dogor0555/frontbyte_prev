@@ -1,7 +1,7 @@
 // src/app/dashboard/notas-debito/nota_debito.js
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFilePdf, FaChevronLeft, FaChevronRight, FaExchangeAlt, FaExclamationTriangle, FaFileCode, FaPaperPlane } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFilePdf, FaChevronLeft, FaChevronRight, FaExchangeAlt, FaExclamationTriangle, FaFileCode, FaPaperPlane, FaMoneyBillWave, FaPlusCircle, FaMinusCircle } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
@@ -11,17 +11,22 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   const [isMobile, setIsMobile] = useState(false);
   const [facturas, setFacturas] = useState([]);
   const [notasDebito, setNotasDebito] = useState([]);
+  const [notasCredito, setNotasCredito] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchTermNotas, setSearchTermNotas] = useState("");
+  const [searchTermNotasCredito, setSearchTermNotasCredito] = useState("");
   const [ordenFecha, setOrdenFecha] = useState("reciente");
   const [ordenFechaNotas, setOrdenFechaNotas] = useState("reciente");
+  const [ordenFechaNotasCredito, setOrdenFechaNotasCredito] = useState("reciente");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [currentPageNotas, setCurrentPageNotas] = useState(1);
+  const [currentPageNotasCredito, setCurrentPageNotasCredito] = useState(1);
   const [enviando, setEnviando] = useState(null);
   const [motivoNota, setMotivoNota] = useState("");
   const [montoNota, setMontoNota] = useState("");
+  const [tipoNota, setTipoNota] = useState("debito"); // 'debito' o 'credito'
   const [facturaSeleccionada, setFacturaSeleccionada] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(null);
@@ -38,20 +43,24 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         const data = await response.json();
         
         if (Array.isArray(data)) {
-          const facturasParaNota = data.filter(factura => puedeGenerarNotaDebito(factura));
+          const facturasParaNota = data.filter(factura => puedeGenerarNota(factura));
           const todasNotasDebito = data.filter(factura => factura.tipodocumento === 'NOTA_DEBITO' || factura.esnotadebito);
+          const todasNotasCredito = data.filter(factura => factura.tipodocumento === 'NOTA_CREDITO' || factura.esnotacredito);
           
           setFacturas(facturasParaNota);
           setNotasDebito(todasNotasDebito);
+          setNotasCredito(todasNotasCredito);
         } else {
           setFacturas([]);
           setNotasDebito([]);
+          setNotasCredito([]);
         }
       } catch (error) {
         console.error("Error:", error);
         alert("Error al cargar las facturas: " + error.message);
         setFacturas([]);
         setNotasDebito([]);
+        setNotasCredito([]);
       } finally {
         setLoading(false);
       }
@@ -59,9 +68,10 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
     fetchFacturas();
   }, []);
 
-  const puedeGenerarNotaDebito = (factura) => {
+  const puedeGenerarNota = (factura) => {
     if (!factura) return false;
     if (factura.tipodocumento === 'NOTA_DEBITO' || factura.esnotadebito) return false;
+    if (factura.tipodocumento === 'NOTA_CREDITO' || factura.esnotacredito) return false;
     if (!['TRANSMITIDO', 'RE-TRANSMITIDO', 'ACEPTADO'].includes(factura.estado)) return false;
     
     // Verificar que la factura se haya generado hace menos de 24 horas
@@ -122,6 +132,23 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
 
   const notasDebitoOrdenadas = ordenarFacturasPorFecha(notasDebitoFiltradas, ordenFechaNotas);
 
+  const notasCreditoFiltradas = Array.isArray(notasCredito)
+    ? notasCredito.filter((nota) => {
+        if (!nota) return false;
+        const searchLower = searchTermNotasCredito.toLowerCase();
+
+        const matchSearch =
+          (nota.codigo?.toLowerCase() || "").includes(searchLower) ||
+          (nota.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
+          (nota.numerofacturausuario?.toString() || "").includes(searchTermNotasCredito) ||
+          (nota.iddtefactura?.toString() || "").includes(searchTermNotasCredito);
+
+        return matchSearch;
+      })
+    : [];
+
+  const notasCreditoOrdenadas = ordenarFacturasPorFecha(notasCreditoFiltradas, ordenFechaNotasCredito);
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = facturasOrdenadas.slice(indexOfFirstItem, indexOfLastItem);
@@ -132,52 +159,19 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   const currentItemsNotas = notasDebitoOrdenadas.slice(indexOfFirstItemNotas, indexOfLastItemNotas);
   const totalPagesNotas = Math.ceil(notasDebitoOrdenadas.length / itemsPerPage);
 
+  const indexOfLastItemNotasCredito = currentPageNotasCredito * itemsPerPage;
+  const indexOfFirstItemNotasCredito = indexOfLastItemNotasCredito - itemsPerPage;
+  const currentItemsNotasCredito = notasCreditoOrdenadas.slice(indexOfFirstItemNotasCredito, indexOfLastItemNotasCredito);
+  const totalPagesNotasCredito = Math.ceil(notasCreditoOrdenadas.length / itemsPerPage);
+
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
   const paginateNotas = (pageNumber) => setCurrentPageNotas(pageNumber);
+  const paginateNotasCredito = (pageNumber) => setCurrentPageNotasCredito(pageNumber);
 
   const formatCurrency = (amount) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(amount || 0);
 
-  const handleGenerarNotaDebito = async (facturaId, motivo, monto) => {
-    setEnviando(facturaId);
-    try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/generar-nota-debito`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          motivo: motivo,
-          monto: parseFloat(monto),
-          tipoNota: "2" // 2 para nota de débito
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.descripcionMsg || data.error || "Error al generar nota de débito");
-      }
-
-      const facturaOriginal = facturas.find(f => f.iddtefactura === facturaId);
-      if (facturaOriginal) {
-        setFacturas((prev) => prev.filter((factura) => factura.iddtefactura !== facturaId));
-        // La nueva nota de débito vendría en la respuesta, pero por simplicidad recargamos
-        setTimeout(() => {
-          window.location.reload(); // Recargar para mostrar la nueva nota
-        }, 1000);
-      }
-
-      alert("Nota de débito generada exitosamente");
-      setShowModal(false);
-      setMotivoNota("");
-      setMontoNota("");
-    } catch (error) {
-      console.error("Error al generar nota de débito:", error);
-      alert("Error: " + error.message);
-    } finally {
-      setEnviando(null);
-    }
+  const handleGenerarNota = (factura, tipo) => {
+    router.push(`/dashboard/nota_debito/${factura.iddtefactura}?tipo=${tipo}`);
   };
 
   const handleGeneratePDF = async (notaId) => {
@@ -199,7 +193,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
       }
       
       const disposition = response.headers.get("Content-Disposition");
-      let filename = `ND-${notaId}.pdf`;
+      let filename = `nota-${notaId}.pdf`;
       if (disposition && disposition.includes("filename=")) {
         filename = disposition
           .split("filename=")[1]
@@ -236,7 +230,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
       }
 
       const disposition = response.headers.get("Content-Disposition");
-      let filename = `nota-debito-${iddtefactura}.json`;
+      let filename = `nota-${iddtefactura}.json`;
       if (disposition && disposition.includes("filename=")) {
         filename = disposition
           .split("filename=")[1]
@@ -261,14 +255,28 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
     }
   };
 
-  const openNotaDebitoModal = (factura) => {
+  const openNotaModal = (factura, tipo) => {
     setFacturaSeleccionada(factura);
+    setTipoNota(tipo);
     setMontoNota("");
+    setMotivoNota("");
     setShowModal(true);
   };
 
-  const handleViewDetails = (facturaId) => {
-    router.push(`/dashboard/facturas/${facturaId}`);
+
+
+  const handleViewDetails = (facturaId, tipoNota = null) => {
+    // Si es una nota (débito o crédito), redirigir a la página de detalles de notas
+    if (tipoNota === 'debito' || tipoNota === 'credito' || 
+        factura.tipodocumento === 'NOTA_DEBITO' || 
+        factura.tipodocumento === 'NOTA_CREDITO' ||
+        factura.esnotadebito || 
+        factura.esnotacredito) {
+      router.push(`/dashboard/nota_debito/${facturaId}`);
+    } else {
+      // Si es una factura normal, redirigir a la página de facturas
+      router.push(`/dashboard/facturas/${facturaId}`);
+    }
   };
 
   const toggleSidebar = () => {
@@ -301,170 +309,190 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
     );
   }
 
-  const FacturaCard = ({ factura, esNotaDebito = false }) => (
-    <div
-      key={factura.iddtefactura}
-      className={`bg-white rounded-lg shadow-md overflow-hidden border ${
-        esNotaDebito ? 'border-purple-200' : 'border-gray-100'
-      } hover:shadow-lg transition-all duration-200`}
-    >
-      <div className={`p-3 ${esNotaDebito ? 'bg-purple-600' : 'bg-blue-600'} text-white`}>
-        <div className="flex justify-between items-center">
-          <div className="flex items-center">
-            <div className="bg-white/20 p-1 rounded mr-2">
-              {esNotaDebito ? <FaExchangeAlt className="text-white text-xs" /> : <FaFileAlt className="text-white text-xs" />}
+  const FacturaCard = ({ factura, esNotaDebito = false, esNotaCredito = false }) => {
+    const esNota = esNotaDebito || esNotaCredito;
+    const tipoNota = esNotaDebito ? 'débito' : esNotaCredito ? 'crédito' : 'factura';
+    const colorNota = esNotaDebito ? 'purple' : esNotaCredito ? 'green' : 'blue';
+    
+    return (
+      <div
+        key={factura.iddtefactura}
+        className={`bg-white rounded-lg shadow-md overflow-hidden border ${
+          esNota ? `border-${colorNota}-200` : 'border-gray-100'
+        } hover:shadow-lg transition-all duration-200`}
+      >
+        <div className={`p-3 ${esNota ? `bg-${colorNota}-600` : 'bg-blue-600'} text-white`}>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <div className="bg-white/20 p-1 rounded mr-2">
+                {esNotaDebito ? <FaMinusCircle className="text-white text-xs" /> : 
+                 esNotaCredito ? <FaPlusCircle className="text-white text-xs" /> : 
+                 <FaFileAlt className="text-white text-xs" />}
+              </div>
+              <div>
+                <span className="font-semibold text-xs block">
+                  {esNotaDebito ? 'NOTA DÉBITO' : 
+                   esNotaCredito ? 'NOTA CRÉDITO' : 'FACTURA'}
+                </span>
+                <span className="text-xs font-light opacity-90">
+                  #{factura.numerofacturausuario?.toString().padStart(4, '0') || factura.iddtefactura}
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="font-semibold text-xs block">
-                {esNotaDebito ? 'NOTA DÉBITO' : 'FACTURA'}
-              </span>
-              <span className="text-xs font-light opacity-90">
-                #{factura.numerofacturausuario?.toString().padStart(4, '0') || factura.iddtefactura}
-              </span>
-            </div>
-          </div>
-          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-            esNotaDebito 
-              ? 'bg-purple-500/30 text-purple-100' 
-              : factura.estado === 'TRANSMITIDO' 
-                ? 'bg-green-500/30 text-green-100'
-                : factura.estado === 'PENDIENTE'
-                  ? 'bg-yellow-500/30 text-yellow-100'
-                  : 'bg-gray-500/30 text-gray-100'
-          }`}>
-            {factura.estado?.toUpperCase() || 'PENDIENTE'}
-          </span>
-        </div>
-      </div>
-
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-          <div className="flex items-center text-gray-600">
-            <FaCalendarAlt className={`mr-1 ${esNotaDebito ? 'text-purple-500' : 'text-blue-500'} text-xs`} />
-            <span className="text-xs">
-              {new Date(factura.fechaemision).toISOString().split("T")[0]}
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+              esNota 
+                ? `bg-${colorNota}-500/30 text-${colorNota}-100` 
+                : factura.estado === 'TRANSMITIDO' 
+                  ? 'bg-green-500/30 text-green-100'
+                  : factura.estado === 'PENDIENTE'
+                    ? 'bg-yellow-500/30 text-yellow-100'
+                    : 'bg-gray-500/30 text-gray-100'
+            }`}>
+              {factura.estado?.toUpperCase() || 'PENDIENTE'}
             </span>
           </div>
-          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-            factura.documentofirmado && factura.documentofirmado !== "null"
-              ? esNotaDebito ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
-              : 'bg-gray-100 text-gray-800'
-          }`}>
-            {factura.documentofirmado && factura.documentofirmado !== "null" ? "FIRMADO" : "NO FIRMADO"}
-          </span>
         </div>
 
-        <div className="mb-3">
-          <div className="flex items-center text-gray-700 mb-1">
-            <FaUser className={`mr-1 ${esNotaDebito ? 'text-purple-500' : 'text-blue-500'} text-xs`} />
-            <span className="text-xs font-medium">Cliente</span>
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
+            <div className="flex items-center text-gray-600">
+              <FaCalendarAlt className={`mr-1 ${esNota ? `text-${colorNota}-500` : 'text-blue-500'} text-xs`} />
+              <span className="text-xs">
+                {new Date(factura.fechaemision).toISOString().split("T")[0]}
+              </span>
+            </div>
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+              factura.documentofirmado && factura.documentofirmado !== "null"
+                ? esNota ? `bg-${colorNota}-100 text-${colorNota}-800` : 'bg-green-100 text-green-800'
+                : 'bg-gray-100 text-gray-800'
+            }`}>
+              {factura.documentofirmado && factura.documentofirmado !== "null" ? "FIRMADO" : "NO FIRMADO"}
+            </span>
           </div>
-          <p className="text-gray-900 text-sm font-medium truncate pl-3">
-            {factura.nombrecibe || 'Cliente no especificado'}
-          </p>
-          {factura.docuentrega && (
-            <p className="text-xs text-gray-500 pl-3 mt-0.5">DUI: {factura.docuentrega}</p>
-          )}
-        </div>
 
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div>
-            <div className="text-xs text-gray-500 mb-0.5">Código</div>
-            <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded">
-              {factura.codigo || 'N/A'}
+          <div className="mb-3">
+            <div className="flex items-center text-gray-700 mb-1">
+              <FaUser className={`mr-1 ${esNota ? `text-${colorNota}-500` : 'text-blue-500'} text-xs`} />
+              <span className="text-xs font-medium">Cliente</span>
+            </div>
+            <p className="text-gray-900 text-sm font-medium truncate pl-3">
+              {factura.nombrecibe || 'Cliente no especificado'}
+            </p>
+            {factura.docuentrega && (
+              <p className="text-xs text-gray-500 pl-3 mt-0.5">DUI: {factura.docuentrega}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div>
+              <div className="text-xs text-gray-500 mb-0.5">Código</div>
+              <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded">
+                {factura.codigo || 'N/A'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 mb-0.5">Control</div>
+              <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded truncate">
+                {factura.ncontrol || 'N/A'}
+              </div>
             </div>
           </div>
-          <div>
-            <div className="text-xs text-gray-500 mb-0.5">Control</div>
-            <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded truncate">
-              {factura.ncontrol || 'N/A'}
+
+          <div className="border-t border-gray-100 pt-2">
+            <div className="flex justify-between items-center">
+              <div className="text-xs text-gray-500">Total</div>
+              <div className={`text-lg font-bold ${esNota ? `text-${colorNota}-600` : 'text-blue-600'}`}>
+                {formatCurrency(factura.totalpagar || factura.montototaloperacion || 0)}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-gray-100 pt-2">
-          <div className="flex justify-between items-center">
-            <div className="text-xs text-gray-500">Total</div>
-            <div className={`text-lg font-bold ${esNotaDebito ? 'text-purple-600' : 'text-blue-600'}`}>
-              {formatCurrency(factura.totalpagar || factura.montototaloperacion || 0)}
-            </div>
-          </div>
-        </div>
-      </div>
+        <div className={`px-3 py-3 flex flex-wrap gap-2 justify-between border-t ${
+          esNota ? `bg-${colorNota}-50 border-${colorNota}-100` : 'bg-blue-50 border-blue-100'
+        }`}>
+          <button
+            onClick={() => handleViewDetails(factura.iddtefactura, esNotaDebito ? 'debito' : esNotaCredito ? 'credito' : null)}
+            className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+              esNota 
+                ? `text-${colorNota}-600 hover:text-${colorNota}-800` 
+                : 'text-blue-600 hover:text-blue-800'
+            }`}
+            title="Ver detalles completos"
+          >
+            <FaFileAlt className="mr-1 text-xs" />
+            Detalles
+          </button>
 
-      <div className={`px-3 py-3 flex flex-wrap gap-2 justify-between border-t ${
-        esNotaDebito ? 'bg-purple-50 border-purple-100' : 'bg-blue-50 border-blue-100'
-      }`}>
-        <button
-          onClick={() => handleViewDetails(factura.iddtefactura)}
-          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-            esNotaDebito 
-              ? 'text-purple-600 hover:text-purple-800' 
-              : 'text-blue-600 hover:text-blue-800'
-          }`}
-          title="Ver detalles completos"
-        >
-          <FaFileAlt className="mr-1 text-xs" />
-          Detalles
-        </button>
+          <div className="flex items-center gap-1">
+            {!esNota && (
+              <div className="flex gap-1">
+                <button
+                  onClick={() => handleGenerarNota(factura, "debito")}
+                  className="flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
+                  title="Generar Nota de Débito"
+                >
+                  <FaMinusCircle className="mr-1 text-xs" />
+                  Nota Débito
+                </button>
+                <button
+                  onClick={() => handleGenerarNota(factura, "credito")}
+                  className="flex items-center px-2 py-1 rounded text-xs font-medium bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                  title="Generar Nota de Crédito"
+                >
+                  <FaPlusCircle className="mr-1 text-xs" />
+                  Nota Crédito
+                </button>
+              </div>
+            )}
 
-        <div className="flex items-center gap-1">
-          {!esNotaDebito && (
-            <button
-              onClick={() => openNotaDebitoModal(factura)}
-              className="flex items-center px-3 py-2 rounded text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
-            >
-              <FaExchangeAlt className="mr-1 text-xs" />
-              Generar Nota
-            </button>
-          )}
-
-          {esNotaDebito && (
-            <>
-              <button
-                onClick={() => handleGeneratePDF(factura.iddtefactura)}
-                disabled={pdfLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
-                className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                  pdfLoading === factura.iddtefactura
-                    ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                    : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
+            {esNota && (
+              <>
+                <button
+                  onClick={() => handleGeneratePDF(factura.iddtefactura)}
+                  disabled={pdfLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
+                  className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                    pdfLoading === factura.iddtefactura
                       ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                      : 'bg-purple-500 hover:bg-purple-600 text-white'
-                }`}
-                title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Nota no firmada" : "Descargar DTE en PDF"}
-              >
-                {pdfLoading === factura.iddtefactura ? (
-                  <>
-                    <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
-                    Generando
-                  </>
-                ) : (
-                  <>
-                    <FaFilePdf className="mr-1 text-xs" />
-                    PDF
-                  </>
-                )}
-              </button>
+                      : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
+                        ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                        : `bg-${colorNota}-500 hover:bg-${colorNota}-600 text-white`
+                  }`}
+                  title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Nota no firmada" : "Descargar DTE en PDF"}
+                >
+                  {pdfLoading === factura.iddtefactura ? (
+                    <>
+                      <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                      Generando
+                    </>
+                  ) : (
+                    <>
+                      <FaFilePdf className="mr-1 text-xs" />
+                      PDF
+                    </>
+                  )}
+                </button>
 
-              <button
-                onClick={() => handleDownloadJSON(factura.iddtefactura)}
-                disabled={!(factura.documentofirmado && factura.documentofirmado !== "null")}
-                className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                  !(factura.documentofirmado && factura.documentofirmado !== "null")
-                    ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                }`}
-                title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Nota no firmada" : "Descargar DTE en JSON"}
-              >
-                <FaFileCode className="mr-1 text-xs" />
-                JSON
-              </button>
-            </>
-          )}
+                <button
+                  onClick={() => handleDownloadJSON(factura.iddtefactura)}
+                  disabled={!(factura.documentofirmado && factura.documentofirmado !== "null")}
+                  className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                    !(factura.documentofirmado && factura.documentofirmado !== "null")
+                      ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                      : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  }`}
+                  title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Nota no firmada" : "Descargar DTE en JSON"}
+                >
+                  <FaFileCode className="mr-1 text-xs" />
+                  JSON
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const Pagination = ({ currentPage, totalPages, onPageChange }) => {
     if (totalPages <= 1) return null;
@@ -604,7 +632,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
               <div className="mb-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                   <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Generar Notas de Débito</h1>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Generar Notas de Débito y Crédito</h1>
                     <p className="text-gray-600">
                       {facturas.length} {facturas.length === 1 ? "factura disponible" : "facturas disponibles"} 
                       {searchTerm && ` (${facturasFiltradas.length} encontradas)`}
@@ -647,7 +675,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                     </div>
                     <div className="ml-3">
                       <p className="text-sm text-blue-700">
-                        <strong>Nota:</strong> Solo puedes generar notas de débito para facturas transmitidas con menos de 24 horas de antigüedad y que estén en estado "TRANSMITIDO" o "RE-TRANSMITIDO".
+                        <strong>Nota:</strong> Solo puedes generar notas de débito y crédito para facturas transmitidas con menos de 24 horas de antigüedad y que estén en estado "TRANSMITIDO" o "RE-TRANSMITIDO".
                       </p>
                     </div>
                   </div>
@@ -655,7 +683,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {currentItems.map((factura) => (
-                    <FacturaCard key={factura.iddtefactura} factura={factura} esNotaDebito={false} />
+                    <FacturaCard key={factura.iddtefactura} factura={factura} />
                   ))}
                 </div>
 
@@ -671,7 +699,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                       <FaFileAlt className="inline-block text-4xl" />
                     </div>
                     <h3 className="text-lg font-medium text-gray-700">
-                      {facturas.length === 0 ? 'No hay facturas disponibles para notas de débito' : 'No se encontraron coincidencias'}
+                      {facturas.length === 0 ? 'No hay facturas disponibles para notas' : 'No se encontraron coincidencias'}
                     </h3>
                     <p className="text-gray-500 mt-1">
                       {facturas.length === 0 
@@ -682,7 +710,8 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                 )}
               </div>
 
-              <div className="border-t border-gray-200 pt-8">
+              {/* Sección de Notas de Débito Generadas */}
+              <div className="border-t border-gray-200 pt-8 mb-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                   <div>
                     <h2 className="text-xl md:text-2xl font-bold text-gray-800">Notas de Débito Generadas</h2>
@@ -736,13 +765,80 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                 {notasDebitoOrdenadas.length === 0 && (
                   <div className="text-center py-10">
                     <div className="text-gray-400 mb-3">
-                      <FaExchangeAlt className="inline-block text-4xl" />
+                      <FaMinusCircle className="inline-block text-4xl" />
                     </div>
                     <h3 className="text-lg font-medium text-gray-700">
                       No hay notas de débito generadas
                     </h3>
                     <p className="text-gray-500 mt-1">
-                      Las notas de débito que generes aparecerán en esta sección
+                      Las notas de débito que generes aparecerán aquí
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Sección de Notas de Crédito Generadas */}
+              <div className="border-t border-gray-200 pt-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-gray-800">Notas de Crédito Generadas</h2>
+                    <p className="text-gray-600">
+                      {notasCredito.length} {notasCredito.length === 1 ? "nota de crédito" : "notas de crédito"}
+                      {searchTermNotasCredito && ` (${notasCreditoFiltradas.length} encontradas)`}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    <div className="relative w-full md:w-64">
+                      <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar notas de crédito..."
+                        className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        value={searchTermNotasCredito}
+                        onChange={(e) => {
+                          setSearchTermNotasCredito(e.target.value);
+                          setCurrentPageNotasCredito(1);
+                        }}
+                      />
+                    </div>
+
+                    <select
+                      value={ordenFechaNotasCredito}
+                      onChange={(e) => {
+                        setOrdenFechaNotasCredito(e.target.value);
+                        setCurrentPageNotasCredito(1);
+                      }}
+                      className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-purple-500 focus:border-purple-500 text-gray-700"
+                    >
+                      <option value="reciente">Más reciente</option>
+                      <option value="antigua">Más antigua</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {currentItemsNotasCredito.map((nota) => (
+                    <FacturaCard key={nota.iddtefactura} factura={nota} esNotaCredito={true} />
+                  ))}
+                </div>
+
+                <Pagination 
+                  currentPage={currentPageNotasCredito}
+                  totalPages={totalPagesNotasCredito}
+                  onPageChange={paginateNotasCredito}
+                />
+
+                {notasCreditoOrdenadas.length === 0 && (
+                  <div className="text-center py-10">
+                    <div className="text-gray-400 mb-3">
+                      <FaPlusCircle className="inline-block text-4xl" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-700">
+                      No hay notas de crédito generadas
+                    </h3>
+                    <p className="text-gray-500 mt-1">
+                      Las notas de crédito que generes aparecerán aquí
                     </p>
                   </div>
                 )}
@@ -754,74 +850,108 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         <Footer />
       </div>
 
-      {showModal && (
+      {/* Modal para generar nota */}
+      {showModal && facturaSeleccionada && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Generar Nota de Débito</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                ¿Estás seguro de que deseas generar una nota de débito para la factura #{facturaSeleccionada?.numerofacturausuario}?
-              </p>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Motivo de la nota de débito
-                </label>
-                <textarea
-                  value={motivoNota}
-                  onChange={(e) => setMotivoNota(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  rows="3"
-                  placeholder="Ingresa el motivo de la nota de débito..."
-                  required
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Monto de la nota de débito
-                </label>
-                <input
-                  type="number"
-                  value={montoNota}
-                  onChange={(e) => setMontoNota(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0.01"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Ingresa el monto que deseas adeudar
-                </p>
-              </div>
-              
-              <div className="flex justify-end space-x-3">
+            <div className={`p-4 ${tipoNota === "debito" ? "bg-purple-600" : "bg-green-600"} text-white rounded-t-lg`}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">
+                  Generar Nota de {tipoNota === "debito" ? "Débito" : "Crédito"}
+                </h3>
                 <button
                   onClick={() => {
                     setShowModal(false);
                     setMotivoNota("");
                     setMontoNota("");
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+                  className="text-white hover:text-gray-200"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <h4 className="font-medium text-gray-700 mb-2">Factura seleccionada:</h4>
+                <div className="bg-gray-50 p-3 rounded border">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-medium">#{facturaSeleccionada.numerofacturausuario || facturaSeleccionada.iddtefactura}</span>
+                    <span className="text-sm text-gray-500">
+                      {new Date(facturaSeleccionada.fechaemision).toISOString().split("T")[0]}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600 mb-1">
+                    Cliente: {facturaSeleccionada.nombrecibe || 'No especificado'}
+                  </div>
+                  <div className="text-sm font-medium">
+                    Total: {formatCurrency(facturaSeleccionada.totalpagar || facturaSeleccionada.montototaloperacion || 0)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Motivo de la nota
+                </label>
+                <textarea
+                  value={motivoNota}
+                  onChange={(e) => setMotivoNota(e.target.value)}
+                  placeholder={`Ingresa el motivo de la nota de ${tipoNota === "debito" ? "débito" : "crédito"}...`}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  rows="3"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Monto de la nota (USD)
+                </label>
+                <input
+                  type="number"
+                  value={montoNota}
+                  onChange={(e) => setMontoNota(e.target.value)}
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0.01"
+                  max={facturaSeleccionada.totalpagar || facturaSeleccionada.montototaloperacion || 0}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Monto máximo: {formatCurrency(facturaSeleccionada.totalpagar || facturaSeleccionada.montototaloperacion || 0)}
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowModal(false);
+                    setMotivoNota("");
+                    setMontoNota("");
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
-                  onClick={() => handleGenerarNotaDebito(facturaSeleccionada.iddtefactura, motivoNota, montoNota)}
-                  disabled={!motivoNota.trim() || !montoNota || parseFloat(montoNota) <= 0 || enviando}
-                  className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 rounded-md flex items-center"
+                  onClick={() => handleGenerarNota(facturaSeleccionada.iddtefactura, motivoNota, montoNota, tipoNota)}
+                  disabled={!motivoNota.trim() || !montoNota || parseFloat(montoNota) <= 0 || enviando === facturaSeleccionada.iddtefactura}
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-md transition-colors flex items-center ${
+                    !motivoNota.trim() || !montoNota || parseFloat(montoNota) <= 0 || enviando === facturaSeleccionada.iddtefactura
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : tipoNota === "debito" 
+                        ? "bg-purple-600 hover:bg-purple-700" 
+                        : "bg-green-600 hover:bg-green-700"
+                  }`}
                 >
-                  {enviando ? (
+                  {enviando === facturaSeleccionada.iddtefactura ? (
                     <>
                       <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
                       Generando...
                     </>
                   ) : (
-                    <>
-                      <FaPaperPlane className="mr-2 text-xs" />
-                      Generar Nota
-                    </>
+                    `Generar Nota de ${tipoNota === "debito" ? "Débito" : "Crédito"}`
                   )}
                 </button>
               </div>
