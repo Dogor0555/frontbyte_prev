@@ -91,7 +91,7 @@ export default function Sidebar({ onOpenPerfil }) {
       subMenu: [
         { name: "Ver Facturas", icon: <FaEye />, href: "/dashboard/facturas" },
         { name: "Anular Facturas", icon: <FaBan />, href: "/dashboard/anular_facturas" },
-        { name: "Enviar nota de Débito", icon: <FaArrowCircleUp />, href: "/dashboard/nota_debito" },
+        { name: "Enviar nota de Débito/Crédito", icon: <FaArrowCircleUp />, href: "/dashboard/nota_debito" },
 
       ],
       menuKey: "facturas",
@@ -103,7 +103,7 @@ export default function Sidebar({ onOpenPerfil }) {
       subMenu: [
         { name: "Ver Créditos", icon: <FaEye />, href: "/dashboard/creditos" },
         { name: "Anular Créditos", icon: <FaBan />, href: "/dashboard/anular_creditos" },
-        { name: "Enviar nota de Crédito", icon: <FaArrowCircleDown />, href: "/dashboard/creditos" },
+        { name: "Enviar nota de Crédito/Débito", icon: <FaArrowCircleUp />, href: "/dashboard/creditos" },
 
       ],
       menuKey: "creditos",

@@ -325,8 +325,8 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <div className="bg-white/20 p-1 rounded mr-2">
-                {esNotaDebito ? <FaMinusCircle className="text-white text-xs" /> : 
-                 esNotaCredito ? <FaPlusCircle className="text-white text-xs" /> : 
+                {esNotaDebito ? <FaPlusCircle className="text-white text-xs" /> : 
+                 esNotaCredito ? <FaMinusCircleclass Name="text-white text-xs" /> : 
                  <FaFileAlt className="text-white text-xs" />}
               </div>
               <div>
@@ -432,7 +432,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                   className="flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
                   title="Generar Nota de Débito"
                 >
-                  <FaMinusCircle className="mr-1 text-xs" />
+                  <FaPlusCircle className="mr-1 text-xs" />
                   Nota Débito
                 </button>
                 <button
@@ -440,7 +440,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                   className="flex items-center px-2 py-1 rounded text-xs font-medium bg-green-600 hover:bg-green-700 text-white shadow-sm"
                   title="Generar Nota de Crédito"
                 >
-                  <FaPlusCircle className="mr-1 text-xs" />
+                  <FaMinusCircle  className="mr-1 text-xs" />
                   Nota Crédito
                 </button>
               </div>
