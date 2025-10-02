@@ -211,11 +211,8 @@ const agregarTributo = () => {
     
     const precio = parseFloat(productoSeleccionado.precio) || 0;
     const subtotal = cantidad * precio;
-
-    const impuestosNoIVA = tributos.filter(tributo => tributo.codigo !== "20");
-    const totalImpuestos = impuestosNoIVA.reduce((sum, tributo) => sum + tributo.valor, 0);
     
-    return subtotal + totalImpuestos;
+    return subtotal;
   };
 
   const handleAgregarItem = () => {
@@ -257,11 +254,12 @@ const agregarTributo = () => {
     const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
     
+    const precioUnitario = parseFloat(productoSeleccionado.precio) || 0;
+    
     onAddItem({
       descripcion: productoSeleccionado.nombre,
       cantidad: cantidad,
-      // para incluir impuestos (productoSeleccionado.preciounitario)
-      precioUnitario: parseFloat(total / cantidad) || 0,
+      precioUnitario: precioUnitario, 
       descuento: 0,
       unidadMedida: productoSeleccionado.unidad || "59",
       tipo: tipoItem,
@@ -269,8 +267,7 @@ const agregarTributo = () => {
       productoId: !esServicio ? productoSeleccionado.id : null,
       actualizarStock: necesitaActualizarStock,
       stockAnterior: !esServicio ? productoSeleccionado.stock : null,
-      esServicio: esServicio,
-      tipoProducto: tipoProducto
+      esServicio: esServicio
     });
     
     limpiarFormulario();
@@ -666,7 +663,6 @@ const agregarTributo = () => {
                           <div className="flex-1">
                             <div className="text-sm font-medium">{tributo.codigo}</div>
                             <div className="text-xs text-gray-600">{tributo.descripcion}</div>
-                            <div className="text-xs font-semibold">${tributo.valor.toFixed(2)}</div>
                           </div>
                           <button
                             onClick={() => eliminarTributo(tributo.codigo)}
@@ -695,7 +691,6 @@ const agregarTributo = () => {
                   {tributos.map((tributo, index) => (
                     <div key={index} className="flex justify-between py-1 border-t border-gray-100">
                       <span className="text-sm text-gray-600">{tributo.codigo}:</span>
-                      <span className="text-sm font-medium text-gray-900">${tributo.valor.toFixed(2)}</span>
                     </div>
                   ))}
                   
@@ -727,7 +722,7 @@ const agregarTributo = () => {
             </button>
             <button
               onClick={handleAgregarItem}
-              className="px-8 py-2.5 bg-green-700 text-white rounded-lg hover:bg-green-600 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="px-8 py-2.5 bg-blue-700 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
               disabled={!productoSeleccionado}
             >
               Agregar Item

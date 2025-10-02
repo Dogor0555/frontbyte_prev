@@ -51,7 +51,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [correoVendedor, setCorreoVendedor] = useState("");
   const [telefonoEmisor, setTelefonoEmisor] = useState("");
   // --- Receptor (cliente de la factura) ---
-  const [tipoDocumentoReceptor, setTipoDocumentoReceptor] = useState("");
+  const [tipoDocumentoReceptor, setTipoDocumentoReceptor] = useState("36");
   const [numeroDocumentoReceptor, setNumeroDocumentoReceptor] = useState("");
   const [nombreReceptor, setNombreReceptor] = useState("");
   const [direccionReceptor, setDireccionReceptor] = useState("");
@@ -83,6 +83,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [errorValidacion, setErrorValidacion] = useState("");
   const [emisorDocumento, setEmisorDocumento] = useState("");
   const [emisorNombre, setEmisorNombre] = useState("");
+  const [tributosDetallados, setTributosDetallados] = useState({});
 
   // Inicializar correo desde user o, si no hay, desde localStorage
   useEffect(() => {
@@ -540,7 +541,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
     const ivaIncluido = gravadasConDescuento > 0 ? 
       (gravadasConDescuento * tasaIVA) : 0;
 
-    const montototaloperacion = subtotal + ivaIncluido;
+    const montototaloperacion = total;
 
     const tributosResumen = [];
     
@@ -598,9 +599,9 @@ const guardarDetallesFactura = async (iddtefactura) => {
       ivarete1: 0.00,
       reterenta: 0.00,
 
-      montototaloperacion: parseFloat(montototaloperacion.toFixed(2)), 
-      totalpagar: parseFloat(totalPagar.toFixed(2)), 
-      totalletras: convertirNumeroALetras(totalPagar),
+      montototaloperacion: parseFloat(total.toFixed(2)), 
+      totalpagar: parseFloat(total.toFixed(2)), 
+      totalletras: convertirNumeroALetras(total),
       totaliva: parseFloat(ivaIncluido.toFixed(2)),
       saldofavor: 0.00,
 
@@ -756,18 +757,61 @@ const guardarDetallesFactura = async (iddtefactura) => {
         .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
       descuentoExentas;
 
-    const tasaIVA = 0.13; // Cambiado a decimal
-    const ivaIncluido = gravadasConDescuento > 0 ? 
-      (gravadasConDescuento * tasaIVA) : 0; // CORREGIDO: multiplicación directa
+    const nuevosTributos = {};
+    let totalImpuestos = 0;
+    
+    items.forEach(item => {
+      if (item.tributos && Array.isArray(item.tributos)) {
+        item.tributos.forEach(tributo => {
+          const subtotalItem = item.precioUnitario * item.cantidad;
+          const descuentoItem = subtotalItem * (item.descuento / 100);
+          const baseImponible = subtotalItem - descuentoItem;
+          
+          let valorTributo = 0;
+          
+          if (tributo.codigo === "20") {
+            // Para el IVA, calcularlo sobre la base imponible
+            valorTributo = baseImponible * 0.13;
+          } else {
+            // Para otros tributos, usar el valor definido
+            valorTributo = tributo.valor || 0;
+          }
+          
+          totalImpuestos += valorTributo;
+          
+          if (nuevosTributos[tributo.codigo]) {
+            nuevosTributos[tributo.codigo].valor += valorTributo;
+          } else {
+            nuevosTributos[tributo.codigo] = {
+              codigo: tributo.codigo,
+              descripcion: tributo.descripcion || obtenerDescripcionTributo(tributo.codigo),
+              valor: valorTributo
+            };
+          }
+        });
+      }
+    });
+    
+    setTributosDetallados(nuevosTributos);
+
+    // ELIMINAR este cálculo duplicado del IVA
+    // const tasaIVA = 0.13;
+    // const ivaIncluido = gravadasConDescuento > 0 ? 
+    //   (gravadasConDescuento * tasaIVA) : 0;
 
     const subtotal = suma - descuentoTotal;
-    // CORRECCIÓN: total debe ser subtotal + IVA
-    const total = subtotal + ivaIncluido;
+    
+    // Usar solo totalImpuestos que ya incluye el IVA de los tributos
+    const total = subtotal + totalImpuestos;
 
     setSumaopesinimpues(parseFloat(suma.toFixed(2)));
     setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
     setVentasgrabadas(parseFloat(gravadasConDescuento.toFixed(2)));
-    setValoriva(parseFloat(ivaIncluido.toFixed(2))); 
+    
+    // Obtener el valor del IVA específicamente del tributo "20"
+    const valorIVA = nuevosTributos["20"] ? nuevosTributos["20"].valor : 0;
+    setValoriva(parseFloat(valorIVA.toFixed(2))); 
+    
     setTotal(parseFloat(total.toFixed(2)));
     
     setGravadasSinDescuentoState(parseFloat(gravadasBase.toFixed(2)));
@@ -1144,18 +1188,28 @@ const guardarDetallesFactura = async (iddtefactura) => {
                       <span className="font-semibold">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
                   </div>
+                  
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-700">Monto Total de la operación:</span>
                       <span className="font-medium">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">IVA (13%):</span>
-                      <span className="font-medium">{formatMoney(valoriva)}</span>
-                    </div>
+                    
+                    {/* Mostrar tributos desglosados */}
+                    {Object.values(tributosDetallados).map((tributo) => (
+                      <div key={tributo.codigo} className="flex justify-between text-sm">
+                        <span className="text-gray-600">
+                          {tributo.codigo} - {tributo.descripcion}:
+                        </span>
+                        <span className="font-medium text-green-600">
+                          +{formatMoney(tributo.valor)}
+                        </span>
+                      </div>
+                    ))}
+                    
                     <div className="flex justify-between pt-2 border-t border-gray-300">
                       <span className="text-gray-900 font-bold text-lg">Total a pagar:</span>
-                      <span className="text-green-800 font-bold text-lg">{formatMoney(total)}</span>
+                      <span className="text-blue-800 font-bold text-lg">{formatMoney(total)}</span>
                     </div>
                   </div>
                 </div>

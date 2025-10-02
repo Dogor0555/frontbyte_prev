@@ -436,9 +436,6 @@ const DatosEmisorReceptor = ({
               >
                 <option value="">-- Seleccione --</option>
                 <option value="36">NIT</option>
-                <option value="13">DUI</option>
-                <option value="03">Pasaporte</option>
-                <option value="02">Carnet de Residente</option>
               </select>
             </div>
 
