@@ -1,4 +1,3 @@
-// src/app/dashboard/notas/emitir/[id]/page.js
 "use client";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -23,16 +22,15 @@ export default function EmitirNotaPage() {
   const [error, setError] = useState(null);
   const [enviando, setEnviando] = useState(false);
   
-  // Estados del formulario
   const [motivoNota, setMotivoNota] = useState("");
   const [montoNota, setMontoNota] = useState("");
-  const [tipoNota, setTipoNota] = useState("debito"); // 'debito' o 'credito'
+  const [tipoNota, setTipoNota] = useState("debito"); 
 
   useEffect(() => {
     const fetchFactura = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/facturas/${facturaId}`, {
+        const response = await fetch(`http://localhost:3000/creditos/${facturaId}`, {
           credentials: "include"
         });
 
@@ -40,9 +38,14 @@ export default function EmitirNotaPage() {
           throw new Error(`Error ${response.status}: No se pudo cargar la factura`);
         }
 
+        // Verificar que la respuesta sea JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error("La respuesta del servidor no es JSON válido");
+        }
+
         const data = await response.json();
         
-        // Verificar que la factura puede generar nota
         if (!puedeGenerarNota(data)) {
           throw new Error("Esta factura no puede generar notas de débito/crédito");
         }
@@ -67,7 +70,6 @@ export default function EmitirNotaPage() {
     if (facturaData.tipodocumento === 'NOTA_CREDITO' || facturaData.esnotacredito) return false;
     if (!['TRANSMITIDO', 'RE-TRANSMITIDO', 'ACEPTADO'].includes(facturaData.estado)) return false;
     
-    // Verificar que la factura se haya generado hace menos de 24 horas
     if (facturaData.fechaemision) {
       const fechaEmision = new Date(facturaData.fechaemision);
       const ahora = new Date();
@@ -90,29 +92,119 @@ export default function EmitirNotaPage() {
 
     setEnviando(true);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/generar-nota`, {
+      const monto = parseFloat(montoNota);
+      const iva = monto * 0.13;
+      const total = monto + iva;
+
+      const baseEndpoint = tipoNota === "debito" 
+        ? "http://localhost:3000/notasdebito"
+        : "http://localhost:3000/notascredito";
+
+      const encabezadoData = {
+        idcliente: factura.idcliente,
+        iddte_relacionado: factura.iddtefactura,
+        fechaemision: new Date().toISOString().split('T')[0], 
+        horaemision: new Date().toTimeString().split(' ')[0].substring(0, 8),
+        subtotal: monto.toFixed(2),
+        totalapagar: total.toFixed(2),
+        totalgravada: monto.toFixed(2),
+        valorletras: convertirNumeroALetras(total),
+        tipoventa: "contado",
+        formapago: "efectivo",
+        estado: 1,
+        verjson: "3.0",
+        transaccioncontable: `TRX-ND-${Date.now()}`,
+        tributos: [
+          {
+            codigo: "20",
+            descripcion: "IVA Débito Fiscal",
+            valor: iva
+          }
+        ]
+      };
+
+      console.log("Enviando encabezado:", encabezadoData);
+
+      const encabezadoResponse = await fetch(`${baseEndpoint}/encabezado`, {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          motivo: motivoNota.trim(),
-          monto: parseFloat(montoNota),
-          tipoNota: tipoNota === "debito" ? "2" : "1" // 2 para débito, 1 para crédito
-        }),
+        body: JSON.stringify(encabezadoData),
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.descripcionMsg || data.error || `Error al generar nota de ${tipoNota}`);
+      if (!encabezadoResponse.ok) {
+        const errorText = await encabezadoResponse.text();
+        throw new Error(`Error creando encabezado: ${errorText}`);
       }
 
-      alert(`Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada exitosamente`);
-      
-      // Redirigir a la lista de notas o a los detalles de la nueva nota
-      router.push("/dashboard/notas-debito");
+      const encabezadoResult = await encabezadoResponse.json();
+      console.log("Encabezado creado:", encabezadoResult);
+
+      const { iddtefactura } = encabezadoResult;
+
+      const detallesData = {
+        transmitir: true,
+        detalles: [
+          {
+            descripcion: `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} - ${motivoNota.trim()}`,
+            cantidad: 1,
+            precio: monto.toFixed(2),
+            preciouni: monto.toFixed(2),
+            subtotal: monto.toFixed(2),
+            ventagravada: monto.toFixed(2),
+            iva: iva.toFixed(2),
+            total: total.toFixed(2),
+            unidadmedida: "UNI",
+            tributo: "20",
+            tributos: [
+              {
+                codigo: "20",
+                descripcion: "Impuesto al Valor Agregado 13%",
+                valor: iva.toFixed(2)
+              }
+            ]
+          }
+        ]
+      };
+
+      console.log("Enviando detalles:", detallesData);
+
+      const detallesResponse = await fetch(`${baseEndpoint}/${iddtefactura}/detalles`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(detallesData),
+      });
+
+      if (!detallesResponse.ok) {
+        const errorText = await detallesResponse.text();
+        throw new Error(`Error enviando detalles: ${errorText}`);
+      }
+
+      const detallesResult = await detallesResponse.json();
+      console.log("Detalles procesados:", detallesResult);
+
+      if (detallesResult.hacienda && detallesResult.hacienda.estado) {
+        if (detallesResult.hacienda.estado === "PROCESADO" && detallesResult.hacienda.descripcionMsg === "RECIBIDO") {
+          alert(`Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada y transmitida exitosamente`);
+        } else {
+          throw new Error(detallesResult.hacienda.descripcionMsg || `Error en Hacienda: ${detallesResult.hacienda.estado}`);
+        }
+      } else if (detallesResult.message && detallesResult.message.includes("transmitida")) {
+        alert(`Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada exitosamente`);
+      } else {
+        alert(`Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada exitosamente`);
+      }
+
+      if (tipoNota === "debito") {
+        router.push("/dashboard/notas-debito");
+      } else {
+        router.push("/dashboard/notas-credito");
+      }
 
     } catch (error) {
       console.error(`Error al generar nota de ${tipoNota}:`, error);
@@ -120,6 +212,22 @@ export default function EmitirNotaPage() {
     } finally {
       setEnviando(false);
     }
+  };
+
+  const convertirNumeroALetras = (numero) => {
+    const unidades = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+    const decenas = ['', '', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
+    const especiales = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve'];
+    
+    const entero = Math.floor(numero);
+    const decimal = Math.round((numero - entero) * 100);
+    
+    if (entero === 0) return `CERO CON ${decimal.toString().padStart(2, '0')}/100 DÓLARES`;
+    if (entero === 1) return `UNO CON ${decimal.toString().padStart(2, '0')}/100 DÓLARES`;
+    if (entero < 10) return `${unidades[entero].toUpperCase()} CON ${decimal.toString().padStart(2, '0')}/100 DÓLARES`;
+    if (entero < 20) return `${especiales[entero - 10].toUpperCase()} CON ${decimal.toString().padStart(2, '0')}/100 DÓLARES`;
+
+    return `${entero} CON ${decimal.toString().padStart(2, '0')}/100 DÓLARES`;
   };
 
   const formatCurrency = (amount) => {
@@ -205,7 +313,6 @@ export default function EmitirNotaPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Información de la factura */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -254,10 +361,8 @@ export default function EmitirNotaPage() {
           </div>
         </div>
 
-        {/* Formulario de la nota */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            {/* Selector de tipo de nota */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Tipo de Nota *
@@ -297,7 +402,6 @@ export default function EmitirNotaPage() {
               </div>
             </div>
 
-            {/* Motivo de la nota */}
             <div className="mb-6">
               <label htmlFor="motivo" className="block text-sm font-medium text-gray-700 mb-2">
                 Motivo de la Nota *
@@ -355,21 +459,26 @@ export default function EmitirNotaPage() {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Monto de la nota:</span>
+                  <span className="text-gray-600">Monto base:</span>
                   <span className="font-medium">
                     {montoNota ? formatCurrency(parseFloat(montoNota)) : '$0.00'}
                   </span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">IVA (13%):</span>
+                  <span className="font-medium">
+                    {montoNota ? formatCurrency(parseFloat(montoNota) * 0.13) : '$0.00'}
+                  </span>
+                </div>
                 <div className="flex justify-between border-t pt-2">
-                  <span className="text-gray-800 font-semibold">Total factura original:</span>
+                  <span className="text-gray-800 font-semibold">Total nota:</span>
                   <span className="font-bold text-blue-600">
-                    {formatCurrency(factura.totalpagar || factura.montototaloperacion || 0)}
+                    {montoNota ? formatCurrency(parseFloat(montoNota) * 1.13) : '$0.00'}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Botones de acción */}
             <div className="flex justify-end gap-3">
               <button
                 type="button"
@@ -404,7 +513,6 @@ export default function EmitirNotaPage() {
             </div>
           </div>
 
-          {/* Información importante */}
           <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-6 rounded-r">
             <div className="flex items-start">
               <div className="flex-shrink-0">

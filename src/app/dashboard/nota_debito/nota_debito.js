@@ -33,31 +33,54 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   const itemsPerPage = 6;
   const router = useRouter();
 
+
   useEffect(() => {
-    const fetchFacturas = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch("http://localhost:3000/facturas/getAllDteFacturas", {
+        setLoading(true);
+
+        const facturasResponse = await fetch("http://localhost:3000/creditos/getAllDteCreditos", {
           credentials: "include"
         });
-        if (!response.ok) throw new Error("Error al cargar facturas");
-        const data = await response.json();
         
-        if (Array.isArray(data)) {
-          const facturasParaNota = data.filter(factura => puedeGenerarNota(factura));
-          const todasNotasDebito = data.filter(factura => factura.tipodocumento === 'NOTA_DEBITO' || factura.esnotadebito);
-          const todasNotasCredito = data.filter(factura => factura.tipodocumento === 'NOTA_CREDITO' || factura.esnotacredito);
-          
-          setFacturas(facturasParaNota);
-          setNotasDebito(todasNotasDebito);
-          setNotasCredito(todasNotasCredito);
+        if (!facturasResponse.ok) throw new Error("Error al cargar facturas");
+        const facturasData = await facturasResponse.json();
+        
+        const notasDebitoResponse = await fetch("http://localhost:3000/notasdebito/", {
+          credentials: "include"
+        });
+        
+        let notasDebitoData = [];
+        if (notasDebitoResponse.ok) {
+          notasDebitoData = await notasDebitoResponse.json();
         } else {
-          setFacturas([]);
-          setNotasDebito([]);
-          setNotasCredito([]);
+          console.warn("Error al cargar notas de débito, usando datos de respaldo");
+          if (Array.isArray(facturasData)) {
+            notasDebitoData = facturasData.filter(factura => 
+              factura.tipodocumento === 'NOTA_DEBITO' || factura.esnotadebito
+            );
+          }
         }
+
+        let notasCreditoData = [];
+        if (Array.isArray(facturasData)) {
+          notasCreditoData = facturasData.filter(factura => 
+            factura.tipodocumento === 'NOTA_CREDITO' || factura.esnotacredito
+          );
+        }
+
+        let facturasParaNota = [];
+        if (Array.isArray(facturasData)) {
+          facturasParaNota = facturasData.filter(factura => puedeGenerarNota(factura));
+        }
+        
+        setFacturas(facturasParaNota);
+        setNotasDebito(Array.isArray(notasDebitoData) ? notasDebitoData : []);
+        setNotasCredito(notasCreditoData);
+        
       } catch (error) {
         console.error("Error:", error);
-        alert("Error al cargar las facturas: " + error.message);
+        alert("Error al cargar los datos: " + error.message);
         setFacturas([]);
         setNotasDebito([]);
         setNotasCredito([]);
@@ -65,7 +88,8 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         setLoading(false);
       }
     };
-    fetchFacturas();
+    
+    fetchData();
   }, []);
 
   const puedeGenerarNota = (factura) => {
@@ -74,7 +98,6 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
     if (factura.tipodocumento === 'NOTA_CREDITO' || factura.esnotacredito) return false;
     if (!['TRANSMITIDO', 'RE-TRANSMITIDO', 'ACEPTADO'].includes(factura.estado)) return false;
     
-    // Verificar que la factura se haya generado hace menos de 24 horas
     if (factura.fechaemision) {
       const fechaEmision = new Date(factura.fechaemision);
       const ahora = new Date();
@@ -266,7 +289,6 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
 
 
   const handleViewDetails = (facturaId, tipoNota = null) => {
-    // Si es una nota (débito o crédito), redirigir a la página de detalles de notas
     if (tipoNota === 'debito' || tipoNota === 'credito' || 
         factura.tipodocumento === 'NOTA_DEBITO' || 
         factura.tipodocumento === 'NOTA_CREDITO' ||
@@ -274,7 +296,6 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         factura.esnotacredito) {
       router.push(`/dashboard/nota_debito/${facturaId}`);
     } else {
-      // Si es una factura normal, redirigir a la página de facturas
       router.push(`/dashboard/facturas/${facturaId}`);
     }
   };
@@ -312,7 +333,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   const FacturaCard = ({ factura, esNotaDebito = false, esNotaCredito = false }) => {
     const esNota = esNotaDebito || esNotaCredito;
     const tipoNota = esNotaDebito ? 'débito' : esNotaCredito ? 'crédito' : 'factura';
-    const colorNota = esNotaDebito ? 'purple' : esNotaCredito ? 'green' : 'blue';
+    const colorNota = esNotaDebito ? 'purple' : esNotaCredito ? 'green' : 'green';
     
     return (
       <div
@@ -321,7 +342,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
           esNota ? `border-${colorNota}-200` : 'border-gray-100'
         } hover:shadow-lg transition-all duration-200`}
       >
-        <div className={`p-3 ${esNota ? `bg-${colorNota}-600` : 'bg-blue-600'} text-white`}>
+        <div className={`p-3 ${esNota ? `bg-${colorNota}-600` : 'bg-green-600'} text-white`}>
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <div className="bg-white/20 p-1 rounded mr-2">
@@ -332,7 +353,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
               <div>
                 <span className="font-semibold text-xs block">
                   {esNotaDebito ? 'NOTA DÉBITO' : 
-                   esNotaCredito ? 'NOTA CRÉDITO' : 'FACTURA'}
+                   esNotaCredito ? 'NOTA CRÉDITO' : 'CRÉDITO FISCAL'}
                 </span>
                 <span className="text-xs font-light opacity-90">
                   #{factura.numerofacturausuario?.toString().padStart(4, '0') || factura.iddtefactura}
@@ -356,7 +377,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         <div className="p-4">
           <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
             <div className="flex items-center text-gray-600">
-              <FaCalendarAlt className={`mr-1 ${esNota ? `text-${colorNota}-500` : 'text-blue-500'} text-xs`} />
+              <FaCalendarAlt className={`mr-1 ${esNota ? `text-${colorNota}-500` : 'text-green-500'} text-xs`} />
               <span className="text-xs">
                 {new Date(factura.fechaemision).toISOString().split("T")[0]}
               </span>
@@ -372,7 +393,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
 
           <div className="mb-3">
             <div className="flex items-center text-gray-700 mb-1">
-              <FaUser className={`mr-1 ${esNota ? `text-${colorNota}-500` : 'text-blue-500'} text-xs`} />
+              <FaUser className={`mr-1 ${esNota ? `text-${colorNota}-500` : 'text-green-500'} text-xs`} />
               <span className="text-xs font-medium">Cliente</span>
             </div>
             <p className="text-gray-900 text-sm font-medium truncate pl-3">
@@ -401,8 +422,8 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
           <div className="border-t border-gray-100 pt-2">
             <div className="flex justify-between items-center">
               <div className="text-xs text-gray-500">Total</div>
-              <div className={`text-lg font-bold ${esNota ? `text-${colorNota}-600` : 'text-blue-600'}`}>
-                {formatCurrency(factura.totalpagar || factura.montototaloperacion || 0)}
+              <div className={`text-lg font-bold ${esNota ? `text-${colorNota}-600` : 'text-green-600'}`}>
+                {formatCurrency(factura.totalapagar || factura.montototaloperacion || 0)}
               </div>
             </div>
           </div>

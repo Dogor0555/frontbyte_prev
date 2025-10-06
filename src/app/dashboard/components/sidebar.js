@@ -103,7 +103,7 @@ export default function Sidebar({ onOpenPerfil }) {
       subMenu: [
         { name: "Ver Créditos", icon: <FaEye />, href: "/dashboard/creditos" },
         { name: "Anular Créditos", icon: <FaBan />, href: "/dashboard/anular_creditos" },
-        { name: "Enviar nota de Crédito/Débito", icon: <FaArrowCircleUp />, href: "/dashboard/creditos" },
+        { name: "Enviar nota de Crédito/Débito", icon: <FaArrowCircleUp />, href: "/dashboard/nota_debito" },
 
       ],
       menuKey: "creditos",

@@ -82,8 +82,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [errorValidacion, setErrorValidacion] = useState("");
   const [emisorDocumento, setEmisorDocumento] = useState("");
   const [emisorNombre, setEmisorNombre] = useState("");
-  // Agregar después de los otros estados
-const [tributosDetallados, setTributosDetallados] = useState({});
+  const [tributosDetallados, setTributosDetallados] = useState({});
 
   // Inicializar correo desde user o, si no hay, desde localStorage
   useEffect(() => {
