@@ -1,11 +1,11 @@
-// src/app/dashboard/nota_debito/[id]/page.js
+// src/app/dashboard/notas/emitir/[id]/page.js
 import { cookies } from "next/headers";
-import { checkAuthStatus } from "../../../services/auth";
+import { checkAuthStatus } from "../../../../services/auth";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import NotaDebitoDetalleView from "./nota_detalle";
+import EmitirNotaCombined from "./emitir_nota";
 
-export default async function NotaDebitoDetallePage({ params }) {
+export default async function EmitirNotaPage({ params }) {
   const cookieStore = await cookies();
   const cookie = cookieStore
     .getAll()
@@ -31,11 +31,11 @@ export default async function NotaDebitoDetallePage({ params }) {
         </div>
       }
     >
-      <NotaDebitoDetalleView 
+      <EmitirNotaCombined 
         user={authStatus.user}
         hasHaciendaToken={authStatus.hasHaciendaToken}
         haciendaStatus={authStatus.haciendaStatus}
-        notaId={id}
+        facturaId={id}
       />
     </Suspense>
   );

@@ -1,7 +1,7 @@
 // src/app/dashboard/notas-debito/nota_debito.js
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFilePdf, FaChevronLeft, FaChevronRight, FaExchangeAlt, FaExclamationTriangle, FaFileCode, FaPaperPlane, FaMoneyBillWave, FaPlusCircle, FaMinusCircle } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFileInvoice, FaFilePdf, FaChevronLeft, FaChevronRight, FaExchangeAlt, FaExclamationTriangle, FaFileCode, FaPaperPlane, FaMoneyBillWave, FaPlusCircle, FaMinusCircle } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
@@ -194,7 +194,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   const formatCurrency = (amount) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(amount || 0);
 
   const handleGenerarNota = (factura, tipo) => {
-    router.push(`/dashboard/nota_debito/${factura.iddtefactura}?tipo=${tipo}`);
+    router.push(`/dashboard/nota_debito/emitir/${factura.iddtefactura}?tipo=${tipo}`);
   };
 
   const handleGeneratePDF = async (notaId) => {
@@ -286,8 +286,6 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
     setShowModal(true);
   };
 
-
-
   const handleViewDetails = (facturaId, tipoNota = null) => {
     if (tipoNota === 'debito' || tipoNota === 'credito' || 
         factura.tipodocumento === 'NOTA_DEBITO' || 
@@ -296,7 +294,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         factura.esnotacredito) {
       router.push(`/dashboard/nota_debito/${facturaId}`);
     } else {
-      router.push(`/dashboard/facturas/${facturaId}`);
+      router.push(`/dashboard/creditos/${facturaId}`);
     }
   };
 
@@ -329,190 +327,284 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
       </div>
     );
   }
-
+  
   const FacturaCard = ({ factura, esNotaDebito = false, esNotaCredito = false }) => {
-    const esNota = esNotaDebito || esNotaCredito;
-    const tipoNota = esNotaDebito ? 'débito' : esNotaCredito ? 'crédito' : 'factura';
-    const colorNota = esNotaDebito ? 'purple' : esNotaCredito ? 'green' : 'green';
-    
-    return (
-      <div
-        key={factura.iddtefactura}
-        className={`bg-white rounded-lg shadow-md overflow-hidden border ${
-          esNota ? `border-${colorNota}-200` : 'border-gray-100'
-        } hover:shadow-lg transition-all duration-200`}
-      >
-        <div className={`p-3 ${esNota ? `bg-${colorNota}-600` : 'bg-green-600'} text-white`}>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <div className="bg-white/20 p-1 rounded mr-2">
-                {esNotaDebito ? <FaPlusCircle className="text-white text-xs" /> : 
-                 esNotaCredito ? <FaMinusCircleclass Name="text-white text-xs" /> : 
-                 <FaFileAlt className="text-white text-xs" />}
-              </div>
-              <div>
-                <span className="font-semibold text-xs block">
-                  {esNotaDebito ? 'NOTA DÉBITO' : 
-                   esNotaCredito ? 'NOTA CRÉDITO' : 'CRÉDITO FISCAL'}
-                </span>
-                <span className="text-xs font-light opacity-90">
-                  #{factura.numerofacturausuario?.toString().padStart(4, '0') || factura.iddtefactura}
-                </span>
-              </div>
-            </div>
-            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-              esNota 
-                ? `bg-${colorNota}-500/30 text-${colorNota}-100` 
-                : factura.estado === 'TRANSMITIDO' 
-                  ? 'bg-green-500/30 text-green-100'
-                  : factura.estado === 'PENDIENTE'
-                    ? 'bg-yellow-500/30 text-yellow-100'
-                    : 'bg-gray-500/30 text-gray-100'
-            }`}>
-              {factura.estado?.toUpperCase() || 'PENDIENTE'}
-            </span>
-          </div>
-        </div>
+      const esNota = esNotaDebito || esNotaCredito;
+      const tipoNota = esNotaDebito ? 'debito' : esNotaCredito ? 'credito' : 'factura';
+      const colorNota = esNotaDebito ? 'purple' : esNotaCredito ? 'green' : 'green';
+      
+      const [cliente, setCliente] = useState(null);
+      const [loadingCliente, setLoadingCliente] = useState(false);
 
-        <div className="p-4">
-          <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-            <div className="flex items-center text-gray-600">
-              <FaCalendarAlt className={`mr-1 ${esNota ? `text-${colorNota}-500` : 'text-green-500'} text-xs`} />
-              <span className="text-xs">
-                {new Date(factura.fechaemision).toISOString().split("T")[0]}
-              </span>
-            </div>
-            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-              factura.documentofirmado && factura.documentofirmado !== "null"
-                ? esNota ? `bg-${colorNota}-100 text-${colorNota}-800` : 'bg-green-100 text-green-800'
-                : 'bg-gray-100 text-gray-800'
-            }`}>
-              {factura.documentofirmado && factura.documentofirmado !== "null" ? "FIRMADO" : "NO FIRMADO"}
-            </span>
-          </div>
+      useEffect(() => {
+          const cargarCliente = async () => {
+              if (factura.nombrecibe) {
+                  setCliente({ nombre: factura.nombrecibe, dui: factura.docuentrega });
+                  return;
+              }
+              
+              if (factura.idcliente) {
+                  setLoadingCliente(true);
+                  try {
+                      const response = await fetch(`http://localhost:3000/clientes/${factura.idcliente}`, {
+                          credentials: "include"
+                      });
+                      
+                      if (response.ok) {
+                          const clienteData = await response.json();
+                          console.log(clienteData);
+                          setCliente({
+                              nombre: clienteData.data.nombre || clienteData.razonsocial || 'Cliente no especificado',
+                              dui: clienteData.dui || clienteData.nit || ''
+                          });
+                      } else {
+                          setCliente({
+                              nombre: factura.nombrecibe || 'Cliente no especificado',
+                              dui: factura.docuentrega || ''
+                          });
+                      }
+                  } catch (error) {
+                      console.error("Error cargando cliente:", error);
+                      setCliente({
+                          nombre: factura.nombrecibe || 'Cliente no especificado',
+                          dui: factura.docuentrega || ''
+                      });
+                  } finally {
+                      setLoadingCliente(false);
+                  }
+              } else {
+                  // Si no hay idcliente, usar los datos disponibles en la factura
+                  setCliente({
+                      nombre: factura.nombrecibe || 'Cliente no especificado',
+                      dui: factura.docuentrega || ''
+                  });
+              }
+          };
 
-          <div className="mb-3">
-            <div className="flex items-center text-gray-700 mb-1">
-              <FaUser className={`mr-1 ${esNota ? `text-${colorNota}-500` : 'text-green-500'} text-xs`} />
-              <span className="text-xs font-medium">Cliente</span>
-            </div>
-            <p className="text-gray-900 text-sm font-medium truncate pl-3">
-              {factura.nombrecibe || 'Cliente no especificado'}
-            </p>
-            {factura.docuentrega && (
-              <p className="text-xs text-gray-500 pl-3 mt-0.5">DUI: {factura.docuentrega}</p>
-            )}
-          </div>
+          cargarCliente();
+      }, [factura.idcliente, factura.nombrecibe, factura.docuentrega]);
 
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div>
-              <div className="text-xs text-gray-500 mb-0.5">Código</div>
-              <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded">
-                {factura.codigo || 'N/A'}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 mb-0.5">Control</div>
-              <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded truncate">
-                {factura.ncontrol || 'N/A'}
-              </div>
-            </div>
-          </div>
+      const handleViewDetails = () => {
+          if (esNotaDebito || esNotaCredito || 
+              factura.tipodocumento === 'NOTA_DEBITO' || 
+              factura.tipodocumento === 'NOTA_CREDITO' ||
+              factura.esnotadebito || 
+              factura.esnotacredito) {
+              router.push(`/dashboard/nota_debito/${factura.iddtefactura}`);
+          } else {
+              router.push(`/dashboard/creditos/${factura.iddtefactura}`);
+          }
+      };
 
-          <div className="border-t border-gray-100 pt-2">
-            <div className="flex justify-between items-center">
-              <div className="text-xs text-gray-500">Total</div>
-              <div className={`text-lg font-bold ${esNota ? `text-${colorNota}-600` : 'text-green-600'}`}>
-                {formatCurrency(factura.totalapagar || factura.montototaloperacion || 0)}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className={`px-3 py-3 flex flex-wrap gap-2 justify-between border-t ${
-          esNota ? `bg-${colorNota}-50 border-${colorNota}-100` : 'bg-blue-50 border-blue-100'
-        }`}>
-          <button
-            onClick={() => handleViewDetails(factura.iddtefactura, esNotaDebito ? 'debito' : esNotaCredito ? 'credito' : null)}
-            className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-              esNota 
-                ? `text-${colorNota}-600 hover:text-${colorNota}-800` 
-                : 'text-blue-600 hover:text-blue-800'
-            }`}
-            title="Ver detalles completos"
+      return (
+          <div
+              key={factura.iddtefactura}
+              className={`bg-white rounded-lg shadow-md overflow-hidden border ${
+                  esNota ? `border-${colorNota}-200` : 'border-gray-100'
+              } hover:shadow-lg transition-all duration-200`}
           >
-            <FaFileAlt className="mr-1 text-xs" />
-            Detalles
-          </button>
-
-          <div className="flex items-center gap-1">
-            {!esNota && (
-              <div className="flex gap-1">
-                <button
-                  onClick={() => handleGenerarNota(factura, "debito")}
-                  className="flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
-                  title="Generar Nota de Débito"
-                >
-                  <FaPlusCircle className="mr-1 text-xs" />
-                  Nota Débito
-                </button>
-                <button
-                  onClick={() => handleGenerarNota(factura, "credito")}
-                  className="flex items-center px-2 py-1 rounded text-xs font-medium bg-green-600 hover:bg-green-700 text-white shadow-sm"
-                  title="Generar Nota de Crédito"
-                >
-                  <FaMinusCircle  className="mr-1 text-xs" />
-                  Nota Crédito
-                </button>
+              <div className={`p-3 ${esNota ? `bg-${colorNota}-600` : 'bg-green-600'} text-white`}>
+                  <div className="flex justify-between items-center">
+                      <div className="flex items-center">
+                          <div className="bg-white/20 p-1 rounded mr-2">
+                              {esNotaDebito ? <FaPlusCircle className="text-white text-xs" /> : 
+                              esNotaCredito ? <FaMinusCircle className="text-white text-xs" /> : 
+                              <FaFileAlt className="text-white text-xs" />}
+                          </div>
+                          <div>
+                              <span className="font-semibold text-xs block">
+                                  {esNotaDebito ? 'NOTA DÉBITO' : 
+                                  esNotaCredito ? 'NOTA CRÉDITO' : 'CRÉDITO FISCAL'}
+                              </span>
+                              <span className="text-xs font-light opacity-90">
+                                  #{factura.numerofacturausuario?.toString().padStart(4, '0') || factura.iddtefactura}
+                              </span>
+                          </div>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          esNota 
+                              ? `bg-${colorNota}-500/30 text-${colorNota}-100` 
+                              : factura.estado === 'TRANSMITIDO' 
+                                  ? 'bg-green-500/30 text-green-100'
+                                  : factura.estado === 'PENDIENTE'
+                                      ? 'bg-yellow-500/30 text-yellow-100'
+                                      : 'bg-gray-500/30 text-gray-100'
+                      }`}>
+                          {factura.estado?.toUpperCase() || 'PENDIENTE'}
+                      </span>
+                  </div>
               </div>
-            )}
 
-            {esNota && (
-              <>
-                <button
-                  onClick={() => handleGeneratePDF(factura.iddtefactura)}
-                  disabled={pdfLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
-                  className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                    pdfLoading === factura.iddtefactura
-                      ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                      : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
-                        ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                        : `bg-${colorNota}-500 hover:bg-${colorNota}-600 text-white`
-                  }`}
-                  title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Nota no firmada" : "Descargar DTE en PDF"}
-                >
-                  {pdfLoading === factura.iddtefactura ? (
-                    <>
-                      <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
-                      Generando
-                    </>
-                  ) : (
-                    <>
-                      <FaFilePdf className="mr-1 text-xs" />
-                      PDF
-                    </>
+              <div className="p-4">
+                  <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
+                      <div className="flex items-center text-gray-600">
+                          <FaCalendarAlt className={`mr-1 ${esNota ? `text-${colorNota}-500` : 'text-green-500'} text-xs`} />
+                          <span className="text-xs">
+                              {new Date(factura.fechaemision).toISOString().split("T")[0]}
+                          </span>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          factura.documentofirmado && factura.documentofirmado !== "null"
+                              ? esNota ? `bg-${colorNota}-100 text-${colorNota}-800` : 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                      }`}>
+                          {factura.documentofirmado && factura.documentofirmado !== "null" ? "FIRMADO" : "NO FIRMADO"}
+                      </span>
+                  </div>
+
+                  <div className="mb-3">
+                      <div className="flex items-center text-gray-700 mb-1">
+                          <FaUser className={`mr-1 ${esNota ? `text-${colorNota}-500` : 'text-green-500'} text-xs`} />
+                          <span className="text-xs font-medium">Cliente</span>
+                      </div>
+                      
+                      {loadingCliente ? (
+                          <div className="pl-3">
+                              <div className="animate-pulse bg-gray-200 h-4 rounded w-3/4 mb-1"></div>
+                              <div className="animate-pulse bg-gray-200 h-3 rounded w-1/2"></div>
+                          </div>
+                      ) : (
+                          <>
+                              <p className="text-gray-900 text-sm font-medium truncate pl-3">
+                                  {cliente?.nombre || 'Cliente no especificado'}
+                              </p>
+                              {cliente?.dui && (
+                                  <p className="text-xs text-gray-500 pl-3 mt-0.5">DUI: {cliente.dui}</p>
+                              )}
+                              {/* Mostrar el ID del cliente para debug */}
+                              {factura.idcliente && (
+                                  <p className="text-xs text-gray-400 pl-3 mt-0.5">ID: {factura.idcliente}</p>
+                              )}
+                          </>
+                      )}
+                  </div>
+
+                  {esNota && factura.ncontrol_relacionado && (
+                      <div className="mb-3">
+                          <div className="flex items-center text-gray-700 mb-1">
+                              <FaFileInvoice className={`mr-1 ${esNota ? `text-${colorNota}-500` : 'text-green-500'} text-xs`} />
+                              <span className="text-xs font-medium">Documento Relacionado</span>
+                          </div>
+                          <p className="text-gray-900 text-sm font-medium truncate pl-3">
+                              {factura.ncontrol_relacionado}
+                          </p>
+                      </div>
                   )}
-                </button>
 
-                <button
-                  onClick={() => handleDownloadJSON(factura.iddtefactura)}
-                  disabled={!(factura.documentofirmado && factura.documentofirmado !== "null")}
-                  className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                    !(factura.documentofirmado && factura.documentofirmado !== "null")
-                      ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                      : 'bg-blue-500 hover:bg-blue-600 text-white'
-                  }`}
-                  title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Nota no firmada" : "Descargar DTE en JSON"}
-                >
-                  <FaFileCode className="mr-1 text-xs" />
-                  JSON
-                </button>
-              </>
-            )}
+                  {/* Solo mostrar código y control si NO es una nota */}
+                  {!esNota && (
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div>
+                              <div className="text-xs text-gray-500 mb-0.5">Código</div>
+                              <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded">
+                                  {factura.codigo || 'N/A'}
+                              </div>
+                          </div>
+                          <div>
+                              <div className="text-xs text-gray-500 mb-0.5">Control</div>
+                              <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded truncate">
+                                  {factura.ncontrol || 'N/A'}
+                              </div>
+                          </div>
+                      </div>
+                  )}
+
+                  <div className="border-t border-gray-100 pt-2">
+                      <div className="flex justify-between items-center">
+                          <div className="text-xs text-gray-500">
+                              {esNota ? 'MONTO NOTA' : 'TOTAL'}
+                          </div>
+                          <div className={`text-lg font-bold ${esNota ? `text-${colorNota}-600` : 'text-green-600'}`}>
+                              {formatCurrency(factura.totalapagar || factura.montototaloperacion || 0)}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <div className={`px-3 py-3 flex flex-wrap gap-2 justify-between border-t ${
+                  esNota ? `bg-${colorNota}-50 border-${colorNota}-100` : 'bg-blue-50 border-blue-100'
+              }`}>
+                  <button
+                      onClick={handleViewDetails}
+                      className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                          esNota 
+                              ? `text-${colorNota}-600 hover:text-${colorNota}-800` 
+                              : 'text-blue-600 hover:text-blue-800'
+                      }`}
+                      title="Ver detalles completos"
+                  >
+                      <FaFileAlt className="mr-1 text-xs" />
+                      Detalles
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                      {!esNota && (
+                          <div className="flex gap-1">
+                              <button
+                                  onClick={() => handleGenerarNota(factura, "debito")}
+                                  className="flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
+                                  title="Generar Nota de Débito"
+                              >
+                                  <FaPlusCircle className="mr-1 text-xs" />
+                                  Nota Débito
+                              </button>
+                              <button
+                                  onClick={() => handleGenerarNota(factura, "credito")}
+                                  className="flex items-center px-2 py-1 rounded text-xs font-medium bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                                  title="Generar Nota de Crédito"
+                              >
+                                  <FaMinusCircle className="mr-1 text-xs" />
+                                  Nota Crédito
+                              </button>
+                          </div>
+                      )}
+
+                      {esNota && (
+                          <>
+                              <button
+                                  onClick={() => handleGeneratePDF(factura.iddtefactura)}
+                                  disabled={pdfLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
+                                  className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                      pdfLoading === factura.iddtefactura
+                                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                                          : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
+                                              ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                                              : `bg-${colorNota}-500 hover:bg-${colorNota}-600 text-white`
+                                  }`}
+                                  title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Nota no firmada" : "Descargar DTE en PDF"}
+                              >
+                                  {pdfLoading === factura.iddtefactura ? (
+                                      <>
+                                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                                          Generando
+                                      </>
+                                  ) : (
+                                      <>
+                                          <FaFilePdf className="mr-1 text-xs" />
+                                          PDF
+                                      </>
+                                  )}
+                              </button>
+
+                              <button
+                                  onClick={() => handleDownloadJSON(factura.iddtefactura)}
+                                  disabled={!(factura.documentofirmado && factura.documentofirmado !== "null")}
+                                  className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                      !(factura.documentofirmado && factura.documentofirmado !== "null")
+                                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                                          : 'bg-blue-500 hover:bg-blue-600 text-white'
+                                  }`}
+                                  title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Nota no firmada" : "Descargar DTE en JSON"}
+                              >
+                                  <FaFileCode className="mr-1 text-xs" />
+                                  JSON
+                              </button>
+                          </>
+                      )}
+                  </div>
+              </div>
           </div>
-        </div>
-      </div>
-    );
+      );
   };
 
   const Pagination = ({ currentPage, totalPages, onPageChange }) => {
