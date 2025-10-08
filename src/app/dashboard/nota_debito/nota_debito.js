@@ -49,6 +49,11 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         const notasDebitoResponse = await fetch("http://localhost:3000/notasdebito/", {
           credentials: "include"
         });
+
+        const notasCreditoResponse = await fetch("http://localhost:3000/notascredito/", {
+          credentials: "include"
+        });
+
         
         let notasDebitoData = [];
         if (notasDebitoResponse.ok) {
@@ -63,10 +68,15 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         }
 
         let notasCreditoData = [];
-        if (Array.isArray(facturasData)) {
-          notasCreditoData = facturasData.filter(factura => 
-            factura.tipodocumento === 'NOTA_CREDITO' || factura.esnotacredito
-          );
+        if (notasCreditoResponse.ok) {
+          notasCreditoData = await notasCreditoResponse.json();
+        } else {
+          console.warn("Error al cargar notas de crédito, usando datos de respaldo");
+          if (Array.isArray(facturasData)) {
+            notasCreditoData = facturasData.filter(factura => 
+              factura.tipodocumento === 'NOTA_CREDITO' || factura.esnotacredito
+            );
+          }
         }
 
         let facturasParaNota = [];
@@ -373,7 +383,6 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                       setLoadingCliente(false);
                   }
               } else {
-                  // Si no hay idcliente, usar los datos disponibles en la factura
                   setCliente({
                       nombre: factura.nombrecibe || 'Cliente no especificado',
                       dui: factura.docuentrega || ''
@@ -471,7 +480,6 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                               {cliente?.dui && (
                                   <p className="text-xs text-gray-500 pl-3 mt-0.5">DUI: {cliente.dui}</p>
                               )}
-                              {/* Mostrar el ID del cliente para debug */}
                               {factura.idcliente && (
                                   <p className="text-xs text-gray-400 pl-3 mt-0.5">ID: {factura.idcliente}</p>
                               )}
@@ -491,7 +499,6 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                       </div>
                   )}
 
-                  {/* Solo mostrar código y control si NO es una nota */}
                   {!esNota && (
                       <div className="grid grid-cols-2 gap-2 mb-3">
                           <div>
@@ -522,14 +529,14 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
               </div>
 
               <div className={`px-3 py-3 flex flex-wrap gap-2 justify-between border-t ${
-                  esNota ? `bg-${colorNota}-50 border-${colorNota}-100` : 'bg-blue-50 border-blue-100'
+                  esNota ? `bg-${colorNota}-50 border-${colorNota}-100` : 'bg-green-50 border-green-100'
               }`}>
                   <button
                       onClick={handleViewDetails}
                       className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
                           esNota 
                               ? `text-${colorNota}-600 hover:text-${colorNota}-800` 
-                              : 'text-blue-600 hover:text-blue-800'
+                              : 'text-green-600 hover:text-green-800'
                       }`}
                       title="Ver detalles completos"
                   >

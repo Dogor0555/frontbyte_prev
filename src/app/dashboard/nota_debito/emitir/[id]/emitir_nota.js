@@ -1,7 +1,6 @@
-// src/app/dashboard/notas/emitir/[id]/emitir-nota-combined.js
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../../components/sidebar";
 import Footer from "../../../components/footer";
 import Navbar from "../../../components/navbar";
@@ -18,6 +17,7 @@ import {
 
 export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaStatus, facturaId }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -28,6 +28,13 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
   const [motivoNota, setMotivoNota] = useState("");
   const [montoNota, setMontoNota] = useState("");
   const [tipoNota, setTipoNota] = useState("debito");
+
+  useEffect(() => {
+    const tipoFromUrl = searchParams.get('tipo');
+    if (tipoFromUrl === 'debito' || tipoFromUrl === 'credito') {
+      setTipoNota(tipoFromUrl);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -47,7 +54,6 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
     };
   }, []);
 
-  // Efectos de la nota
   useEffect(() => {
     const fetchFactura = async () => {
       try {
@@ -235,11 +241,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
         alert(`Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada exitosamente`);
       }
 
-      if (tipoNota === "debito") {
-        router.push("/dashboard/notas_debito");
-      } else {
-        router.push("/dashboard/notas_debito");
-      }
+      router.push("/dashboard/notas_debito");
 
     } catch (error) {
       console.error(`Error al generar nota de ${tipoNota}:`, error);
@@ -280,7 +282,6 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-50 overflow-hidden">
-        {/* Layout básico durante carga */}
         <div className={`fixed md:relative z-20 h-screen ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}
@@ -358,7 +359,6 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Sidebar */}
       <div className={`fixed md:relative z-20 h-screen ${
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}
@@ -366,7 +366,6 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
         <Sidebar />
       </div>
 
-      {/* Overlay para mobile */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
@@ -374,9 +373,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
         ></div>
       )}
 
-      {/* Contenido principal */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Navbar */}
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
           <Navbar 
             user={user}
@@ -387,10 +384,8 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
           />
         </div>
 
-        {/* Contenido de la página */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6 max-w-4xl mx-auto">
-            {/* Header */}
             <div className="mb-8">
               <button
                 onClick={handleBack}
@@ -411,7 +406,6 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* ... resto del contenido de la nota ... */}
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-6">
                   <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -462,7 +456,6 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
 
               <div className="lg:col-span-2">
                 <div className="bg-white rounded-lg shadow-sm border p-6">
-                  {/* ... resto del formulario de nota ... */}
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-3">
                       Tipo de Nota *
@@ -630,7 +623,6 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
           </div>
         </div>
 
-        {/* Footer */}
         <Footer />
       </div>
     </div>
