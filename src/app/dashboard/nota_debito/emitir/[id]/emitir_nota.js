@@ -28,6 +28,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
   const [motivoNota, setMotivoNota] = useState("");
   const [montoNota, setMontoNota] = useState("");
   const [tipoNota, setTipoNota] = useState("debito");
+  const [errorMonto, setErrorMonto] = useState("");
 
   useEffect(() => {
     const tipoFromUrl = searchParams.get('tipo');
@@ -115,9 +116,99 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
     router.back();
   };
 
+  const validarMontoNota = (monto, tipoNota, factura) => {
+    if (!monto || monto === "") {
+      return {
+        valido: false,
+        mensaje: "El monto es requerido"
+      };
+    }
+
+    const montoNumerico = parseFloat(monto);
+    const totalFactura = parseFloat(factura.totalpagar || factura.montototaloperacion || 0);
+    
+    if (isNaN(montoNumerico)) {
+      return {
+        valido: false,
+        mensaje: "El monto debe ser un número válido"
+      };
+    }
+    
+    if (montoNumerico <= 0) {
+      return {
+        valido: false,
+        mensaje: "El monto debe ser mayor a 0"
+      };
+    }
+    
+    if (tipoNota === "credito") {
+      // Para nota de crédito: no puede ser mayor al total de la factura original
+      if (montoNumerico > totalFactura) {
+        return {
+          valido: false,
+          mensaje: `El monto de la nota de crédito no puede exceder el total de la factura (${formatCurrency(totalFactura)})`
+        };
+      }
+    }
+    
+    if (tipoNota === "debito") {
+      // Para nota de débito: establecer un límite razonable (ej: 2x el monto original)
+      const limiteMaximoDebito = totalFactura * 2;
+      if (montoNumerico > limiteMaximoDebito) {
+        return {
+          valido: false,
+          mensaje: `El monto de la nota de débito no puede exceder ${formatCurrency(limiteMaximoDebito)}`
+        };
+      }
+    }
+    
+    return {
+      valido: true,
+      mensaje: ""
+    };
+  };
+
+  // Función para cambiar el tipo de nota con validación automática
+  const cambiarTipoNota = (nuevoTipo) => {
+    setTipoNota(nuevoTipo);
+    
+    // Validar el monto actual con el nuevo tipo de nota
+    if (montoNota && factura) {
+      const validacion = validarMontoNota(montoNota, nuevoTipo, factura);
+      setErrorMonto(validacion.mensaje);
+    }
+  };
+
+  const handleMontoChange = (e) => {
+    const nuevoMonto = e.target.value;
+    setMontoNota(nuevoMonto);
+    
+    // Validación en tiempo real
+    if (nuevoMonto && factura) {
+      const validacion = validarMontoNota(nuevoMonto, tipoNota, factura);
+      setErrorMonto(validacion.mensaje);
+    } else {
+      setErrorMonto("");
+    }
+  };
+
   const handleGenerarNota = async () => {
-    if (!factura || !motivoNota.trim() || !montoNota || parseFloat(montoNota) <= 0) {
+    if (!factura || !motivoNota.trim() || !montoNota) {
       alert("Por favor complete todos los campos requeridos");
+      return;
+    }
+
+    // Validación del monto
+    const validacionMonto = validarMontoNota(montoNota, tipoNota, factura);
+    if (!validacionMonto.valido) {
+      setErrorMonto(validacionMonto.mensaje);
+      return;
+    }
+
+    setErrorMonto(""); // Limpiar error si la validación pasa
+
+    if (parseFloat(montoNota) <= 0) {
+      alert("El monto debe ser mayor a 0");
       return;
     }
 
@@ -463,7 +554,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
                     <div className="grid grid-cols-2 gap-4">
                       <button
                         type="button"
-                        onClick={() => setTipoNota("debito")}
+                        onClick={() => cambiarTipoNota("debito")}
                         className={`p-4 border-2 rounded-lg text-center transition-all ${
                           tipoNota === "debito"
                             ? "border-purple-500 bg-purple-50 text-purple-700"
@@ -479,7 +570,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
                       
                       <button
                         type="button"
-                        onClick={() => setTipoNota("credito")}
+                        onClick={() => cambiarTipoNota("credito")}
                         className={`p-4 border-2 rounded-lg text-center transition-all ${
                           tipoNota === "credito"
                             ? "border-green-500 bg-green-50 text-green-700"
@@ -525,18 +616,31 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
                         type="number"
                         id="monto"
                         value={montoNota}
-                        onChange={(e) => setMontoNota(e.target.value)}
+                        onChange={handleMontoChange}
                         placeholder="0.00"
                         step="0.01"
                         min="0.01"
-                        max={factura.totalpagar || factura.montototaloperacion || 0}
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         required
                       />
                     </div>
+                    
+                    {/* Mostrar mensaje de error si existe */}
+                    {errorMonto && (
+                      <p className="text-red-500 text-xs mt-1 flex items-center">
+                        <FaExclamationTriangle className="mr-1" />
+                        {errorMonto}
+                      </p>
+                    )}
+                    
                     <div className="flex justify-between text-xs text-gray-500 mt-1">
                       <span>Monto mínimo: $0.01</span>
-                      <span>Monto máximo: {formatCurrency(factura.totalpagar || factura.montototaloperacion || 0)}</span>
+                      <span>
+                        {tipoNota === "credito" 
+                          ? `Máximo: ${formatCurrency(factura.totalpagar || factura.montototaloperacion || 0)}`
+                          : `Máximo recomendado: ${formatCurrency((factura.totalpagar || factura.montototaloperacion || 0) * 2)}`
+                        }
+                      </span>
                     </div>
                   </div>
 
@@ -580,9 +684,9 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
                     </button>
                     <button
                       onClick={handleGenerarNota}
-                      disabled={!motivoNota.trim() || !montoNota || parseFloat(montoNota) <= 0 || enviando}
+                      disabled={!motivoNota.trim() || !montoNota || parseFloat(montoNota) <= 0 || enviando || errorMonto}
                       className={`px-6 py-2 text-sm font-medium text-white rounded-lg transition-colors flex items-center ${
-                        !motivoNota.trim() || !montoNota || parseFloat(montoNota) <= 0 || enviando
+                        !motivoNota.trim() || !montoNota || parseFloat(montoNota) <= 0 || enviando || errorMonto
                           ? "bg-gray-400 cursor-not-allowed"
                           : tipoNota === "debito" 
                             ? "bg-purple-600 hover:bg-purple-700" 
