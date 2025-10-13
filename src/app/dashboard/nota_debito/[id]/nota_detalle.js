@@ -1,12 +1,12 @@
 // src/app/dashboard/notas-debito/[id]/page.js
 "use client";
 import { useState, useEffect } from "react";
-import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaPlusCircle } from "react-icons/fa";
+import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaPlusCircle, FaMinusCircle } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
 
-export default function NotaDebitoDetallePage() {
+export default function NotaDetallePage() {
   const params = useParams();
   const numeroNota = params?.id;
   
@@ -15,61 +15,117 @@ export default function NotaDebitoDetallePage() {
   const [error, setError] = useState(null);
   const [generandoPDF, setGenerandoPDF] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tipoNota, setTipoNota] = useState("debito"); // 'debito' o 'credito'
   const router = useRouter();
 
   useEffect(() => {
-    const fetchNotaDebito = async () => {
+    const fetchNota = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/notasdebito/${numeroNota}`, {
+        
+        // Intentar detectar el tipo de nota primero
+        let esNotaDebito = false;
+        let esNotaCredito = false;
+        
+        // Primero intentamos obtener como nota de débito
+        let response = await fetch(`http://localhost:3000/notasdebito/${numeroNota}`, {
           credentials: "include",
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          let errorMessage = "Error al cargar nota de débito";
-          
-          try {
-            const errorData = JSON.parse(errorText);
-            errorMessage = errorData.message || errorMessage;
-          } catch {
-            errorMessage = errorText || errorMessage;
-          }
-          
-          throw new Error(errorMessage);
+        if (response.ok) {
+          const data = await response.json();
+          setNotaData(data);
+          setTipoNota("debito");
+          return;
         }
         
-        const contentType = response.headers.get('content-type');
-        let data;
-        
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          const text = await response.text();
-          try {
-            data = JSON.parse(text);
-          } catch {
-            throw new Error("Formato de respuesta no válido");
+        // Si falla, intentamos como nota de crédito
+        response = await fetch(`http://localhost:3000/notascredito/${numeroNota}`, {
+          credentials: "include",
+          headers: {
+            'Content-Type': 'application/json',
           }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setNotaData(data);
+          setTipoNota("credito");
+          return;
+        }
+
+        console.log(tipoNota);
+        
+        // Si ambos fallan, intentamos con el endpoint genérico de facturas
+        response = await fetch(`http://localhost:3000/facturas/${numeroNota}`, {
+          credentials: "include",
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setNotaData(data);
+          
+          // Determinar tipo basado en los campos de la factura
+          if (data.tipodocumento === 'NOTA_DEBITO' || data.esnotadebito) {
+            setTipoNota("debito");
+          } else if (data.tipodocumento === 'NOTA_CREDITO' || data.esnotacredito) {
+            setTipoNota("credito");
+          } else {
+            // Por defecto, intentamos determinar por la ruta o datos
+            setTipoNota("debito");
+          }
+          return;
         }
         
-        setNotaData(data);
+        throw new Error("No se pudo encontrar la nota");
+        
       } catch (err) {
-        console.error("Error al cargar nota de débito:", err);
-        setError(err.message || "Ocurrió un error al cargar la nota de débito");
+        console.error("Error al cargar nota:", err);
+        setError(err.message || "Ocurrió un error al cargar la nota");
       } finally {
         setLoading(false);
       }
     };
     
     if (numeroNota) {
-      fetchNotaDebito();
+      fetchNota();
     }
   }, [numeroNota]);
+
+  // Configuración de colores y textos según el tipo de nota
+  const configNota = {
+    debito: {
+      color: "purple",
+      icon: FaPlusCircle,
+      titulo: "DÉBITO",
+      textoCompleto: "NOTA DE DÉBITO",
+      bgColor: "bg-purple-600",
+      borderColor: "border-purple-400",
+      bgLight: "bg-purple-50",
+      textColor: "text-purple-600",
+      prefijo: "ND"
+    },
+    credito: {
+      color: "green",
+      icon: FaMinusCircle,
+      titulo: "CRÉDITO",
+      textoCompleto: "NOTA DE CRÉDITO",
+      bgColor: "bg-green-600",
+      borderColor: "border-green-400",
+      bgLight: "bg-green-50",
+      textColor: "text-green-600",
+      prefijo: "NC"
+    }
+  };
+
+  const config = configNota[tipoNota] || configNota.debito;
+  const IconoNota = config.icon;
 
   const handleGeneratePDF = async () => {
     setGenerandoPDF(true);
@@ -90,7 +146,7 @@ export default function NotaDebitoDetallePage() {
       }
       
       const disposition = response.headers.get("Content-Disposition");
-      let filename = `nota-${numeroNota}.pdf`;
+      let filename = `nota-${tipoNota}-${numeroNota}.pdf`;
       if (disposition && disposition.includes("filename=")) {
         filename = disposition
           .split("filename=")[1]
@@ -143,7 +199,7 @@ export default function NotaDebitoDetallePage() {
                   onClick={() => router.push('/dashboard/nota_debito')} 
                   className="mt-2 bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded"
                 >
-                  <FaArrowLeft className="inline mr-1" /> Volver a notas de débito
+                  <FaArrowLeft className="inline mr-1" /> Volver a notas
                 </button>
               </div>
             </div>
@@ -165,12 +221,12 @@ export default function NotaDebitoDetallePage() {
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow">
               <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-                <p>No se encontró la nota de débito solicitada</p>
+                <p>No se encontró la nota solicitada</p>
                 <button 
-                  onClick={() => router.push('/dashboard/notas-debito')} 
+                  onClick={() => router.push('/dashboard/nota_debito')} 
                   className="mt-2 bg-yellow-500 hover:bg-yellow-700 text-white py-1 px-3 rounded"
                 >
-                  <FaArrowLeft className="inline mr-1" /> Volver a notas de débito
+                  <FaArrowLeft className="inline mr-1" /> Volver a notas
                 </button>
               </div>
             </div>
@@ -197,6 +253,9 @@ export default function NotaDebitoDetallePage() {
       return "Fecha no disponible";
     }
   };
+
+  // Determinar el número de nota a mostrar
+  const numeroNotaDisplay = notaData.numerofacturausuario?.toString().padStart(4, '0') || notaData.iddtefactura;
 
   return (
     <div className="flex min-h-screen bg-blue-50">
@@ -231,44 +290,51 @@ export default function NotaDebitoDetallePage() {
                 onClick={() => router.push('/dashboard/nota_debito')}
                 className="flex items-center text-purple-600 hover:text-purple-800"
               >
-                <FaArrowLeft className="mr-1" /> Volver a notas de débito
+                <FaArrowLeft className="mr-1" /> Volver a notas
               </button>
               
-              <button
-                onClick={handleGeneratePDF}
-                disabled={generandoPDF || !notaData?.documentofirmado}
-                className={`flex items-center px-4 py-2 rounded ${
-                  generandoPDF ? 'bg-gray-400' : 
-                  !notaData?.documentofirmado ? 'bg-gray-500' : 
-                  'bg-purple-600 hover:bg-purple-700'
-                } text-white`}
-              >
-                {generandoPDF ? (
-                  <>
-                    <FaSpinner className="animate-spin mr-2" /> Generando...
-                  </>
-                ) : !notaData?.documentofirmado ? (
-                  <>
-                    <FaFilePdf className="mr-2" /> PDF no disponible
-                  </>
-                ) : (
-                  <>
-                    <FaFilePdf className="mr-2" /> Descargar PDF
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <span className={`px-3 py-1 rounded-full text-white ${config.bgColor}`}>
+                  {config.textoCompleto}
+                </span>
+                <button
+                  onClick={handleGeneratePDF}
+                  disabled={generandoPDF || !notaData?.documentofirmado}
+                  className={`flex items-center px-4 py-2 rounded ${
+                    generandoPDF ? 'bg-gray-400' : 
+                    !notaData?.documentofirmado ? 'bg-gray-500' : 
+                    `${config.bgColor} hover:opacity-90`
+                  } text-white`}
+                >
+                  {generandoPDF ? (
+                    <>
+                      <FaSpinner className="animate-spin mr-2" /> Generando...
+                    </>
+                  ) : !notaData?.documentofirmado ? (
+                    <>
+                      <FaFilePdf className="mr-2" /> PDF no disponible
+                    </>
+                  ) : (
+                    <>
+                      <FaFilePdf className="mr-2" /> Descargar PDF
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
-            <div className="bg-white text-purple-900 rounded-xl shadow-md overflow-hidden">
-              {/* Encabezado de nota de débito */}
-              <div className="bg-purple-600 text-white p-4">
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              {/* Encabezado de la nota */}
+              <div className={`${config.bgColor} text-white p-4`}>
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
-                    <FaPlusCircle className="mr-2 text-xl" />
-                    <span className="font-semibold text-xl">ND-{notaData.numerofacturausuario?.toString().padStart(4, '0') || notaData.iddtefactura}</span>
+                    <IconoNota className="mr-2 text-xl" />
+                    <span className="font-semibold text-xl">
+                      {config.prefijo}-{numeroNotaDisplay}
+                    </span>
                   </div>
-                  <span className="text-xs px-2 py-1 rounded bg-purple-700">
-                    NOTA DE DÉBITO
+                  <span className={`text-xs px-2 py-1 rounded ${config.bgColor} bg-opacity-30`}>
+                    {config.textoCompleto}
                   </span>
                 </div>
               </div>
@@ -294,19 +360,21 @@ export default function NotaDebitoDetallePage() {
                 </div>
               </div>
 
-              {/* Detalles de nota de débito */}
+              {/* Detalles de la nota */}
               <div className="p-5 border-t">
                 <div className="flex items-center mb-4 text-gray-600">
-                  <FaCalendarAlt className="mr-2 text-purple-500" />
+                  <FaCalendarAlt className={`mr-2 ${config.textColor}`} />
                   <span className="font-medium">Fecha: {formatDate(notaData.fechaemision)}</span>
                   {notaData.horaemision && (
                     <span className="font-medium ml-2">Hora: {notaData.horaemision}</span>
                   )}
                 </div>
 
-                {/* Conceptos de la nota de débito */}
+                {/* Conceptos de la nota */}
                 <div className="mb-6">
-                  <h3 className="font-semibold mb-3 text-lg">Conceptos de la nota de débito</h3>
+                  <h3 className="font-semibold mb-3 text-lg">
+                    Conceptos de la nota de {tipoNota === 'debito' ? 'débito' : 'crédito'}
+                  </h3>
                   <div className="overflow-x-auto">
                     <table className="min-w-full bg-white border">
                       <thead>
@@ -332,7 +400,7 @@ export default function NotaDebitoDetallePage() {
                         ) : (
                           <tr>
                             <td colSpan="4" className="py-4 px-4 border text-center text-gray-500">
-                              No hay conceptos detallados para esta nota de débito
+                              No hay conceptos detallados para esta nota
                             </td>
                           </tr>
                         )}
@@ -381,9 +449,19 @@ export default function NotaDebitoDetallePage() {
 
                 {/* Información de factura relacionada */}
                 {notaData.iddte_relacionado && (
-                  <div className="mt-4 p-4 bg-blue-50 rounded border-l-4 border-blue-400">
-                    <p className="font-semibold text-blue-800">Nota relacionada con factura:</p>
-                    <p>Esta nota de débito está relacionada con la factura #{notaData.iddte_relacionado}</p>
+                  <div className={`mt-4 p-4 ${config.bgLight} rounded border-l-4 ${config.borderColor}`}>
+                    <p className={`font-semibold ${config.textColor}`}>
+                      Nota relacionada con factura:
+                    </p>
+                    <p>Esta nota de {tipoNota === 'debito' ? 'débito' : 'crédito'} está relacionada con la factura #{notaData.iddte_relacionado}</p>
+                  </div>
+                )}
+
+                {/* Motivo específico para notas de crédito */}
+                {tipoNota === 'credito' && notaData.motivo && (
+                  <div className="mt-4 p-4 bg-yellow-50 rounded border-l-4 border-yellow-400">
+                    <p className="font-semibold text-yellow-800">Motivo de la nota de crédito:</p>
+                    <p>{notaData.motivo}</p>
                   </div>
                 )}
               </div>

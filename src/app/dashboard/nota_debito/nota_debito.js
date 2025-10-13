@@ -296,15 +296,15 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
     setShowModal(true);
   };
 
-  const handleViewDetails = (facturaId, tipoNota = null) => {
-    if (tipoNota === 'debito' || tipoNota === 'credito' || 
+  const handleViewDetails = () => {
+    if (esNotaDebito || esNotaCredito || 
         factura.tipodocumento === 'NOTA_DEBITO' || 
         factura.tipodocumento === 'NOTA_CREDITO' ||
         factura.esnotadebito || 
         factura.esnotacredito) {
-      router.push(`/dashboard/nota_debito/${facturaId}`);
+      router.push(`/dashboard/notas-debito/${factura.iddtefactura}`);
     } else {
-      router.push(`/dashboard/creditos/${facturaId}`);
+      router.push(`/dashboard/creditos/${factura.iddtefactura}`);
     }
   };
 

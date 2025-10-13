@@ -214,11 +214,20 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         const result = await responseEncabezado.json();
         console.log("Encabezado de factura guardado:", result);
         
-        const detallesGuardados = await guardarDetallesFactura(result.iddtefactura);
+        const detallesResult = await guardarDetallesFactura(result.iddtefactura);
         
-        if (detallesGuardados) {
+        if (detallesResult) {
           setShowConfirmModal(false);
-          alert(`Factura ${result.ncontrol} guardada exitosamente`);
+          
+          // Mostrar aviso si se envió en contingencia
+          if (detallesResult.contingencia && detallesResult.aviso) {
+            alert(`${detallesResult.aviso}\n${detallesResult.message}`);
+          } else if (detallesResult.transmitido) {
+            alert(`Factura ${result.ncontrol} guardada y transmitida exitosamente`);
+          } else {
+            alert(`Factura ${result.ncontrol} guardada exitosamente`);
+          }
+          
           reiniciarEstados();
         }
       } else {
@@ -452,7 +461,8 @@ const guardarDetallesFactura = async (iddtefactura) => {
       // ACTUALIZAR STOCK DESPUÉS DE GUARDAR LOS DETALLES
       await actualizarStockProductos(items);
       
-      return true;
+      // RETORNAR LA RESPUESTA COMPLETA EN LUGAR DE SOLO 'true'
+      return resultDetalles;
     } else {
       const errorText = await responseDetalles.text();
       console.error("Error response from server:", errorText);
@@ -463,7 +473,6 @@ const guardarDetallesFactura = async (iddtefactura) => {
     throw error;
   }
 };
-
   const obtenerUltimoNumeroFactura = async () => {
     try {
       const response = await fetch("http://localhost:3000/facturas/ultima", {
