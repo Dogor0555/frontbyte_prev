@@ -25,9 +25,9 @@ import {
   FaBan,
   FaChevronDown,
   FaChevronRight,
-   // Nuevos iconos para notas
   FaArrowCircleUp,    // Para nota de débito
-  FaArrowCircleDown, 
+  FaArrowCircleDown,
+  FaExclamationTriangle, // Icono para contingencia
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -40,7 +40,7 @@ export default function Sidebar({ onOpenPerfil }) {
   const [openMenus, setOpenMenus] = useState({
     dtes: false,
     facturas: false,
-    creditos: false, // Nuevo menú para créditos
+    creditos: false,
     admin: false,
   });
   const [hoveredItem, setHoveredItem] = useState(null);
@@ -90,9 +90,8 @@ export default function Sidebar({ onOpenPerfil }) {
       href: "#",
       subMenu: [
         { name: "Ver Facturas", icon: <FaEye />, href: "/dashboard/facturas" },
-        { name: "Anular Facturas", icon: <FaBan />, href: "/dashboard/anular_facturas" },
+        { name: "Anular Facturas", icon: <FaBan />, href: "/dashboard/facturas/anular" },
         { name: "Enviar nota de Débito/Crédito", icon: <FaArrowCircleUp />, href: "/dashboard/nota_debito" },
-
       ],
       menuKey: "facturas",
     },
@@ -104,10 +103,11 @@ export default function Sidebar({ onOpenPerfil }) {
         { name: "Ver Créditos", icon: <FaEye />, href: "/dashboard/creditos" },
         { name: "Anular Créditos", icon: <FaBan />, href: "/dashboard/anular_creditos" },
         { name: "Enviar nota de Crédito/Débito", icon: <FaArrowCircleUp />, href: "/dashboard/nota_debito" },
-
       ],
       menuKey: "creditos",
     },
+    // Nueva opción independiente para Contingencia
+    { name: "Contingencia", icon: <FaExclamationTriangle />, href: "/dashboard/contingencia" },
     { name: "Libro de Ventas", icon: <FaBook />, href: "/dashboard/libro_de_ventas" },
     { name: "Reportes", icon: <FaChartLine />, href: "/dashboard/reportes" },
     {name: "Editar Sucursal", icon: <FaEdit />, href: "/dashboard/editar_sucursal" },

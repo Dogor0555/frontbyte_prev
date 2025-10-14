@@ -7,16 +7,13 @@ import {
   FaExclamationTriangle, 
   FaBars, 
   FaTimes,
-  FaUserCircle,
-  FaCog,
-  FaBell,
-  FaFlag,
-  FaStar,
-  FaArrowRight,
   FaBuilding,
   FaWhatsapp,
   FaExternalLinkAlt,
-  FaSignal
+  FaSync,
+  FaFlag,
+  FaStar,
+  FaArrowRight
 } from 'react-icons/fa';
 
 export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggleSidebar, sidebarOpen }) {
@@ -34,8 +31,8 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
   const [isAnimating, setIsAnimating] = useState(false);
   const [nextAdIndex, setNextAdIndex] = useState(1);
   const [showHaciendaTooltip, setShowHaciendaTooltip] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Datos de las empresas publicitarias con colores personalizados
   const empresasPublicitarias = [
     {
       id: 1,
@@ -129,12 +126,11 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
     });
   }, [hasHaciendaToken, haciendaStatus]);
 
-  // Detectar si estamos en un dispositivo móvil y tamaño específico
   useEffect(() => {
     const checkIsMobile = () => {
       const width = window.innerWidth;
       setIsMobile(width < 768);
-      setIsSmallMobile(width < 480); // Para dispositivos muy pequeños
+      setIsSmallMobile(width < 480);
     };
     
     checkIsMobile();
@@ -142,7 +138,6 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
     return () => window.removeEventListener('resize', checkIsMobile);
   }, []);
 
-  // Efecto para detectar scroll
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -152,29 +147,87 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Rotar anuncios cada 8 segundos con animación
   useEffect(() => {
     const adInterval = setInterval(() => {
-      // Preparar el siguiente anuncio
       const nextIndex = currentAdIndex === empresasPublicitarias.length - 1 ? 0 : currentAdIndex + 1;
       setNextAdIndex(nextIndex);
       
-      // Iniciar animación de salida
       setIsAnimating(true);
       
-      // Después de 400ms cambiar al siguiente anuncio
       setTimeout(() => {
         setCurrentAdIndex(nextIndex);
-        // Después de cambiar, terminar la animación
         setTimeout(() => {
           setIsAnimating(false);
         }, 100);
       }, 400);
       
-    }, 8000); // Cambia cada 8 segundos
+    }, 8000);
 
     return () => clearInterval(adInterval);
   }, [currentAdIndex, empresasPublicitarias.length]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHaciendaConnection(prev => ({
+        ...prev,
+        expiresIn: Math.max(0, prev.expiresIn - 1)
+      }));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const refreshHaciendaToken = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      const response = await fetch('http://localhost:3000/hacienda/token-check', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setHaciendaConnection({
+          connected: true,
+          expiresIn: data.expires_in || 3600
+        });
+      } else {
+        setHaciendaConnection({
+          connected: false,
+          expiresIn: 0
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      setHaciendaConnection({
+        connected: false,
+        expiresIn: 0
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const toggleHaciendaConnection = async () => {
+    if (haciendaConnection.connected) {
+      try {
+        await fetch('http://localhost:3000/clearTokenhacienda', {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        setHaciendaConnection({
+          connected: false,
+          expiresIn: 0
+        });
+      } catch (error) {
+        console.error('Error clearing token:', error);
+      }
+    } else {
+      await refreshHaciendaToken();
+    }
+  };
 
   const formatTimeLeft = (seconds) => {
     if (!seconds || seconds <= 0) return 'Expirado';
@@ -209,7 +262,7 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
       return { status: 'error', text: 'Desconectado', shortText: 'Descon.' };
     }
     
-    if (haciendaConnection.expiresIn <= 300) { // 5 minutos
+    if (haciendaConnection.expiresIn <= 300) {
       return { 
         status: 'warning', 
         text: `Expira en ${formatTimeLeft(haciendaConnection.expiresIn)}`,
@@ -226,38 +279,32 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
 
   const connectionStatus = getConnectionStatus();
 
-  // Función para abrir el modal de publicidad
   const openAdModal = () => {
     setShowAdModal(true);
   };
 
-  // Función para cerrar el modal
   const closeAdModal = () => {
     setShowAdModal(false);
   };
 
-  // Función para cambiar al anuncio anterior
   const prevAd = () => {
     setCurrentAdIndex((prevIndex) => 
       prevIndex === 0 ? empresasPublicitarias.length - 1 : prevIndex - 1
     );
   };
 
-  // Función para cambiar al siguiente anuncio
   const nextAd = () => {
     setCurrentAdIndex((prevIndex) => 
       prevIndex === empresasPublicitarias.length - 1 ? 0 : prevIndex + 1
     );
   };
 
-  // Función para enviar mensaje por WhatsApp
   const enviarWhatsApp = (empresa) => {
     const mensaje = encodeURIComponent("MENSAJE ENVIADO DESDE EL FACTURADOR DE BYTE FUSION SOLUCIONES");
     const url = `https://wa.me/${empresa.whatsapp}?text=${mensaje}`;
     window.open(url, '_blank');
   };
 
-  // Función para visitar el website de la empresa
   const visitarWebsite = (url) => {
     window.open(url, '_blank');
   };
@@ -272,9 +319,7 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
         }
       `}>
         <div className="flex items-center justify-between h-16 px-4 md:px-6">
-          {/* Left Section - Sistema de Facturación */}
           <div className="flex items-center space-x-3">
-            {/* Botón de menú hamburguesa */}
             <button
               className={`
                 p-2 rounded-xl transition-all duration-300 ease-out
@@ -292,7 +337,6 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
               )}
             </button>
             
-            {/* Logo y título - Versión responsive */}
             <div className="flex items-center space-x-3">
               <div className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-xl shadow-lg">
                 <span className="text-white font-bold text-lg">B</span>
@@ -308,7 +352,6 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
             </div>
           </div>
 
-          {/* Center Section - Banner Publicitario Animado (oculto en móviles pequeños) */}
           {!isSmallMobile && (
             <div className="flex-1 flex justify-center mx-4 relative overflow-hidden">
               <div 
@@ -321,10 +364,8 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
                 `}
                 onClick={openAdModal}
               >
-                {/* Efecto de brillo animado */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-shimmer"></div>
                 
-                {/* Contenido del banner */}
                 <div className="relative flex items-center space-x-3 z-10">
                   <div className="flex-shrink-0 bg-white/20 p-2 rounded-xl backdrop-blur-sm">
                     <IconComponent className="h-5 w-5 text-white" />
@@ -338,15 +379,8 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
                       {currentAd.slogan}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center space-x-1">
-                    <span className="text-white/90 text-xs font-semibold ml-1">
-                      {currentAd.rating}
-                    </span>
-                  </div>
                 </div>
 
-                {/* Indicadores de progreso */}
                 <div className="absolute bottom-0 left-0 right-0 flex space-x-1 p-1">
                   {empresasPublicitarias.map((_, index) => (
                     <div
@@ -363,72 +397,101 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
             </div>
           )}
 
-          {/* Right Section - Estado de Hacienda con diseño responsive */}
-          <div className="flex items-center space-x-2">
-            {/* Estado de conexión con Hacienda - Versión compacta para móviles */}
-            <div 
-              className={`
-                flex items-center px-3 py-2 rounded-xl transition-all duration-300 ease-out
-                border backdrop-blur-sm shadow-sm relative
-                ${connectionStatus.status === 'success' 
-                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-700' 
-                  : connectionStatus.status === 'warning'
-                  ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-700'
-                  : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-700'
-                }
-                hover:shadow-md hover:scale-105 cursor-pointer group
-                ${isSmallMobile ? 'px-2 py-1' : ''}
-              `}
-              onMouseEnter={() => setShowHaciendaTooltip(true)}
-              onMouseLeave={() => setShowHaciendaTooltip(false)}
-              onClick={() => setShowHaciendaTooltip(!showHaciendaTooltip)}
-            >
-              {/* Indicador de estado */}
-              <div className={`
-                w-2 h-2 rounded-full mr-2 animate-pulse flex-shrink-0
-                ${connectionStatus.status === 'success' 
-                  ? 'bg-green-500 group-hover:bg-green-600' 
-                  : connectionStatus.status === 'warning'
-                  ? 'bg-amber-500 group-hover:bg-amber-600'
-                  : 'bg-red-500 group-hover:bg-red-600'
-                }
-              `} />
-              
-              {/* Icono según estado */}
-              {connectionStatus.status === 'success' ? (
-                <FaCheckCircle className={`${isSmallMobile ? 'mr-1' : 'mr-2'} text-green-500 flex-shrink-0`} />
-              ) : (
-                <FaExclamationTriangle className={`${isSmallMobile ? 'mr-1' : 'mr-2'} flex-shrink-0`} />
-              )}
-              
-              {/* Texto según tamaño de pantalla */}
-              <span className={`font-medium whitespace-nowrap ${isSmallMobile ? 'text-xs' : 'text-sm'}`}>
-                {isSmallMobile ? connectionStatus.shortText : `Hacienda: ${connectionStatus.text}`}
-              </span>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3">
+              <div 
+                className={`
+                  flex items-center px-3 py-2 rounded-xl transition-all duration-300 ease-out
+                  border backdrop-blur-sm shadow-sm
+                  ${connectionStatus.status === 'success' 
+                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-700' 
+                    : connectionStatus.status === 'warning'
+                    ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-700'
+                    : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-700'
+                  }
+                  hover:shadow-md hover:scale-105 cursor-pointer group
+                  ${isSmallMobile ? 'px-2 py-1' : ''}
+                `}
+                onMouseEnter={() => setShowHaciendaTooltip(true)}
+                onMouseLeave={() => setShowHaciendaTooltip(false)}
+                onClick={() => setShowHaciendaTooltip(!showHaciendaTooltip)}
+              >
+                <div className={`
+                  w-2 h-2 rounded-full mr-2 animate-pulse flex-shrink-0
+                  ${connectionStatus.status === 'success' 
+                    ? 'bg-green-500 group-hover:bg-green-600' 
+                    : connectionStatus.status === 'warning'
+                    ? 'bg-amber-500 group-hover:bg-amber-600'
+                    : 'bg-red-500 group-hover:bg-red-600'
+                  }
+                `} />
+                
+                {connectionStatus.status === 'success' ? (
+                  <FaCheckCircle className={`${isSmallMobile ? 'mr-1' : 'mr-2'} text-green-500 flex-shrink-0`} />
+                ) : (
+                  <FaExclamationTriangle className={`${isSmallMobile ? 'mr-1' : 'mr-2'} flex-shrink-0`} />
+                )}
+                
+                <span className={`font-medium whitespace-nowrap ${isSmallMobile ? 'text-xs' : 'text-sm'}`}>
+                  {isSmallMobile ? connectionStatus.shortText : `Hacienda: ${connectionStatus.text}`}
+                </span>
 
-              {/* Tooltip para mostrar información completa en móviles */}
-              {showHaciendaTooltip && isSmallMobile && (
-                <div className="absolute top-full right-0 mt-2 bg-gray-800 text-white text-xs rounded-lg py-2 px-3 z-50 shadow-lg whitespace-nowrap">
-                  <div className="font-semibold">Estado Hacienda:</div>
-                  <div>{connectionStatus.text}</div>
-                  <div className="w-3 h-3 bg-gray-800 absolute -top-1 right-3 transform rotate-45"></div>
-                </div>
-              )}
+                {showHaciendaTooltip && isSmallMobile && (
+                  <div className="absolute top-full right-0 mt-2 bg-gray-800 text-white text-xs rounded-lg py-2 px-3 z-50 shadow-lg whitespace-nowrap">
+                    <div className="font-semibold">Estado Hacienda:</div>
+                    <div>{connectionStatus.text}</div>
+                    <div className="w-3 h-3 bg-gray-800 absolute -top-1 right-3 transform rotate-45"></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle Switch para Hacienda */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={toggleHaciendaConnection}
+                  disabled={isRefreshing}
+                  className={`
+                    relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300 ease-out
+                    ${haciendaConnection.connected 
+                      ? 'bg-green-500 hover:bg-green-600' 
+                      : 'bg-gray-300 hover:bg-gray-400'
+                    }
+                    ${isRefreshing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                  `}
+                >
+                  <span className={`
+                    inline-block h-4 w-4 transform rounded-full bg-white transition-all duration-300 ease-out
+                    ${haciendaConnection.connected ? 'translate-x-6' : 'translate-x-1'}
+                    ${isRefreshing ? 'animate-pulse' : ''}
+                  `} />
+                </button>
+
+                <button
+                  onClick={refreshHaciendaToken}
+                  disabled={isRefreshing || !haciendaConnection.connected}
+                  className={`
+                    p-2 rounded-lg transition-all duration-300 ease-out
+                    bg-gradient-to-r from-blue-50 to-cyan-100 text-blue-600 
+                    hover:from-blue-100 hover:to-cyan-200 border border-blue-200
+                    hover:shadow-md hover:scale-105 disabled:opacity-30 disabled:cursor-not-allowed
+                    ${isSmallMobile ? 'w-7 h-7' : 'w-8 h-8'}
+                  `}
+                  title="Refrescar conexión con Hacienda"
+                >
+                  <FaSync className={`${isRefreshing ? 'animate-spin' : ''} ${isSmallMobile ? "text-xs" : "text-sm"}`} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Efecto de borde inferior */}
         <div className="h-1 bg-gradient-to-r from-transparent via-blue-300/30 to-transparent"></div>
       </header>
 
-      {/* Modal de Publicidad Mejorado */}
       {showAdModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden transform animate-slideInUp">
-            {/* Header del Modal con Banner de la Empresa */}
             <div className="relative h-48 bg-gradient-to-br from-gray-200 to-gray-300 overflow-hidden">
-              {/* Banner de la empresa */}
               <img 
                 src={currentAd.banner} 
                 alt={`Banner de ${currentAd.nombre}`}
@@ -439,7 +502,6 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
                 }}
               />
               
-              {/* Fallback si no carga el banner */}
               <div className={`absolute inset-0 bg-gradient-to-br ${currentAd.colores.from} ${currentAd.colores.to} hidden items-center justify-center`}>
                 <div className="text-white text-center p-4">
                   <IconComponent className="h-16 w-16 mx-auto mb-2" />
@@ -448,7 +510,6 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
                 </div>
               </div>
               
-              {/* Logo de la empresa */}
               <div className="absolute bottom-4 left-6 bg-white p-2 rounded-2xl shadow-lg">
                 <img 
                   src={currentAd.logo} 
@@ -464,7 +525,6 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
                 </div>
               </div>
               
-              {/* Botón cerrar */}
               <button 
                 onClick={closeAdModal}
                 className="absolute top-4 right-4 bg-black/20 hover:bg-black/30 text-white rounded-full p-2 transition-all backdrop-blur-sm"
@@ -473,7 +533,6 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
               </button>
             </div>
             
-            {/* Contenido del Modal */}
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
@@ -510,7 +569,6 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
               
               <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-2xl border-l-4 border-blue-500 mb-6">
                 <h3 className="font-bold text-gray-800 mb-2 text-lg flex items-center">
-                  <FaBell className="mr-2 text-blue-500" />
                   Información de Contacto:
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -521,7 +579,6 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
                 </div>
               </div>
               
-              {/* Botón de WhatsApp */}
               <div className="flex justify-center">
                 <button 
                   onClick={() => enviarWhatsApp(currentAd)}
@@ -533,13 +590,11 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
               </div>
             </div>
             
-            {/* Footer del Modal con controles mejorados */}
             <div className="flex justify-between items-center p-4 border-t border-gray-200 bg-gray-50">
               <button 
                 onClick={prevAd}
                 className="flex items-center space-x-2 px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-100 transition-all shadow-sm hover:shadow-md"
               >
-                <FaArrowRight className="rotate-180" />
                 <span>Anterior</span>
               </button>
               
@@ -562,14 +617,12 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
                 className="flex items-center space-x-2 px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-100 transition-all shadow-sm hover:shadow-md"
               >
                 <span>Siguiente</span>
-                <FaArrowRight />
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Estilos CSS adicionales para animaciones */}
       <style jsx>{`
         @keyframes shimmer {
           0% { transform: translateX(-100%) skewX(-12deg); }

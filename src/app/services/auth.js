@@ -1,9 +1,7 @@
 // src/app/services/auth.js
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
-
-
 export const login = async (email, password) => {
+  // Login al sistema nuestro
   const response = await fetch('http://localhost:3000/login', {
     method: 'POST',
     headers: {
@@ -18,18 +16,25 @@ export const login = async (email, password) => {
   }
 
   const data = await response.json();
-  
-  // Verificar token de Hacienda después del login exitoso
-  const haciendaCheck = await fetch('http://localhost:3000/hacienda/token-check', {
-    method: 'GET',
-    credentials: 'include',
-  });
 
-  if (!haciendaCheck.ok) {
-    throw new Error('Error al conectar con Hacienda');
+  let hasHaciendaToken = false;
+  try {
+    const haciendaCheck = await fetch('http://localhost:3000/hacienda/token-check', {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (haciendaCheck.ok) {
+      hasHaciendaToken = true;
+    }
+  } catch (error) {
+    console.warn("No se pudo conectar con Hacienda:", error);
   }
 
-  return data; // Ahora incluye la información del empleado
+  return {
+    ...data,
+    hasHaciendaToken
+  };
 };
 
 export const logout = async () => {
@@ -45,10 +50,8 @@ export const logout = async () => {
   return response.json();
 };
 
-// src/services/auth.js
 export const checkAuthStatus = async (cookie = '') => {
   try {
-    // Verificar autenticación en nuestro sistema
     const authResponse = await fetch('http://localhost:3000/checkAuth', {
       method: 'GET',
       headers: {
@@ -97,28 +100,38 @@ export const checkAuthStatus = async (cookie = '') => {
       }
     }
 
-    // Verificar estado del token de Hacienda
-    const haciendaStatus = await fetch('http://localhost:3000/statusTokenhacienda', {
-      method: 'GET',
-      headers: {
-        Cookie: cookie,
-      },
-      credentials: 'include',
-    });
+    // Intentar verificar token de Hacienda, pero no bloquear
+    let hasHaciendaToken = false;
+    let haciendaData = { valid: false };
+    try {
+      const haciendaStatus = await fetch('http://localhost:3000/statusTokenhacienda', {
+        method: 'GET',
+        headers: {
+          Cookie: cookie,
+        },
+        credentials: 'include',
+      });
 
-    const haciendaData = haciendaStatus.ok ? await haciendaStatus.json() : { valid: false };
+      if (haciendaStatus.ok) {
+        haciendaData = await haciendaStatus.json();
+        hasHaciendaToken = haciendaData.valid;
+      }
+    } catch (error) {
+      console.warn("No se pudo conectar con Hacienda:", error);
+    }
     
     return {
       isAuthenticated: true,
-      hasHaciendaToken: haciendaStatus.ok && haciendaData.valid,
+      hasHaciendaToken,
       haciendaStatus: haciendaData,
-      user: userWithCompleteInfo  // ← Usuario con información completa
+      user: userWithCompleteInfo
     };
   } catch (error) {
     console.error("Error al verificar autenticación:", error);
     return { isAuthenticated: false, hasHaciendaToken: false };
   }
 };
+
 // Función para verificar si el empleado tiene un rol específico
 export const hasRole = (empleado, requiredRole) => {
   return empleado && empleado.rol === requiredRole;
