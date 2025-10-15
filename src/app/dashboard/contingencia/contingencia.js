@@ -16,7 +16,6 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pdfLoading, setPdfLoading] = useState(null);
-  const [selectedFacturas, setSelectedFacturas] = useState(new Set());
   const itemsPerPage = 6;
   const router = useRouter();
 
@@ -32,18 +31,13 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
         
         if (data.ok && Array.isArray(data.facturas)) {
           setFacturas(data.facturas);
-          // Seleccionar automáticamente todas las facturas al cargar
-          const todasLasIds = new Set(data.facturas.map(f => f.iddtefactura));
-          setSelectedFacturas(todasLasIds);
         } else {
           setFacturas([]);
-          setSelectedFacturas(new Set());
         }
       } catch (error) {
         console.error("Error:", error);
         alert("Error al cargar las facturas en contingencia: " + error.message);
         setFacturas([]);
-        setSelectedFacturas(new Set());
       } finally {
         setLoading(false);
       }
@@ -103,36 +97,33 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
     return tipos[tipodte] || `DTE ${tipodte}`;
   };
 
-  const handleSelectFactura = (facturaId) => {
-    const newSelected = new Set(selectedFacturas);
-    if (newSelected.has(facturaId)) {
-      newSelected.delete(facturaId);
-    } else {
-      newSelected.add(facturaId);
-    }
-    setSelectedFacturas(newSelected);
-  };
-
-  const handleSelectAll = () => {
-    if (selectedFacturas.size === facturasFiltradas.length) {
-      // Si ya están todas seleccionadas, deseleccionar todas
-      setSelectedFacturas(new Set());
-    } else {
-      // Seleccionar todas las facturas filtradas
-      const todasLasIdsFiltradas = new Set(facturasFiltradas.map(f => f.iddtefactura));
-      setSelectedFacturas(todasLasIdsFiltradas);
-    }
-  };
-
-  const handleGenerarLote = () => {
-    if (selectedFacturas.size === 0) {
-      alert("Por favor selecciona al menos un documento para generar el lote");
+  const handleGenerarLote = async () => {
+    if (facturasFiltradas.length === 0) {
+      alert("No hay documentos disponibles para generar el lote");
       return;
     }
     
-    console.log("Generando lote con documentos:", Array.from(selectedFacturas));
-    alert(`Función en desarrollo. Se procesarán ${selectedFacturas.size} documentos en el lote.`);
-    // Aquí irá la lógica para generar el lote de contingencia
+    try {
+      const response = await fetch('http://localhost:3000/contingencia/masiva', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const resultado = await response.json();
+        console.log('Lote generado exitosamente:', resultado);
+        alert(`Lote de contingencia generado exitosamente para ${facturasFiltradas.length} documentos`);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al generar el lote');
+      }
+    } catch (error) {
+      console.error('Error generando lote:', error);
+      alert('Error al generar el lote: ' + error.message);
+    }
   };
 
   const handleGeneratePDF = async (facturaId) => {
@@ -329,17 +320,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
         </div>
       </div>
 
-      <div className="px-3 py-3 flex flex-wrap gap-2 justify-between border-t bg-indigo-50 border-indigo-100">
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            checked={selectedFacturas.has(factura.iddtefactura)}
-            onChange={() => handleSelectFactura(factura.iddtefactura)}
-            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-          />
-          <span className="ml-2 text-xs text-gray-700">Incluir en lote</span>
-        </div>
-
+      <div className="px-3 py-3 flex gap-2 justify-end border-t bg-indigo-50 border-indigo-100">
         <div className="flex items-center gap-1">
           <button
             onClick={() => handleViewDetails(factura.iddtefactura)}
@@ -541,15 +522,15 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
                   <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                     <button
                       onClick={handleGenerarLote}
-                      disabled={selectedFacturas.size === 0}
+                      disabled={facturasFiltradas.length === 0}
                       className={`flex items-center px-4 py-2 rounded-lg font-medium ${
-                        selectedFacturas.size === 0
+                        facturasFiltradas.length === 0
                           ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
                           : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
                       }`}
                     >
                       <FaLayerGroup className="mr-2" />
-                      Generar Lote ({selectedFacturas.size})
+                      Generar Lote ({facturasFiltradas.length})
                     </button>
 
                     <div className="relative w-full md:w-64">
@@ -592,22 +573,6 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
                     </div>
                   </div>
                 </div>
-
-                {facturasFiltradas.length > 0 && (
-                  <div className="flex items-center mb-4 p-3 bg-white rounded-lg border">
-                    <input
-                      type="checkbox"
-                      checked={selectedFacturas.size === facturasFiltradas.length && facturasFiltradas.length > 0}
-                      onChange={handleSelectAll}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">
-                      {selectedFacturas.size === facturasFiltradas.length 
-                        ? `Deseleccionar todos (${facturasFiltradas.length} documentos)` 
-                        : `Seleccionar todos los ${facturasFiltradas.length} documentos filtrados`}
-                    </span>
-                  </div>
-                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {currentItems.map((factura) => (
