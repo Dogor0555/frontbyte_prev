@@ -191,7 +191,7 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
         const data = await response.json();
         setHaciendaConnection({
           connected: true,
-          expiresIn: data.expires_in || 3600
+          expiresIn: data.expires_in || 86400
         });
       } else {
         setHaciendaConnection({

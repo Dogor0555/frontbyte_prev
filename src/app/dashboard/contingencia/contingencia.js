@@ -116,6 +116,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
         const resultado = await response.json();
         console.log('Lote generado exitosamente:', resultado);
         alert(`Lote de contingencia generado exitosamente para ${facturasFiltradas.length} documentos`);
+        window.location.reload();
       } else {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Error al generar el lote');
