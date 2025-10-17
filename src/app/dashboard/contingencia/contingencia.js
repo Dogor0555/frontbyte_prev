@@ -16,6 +16,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pdfLoading, setPdfLoading] = useState(null);
+  const [generandoLote, setGenerandoLote] = useState(false);
   const itemsPerPage = 6;
   const router = useRouter();
 
@@ -98,23 +99,55 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
   };
 
   const handleGenerarLote = async () => {
+    try {
+      const tokenCheckResponse = await fetch('http://localhost:3000/statusTokenhacienda', {
+        credentials: 'include'
+      });
+
+      if (!tokenCheckResponse.ok) {
+        const errorData = await tokenCheckResponse.json();
+        throw new Error(errorData.message || 'Error al verificar token de Hacienda');
+      }
+      
+      const tokenCheckResult = await tokenCheckResponse.json();
+      
+      if (!tokenCheckResult.ok) {
+        alert("Error en la verificación del token de Hacienda");
+        return;
+      }
+      
+      if (!tokenCheckResult.existesesion) {
+        alert("No se puede generar el lote de contingencia: No hay sesión activa con Hacienda. Por favor, configure las credenciales primero.");
+        return;
+      }
+      
+      if (!tokenCheckResult.valid) {
+        alert("No se puede generar el lote de contingencia: El token de Hacienda ha expirado. Por favor, renueve las credenciales.");
+        return;
+      }
+      
+    } catch (error) {
+      console.error('Error verificando token de Hacienda:', error);
+      alert("No se puede generar el lote de contingencia: Error al verificar la conexión con Hacienda. " + error.message);
+      return;
+    }
+
     if (facturasFiltradas.length === 0) {
       alert("No hay documentos disponibles para generar el lote");
       return;
     }
     
+    setGenerandoLote(true);
+    
     try {
       const response = await fetch('http://localhost:3000/contingencia/masiva', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
       });
 
       if (response.ok) {
         const resultado = await response.json();
-        console.log('Lote generado exitosamente:', resultado);
         alert(`Lote de contingencia generado exitosamente para ${facturasFiltradas.length} documentos`);
         window.location.reload();
       } else {
@@ -124,6 +157,8 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
     } catch (error) {
       console.error('Error generando lote:', error);
       alert('Error al generar el lote: ' + error.message);
+    } finally {
+      setGenerandoLote(false);
     }
   };
 
@@ -521,18 +556,27 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                    <button
-                      onClick={handleGenerarLote}
-                      disabled={facturasFiltradas.length === 0}
-                      className={`flex items-center px-4 py-2 rounded-lg font-medium ${
-                        facturasFiltradas.length === 0
-                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                          : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
-                      }`}
-                    >
-                      <FaLayerGroup className="mr-2" />
-                      Generar Lote ({facturasFiltradas.length})
-                    </button>
+                  <button
+                    onClick={handleGenerarLote}
+                    disabled={facturasFiltradas.length === 0 || generandoLote}
+                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                      facturasFiltradas.length === 0 || generandoLote
+                        ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow-md transform hover:-translate-y-0.5'
+                    } ${generandoLote ? 'animate-pulse' : ''}`}
+                  >
+                    {generandoLote ? (
+                      <>
+                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                        Generando Lote...
+                      </>
+                    ) : (
+                      <>
+                        <FaLayerGroup className="mr-2" />
+                        Generar Lote ({facturasFiltradas.length})
+                      </>
+                    )}
+                  </button>
 
                     <div className="relative w-full md:w-64">
                       <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />

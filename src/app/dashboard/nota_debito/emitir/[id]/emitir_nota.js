@@ -300,47 +300,53 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
       console.log("Enviando detalles:", detallesData);
 
       const detallesResponse = await fetch(`${baseEndpoint}/${iddtefactura}/detalles`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(detallesData),
-      });
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(detallesData),
+          });
 
-      if (!detallesResponse.ok) {
-        const errorText = await detallesResponse.text();
-        throw new Error(`Error enviando detalles: ${errorText}`);
-      }
+          if (!detallesResponse.ok) {
+            const errorText = await detallesResponse.text();
+            throw new Error(`Error enviando detalles: ${errorText}`);
+          }
 
-      const detallesResult = await detallesResponse.json();
-      console.log("Detalles procesados:", detallesResult);
+          const detallesResult = await detallesResponse.json();
+          console.log("Detalles procesados:", detallesResult);
 
-      if (detallesResult.encabezado && detallesResult.encabezado.idcliente) {
-        console.log("✅ Cliente guardado correctamente en la nota:", detallesResult.encabezado.idcliente);
-      }
+          let mensajeExito = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada exitosamente`;
+          
+          if (detallesResult.hacienda && detallesResult.hacienda.estado) {
+            if (detallesResult.hacienda.estado === "PROCESADO" && detallesResult.hacienda.descripcionMsg === "RECIBIDO") {
+              mensajeExito = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada y transmitida exitosamente`;
+            } else {
+              throw new Error(detallesResult.hacienda.descripcionMsg || `Error en Hacienda: ${detallesResult.hacienda.estado}`);
+            }
+          } 
+          
+          if (detallesResult.contingencia && detallesResult.aviso) {
+            alert(`${detallesResult.aviso}\n${detallesResult.message || mensajeExito}`);
+          } 
 
-      if (detallesResult.hacienda && detallesResult.hacienda.estado) {
-        if (detallesResult.hacienda.estado === "PROCESADO" && detallesResult.hacienda.descripcionMsg === "RECIBIDO") {
-          alert(`Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada y transmitida exitosamente`);
-        } else {
-          throw new Error(detallesResult.hacienda.descripcionMsg || `Error en Hacienda: ${detallesResult.hacienda.estado}`);
+          else if (detallesResult.transmitido) {
+            alert(mensajeExito);
+          }
+          // Caso por defecto
+          else {
+            alert(mensajeExito);
+          }
+
+          router.push("/dashboard/notas_debito");
+
+        } catch (error) {
+          console.error(`Error al generar nota de ${tipoNota}:`, error);
+          alert("Error: " + error.message);
+        } finally {
+          setEnviando(false);
         }
-      } else if (detallesResult.message && detallesResult.message.includes("transmitida")) {
-        alert(`Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada exitosamente`);
-      } else {
-        alert(`Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada exitosamente`);
-      }
-
-      router.push("/dashboard/notas_debito");
-
-    } catch (error) {
-      console.error(`Error al generar nota de ${tipoNota}:`, error);
-      alert("Error: " + error.message);
-    } finally {
-      setEnviando(false);
-    }
-  };
+      };
 
   const convertirNumeroALetras = (numero) => {
     const unidades = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];

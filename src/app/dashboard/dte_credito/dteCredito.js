@@ -226,7 +226,16 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         
         if (detallesGuardados) {
           setShowConfirmModal(false);
-          alert(`Factura ${result.ncontrol} guardada exitosamente`);
+          
+          // MOSTRAR AVISO SI SE ENVIÓ EN CONTINGENCIA (COMO EN dteFactura.js)
+          if (detallesGuardados.contingencia && detallesGuardados.aviso) {
+            alert(`${detallesGuardados.aviso}\n${detallesGuardados.message}`);
+          } else if (detallesGuardados.transmitido) {
+            alert(`Crédito Fiscal ${result.ncontrol} guardado y transmitido exitosamente`);
+          } else {
+            alert(`Crédito Fiscal ${result.ncontrol} guardado exitosamente`);
+          }
+          
           reiniciarEstados();
         }
       } else {
@@ -235,7 +244,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al guardar la factura: " + error.message);
+      alert("Error al guardar el crédito fiscal: " + error.message);
     } finally {
       setGuardandoFactura(false);
     }
@@ -404,77 +413,78 @@ const actualizarStockProductos = async (itemsFactura) => {
   }
 };
 
-const guardarDetallesFactura = async (iddtefactura) => {
-  try {
-    const idFacturaInt = parseInt(iddtefactura, 10);
+  const guardarDetallesFactura = async (iddtefactura) => {
+    try {
+      const idFacturaInt = parseInt(iddtefactura, 10);
 
-    const detalles = items.map((item, index) => {
-      const subtotalItem = item.precioUnitario * item.cantidad;
-      const descuentoItem = subtotalItem * (item.descuento / 100);
-      const baseImponible = subtotalItem - descuentoItem;
+      const detalles = items.map((item, index) => {
+        const subtotalItem = item.precioUnitario * item.cantidad;
+        const descuentoItem = subtotalItem * (item.descuento / 100);
+        const baseImponible = subtotalItem - descuentoItem;
 
-      const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
-      const esExento = item.tipo === "noAfecto";
+        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+        const esExento = item.tipo === "noAfecto";
 
-      const tasaIVA = 13;
-      const ivaItem = esGravado ? 
-        (baseImponible * tasaIVA) / (100 + tasaIVA) : 0;
+        const tasaIVA = 13;
+        const ivaItem = esGravado ? 
+          (baseImponible * tasaIVA) / (100 + tasaIVA) : 0;
 
-      const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+        const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
 
-      return {
-        numitem: index + 1,
-        tipoitem: "1",
-        numerodocumento: null,
-        cantidad: parseFloat(item.cantidad.toFixed(2)),
-        codigo: codigoItem,
-        codtributo: null,
-        unimedida: item.unidadMedida || "59",
-        descripcion: item.descripcion,
-        preciouni: parseFloat(item.precioUnitario.toFixed(2)),
-        montodescu: parseFloat(descuentoItem.toFixed(2)),
-        ventanosuj: 0.00,
-        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-        tributos: item.tributos,
-        psv: 0,
-        nogravado: 0.00,
-        ivaitem: parseFloat(ivaItem.toFixed(2)) 
+        return {
+          numitem: index + 1,
+          tipoitem: "1",
+          numerodocumento: null,
+          cantidad: parseFloat(item.cantidad.toFixed(2)),
+          codigo: codigoItem,
+          codtributo: null,
+          unimedida: item.unidadMedida || "59",
+          descripcion: item.descripcion,
+          preciouni: parseFloat(item.precioUnitario.toFixed(2)),
+          montodescu: parseFloat(descuentoItem.toFixed(2)),
+          ventanosuj: 0.00,
+          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+          tributos: item.tributos,
+          psv: 0,
+          nogravado: 0.00,
+          ivaitem: parseFloat(ivaItem.toFixed(2)) 
+        };
+      });
+
+      const datosDetalles = {
+        transmitir: true,
+        idEnvio: Math.floor(1000 + Math.random() * 9000),
+        detalles: detalles,
       };
-    });
 
-    const datosDetalles = {
-      transmitir: true,
-      idEnvio: Math.floor(1000 + Math.random() * 9000),
-      detalles: detalles,
-    };
+      console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
 
-    console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
+      const responseDetalles = await fetch(`http://localhost:3000/creditos/${idFacturaInt}/detalles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(datosDetalles),
+      });
 
-    const responseDetalles = await fetch(`http://localhost:3000/creditos/${idFacturaInt}/detalles`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(datosDetalles),
-    });
-
-    if (responseDetalles.ok) {
-      const resultDetalles = await responseDetalles.json();
-      console.log("Detalles de factura guardados:", resultDetalles);
-      
-      await actualizarStockProductos(items);
-      
-      return true;
-    } else {
-      const errorText = await responseDetalles.text();
-      console.error("Error response from server:", errorText);
-      throw new Error(`Error al guardar los detalles: ${errorText}`);
+      if (responseDetalles.ok) {
+        const resultDetalles = await responseDetalles.json();
+        console.log("Detalles de crédito guardados:", resultDetalles);
+        
+        await actualizarStockProductos(items);
+        
+        // RETORNAR LA RESPUESTA COMPLETA EN LUGAR DE SOLO 'true'
+        return resultDetalles;
+      } else {
+        const errorText = await responseDetalles.text();
+        console.error("Error response from server:", errorText);
+        throw new Error(`Error al guardar los detalles: ${errorText}`);
+      }
+    } catch (error) {
+      console.error("Error al guardar detalles:", error);
+      throw error;
     }
-  } catch (error) {
-    console.error("Error al guardar detalles:", error);
-    throw error;
-  }
-};
+  };
 
   const obtenerUltimoNumeroFactura = async () => {
     try {
