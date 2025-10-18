@@ -25,9 +25,12 @@ import {
   FaBan,
   FaChevronDown,
   FaChevronRight,
-  FaArrowCircleUp,    // Para nota de débito
+  FaArrowCircleUp,
   FaArrowCircleDown,
-  FaExclamationTriangle, // Icono para contingencia
+  FaExclamationTriangle,
+  FaTruck,             // Para Nota de Remisión
+  FaReceipt,           // Para Retención
+  FaClipboardList,     // Para Liquidación
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -74,16 +77,18 @@ export default function Sidebar({ onOpenPerfil }) {
 
   const menuItems = [
     { name: "Inicio", icon: <FaHome />, href: "/dashboard" },
+
     {
       name: "DTES",
       icon: <FaFileInvoiceDollar />,
       href: "#",
       subMenu: [
         { name: "DTE Factura", icon: <FaFileInvoice />, href: "/dashboard/dte_factura" },
-        { name: "DTE Credito", icon: <FaFileContract />, href: "/dashboard/dte_credito" },
+        { name: "DTE Crédito", icon: <FaFileContract />, href: "/dashboard/dte_credito" },
       ],
       menuKey: "dtes",
     },
+
     {
       name: "Facturas",
       icon: <FaFileInvoice />,
@@ -94,22 +99,65 @@ export default function Sidebar({ onOpenPerfil }) {
       ],
       menuKey: "facturas",
     },
+
     {
-      name: "Creditos",
+      name: "Créditos",
       icon: <FaCreditCard />,
       href: "#",
       subMenu: [
         { name: "Ver Créditos", icon: <FaEye />, href: "/dashboard/creditos" },
         { name: "Anular Créditos", icon: <FaBan />, href: "/dashboard/anular_creditos" },
-        { name: "Enviar nota de Crédito/Débito", icon: <FaArrowCircleUp />, href: "/dashboard/nota_debito" },
+        { name: "Enviar Nota de Crédito/Débito", icon: <FaArrowCircleUp />, href: "/dashboard/nota_debito" },
       ],
       menuKey: "creditos",
     },
-    // Nueva opción independiente para Contingencia
+
+    // 📦 Nota de Remisión Electrónica
+    {
+      name: "Nota de Remisión",
+      icon: <FaTruck />,
+      href: "#",
+      subMenu: [
+        { name: "Emitir NRE", icon: <FaFileAlt />, href: "/dashboard/nota_remision" },
+        { name: "Ver NRE Emitidas", icon: <FaEye />, href: "/dashboard/nota_remision/ver" },
+        { name: "Anular NRE", icon: <FaBan />, href: "/dashboard/nota_remision/anular" },
+      ],
+      menuKey: "remision",
+    },
+
+    // 💸 Comprobante de Retención Electrónico
+    {
+      name: "Comprobantes de Retención",
+      icon: <FaReceipt />,
+      href: "#",
+      subMenu: [
+        { name: "Emitir CRE", icon: <FaFileAlt />, href: "/dashboard/retencion" },
+        { name: "Ver CRE Emitidos", icon: <FaEye />, href: "/dashboard/retencion/ver" },
+        { name: "Anular CRE", icon: <FaBan />, href: "/dashboard/retencion/anular" },
+      ],
+      menuKey: "retencion",
+    },
+
+    // 📜 Comprobante de Liquidación Electrónico
+    {
+      name: "Comprobantes de Liquidación",
+      icon: <FaClipboardList />,
+      href: "#",
+      subMenu: [
+        { name: "Emitir CLE", icon: <FaFileAlt />, href: "/dashboard/liquidacion" },
+        { name: "Ver CLE Emitidos", icon: <FaEye />, href: "/dashboard/liquidacion/ver" },
+        { name: "Anular CLE", icon: <FaBan />, href: "/dashboard/liquidacion/anular" },
+      ],
+      menuKey: "liquidacion",
+    },
+
+    // ⚠️ Contingencia
     { name: "Contingencia", icon: <FaExclamationTriangle />, href: "/dashboard/contingencia" },
+
+    // 📚 Otros
     { name: "Libro de Ventas", icon: <FaBook />, href: "/dashboard/libro_de_ventas" },
     { name: "Reportes", icon: <FaChartLine />, href: "/dashboard/reportes" },
-    {name: "Editar Sucursal", icon: <FaEdit />, href: "/dashboard/editar_sucursal" },
+    { name: "Editar Sucursal", icon: <FaEdit />, href: "/dashboard/editar_sucursal" },
   ];
 
   if (empleado && isAdmin(empleado)) {
@@ -133,6 +181,7 @@ export default function Sidebar({ onOpenPerfil }) {
   return (
     <aside className="bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 h-full w-64 shadow-2xl">
       <div className="flex flex-col h-full">
+
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-800 to-blue-700 flex items-center justify-center h-20 border-b border-blue-600/50 shadow-lg">
           <div className="bg-white relative h-14 w-14 rounded-full overflow-hidden shadow-lg ring-4 ring-blue-300/30">
@@ -178,7 +227,7 @@ export default function Sidebar({ onOpenPerfil }) {
                       </span>
                     </button>
                     
-                    {/* Submenu with smooth animation */}
+                    {/* Submenu */}
                     <div className={`
                       overflow-hidden transition-all duration-300 ease-out
                       ${openMenus[menuKey] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
@@ -211,15 +260,8 @@ export default function Sidebar({ onOpenPerfil }) {
                                 before:transform before:scale-y-0 before:transition-transform 
                                 before:duration-300 hover:before:scale-y-100
                               "
-                              onMouseEnter={() => setHoveredItem(`${menuKey}-${subName}`)}
-                              onMouseLeave={() => setHoveredItem(null)}
                             >
-                              <span className={`
-                                text-base transition-all duration-300 
-                                ${hoveredItem === `${menuKey}-${subName}` ? 'scale-110 text-cyan-300' : ''}
-                              `}>
-                                {subIcon}
-                              </span>
+                              <span className="text-base">{subIcon}</span>
                               <span className="ml-3 text-sm font-medium">{subName}</span>
                             </Link>
                           </li>
@@ -236,20 +278,9 @@ export default function Sidebar({ onOpenPerfil }) {
                       hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 
                       hover:text-white hover:shadow-md hover:shadow-blue-500/20 
                       hover:scale-105 hover:translate-x-1
-                      before:absolute before:left-0 before:top-0 before:h-full before:w-1 
-                      before:bg-gradient-to-b before:from-cyan-400 before:to-blue-500 
-                      before:transform before:scale-y-0 before:transition-transform 
-                      before:duration-300 hover:before:scale-y-100
                     "
-                    onMouseEnter={() => setHoveredItem(name)}
-                    onMouseLeave={() => setHoveredItem(null)}
                   >
-                    <span className={`
-                      text-lg transition-all duration-300 
-                      ${hoveredItem === name ? 'scale-110 text-cyan-300' : ''}
-                    `}>
-                      {icon}
-                    </span>
+                    <span className="text-lg">{icon}</span>
                     <span className="ml-3 font-medium">{name}</span>
                   </Link>
                 )}
@@ -282,15 +313,9 @@ export default function Sidebar({ onOpenPerfil }) {
                 border border-blue-500/50 rounded-xl transition-all duration-300 
                 hover:bg-gradient-to-r hover:from-blue-600/60 hover:to-indigo-600/60 
                 hover:text-white hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/25
-                hover:scale-105 group relative overflow-hidden
-                before:absolute before:inset-0 before:bg-gradient-to-r 
-                before:from-transparent before:via-white/5 before:to-transparent 
-                before:transform before:-skew-x-12 before:-translate-x-full 
-                before:transition-transform before:duration-700 
-                hover:before:translate-x-full
               "
             >
-              <FaUserAlt className="text-base group-hover:scale-110 transition-transform duration-300" />
+              <FaUserAlt className="text-base" />
               <span className="ml-3 font-medium">{perfilLabel}</span>
             </Link>
           </div>
@@ -306,19 +331,9 @@ export default function Sidebar({ onOpenPerfil }) {
               border border-red-500/50 rounded-xl transition-all duration-300 
               hover:bg-gradient-to-r hover:from-red-600/60 hover:to-rose-600/60 
               hover:text-white hover:border-red-400 hover:shadow-lg hover:shadow-red-500/25
-              disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 
-              group relative overflow-hidden
-              before:absolute before:inset-0 before:bg-gradient-to-r 
-              before:from-transparent before:via-white/5 before:to-transparent 
-              before:transform before:-skew-x-12 before:-translate-x-full 
-              before:transition-transform before:duration-700 
-              hover:before:translate-x-full
             "
           >
-            <FaSignOutAlt className={`
-              text-base transition-all duration-300 
-              ${isLoggingOut ? 'animate-spin' : 'group-hover:scale-110'}
-            `} />
+            <FaSignOutAlt className={`text-base ${isLoggingOut ? "animate-spin" : ""}`} />
             <span className="ml-3 font-medium">
               {isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}
             </span>
