@@ -129,15 +129,6 @@ export default function LoginPage() {
 
               <div className="mt-4 flex items-center md:mt-6">
                 <div className="flex-1 border-t border-gray-300"></div>
-                <span className="mx-4 text-xs text-gray-500 md:text-sm">O</span>
-                <div className="flex-1 border-t border-gray-300"></div>
-              </div>
-
-              <div className="mt-3 text-center text-xs md:mt-4 md:text-sm">
-                <span className="text-gray-600">¿No tienes una cuenta? </span>
-                <a href="#" className="text-blue-600 transition-colors duration-200 hover:text-blue-800 hover:underline">
-                  Solicita acceso aquí
-                </a>
               </div>
 
               <div className="mt-6 text-center text-xs text-gray-500">
