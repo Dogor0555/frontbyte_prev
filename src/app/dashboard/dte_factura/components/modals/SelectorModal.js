@@ -29,38 +29,6 @@ export default function SelectorModal({
             </div>
             <FaPlus className="text-blue-800" />
           </button>
-
-          <button
-            onClick={() => onSelectTipoDetalle("noAfecto")}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-green-50 transition-colors duration-200"
-          >
-            <div className="flex items-center">
-              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mr-4">
-                <FaMoneyBill className="text-green-800" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Monto No Afecto</h3>
-                <p className="text-sm text-gray-500">Agregar un monto no afecto</p>
-              </div>
-            </div>
-            <FaPlus className="text-green-800" />
-          </button>
-
-          <button
-            onClick={() => onSelectTipoDetalle("impuestos")}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-purple-50 transition-colors duration-200"
-          >
-            <div className="flex items-center">
-              <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mr-4">
-                <FaPercent className="text-purple-800" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Impuestos/Tasas</h3>
-                <p className="text-sm text-gray-500">Agregar impuestos o tasas</p>
-              </div>
-            </div>
-            <FaPlus className="text-purple-800" />
-          </button>
         </div>
 
         <div className="mt-6 flex justify-end">

@@ -59,6 +59,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [telefonoReceptor, setTelefonoReceptor] = useState("");
   const [complementoReceptor, setComplementoReceptor] = useState("");
   const [tipoDocumentoLabel, setTipoDocumentoLabel] = useState("Documento");
+  const [idReceptor, setIdReceptor] = useState(null);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [descuentoGrabadasMonto, setDescuentoGrabadasMonto] = useState(0);
   const [descuentoExentasMonto, setDescuentoExentasMonto] = useState(0);
@@ -539,7 +540,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
       (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
 
       return {
-        idcliente: cliente?.id || 1,
+        idcliente: idReceptor,
         sellorec: "", 
         modelofac: "01",
         verjson: "1.0",
@@ -1049,6 +1050,8 @@ const guardarDetallesFactura = async (iddtefactura) => {
                 setTelefonoReceptor={setTelefonoReceptor}
                 complementoReceptor={complementoReceptor}
                 setComplementoReceptor={setComplementoReceptor}
+                idReceptor={idReceptor}
+                setIdReceptor={setIdReceptor}
                 
                 actividadEconomica={actividadEconomica}
                 setActividadEconomica={setActividadEconomica}

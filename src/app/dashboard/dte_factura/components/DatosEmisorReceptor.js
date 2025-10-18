@@ -45,6 +45,9 @@ const DatosEmisorReceptor = ({
   setCorreoVendedor,
   telefonoEmisor,
   setTelefonoEmisor,
+  // Nuevo estado para idReceptor
+  idReceptor,
+  setIdReceptor,
 
   actividadesEconomicas
 }) => {
@@ -207,34 +210,41 @@ const DatosEmisorReceptor = ({
     }
   };
 
-  const selectCliente = (cliente) => {
-    setTipoDocumentoReceptor(cliente.tipodocumento || "");
+  const handleIdReceptor = (e) => {
+    const valor = e.target.value;
+    setIdReceptor(valor);
+  }
+
+ const selectCliente = (clienteSeleccionado) => {
+    
+    setTipoDocumentoReceptor(clienteSeleccionado.tipodocumento || "");
     
     let numeroDoc = "";
-    switch (cliente.tipodocumento) {
+    switch (clienteSeleccionado.tipodocumento) {
       case "13": 
-        numeroDoc = cliente.dui || "";
+        numeroDoc = clienteSeleccionado.dui || "";
         break;
       case "36":
-        numeroDoc = cliente.nit || "";
+        numeroDoc = clienteSeleccionado.nit || "";
         break;
       case "03":
-        numeroDoc = cliente.pasaporte || "";
+        numeroDoc = clienteSeleccionado.pasaporte || "";
         break;
       case "02":
-        numeroDoc = cliente.carnetresidente || "";
+        numeroDoc = clienteSeleccionado.carnetresidente || "";
         break;
       default:
-        numeroDoc = cliente.nit || cliente.dui || cliente.pasaporte || cliente.carnetresidente || "";
+        numeroDoc = clienteSeleccionado.nit || clienteSeleccionado.dui || clienteSeleccionado.pasaporte || clienteSeleccionado.carnetresidente || "";
     }
     
     setNumeroDocumentoReceptor(numeroDoc);
-    setNombreReceptor(cliente.nombre || "");
-    setDireccionReceptor(cliente.complemento || "");
-    setCorreoReceptor(cliente.correo || "");
-    setTelefonoReceptor(cliente.telefono || "");
+    setNombreReceptor(clienteSeleccionado.nombre || "");
+    setDireccionReceptor(clienteSeleccionado.complemento || "");
+    setCorreoReceptor(clienteSeleccionado.correo || "");
+    setTelefonoReceptor(clienteSeleccionado.telefono || "");
     setSearchTerm("");
     setShowClientList(false);
+    setIdReceptor(clienteSeleccionado.id || clienteSeleccionado.idcliente || null);
   };
 
   return (
@@ -426,9 +436,6 @@ const DatosEmisorReceptor = ({
               >
                 <option value="">-- Seleccione --</option>
                 <option value="36">NIT</option>
-                <option value="13">DUI</option>
-                <option value="03">Pasaporte</option>
-                <option value="02">Carnet de Residente</option>
               </select>
             </div>
 
