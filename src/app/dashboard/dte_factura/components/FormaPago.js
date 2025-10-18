@@ -250,17 +250,6 @@ export default function FormaPago({
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">N° Doc.</label>
-          <input
-            type="text"
-            value={numeroDocumento}
-            onChange={(e) => setNumeroDocumento(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Número de documento"
-          />
-        </div>
-
         {condicionPago === "crédito" && (
           <>
             <div>
