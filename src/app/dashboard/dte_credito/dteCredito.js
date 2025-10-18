@@ -1282,10 +1282,6 @@ const actualizarStockProductos = async (itemsFactura) => {
                     </>
                   )}
                 </button>
-                <button className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
-                  <FaPrint className="mr-2" />
-                  Imprimir
-                </button>
               </div>
             </div>
           </div>
