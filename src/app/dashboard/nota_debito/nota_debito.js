@@ -210,6 +210,15 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   const handleGeneratePDF = async (notaId) => {
     setPdfLoading(notaId);
     try {
+      const facturaResponse = await fetch(`http://localhost:3000/facturas/${notaId}`, {
+        credentials: "include"
+      });
+      if (!facturaResponse.ok) {
+        throw new Error("No se pudo obtener la factura");
+      }
+      const factura = await facturaResponse.json();
+      const numeroControl = factura.numero_control || `nota-${notaId}`;
+
       const response = await fetch(`http://localhost:3000/facturas/${notaId}/descargar-pdf`, {
         credentials: "include"
       });
@@ -225,19 +234,11 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         throw new Error(errorData.detalles || errorData.error || "Error al descargar PDF");
       }
       
-      const disposition = response.headers.get("Content-Disposition");
-      let filename = `nota-${notaId}.pdf`;
-      if (disposition && disposition.includes("filename=")) {
-        filename = disposition
-          .split("filename=")[1]
-          .replace(/"/g, "");
-      }
-
       const pdfBlob = await response.blob();
       const pdfUrl = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = filename;
+      link.download = `${numeroControl}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -251,8 +252,19 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
     }
   };
 
+
   const handleDownloadJSON = async (iddtefactura) => {
+    setPdfLoading(iddtefactura);
     try {
+      const facturaResponse = await fetch(`http://localhost:3000/facturas/${iddtefactura}`, {
+        credentials: "include"
+      });
+      if (!facturaResponse.ok) {
+        throw new Error("No se pudo obtener la factura");
+      }
+      const factura = await facturaResponse.json();
+      const numeroControl = factura.numero_control || `nota-${iddtefactura}`;
+
       const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
         method: 'GET',
         credentials: 'include',
@@ -262,19 +274,11 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
-      const disposition = response.headers.get("Content-Disposition");
-      let filename = `nota-${iddtefactura}.json`;
-      if (disposition && disposition.includes("filename=")) {
-        filename = disposition
-          .split("filename=")[1]
-          .replace(/"/g, "");
-      }
-
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = `${numeroControl}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -287,6 +291,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
       setPdfLoading(null);
     }
   };
+
 
   const openNotaModal = (factura, tipo) => {
     setFacturaSeleccionada(factura);
