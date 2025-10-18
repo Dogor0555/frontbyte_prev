@@ -11,7 +11,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
   const [facturas, setFacturas] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
-  const [ordenFecha, setOrdenFecha] = useState("reciente");
+  const [ordenFecha, setOrdenFecha] = useState("numero");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -53,23 +53,19 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
   };
 }, []);
 
-  // Función para ordenar facturas por fecha
-  const ordenarFacturasPorFecha = (facturas) => {
-    return [...facturas].sort((a, b) => {
-      // Crear fechas combinando fechaemision y horaemision
+const ordenarFacturas = (facturas) => {
+  return [...facturas].sort((a, b) => {
+    if (ordenFecha === "reciente" || ordenFecha === "antigua") {
       const crearFechaCompleta = (factura) => {
         if (!factura.fechaemision) return new Date(0);
         
-        // Si ya tiene hora incluida en fechaemision (formato ISO)
         if (factura.fechaemision.includes('T') && !factura.fechaemision.endsWith('Z')) {
           return new Date(factura.fechaemision);
         }
         
-        // Combinar fechaemision y horaemision
-        const fechaStr = factura.fechaemision.split('T')[0]; // Obtener solo la fecha
+        const fechaStr = factura.fechaemision.split('T')[0];
         const horaStr = factura.horaemision || '00:00:00';
-        
-        // Crear fecha en formato ISO (ajustar a UTC si es necesario)
+
         const fechaHoraStr = `${fechaStr}T${horaStr}Z`;
         return new Date(fechaHoraStr);
       };
@@ -78,12 +74,19 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
       const fechaB = crearFechaCompleta(b);
       
       if (ordenFecha === "reciente") {
-        return fechaB - fechaA; // Más reciente primero
+        return fechaB - fechaA; 
       } else {
-        return fechaA - fechaB; // Más antigua primero
+        return fechaA - fechaB; 
       }
-    });
-  };
+    } else if (ordenFecha === "numero") {
+      const numA = parseInt(a.numerofacturausuario) || 0;
+      const numB = parseInt(b.numerofacturausuario) || 0;
+      return numB - numA; 
+    }
+    
+    return 0;
+  });
+};
 
   const facturasFiltradas = Array.isArray(facturas)
     ? facturas.filter((factura) => {
@@ -102,8 +105,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
       })
     : [];
 
-  // Aplicar ordenamiento por fecha
-  const facturasOrdenadas = ordenarFacturasPorFecha(facturasFiltradas);
+  const facturasOrdenadas = ordenarFacturas(facturasFiltradas);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -396,18 +398,16 @@ return (
                 </div>
 
                 <select
-                  value={estadoFiltro}
+                  value={ordenFecha}
                   onChange={(e) => {
-                    setEstadoFiltro(e.target.value);
+                    setOrdenFecha(e.target.value);
                     setCurrentPage(1);
                   }}
                   className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                 >
-                  <option value="">Todos los estados</option>
-                  <option value="ANULADO">ANULADO</option>
-                  <option value="TRANSMITIDO">TRANSMITIDO</option>
-                  <option value="RE-TRANSMITIDO">RE-TRANSMITIDO</option>
-                  <option value="CONTINGENCIA">CONTINGENCIA</option>
+                  <option value="numero">Nº Factura (desc)</option>
+                  <option value="reciente">Más reciente</option>
+                  <option value="antigua">Más antigua</option>
                 </select>
 
                 <select
