@@ -140,7 +140,8 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
           (factura.codigo?.toLowerCase() || "").includes(searchLower) ||
           (factura.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
           (factura.numerofacturausuario?.toString() || "").includes(searchTerm) ||
-          (factura.iddtefactura?.toString() || "").includes(searchTerm);
+          (factura.iddtefactura?.toString() || "").includes(searchTerm) ||
+          (factura.ncontrol?.toString() || "").includes(searchTerm); // ← Agregar número de control
 
         return matchSearch;
       })
@@ -157,7 +158,8 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
           (nota.codigo?.toLowerCase() || "").includes(searchLower) ||
           (nota.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
           (nota.numerofacturausuario?.toString() || "").includes(searchTermNotas) ||
-          (nota.iddtefactura?.toString() || "").includes(searchTermNotas);
+          (nota.iddtefactura?.toString() || "").includes(searchTermNotas) ||
+          (nota.ncontrol?.toString() || "").includes(searchTermNotas); // ← Agregar número de control
 
         return matchSearch;
       })
@@ -174,7 +176,8 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
           (nota.codigo?.toLowerCase() || "").includes(searchLower) ||
           (nota.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
           (nota.numerofacturausuario?.toString() || "").includes(searchTermNotasCredito) ||
-          (nota.iddtefactura?.toString() || "").includes(searchTermNotasCredito);
+          (nota.iddtefactura?.toString() || "").includes(searchTermNotasCredito) ||
+          (nota.ncontrol?.toString() || "").includes(searchTermNotasCredito); // ← Agregar número de control
 
         return matchSearch;
       })

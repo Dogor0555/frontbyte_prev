@@ -100,7 +100,9 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
           (credito.codigo?.toLowerCase() || "").includes(searchLower) ||
           (credito.nombrecibe?.toLowerCase() || "").includes(searchLower) ||
           (credito.numerocreditousuario?.toString() || "").includes(searchTerm) ||
-          (credito.iddtecredito?.toString() || "").includes(searchTerm);
+          (credito.iddtecredito?.toString() || "").includes(searchTerm) ||
+          (credito.ncontrol?.toString() || "").includes(searchTerm) || // ← Número de control
+          (credito.numerofacturausuario?.toString() || "").includes(searchTerm); // ← Número de factura usuario
 
         const matchEstado = estadoFiltro ? credito.estado === estadoFiltro : true;
 
@@ -387,8 +389,8 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                     <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Buscar por código, cliente o número..."
-                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      placeholder="Buscar por código, cliente, número, DTE, control o factura..."
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={searchTerm}
                       onChange={(e) => {
                         setSearchTerm(e.target.value);

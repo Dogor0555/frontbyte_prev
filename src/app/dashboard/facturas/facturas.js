@@ -97,7 +97,8 @@ const ordenarFacturas = (facturas) => {
           (factura.codigo?.toLowerCase() || "").includes(searchLower) ||
           (factura.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
           (factura.numerofacturausuario?.toString() || "").includes(searchTerm) ||
-          (factura.iddtefactura?.toString() || "").includes(searchTerm);
+          (factura.iddtefactura?.toString() || "").includes(searchTerm) ||
+          (factura.ncontrol?.toString() || "").includes(searchTerm);
 
         const matchEstado = estadoFiltro ? factura.estado === estadoFiltro : true;
 
@@ -385,16 +386,16 @@ return (
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 <div className="relative w-full md:w-64">
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por código, cliente o número..."
-                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  />
+                <input
+                  type="text"
+                  placeholder="Buscar por código, cliente, número o DTE..."
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
                 </div>
 
                   <select
