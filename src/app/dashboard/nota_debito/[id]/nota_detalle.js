@@ -341,7 +341,7 @@ export default function NotaDetallePage() {
   const numeroNotaDisplay = notaData.numerofacturausuario?.toString().padStart(4, '0') || notaData.iddtefactura;
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="text-black flex min-h-screen bg-gray-50">
       <div className="hidden md:block">
         <Sidebar />
       </div>
