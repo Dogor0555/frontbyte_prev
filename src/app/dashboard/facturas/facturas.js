@@ -397,18 +397,20 @@ return (
                   />
                 </div>
 
-                <select
-                  value={ordenFecha}
-                  onChange={(e) => {
-                    setOrdenFecha(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
-                >
-                  <option value="numero">Nº Factura (desc)</option>
-                  <option value="reciente">Más reciente</option>
-                  <option value="antigua">Más antigua</option>
-                </select>
+                  <select
+                    value={estadoFiltro}
+                    onChange={(e) => {
+                      setEstadoFiltro(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
+                  >
+                    <option value="">Todos los estados</option>
+                    <option value="ANULADO">ANULADO</option>
+                    <option value="TRANSMITIDO">TRANSMITIDO</option>
+                    <option value="RE-TRANSMITIDO">RE-TRANSMITIDO</option>
+                    <option value="CONTINGENCIA">CONTINGENCIA</option>
+                  </select>
 
                 <select
                   value={ordenFecha}
@@ -418,6 +420,7 @@ return (
                   }}
                   className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                 >
+                  <option value="numero">Nº Factura (desc)</option>
                   <option value="reciente">Más reciente</option>
                   <option value="antigua">Más antigua</option>
                 </select>
@@ -440,7 +443,7 @@ return (
                         <div>
                           <span className="font-semibold text-xs block">FACTURA</span>
                           <span className="text-xs font-light opacity-90">
-                            #{factura.numerofacturausuario?.toString().padStart(4, '0') || factura.iddtefactura}
+                            #{factura.numerofacturausuario?.toString().padStart(4, '0')}
                           </span>
                         </div>
                       </div>

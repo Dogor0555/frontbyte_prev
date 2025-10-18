@@ -11,7 +11,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   const [creditos, setCreditos] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
-  const [ordenFecha, setOrdenFecha] = useState("reciente");
+  const [ordenFecha, setOrdenFecha] = useState("numero");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -56,17 +56,38 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     };
   }, []);
 
-  // Función para ordenar créditos por fecha
-  const ordenarCreditosPorFecha = (creditos) => {
+  const ordenarCreditos = (creditos) => {
     return [...creditos].sort((a, b) => {
-      const fechaA = new Date(a.fechaemision || 0);
-      const fechaB = new Date(b.fechaemision || 0);
-      
-      if (ordenFecha === "reciente") {
-        return fechaB - fechaA; // Más reciente primero
-      } else {
-        return fechaA - fechaB; // Más antigua primero
+      if (ordenFecha === "reciente" || ordenFecha === "antigua") {
+        const crearFechaCompleta = (credito) => {
+          if (!credito.fechaemision) return new Date(0);
+          
+          if (credito.fechaemision.includes('T') && !credito.fechaemision.endsWith('Z')) {
+            return new Date(credito.fechaemision);
+          }
+          
+          const fechaStr = credito.fechaemision.split('T')[0];
+          const horaStr = credito.horaemision || '00:00:00';
+
+          const fechaHoraStr = `${fechaStr}T${horaStr}Z`;
+          return new Date(fechaHoraStr);
+        };
+
+        const fechaA = crearFechaCompleta(a);
+        const fechaB = crearFechaCompleta(b);
+        
+        if (ordenFecha === "reciente") {
+          return fechaB - fechaA; 
+        } else {
+          return fechaA - fechaB; 
+        }
+      } else if (ordenFecha === "numero") {
+        const numA = parseInt(a.numerofacturausuario) || 0;
+        const numB = parseInt(b.numerofacturausuario) || 0;
+        return numB - numA; 
       }
+      
+      return 0;
     });
   };
 
@@ -88,7 +109,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     : [];
 
   // Aplicar ordenamiento por fecha
-  const creditosOrdenados = ordenarCreditosPorFecha(creditosFiltrados);
+  const creditosOrdenados = ordenarCreditos(creditosFiltrados);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -397,8 +418,9 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                       setOrdenFecha(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
+                    className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                   >
+                    <option value="numero">Nº Factura (desc)</option>
                     <option value="reciente">Más reciente</option>
                     <option value="antigua">Más antigua</option>
                   </select>
