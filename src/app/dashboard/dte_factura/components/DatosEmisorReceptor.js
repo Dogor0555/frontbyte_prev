@@ -436,6 +436,9 @@ const DatosEmisorReceptor = ({
               >
                 <option value="">-- Seleccione --</option>
                 <option value="36">NIT</option>
+                <option value="13">DUI</option>
+                <option value="03">Pasaporte</option>
+                <option value="02">Carnet de Residente</option>
               </select>
             </div>
 
@@ -451,7 +454,13 @@ const DatosEmisorReceptor = ({
                 className={`w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
                   errores.numeroDocumentoReceptor ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Número de documento"
+                placeholder={
+                  tipoDocumentoReceptor === "36" ? "Número de NIT" :
+                  tipoDocumentoReceptor === "13" ? "Número de DUI" :
+                  tipoDocumentoReceptor === "03" ? "Número de Pasaporte" :
+                  tipoDocumentoReceptor === "02" ? "Número de Carnet de Residente" :
+                  "Número de documento"
+                }
                 maxLength={
                   tipoDocumentoReceptor === "36" ? LIMITES.NIT :
                   tipoDocumentoReceptor === "13" ? LIMITES.DUI :
