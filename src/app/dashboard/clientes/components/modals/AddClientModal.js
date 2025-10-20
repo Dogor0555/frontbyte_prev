@@ -393,7 +393,7 @@ export default function AddClientModal({
                     errors.nrc ? "border-red-500" : "border-gray-300"
                   }`}
                   maxLength={LIMITES.NRC}
-                  placeholder="123456"
+                  placeholder="Número de Registro de Contribuyente"
                 />
                 {errors.nrc && <p className="text-red-500 text-xs mt-1">{errors.nrc}</p>}
               </div>
@@ -442,7 +442,7 @@ export default function AddClientModal({
                   errors.telefono ? "border-red-500" : "border-gray-300"
                 }`}
                 maxLength={8}
-                placeholder="71234567"
+                placeholder="Número de teléfono"
                 required
               />
               {errors.telefono && <p className="text-red-500 text-xs mt-1">{errors.telefono}</p>}
@@ -463,7 +463,7 @@ export default function AddClientModal({
                   errors.correo ? "border-red-500" : "border-gray-300"
                 }`}
                 maxLength={LIMITES.CORREO}
-                placeholder="ejemplo@correo.com"
+                placeholder=""
                 required
               />
               {errors.correo && <p className="text-red-500 text-xs mt-1">{errors.correo}</p>}

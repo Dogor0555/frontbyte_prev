@@ -555,7 +555,7 @@ const DatosEmisorReceptor = ({
                 className={`w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
                   errores.correoReceptor ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="correo@ejemplo.com"
+                placeholder="Correo del receptor"
                 maxLength={LIMITES.CORREO}
               />
               {errores.correoReceptor && (
