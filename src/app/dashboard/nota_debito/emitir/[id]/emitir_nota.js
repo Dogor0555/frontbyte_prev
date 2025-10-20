@@ -151,17 +151,6 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
       }
     }
     
-    if (tipoNota === "debito") {
-      // Para nota de débito: establecer un límite razonable (ej: 2x el monto original)
-      const limiteMaximoDebito = totalFactura * 2;
-      if (montoNumerico > limiteMaximoDebito) {
-        return {
-          valido: false,
-          mensaje: `El monto de la nota de débito no puede exceder ${formatCurrency(limiteMaximoDebito)}`
-        };
-      }
-    }
-    
     return {
       valido: true,
       mensaje: ""
@@ -338,7 +327,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
             alert(mensajeExito);
           }
 
-          router.push("/dashboard/notas_debito");
+          router.push("/dashboard/nota_debito");
 
         } catch (error) {
           console.error(`Error al generar nota de ${tipoNota}:`, error);
