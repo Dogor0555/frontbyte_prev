@@ -60,7 +60,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
 
   const puedeAnular = (credito) => {
     if (!credito) return false;
-    if (credito.estado === 'ANULADO') return false;
+    if (credito.estado === 'ANULADO', credito.estado === 'CONTINGENCIA') return false;
     if (!['TRANSMITIDO', 'RE-TRANSMITIDO'].includes(credito.estado)) return false;
     
     if (credito.fechaemision) {

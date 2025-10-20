@@ -95,7 +95,7 @@ export default function Sidebar({ onOpenPerfil }) {
       href: "#",
       subMenu: [
         { name: "Ver Facturas", icon: <FaEye />, href: "/dashboard/facturas" },
-        { name: "Anular Facturas", icon: <FaBan />, href: "/dashboard/facturas/anular" },
+        { name: "Anular Facturas", icon: <FaBan />, href: "/dashboard/anular_facturas" },
       ],
       menuKey: "facturas",
     },
