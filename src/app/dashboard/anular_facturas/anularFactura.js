@@ -153,7 +153,8 @@ export default function AnularFacturaView({ user, hasHaciendaToken, haciendaStat
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
-        throw new Error(data || data.error || "Error al anular factura");
+        const errorMessage = data.detalles || data.error || "Error al anular factura";
+        throw new Error(errorMessage);
       }
 
       const facturaAnulada = facturas.find(f => f.iddtefactura === facturaId);
