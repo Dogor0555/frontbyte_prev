@@ -152,6 +152,14 @@ const ordenarFacturas = (facturas) => {
   };
 
   const handleAnularFactura = async (facturaId) => {
+      const confirmarAnulacion = window.confirm(
+        "¿Está seguro que desea anular esta factura?\n\n" +
+        "Una vez anulada, no podrá revertir esta acción."
+      );
+      
+      if (!confirmarAnulacion) {
+        return;
+      }
     setAnulando(facturaId);
     try {
       const response = await fetch(`http://localhost:3000/facturas/${facturaId}/anular`, {

@@ -156,6 +156,14 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   };
 
   const handleAnularCredito = async (creditoId) => {
+      const confirmarAnulacion = window.confirm(
+        "¿Está seguro que desea anular esta factura?\n\n" +
+        "Una vez anulada, no podrá revertir esta acción."
+      );
+      
+      if (!confirmarAnulacion) {
+        return;
+      }
     setAnulando(creditoId);
     console.log(creditoId)
     try {
