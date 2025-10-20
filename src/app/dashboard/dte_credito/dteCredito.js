@@ -1278,7 +1278,7 @@ const actualizarStockProductos = async (itemsFactura) => {
                   ) : (
                     <>
                       <FaSave className="mr-2" />
-                      Guardar Factura
+                      Guardar Crédito
                     </>
                   )}
                 </button>
