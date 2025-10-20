@@ -341,7 +341,7 @@ const handleGeneratePDF = async (facturaId) => {
   }
 
 return (
-  <div className="flex h-screen bg-blue-50 overflow-hidden">
+  <div className="flex h-screen bg-blue-50 text-black overflow-hidden">
     <div className={`fixed md:relative z-20 h-screen ${
       sidebarOpen ? "translate-x-0" : "-translate-x-full"
     } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}

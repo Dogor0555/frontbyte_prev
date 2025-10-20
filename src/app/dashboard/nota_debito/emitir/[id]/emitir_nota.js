@@ -455,7 +455,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen  text-black bg-gray-50 overflow-hidden">
       <div className={`fixed md:relative z-20 h-screen ${
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}

@@ -728,7 +728,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   };
 
   return (
-    <div className="flex h-screen bg-purple-50 overflow-hidden">
+    <div className="flex h-screen text-black bg-purple-50 overflow-hidden">
       <div className={`fixed md:relative z-20 h-screen ${
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}

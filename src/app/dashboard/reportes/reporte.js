@@ -249,7 +249,7 @@ console.log("Reporte - User:", user);
 
   return (
 
-    <div className="h-screen bg-gray-50">
+    <div className="h-screen  text-black bg-gray-50">
 
       <div className="flex h-full overflow-hidden">
       <div className={`md:static fixed z-40 h-full transition-all duration-300 ${
