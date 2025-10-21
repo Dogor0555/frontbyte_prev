@@ -692,7 +692,7 @@ const agregarTributo = () => {
                   
                   {tributos.map((tributo, index) => (
                     <div key={index} className="flex justify-between py-1 border-t border-gray-100">
-                      <span className="text-sm text-gray-600">{tributo.codigo}:</span>
+                      <span className="text-sm text-gray-600">{tributo.codigo}: ${tributo.valor.toFixed(2)}</span>
                     </div>
                   ))}
                   
