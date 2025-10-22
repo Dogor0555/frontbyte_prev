@@ -290,6 +290,9 @@ export default function FacturaDetallePage() {
                             <th className="py-2 px-4 border-b text-left">Descripción</th>
                             <th className="py-2 px-4 border-b text-center">Cantidad</th>
                             <th className="py-2 px-4 border-b text-right">Precio Unitario</th>
+                            <th className="py-2 px-4 border-b text-right">Gravado</th>
+                            <th className="py-2 px-4 border-b text-right">Exento</th>
+                            <th className="py-2 px-4 border-b text-right">No Sujeto</th>
                             <th className="py-2 px-4 border-b text-right">Subtotal</th>
                           </tr>
                         </thead>
@@ -299,6 +302,9 @@ export default function FacturaDetallePage() {
                               <td className="py-2 px-4 border-b">{producto.descripcion || "Producto"}</td>
                               <td className="py-2 px-4 border-b text-center">{Math.floor(producto.cantidad)|| 1}</td>
                               <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.precioUnitario || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventagravada || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventaExenta || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventaNoSujeta || 0)}</td>
                               <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.total || 0)}</td>
                             </tr>
                           ))}
@@ -317,6 +323,18 @@ export default function FacturaDetallePage() {
                 {/* Totales */}
                 <div className="flex justify-end">
                   <div className="w-full md:w-1/3 bg-gray-50 p-4 rounded">
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="font-medium">Venta Gravada:</span>
+                      <span className="font-medium">{formatCurrency(facturaData.factura.ventagravada)}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="font-medium">Venta Exenta:</span>
+                      <span className="font-medium">{formatCurrency(facturaData.factura.ventaexenta)}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="font-medium">Venta No Sujeta:</span>
+                      <span className="font-medium">{formatCurrency(facturaData.factura.ventanosuj)}</span>
+                    </div>
                     <div className="flex justify-between py-2 border-b">
                       <span className="font-medium">Subtotal:</span>
                       <span className="font-medium">{formatCurrency(facturaData.factura.subtotal)}</span>

@@ -1,7 +1,7 @@
 // src/app/dashboard/creditos/[id]/page.js
 "use client";
 import { useState, useEffect } from "react";
-import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser } from "react-icons/fa";
+import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
@@ -18,57 +18,53 @@ export default function CreditoDetallePage() {
   const router = useRouter();
 
   useEffect(() => {
-const fetchCredito = async () => {
-  try {
-    setLoading(true);
-    const response = await fetch(`http://localhost:3000/creditos/${numeroCredito}/productos`, {
-      credentials: "include",
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = "Error al cargar crédito";
-      
+    const fetchCredito = async () => {
       try {
-        // Intentar parsear como JSON por si acaso
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.message || errorMessage;
-      } catch {
-        // Si no es JSON, usar el texto plano
-        errorMessage = errorText || errorMessage;
+        setLoading(true);
+        const response = await fetch(`http://localhost:3000/creditos/${numeroCredito}/productos`, {
+          credentials: "include",
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = "Error al cargar crédito";
+          
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.message || errorMessage;
+          } catch {
+            errorMessage = errorText || errorMessage;
+          }
+          
+          throw new Error(errorMessage);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        let data;
+        
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          const text = await response.text();
+          try {
+            data = JSON.parse(text);
+          } catch {
+            throw new Error("Formato de respuesta no válido");
+          }
+        }
+        
+        setCreditoData(data);
+      } catch (err) {
+        console.error("Error al cargar crédito:", err);
+        setError(err.message || "Ocurrió un error al cargar el crédito");
+      } finally {
+        setLoading(false);
       }
-      
-      throw new Error(errorMessage);
-    }
-    
-    // Manejar diferentes tipos de respuesta
-    const contentType = response.headers.get('content-type');
-    let data;
-    
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      // Si no es JSON, intentar parsear el texto
-      const text = await response.text();
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error("Formato de respuesta no válido");
-      }
-    }
-    
-    setCreditoData(data);
-  } catch (err) {
-    console.error("Error al cargar crédito:", err);
-    setError(err.message || "Ocurrió un error al cargar el crédito");
-  } finally {
-    setLoading(false);
-  }
-};
+    };
     
     if (numeroCredito) {
       fetchCredito();
@@ -266,10 +262,14 @@ const fetchCredito = async () => {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
                     <FaFileAlt className="mr-2 text-xl" />
-                    <span className="font-semibold text-xl">CRD-{creditoData.factura.numerofacturausuario.toString().padStart(4, '0')}</span>
+                    <span className="font-semibold text-xl">
+                      CRD-{creditoData.factura.numerofacturausuario?.toString().padStart(4, '0') || '0000'}
+                    </span>
                   </div>
-                  <span className="text-xs px-2 py-1 rounded bg-green-700">
-                    CRÉDITO FISCAL
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    creditoData.factura.tipoventa === 'crédito' ? 'bg-green-700' : 'bg-green-800'
+                  }`}>
+                    {creditoData.factura.tipoventa?.toUpperCase() || 'CRÉDITO FISCAL'}
                   </span>
                 </div>
               </div>
@@ -278,20 +278,20 @@ const fetchCredito = async () => {
               <div className="text-black p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-4 rounded">
                   <h2 className="font-semibold mb-3 text-lg">Emisor</h2>
-                  <p className="font-medium">{creditoData.emisor.nombre}</p>
-                  <p>NIT: {creditoData.emisor.nit}</p>
-                  {creditoData.emisor.nrc && <p>NRC: {creditoData.emisor.nrc}</p>}
-                  <p>Teléfono: {creditoData.emisor.telefono || "No disponible"}</p>
-                  {creditoData.emisor.correo && <p>Correo: {creditoData.emisor.correo}</p>}
-                  {creditoData.emisor.sucursal && <p>Sucursal: {creditoData.emisor.sucursal}</p>}
+                  <p className="font-medium">{creditoData.emisor.nombre || "Nombre no disponible"}</p>
+                  <p>NIT: {creditoData.emisor.nit || "NIT no disponible"}</p>
+                  <p>NRC: {creditoData.emisor.nrc || "NRC no disponible"}</p>
+                  <p>Teléfono: {creditoData.emisor.telefono || "Teléfono no disponible"}</p>
+                  <p>Correo: {creditoData.emisor.correo || "Correo no disponible"}</p>
+                  <p>Sucursal: {creditoData.emisor.sucursal || "Sucursal no disponible"}</p>
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded">
                   <h2 className="font-semibold mb-3 text-lg">Cliente</h2>
-                  <p className="font-medium">{creditoData.cliente.nombre}</p>
-                  <p>Documento: {creditoData.cliente.documento || "No disponible"}</p>
-                  <p>Teléfono: {creditoData.cliente.telefono || "No disponible"}</p>
-                  {creditoData.cliente.correo && <p>Correo: {creditoData.cliente.correo}</p>}
+                  <p className="font-medium">{creditoData.cliente.nombre || "Cliente no disponible"}</p>
+                  <p>Documento: {creditoData.cliente.documento || "Documento no disponible"}</p>
+                  <p>Teléfono: {creditoData.cliente.telefono || "Teléfono no disponible"}</p>
+                  <p>Correo: {creditoData.cliente.correo || "Correo no disponible"}</p>
                 </div>
               </div>
 
@@ -299,43 +299,68 @@ const fetchCredito = async () => {
               <div className="p-5 border-t">
                 <div className="flex items-center mb-4 text-gray-600">
                   <FaCalendarAlt className="mr-2 text-green-500" />
-                  <span className="font-medium">Fecha: {formatDate(creditoData.factura.fechaemision)}</span>
+                  <span className="font-medium">Fecha: {creditoData.factura.fechaemision?.split("T")[0] || formatDate(creditoData.factura.fechaemision)}</span>
                   {creditoData.factura.horaemision && (
                     <span className="font-medium ml-2">Hora: {creditoData.factura.horaemision}</span>
                   )}
                 </div>
 
+                {/* Tabla de productos */}
                 <div className="mb-6">
-                  <h3 className="font-semibold mb-3 text-lg">Detalles del crédito fiscal</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full bg-white border">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="py-2 px-4 border">Descripción</th>
-                          <th className="py-2 px-4 border">Cantidad</th>
-                          <th className="py-2 px-4 border">P. Unitario</th>
-                          <th className="py-2 px-4 border">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {creditoData.productos.map((producto, index) => (
-                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="py-2 px-4 border">
-                              {producto.descripcion}
-                            </td>
-                            <td className="py-2 px-4 border text-center">{Number(producto.cantidad).toFixed(0)}</td>
-                            <td className="py-2 px-4 border text-right">{formatCurrency(producto.precioUnitario)}</td>
-                            <td className="py-2 px-4 border text-right">{formatCurrency(producto.total)}</td>
+                  <h3 className="font-semibold mb-3 text-lg">Productos/Servicios</h3>
+                  {creditoData.productos && creditoData.productos.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full bg-white border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="py-2 px-4 border-b text-left">Descripción</th>
+                            <th className="py-2 px-4 border-b text-center">Cantidad</th>
+                            <th className="py-2 px-4 border-b text-right">Precio Unitario</th>
+                            <th className="py-2 px-4 border-b text-right">Gravado</th>
+                            <th className="py-2 px-4 border-b text-right">Exento</th>
+                            <th className="py-2 px-4 border-b text-right">No Sujeto</th>
+                            <th className="py-2 px-4 border-b text-right">Subtotal</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {creditoData.productos.map((producto, index) => (
+                            <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                              <td className="py-2 px-4 border-b">{producto.descripcion || "Producto"}</td>
+                              <td className="py-2 px-4 border-b text-center">{Math.floor(producto.cantidad) || 1}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.precioUnitario || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventagravada || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventaExenta || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventaNoSujeta || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.total || 0)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded">
+                      <p className="text-yellow-800 flex items-center">
+                        <FaBox className="mr-2" /> No hay productos registrados para este crédito
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Totales */}
                 <div className="flex justify-end">
                   <div className="w-full md:w-1/3 bg-gray-50 p-4 rounded">
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="font-medium">Venta Gravada:</span>
+                      <span className="font-medium">{formatCurrency(creditoData.factura.ventagravada)}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="font-medium">Venta Exenta:</span>
+                      <span className="font-medium">{formatCurrency(creditoData.factura.ventaexenta)}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="font-medium">Venta No Sujeta:</span>
+                      <span className="font-medium">{formatCurrency(creditoData.factura.ventanosuj)}</span>
+                    </div>
                     <div className="flex justify-between py-2 border-b">
                       <span className="font-medium">Subtotal:</span>
                       <span className="font-medium">{formatCurrency(creditoData.factura.subtotal)}</span>
@@ -363,7 +388,7 @@ const fetchCredito = async () => {
                   <p>Forma de pago: {creditoData.factura.formapago || "No especificado"}</p>
                   <p>Tipo de venta: {creditoData.factura.tipoventa || "No especificado"}</p>
                   <p>Estado: {creditoData.factura.estado || "No especificado"}</p>
-                  <p>Número de control: {creditoData.factura.ncontrol || "No disponible"}</p>
+                  <p>N° Control: {creditoData.factura.ncontrol || "No disponible"}</p>
                 </div>
               </div>
             </div>
