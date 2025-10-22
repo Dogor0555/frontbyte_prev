@@ -499,7 +499,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
   };
 
   const prepararDatosFactura = () => {
-    const subtotal = sumaopesinimpues - totaldescuento;
+    const subtotal = sumaopesinimpues;
     const totalPagar = total;
     
     const ahora = new Date();
@@ -555,9 +555,9 @@ const guardarDetallesFactura = async (iddtefactura) => {
         sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
         totaldescuento: parseFloat(totaldescuento.toFixed(2)),
         valoriva: parseFloat(ivaIncluido.toFixed(2)), 
-        subtotal: parseFloat(subtotal.toFixed(2)),
+        subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
         ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
-        montototalope: parseFloat(subtotal.toFixed(2)),
+        montototalope: parseFloat(subtotal - totaldescuento).toFixed(2),
         totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
         totalapagar: parseFloat(totalPagar.toFixed(2)),
         valorletras: convertirNumeroALetras(totalPagar),
@@ -566,7 +566,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
 
         totalnosuj: 0.00,
         totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
-        totalgravada: parseFloat(gravadasConDescuento.toFixed(2)),
+        totalgravada: parseFloat(gravadasBase.toFixed(2)),
         subtotalventas: parseFloat(subtotal.toFixed(2)),
 
         descunosuj: 0.00,
@@ -583,7 +583,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
         ivarete1: 0.00,
         reterenta: 0.00,
 
-        montototaloperacion: parseFloat(subtotal.toFixed(2)),
+        montototaloperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
         totalpagar: parseFloat(totalPagar.toFixed(2)), 
         totalpagar: parseFloat(totalPagar.toFixed(2)),
         totalletras: convertirNumeroALetras(totalPagar),
@@ -954,7 +954,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
       ...datos,
       total: datos.cantidad * datos.precioUnitario * (1 - (datos.descuento || 0) / 100)
     };
-
+    
     setItems([...items, newItem]);
     setShowModal(false);
     setModalType("");
@@ -1211,14 +1211,30 @@ const guardarDetallesFactura = async (iddtefactura) => {
 
               {/* Botón Agregar Descuentos */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Agregar Descuentos</h3>
-                <button 
-                  onClick={() => setShowDiscountModal(true)}
-                  className="flex items-center bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
-                >
-                  <FaTags className="mr-2" />
-                  Agregar Descuentos
-                </button>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Descuentos</h3>
+                <div className="flex space-x-2">
+                  <button 
+                    onClick={() => setShowDiscountModal(true)}
+                    className="flex items-center bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
+                  >
+                    <FaTags className="mr-2" />
+                    Agregar Descuentos
+                  </button>
+                  
+                  {(descuentoGrabadasMonto > 0 || descuentoExentasMonto > 0) && (
+                    <button 
+                      onClick={() => {
+                        setDescuentoGrabadasMonto(0);
+                        setDescuentoExentasMonto(0);
+                      }}
+                      className="flex items-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
+                    >
+                      <FaTimes className="mr-2" />
+                      Eliminar Descuentos
+                    </button>
+                  )}
+                </div>
+                
                 {(descuentoGrabadasMonto > 0 || descuentoExentasMonto > 0) && (
                   <div className="mt-2 text-sm text-gray-600">
                     {descuentoGrabadasMonto > 0 && <p>Descuento ventas gravadas: {formatMoney(descuentoGrabadasMonto)}</p>}

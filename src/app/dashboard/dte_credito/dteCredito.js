@@ -511,7 +511,7 @@ const actualizarStockProductos = async (itemsFactura) => {
   };
 
   const prepararDatosFactura = () => {
-    const subtotal = sumaopesinimpues - totaldescuento;
+    const subtotal = sumaopesinimpues;
     const totalPagar = subtotal + valoriva;
     
     const ahora = new Date();
@@ -581,7 +581,7 @@ const actualizarStockProductos = async (itemsFactura) => {
       sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
       totaldescuento: parseFloat(totaldescuento.toFixed(2)),
       valoriva: parseFloat(ivaIncluido.toFixed(2)), 
-      subtotal: parseFloat(subtotal.toFixed(2)),
+      subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
       ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
       montototalope: parseFloat(montototaloperacion.toFixed(2)),
       totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
@@ -591,7 +591,7 @@ const actualizarStockProductos = async (itemsFactura) => {
       motivocontin: "",
       totalnosuj: 0.00,
       totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
-      totalgravada: parseFloat(gravadasConDescuento.toFixed(2)),
+      totalgravada: parseFloat(gravadasBase.toFixed(2)),
       subtotalventas: parseFloat(subtotal.toFixed(2)),
 
       descunosuj: 0.00,

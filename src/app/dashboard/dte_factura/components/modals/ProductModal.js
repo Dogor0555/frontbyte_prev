@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FaTimes, FaPlus, FaSearch, FaExclamationTriangle, FaTrash } from "react-icons/fa";
+import { FaTimes, FaPlus, FaSearch, FaExclamationTriangle, FaTrash, FaPercent } from "react-icons/fa";
 
 export default function ProductModal({
   isOpen,
@@ -23,6 +23,8 @@ export default function ProductModal({
   const [stockDisponible, setStockDisponible] = useState(0);
   const [tributos, setTributos] = useState([]);
   const [productosFiltrados, setProductosFiltrados] = useState([]);
+  const [valorDescuento, setValorDescuento] = useState(0);
+  const [descuentoAplicado, setDescuentoAplicado] = useState(0);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -72,8 +74,10 @@ export default function ProductModal({
       const ivaExiste = tributos.some(t => t.codigo === "20");
       
       if (!ivaExiste) {
-        const subtotal = cantidad * parseFloat(productoSeleccionado.precio) || 0;
-        const valorImpuesto = calcularValorImpuesto("20", subtotal);
+        const precio = parseFloat(productoSeleccionado.precio) || 0;
+        const subtotalSinDescuento = cantidad * precio;
+        const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
+        const valorImpuesto = calcularValorImpuesto("20", subtotalConDescuento);
         
         const ivaTributo = {
           codigo: "20",
@@ -86,7 +90,15 @@ export default function ProductModal({
     } else if (tipoVenta !== "1") {
       setTributos(tributos.filter(t => t.codigo !== "20"));
     }
-  }, [tipoVenta, productoSeleccionado, cantidad]);
+  }, [tipoVenta, productoSeleccionado, cantidad, descuentoAplicado]);
+
+  useEffect(() => {
+    if (productoSeleccionado) {
+      calcularDescuento();
+    } else {
+      setDescuentoAplicado(0);
+    }
+  }, [valorDescuento, productoSeleccionado, cantidad]);
 
   const limpiarFormulario = () => {
     setProductoSeleccionado(null);
@@ -97,6 +109,8 @@ export default function ProductModal({
     setMostrarAlertaStock(false);
     setStockDisponible(0);
     setTributos([]);
+    setValorDescuento(0);
+    setDescuentoAplicado(0);
   };
 
   useEffect(() => {
@@ -130,7 +144,7 @@ export default function ProductModal({
       "34": "Fabricante de Productos de Tabaco",
       "35": "Importador de Productos de Tabaco",
       "36": "Fabricante de Armas de Fuego, Municiones y Artículos Similares",
-      "37": "Importador de Arma de Fuego, Munición y Artículos Similares",
+      "37": "Importador de Armas de Fuego, Municiones y Artículos Similares",
       "38": "Fabricante de Explosivos",
       "39": "Importador de Explosivos",
       "42": "Fabricante de Productos Pirotécnicos",
@@ -171,31 +185,47 @@ export default function ProductModal({
     return subtotal * tasa;
   };
 
-const agregarTributo = () => {
-  if (!productoSeleccionado) return;
-  
-  if (tipoVenta === "2" && impuestoSeleccionado === "20") {
-    alert("No puede agregar IVA a un producto exento");
-    return;
-  }
-  
-  const subtotal = cantidad * parseFloat(productoSeleccionado.precio) || 0;
-  const valorImpuesto = calcularValorImpuesto(impuestoSeleccionado, subtotal);
-  
-  const nuevoTributo = {
-    codigo: impuestoSeleccionado,
-    descripcion: obtenerDescripcionImpuesto(impuestoSeleccionado),
-    valor: parseFloat(valorImpuesto.toFixed(2))
+  const calcularDescuento = () => {
+    if (!productoSeleccionado) {
+      setDescuentoAplicado(0);
+      return;
+    }
+
+    const precio = parseFloat(productoSeleccionado.precio) || 0;
+    const subtotalSinDescuento = cantidad * precio;
+    const descuento = parseFloat(valorDescuento) || 0;
+    const descuentoFinal = Math.min(descuento, subtotalSinDescuento);
+    
+    setDescuentoAplicado(descuentoFinal);
   };
 
-  const existe = tributos.some(t => t.codigo === nuevoTributo.codigo);
-  
-  if (!existe) {
-    setTributos([...tributos, nuevoTributo]);
-  } else {
-    alert("Este impuesto ya ha sido agregado");
-  }
-};
+  const agregarTributo = () => {
+    if (!productoSeleccionado) return;
+    
+    if (tipoVenta === "2" && impuestoSeleccionado === "20") {
+      alert("No puede agregar IVA a un producto exento");
+      return;
+    }
+    
+    const precio = parseFloat(productoSeleccionado.precio) || 0;
+    const subtotalSinDescuento = cantidad * precio;
+    const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
+    const valorImpuesto = calcularValorImpuesto(impuestoSeleccionado, subtotalConDescuento);
+    
+    const nuevoTributo = {
+      codigo: impuestoSeleccionado,
+      descripcion: obtenerDescripcionImpuesto(impuestoSeleccionado),
+      valor: parseFloat(valorImpuesto.toFixed(2))
+    };
+
+    const existe = tributos.some(t => t.codigo === nuevoTributo.codigo);
+    
+    if (!existe) {
+      setTributos([...tributos, nuevoTributo]);
+    } else {
+      alert("Este impuesto ya ha sido agregado");
+    }
+  };
 
   const eliminarTributo = (codigo) => {
     if (tipoVenta === "1" && codigo === "20") {
@@ -210,12 +240,22 @@ const agregarTributo = () => {
     if (!productoSeleccionado) return 0;
     
     const precio = parseFloat(productoSeleccionado.precio) || 0;
-    const subtotal = cantidad * precio;
-
+    const subtotalSinDescuento = cantidad * precio;
+    const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
+    
+    if (tipoVenta === "2") {
+      const precioSinIVA = precio;
+      const subtotalSinDescuentoSinIVA = cantidad * precioSinIVA;
+      const descuentoSinIVA = parseFloat(valorDescuento) || 0;
+      const subtotalConDescuentoSinIVA = subtotalSinDescuentoSinIVA - descuentoSinIVA;
+      
+      return Math.max(0, subtotalConDescuentoSinIVA);
+    }
+    
     const impuestosNoIVA = tributos.filter(tributo => tributo.codigo !== "20");
     const totalImpuestos = impuestosNoIVA.reduce((sum, tributo) => sum + tributo.valor, 0);
     
-    return subtotal + totalImpuestos;
+    return Math.max(0, subtotalConDescuento + totalImpuestos);
   };
 
   const handleAgregarItem = () => {
@@ -257,12 +297,21 @@ const agregarTributo = () => {
     const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
     
+    let precioUnitario;
+    if (tipoVenta === "2") {
+      precioUnitario = parseFloat(productoSeleccionado.precio);
+    } else {
+      precioUnitario = parseFloat(productoSeleccionado.precio);
+    }
+
+    const total = calcularTotal();
+    
     onAddItem({
       descripcion: productoSeleccionado.nombre,
       cantidad: cantidad,
-      // para incluir impuestos (productoSeleccionado.preciounitario)
-      precioUnitario: parseFloat(total / cantidad) || 0,
-      descuento: 0,
+      precioUnitario: precioUnitario,
+      descuento: descuentoAplicado,
+      valorDescuento: valorDescuento,
       unidadMedida: productoSeleccionado.unidad || "59",
       tipo: tipoItem,
       tributos: tributos,
@@ -286,7 +335,13 @@ const agregarTributo = () => {
 
   if (!isOpen) return null;
 
-  const subtotal = productoSeleccionado ? cantidad * parseFloat(productoSeleccionado.precio) || 0 : 0;
+  const subtotalSinDescuento = productoSeleccionado ? 
+    (tipoVenta === "2" 
+      ? cantidad * (parseFloat(productoSeleccionado.precio))
+      : cantidad * parseFloat(productoSeleccionado.precio)
+    ) || 0 : 0;
+
+  const subtotalConDescuento = Math.max(0, subtotalSinDescuento - descuentoAplicado);
   const total = calcularTotal();
   const esServicio = tipoProducto === "2" || tipoProducto === "3" || (productoSeleccionado && productoSeleccionado.es_servicio);
   const stockInsuficiente = !esServicio && productoSeleccionado && 
@@ -294,12 +349,10 @@ const agregarTributo = () => {
                            productoSeleccionado.stock !== null && 
                            cantidad > productoSeleccionado.stock;
 
-  // Verificar si es producto exento (tipoVenta === "2")
   const esExento = tipoVenta === "2";
 
   return (
     <div className="text-black fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      {/* Modal de alerta de stock insuficiente */}
       {mostrarAlertaStock && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-60 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
@@ -336,7 +389,6 @@ const agregarTributo = () => {
       )}
       
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Encabezado */}
         <div className="bg-gray-800 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
           <h2 className="text-xl font-bold">Agregar Producto o Servicio</h2>
           <button
@@ -347,10 +399,8 @@ const agregarTributo = () => {
           </button>
         </div>
 
-        {/* Contenido con scroll */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* Columna izquierda - Información básica del producto */}
             <div className="space-y-5">
               <div className="border-b border-gray-200 pb-2">
                 <h3 className="font-semibold text-gray-900 text-lg">Item DTE</h3>
@@ -379,7 +429,6 @@ const agregarTributo = () => {
                 </p>
               </div>
 
-              {/* Cantidad y Unidad */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Cantidad</label>
@@ -402,7 +451,6 @@ const agregarTributo = () => {
                 </div>
               </div>
 
-              {/* Campos para nombre y precio (solo lectura) */}
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Nombre Producto</label>
                 <input
@@ -422,6 +470,53 @@ const agregarTributo = () => {
                   className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={productoSeleccionado ? `$${parseFloat(productoSeleccionado.precio).toFixed(2)}` : "$0.00"}
                 />
+                {esExento && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Precio sin IVA: ${productoSeleccionado ? (parseFloat(productoSeleccionado.precio)).toFixed(2) : "0.00"}
+                  </p>
+                )}
+              </div>
+
+              {/* SECCIÓN DE DESCUENTO SIMPLIFICADA */}
+              <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <FaPercent className="mr-2 text-gray-600" />
+                  Descuento (Monto Fijo)
+                </h4>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Monto de descuento:
+                  </label>
+                  <div className="flex">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-100 text-gray-500">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={valorDescuento === 0 ? "" : valorDescuento}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setValorDescuento(value === "" ? "" : parseFloat(value));
+                      }}
+                      className="flex-1 min-w-0 rounded-r-lg border border-gray-300 p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                {descuentoAplicado > 0 && (
+                  <div className="mt-3 p-2 bg-white rounded border border-gray-200">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Descuento aplicado:</span>
+                      <span className="font-semibold text-gray-900">
+                        -${descuentoAplicado.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -437,7 +532,6 @@ const agregarTributo = () => {
                 </select>
               </div>
 
-              {/* Información de stock (solo para productos) */}
               {!esServicio && productoSeleccionado && productoSeleccionado.stock !== undefined && (
                 <div className={`p-3 rounded-lg border ${
                   stockInsuficiente ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'
@@ -458,7 +552,6 @@ const agregarTributo = () => {
               )}
             </div>
 
-            {/* Columna central - BUSCADOR DE PRODUCTOS */}
             <div className="space-y-5">
               <div className="border-b border-gray-200 pb-2">
                 <h3 className="font-semibold text-gray-900 text-lg">Buscar Producto</h3>
@@ -479,7 +572,6 @@ const agregarTributo = () => {
                   <span className="text-xs text-red-600">Requerido</span>
                 </div>
 
-                {/* Campo de búsqueda */}
                 <div className="relative mb-3">
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
@@ -510,7 +602,6 @@ const agregarTributo = () => {
                   </div>
                 )}
 
-                {/* Lista de productos filtrados */}
                 {searchTerm.length >= 2 ? (
                   <div className="border border-gray-300 rounded-lg h-96 overflow-y-auto">
                     {productosFiltrados
@@ -577,7 +668,6 @@ const agregarTributo = () => {
               </div>
             </div>
 
-            {/* Columna derecha - Información de tributos y totales */}
             <div className="space-y-5">
               <div className="border-b border-gray-200 pb-2">
                 <h3 className="font-semibold text-gray-900 text-lg">Información de tributos</h3>
@@ -597,7 +687,7 @@ const agregarTributo = () => {
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Seleccionar Impuesto:</label>
                 <div className="flex gap-2 mb-2">
                   <select
-                    className="flex-1 p-3 border w-1/2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="flex-1 p-3 w-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={impuestoSeleccionado}
                     onChange={(e) => setImpuestoSeleccionado(e.target.value)}
                     disabled={esExento}
@@ -609,68 +699,33 @@ const agregarTributo = () => {
                     <option value="C8">C8 - COTRANS ($0.10 Ctvs. por galón)</option>
                     <option value="D5">D5 - Otras tasas casos especiales</option>
                     <option value="D4">D4 - Otros impuestos casos especiales</option>
-                    <option value="C5">C5 - Impuesto ad- valorem por diferencial de precios de Bebidas Alcohólicas (8%)</option>
-                    <option value="C6">C6 - Impuesto ad- valorem por diferencial de precios al tabaco cigarrillos (39%)</option>
-                    <option value="C7">C7 - Impuesto ad- valorem por diferencial de precios al tabaco cigarros (100%)</option>
-                    <option value="19">19 - Fabricante de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes o Estimulante</option>
-                    <option value="28">28 - Importador de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizante o Estimulante</option>
-                    <option value="31">31 - Detallistas o Expendedores de Bebidas Alcohólicas</option>
-                    <option value="32">32 - Fabricante de Cerveza</option>
-                    <option value="33">33 - Importador de Cerveza</option>
-                    <option value="34">34 - Fabricante de Productos de Tabaco</option>
-                    <option value="35">35 - Importador de Productos de Tabaco</option>
-                    <option value="36">36 - Fabricante de Armas de Fuego, Municiones y Artículos. Similares</option>
-                    <option value="37">37 - Importador de Arma de Fueg,Munición y Artis. Simil</option>
-                    <option value="38">38 - Fabricante de Explosivos</option>
-                    <option value="39">39 - Importador de Explosivos</option>
-                    <option value="42">42 - Fabricante de Productos Pirotécnicos</option>
-                    <option value="43">43 - Importador de Productos Pirotécnicos</option>
-                    <option value="44">44 - Productor de Tabaco</option>
-                    <option value="50">50 - Distribuidor de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizante o Estimulante</option>
-                    <option value="51">51 - Bebidas Alcohólicas</option>
-                    <option value="52">52 - Cerveza</option>
-                    <option value="53">53 - Productos del Tabaco</option>
-                    <option value="54">54 - Bebidas Carbonatadas o Gaseosas Simples o Endulzadas</option>
-                    <option value="55">55 - Otros Específicos</option>
-                    <option value="58">58 - Alcohol</option>
-                    <option value="77">77 - Importador de Jugos, Néctares, Bebidas con Jugo y Refrescos</option>
-                    <option value="78">78 - Distribuidor de Jugos, Néctares, Bebidas con Jugo y Refrescos</option>
-                    <option value="79">79 - Sobre Llamadas Telefónicas Provenientes del Ext.</option>
-                    <option value="85">85 - Detallista de Jugos, Néctares, Bebidas con Jugo и Refrescos</option>
-                    <option value="86">86 - Fabricante de Preparaciones Concentradas o en Polvo para la Elaboración de Bebidas</option>
-                    <option value="91">91 - Fabricante de Jugos, Néctares, Bebidas con Jugo y Refrescos</option>
-                    <option value="92">92 - Importador de Preparaciones Concentradas o en Polvo para la Elaboración de Bebidas</option>
-                    <option value="A1">A1 - Específicos y Ad-valorem</option>
-                    <option value="A5">A5 - Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes o Estimulantes</option>
-                    <option value="A7">A7 - Alcohol Etílico</option>
-                    <option value="A9">A9 - Sacos Sintéticos</option>
+                    <option value="C5">C5 - Impuesto ad-valorem por diferencial de precios de Bebidas Alcohólicas (8%)</option>
+                    <option value="C6">C6 - Impuesto ad-valorem por diferencial de precios al tabaco cigarrillos (39%)</option>
+                    <option value="C7">C7 - Impuesto ad-valorem por diferencial de precios al tabaco cigarros (100%)</option>
                   </select>
                   <button
                     onClick={agregarTributo}
                     className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                     disabled={!productoSeleccionado || esExento}
-                    title={esExento ? "No se pueden agregar tributos a productos exentos" : "Agregar tributo"}
                   >
                     <FaPlus />
                   </button>
                 </div>
 
-                {/* Lista de tributos agregados */}
                 {tributos.length > 0 && (
                   <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
                     <h4 className="font-semibold text-gray-900 mb-2">Tributos agregados:</h4>
                     <div className="space-y-2 max-h-40 overflow-y-auto">
                       {tributos.map((tributo, index) => (
-                        <div key={index} className="flex justify-between items-center p-2 bg-white rounded border">
+                        <div key={index} className="flex justify-between items-center p-2 bg-white rounded border border-gray-200">
                           <div className="flex-1">
-                            <div className="text-sm font-medium">{tributo.codigo}</div>
-                            <div className="text-xs text-gray-600">{tributo.descripcion}</div>
+                            <div className="text-sm font-medium">{tributo.codigo} - {tributo.descripcion}</div>
+                            <div className="text-xs text-gray-600">${tributo.valor.toFixed(2)}</div>
                           </div>
                           <button
                             onClick={() => eliminarTributo(tributo.codigo)}
                             className="text-red-500 hover:text-red-700 ml-2"
                             disabled={(tipoVenta === "1" && tributo.codigo === "20") || esExento}
-                            title={esExento ? "No se pueden eliminar tributos de productos exentos" : (tipoVenta === "1" && tributo.codigo === "20" ? "No puede eliminar el IVA de un producto gravado" : "Eliminar impuesto")}
                           >
                             <FaTrash size={14} />
                           </button>
@@ -681,17 +736,28 @@ const agregarTributo = () => {
                 )}
               </div>
 
-              {/* Resumen de totales */}
-              <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-6 rounded-xl border border-gray-200">
+              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
                 <h4 className="font-semibold text-gray-900 mb-4 text-center">Resumen del Item</h4>
                 <div className="space-y-3">
                   <div className="flex justify-between py-2">
                     <span className="text-gray-700">Subtotal:</span>
-                    <span className="font-semibold text-gray-900">${subtotal.toFixed(2)}</span>
+                    <span className="font-semibold text-gray-900">${subtotalSinDescuento.toFixed(2)}</span>
+                  </div>
+                  
+                  {descuentoAplicado > 0 && (
+                    <div className="flex justify-between py-2 border-t border-gray-100">
+                      <span className="text-gray-700">Descuento:</span>
+                      <span className="font-semibold text-gray-900">-${descuentoAplicado.toFixed(2)}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between py-2 border-t border-gray-100">
+                    <span className="text-gray-700">Subtotal con descuento:</span>
+                    <span className="font-semibold text-gray-900">${subtotalConDescuento.toFixed(2)}</span>
                   </div>
                   
                   {tributos.map((tributo, index) => (
-                    <div key={index} className="flex justify-between py-1 border-t border-gray-100">
+                    <div key={index} className="flex justify-between py-1">
                       <span className="text-sm text-gray-600">{tributo.codigo}: ${tributo.valor.toFixed(2)}</span>
                     </div>
                   ))}
@@ -700,13 +766,17 @@ const agregarTributo = () => {
                     <span className="text-lg font-semibold text-gray-900">Total:</span>
                     <span className="text-xl font-bold text-blue-700">${total.toFixed(2)}</span>
                   </div>
+                  {esExento && (
+                    <div className="text-xs text-blue-600 mt-2 text-center">
+                      * Precio sin IVA aplicado para producto exento
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Pie de página con botones */}
         <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-between items-center flex-shrink-0">
           <button
             onClick={onBackToSelector}
