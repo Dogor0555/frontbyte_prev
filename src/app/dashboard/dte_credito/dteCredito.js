@@ -937,6 +937,8 @@ const actualizarStockProductos = async (itemsFactura) => {
     }
   }, [sucursalUsuario, correoVendedor]);
 
+  const idEmisor =  sucursalUsuario.usuario.id;
+
   const formatMoney = (value) => {
     if (value === undefined || value === null || isNaN(value)) {
       return "$0.00";
@@ -1079,6 +1081,7 @@ const actualizarStockProductos = async (itemsFactura) => {
                 actividadesEconomicas={codactividad}
                 cliente={cliente}
                 setCliente={setCliente}
+                idEmisor={idEmisor}
               />
 
               {/* Detalle de Factura */}

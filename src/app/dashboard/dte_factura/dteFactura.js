@@ -313,6 +313,8 @@ const verDatosFactura = () => {
     alert("La factura debe tener al menos un item");
     return;
   }
+
+  
   
   const datosFactura = prepararDatosFactura();
   
@@ -923,6 +925,9 @@ const guardarDetallesFactura = async (iddtefactura) => {
     }
   }, [sucursalUsuario, correoVendedor]);
 
+  const idEmisor =  sucursalUsuario.usuario.id;
+  console.log("ID Emisor:", idEmisor);
+
   const formatMoney = (value) => {
     if (value === undefined || value === null || isNaN(value)) {
       return "$0.00";
@@ -1061,6 +1066,7 @@ const guardarDetallesFactura = async (iddtefactura) => {
                 setCorreoVendedor={setCorreoVendedor}
                 telefonoEmisor={telefonoEmisor}
                 setTelefonoEmisor={setTelefonoEmisor}
+                idEmisor={idEmisor}
 
                 actividadesEconomicas={codactividad}
               />

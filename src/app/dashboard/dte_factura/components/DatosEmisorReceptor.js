@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import { codigoactividad } from "../data/data";
 
 const LIMITES = {
     NOMBRE: 255,
@@ -49,7 +48,8 @@ const DatosEmisorReceptor = ({
   idReceptor,
   setIdReceptor,
 
-  actividadesEconomicas
+  idEmisor
+
 }) => {
   const [activeTab, setActiveTab] = useState("emisor");
   const [errores, setErrores] = useState({});
@@ -58,7 +58,85 @@ const DatosEmisorReceptor = ({
   const [filteredClientes, setFilteredClientes] = useState([]);
   const [showClientList, setShowClientList] = useState(false);
   const [loadingClientes, setLoadingClientes] = useState(false);
+  
+  const [actividadesEconomicas, setActividadesEconomicas] = useState([]);
+  const [loadingActividades, setLoadingActividades] = useState(false);
+  const [errorActividades, setErrorActividades] = useState(null);
 
+  useEffect(() => {
+    const fetchActividadesEconomicas = async () => {
+      if (!idEmisor) {
+        console.log("No hay idEmisor proporcionado");
+        return;
+      }
+      
+      setLoadingActividades(true);
+      setErrorActividades(null);
+      try {
+        const response = await fetch(`http://localhost:3000/detalle-usuario/usuario/${idEmisor}`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          let actividadesArray = [];
+
+          if (Array.isArray(data) && data.length > 0) {
+            const usuarioData = data[0]; 
+            
+            if (usuarioData.codactividad1 && usuarioData.desactividad1) {
+              actividadesArray.push({
+                codigo: usuarioData.codactividad1.toString(),
+                nombre: usuarioData.desactividad1
+              });
+            }
+            
+            if (usuarioData.codactividad2 && usuarioData.desactividad2) {
+              actividadesArray.push({
+                codigo: usuarioData.codactividad2.toString(),
+                nombre: usuarioData.desactividad2
+              });
+            }
+            
+            if (usuarioData.codactividad3 && usuarioData.desactividad3) {
+              actividadesArray.push({
+                codigo: usuarioData.codactividad3.toString(),
+                nombre: usuarioData.desactividad3
+              });
+            }
+          }
+
+          setActividadesEconomicas(actividadesArray);
+
+          if (actividadesArray.length > 0 && !actividadEconomica) {
+            setActividadEconomica(actividadesArray[0].codigo);
+          }
+
+          if (actividadesArray.length === 0) {
+            setErrorActividades("No se encontraron actividades económicas en la respuesta");
+          }
+        } else {
+          const errorText = await response.text();
+          console.error("Error en la respuesta:", response.status, errorText);
+          setErrorActividades(`Error ${response.status}: No se pudieron cargar las actividades`);
+        }
+      } catch (error) {
+        console.error("Error al cargar actividades económicas:", error);
+        setErrorActividades("Error de conexión al cargar actividades");
+      } finally {
+        setLoadingActividades(false);
+      }
+    };
+
+    fetchActividadesEconomicas();
+  }, [idEmisor]);
+
+  // Resto del código se mantiene igual...
   // Cargar clientes al montar el componente
   useEffect(() => {
       const fetchClientes = async () => {
@@ -292,20 +370,34 @@ const DatosEmisorReceptor = ({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Actividad Económica
               </label>
-              <select
-                value={actividadEconomica}
-                onChange={(e) => setActividadEconomica(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">-- Seleccione --</option>
-                {actividadesEconomicas && actividadesEconomicas.map((actividad) => (
-                  <option key={actividad.codigo} value={actividad.codigo}>
-                    {actividad.codigo} - {actividad.nombre}
-                  </option>
-                ))}
-              </select>
+              {loadingActividades ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                  <span className="text-gray-500">Cargando actividades...</span>
+                </div>
+              ) : (
+                <select
+                  value={actividadEconomica}
+                  onChange={(e) => setActividadEconomica(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">-- Seleccione --</option>
+                  {actividadesEconomicas.map((actividad) => (
+                    <option key={actividad.codigo} value={actividad.codigo}>
+                      {actividad.codigo} - {actividad.nombre}
+                    </option>
+                  ))}
+                </select>
+              )}
+              
+              {actividadesEconomicas.length === 0 && !loadingActividades && (
+                <p className="text-yellow-600 text-xs mt-1">
+                  {errorActividades || "No se encontraron actividades económicas para este usuario."}
+                </p>
+              )}
             </div>
 
+            {/* Resto de los campos del emisor... */}
             {/* Establecimiento / Dirección */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -378,6 +470,7 @@ const DatosEmisorReceptor = ({
         </div>
       )}
 
+      {/* Resto del componente para receptor (se mantiene igual)... */}
       {activeTab === "receptor" && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Datos del Receptor</h2>
@@ -528,29 +621,6 @@ const DatosEmisorReceptor = ({
                 {direccionReceptor.length}/{LIMITES.COMPLEMENTO} caracteres
               </p>
             </div>
-
-            {/* Complemento 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Complemento
-              </label>
-              <input
-                type="text"
-                value={complementoReceptor}
-                onChange={handleComplementoReceptorChange}
-                className={`w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
-                  errores.complementoReceptor ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Digite el complemento de la dirección"
-                maxLength={LIMITES.COMPLEMENTO}
-              />
-              {errores.complementoReceptor && (
-                <p className="text-red-500 text-xs mt-1">{errores.complementoReceptor}</p>
-              )}
-              <p className="text-gray-500 text-xs mt-1">
-                {complementoReceptor.length}/{LIMITES.COMPLEMENTO} caracteres
-              </p>
-            </div> */}
 
             {/* Correo electrónico */}
             <div>

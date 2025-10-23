@@ -14,7 +14,9 @@ import {
   FaUser,
   FaIdCard,
   FaStore,
-  FaBars
+  FaBars,
+  FaCheck,
+  FaTimes
 } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
@@ -53,14 +55,13 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
   const [municipioOptions, setMunicipioOptions] = useState([]);
   const [actividadOptions, setActividadOptions] = useState([]);
   const [filteredMunicipios, setFilteredMunicipios] = useState([]);
-  const [filteredActividades, setFilteredActividades] = useState([]);
+  const [detalleUsuario, setDetalleUsuario] = useState(null);
+  const [permisosSucursal, setPermisosSucursal] = useState([]);
 
   const [form, setForm] = useState({
     nombre: sucursal?.nombre ?? "",
     telefono: sucursal?.telefono ?? "",
     complemento: sucursal?.complemento ?? "",
-    codactividad: sucursal?.codactividad ?? "",
-    desactividad: sucursal?.desactividad ?? "",
     tipoestablecimiento: sucursal?.tipoestablecimiento ?? "",
     codestablemh: sucursal?.codestablemh ?? "",
     codpuntoventamh: sucursal?.codpuntoventamh ?? "",
@@ -86,6 +87,107 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
       window.removeEventListener("resize", checkMobile);
     };
   }, []);
+
+  // Cargar detalle_usuario existente
+  useEffect(() => {
+    let cancel = false;
+    async function loadDetalleUsuario() {
+      try {
+        const res = await fetch(`${API_BASE}/detalle-usuario/getAll`, {
+          method: "GET",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        
+        if (res.status === 401) {
+          router.push("/auth/login");
+          return;
+        }
+        
+        const body = await res.json();
+        if (!res.ok) {
+          throw new Error(body?.error ?? body?.message ?? "No se pudo cargar los detalles de usuario.");
+        }
+        
+        if (!cancel) {
+          const detallesData = body.data || body;
+          // Buscar si existe un detalle para el usuario actual
+          const usuarioId = sucursal?.usuarioid || user.idusuario;
+          const detalleExistente = Array.isArray(detallesData) 
+            ? detallesData.find(detalle => detalle.id_usuario === usuarioId)
+            : null;
+          
+          if (detalleExistente) {
+            setDetalleUsuario(detalleExistente);
+            
+            // Extraer permisos si existen
+            if (detalleExistente.permisos && Array.isArray(detalleExistente.permisos)) {
+              setPermisosSucursal(detalleExistente.permisos);
+            }
+          }
+        }
+      } catch (e) {
+        if (!cancel) console.error("Error al cargar detalle_usuario:", e.message);
+      }
+    }
+    
+    if (sucursal || user.idusuario) {
+      loadDetalleUsuario();
+    }
+    
+    return () => {
+      cancel = true;
+    };
+  }, [sucursal, user.idusuario, router]);
+
+  useEffect(() => {
+    let cancel = false;
+    async function loadDetalleUsuarioEspecifico() {
+      try {
+        const usuarioId = sucursal?.usuarioid || user.idusuario;
+        const res = await fetch(`${API_BASE}/detalle-usuario/usuario/${usuarioId}`, {
+          method: "GET",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        
+        if (res.status === 401) {
+          router.push("/auth/login");
+          return;
+        }
+        
+        const body = await res.json();
+        if (!res.ok) {
+          throw new Error(body?.error ?? body?.message ?? "No se pudo cargar los detalles de usuario.");
+        }
+        
+        if (!cancel) {
+          if (Array.isArray(body) && body.length > 0) {
+            const usuarioData = body[0];
+            setDetalleUsuario(usuarioData);
+            console.log("Detalle-usuario específico cargado:", usuarioData);
+            
+            if (usuarioData.permisos && Array.isArray(usuarioData.permisos)) {
+              setPermisosSucursal(usuarioData.permisos);
+            } else {
+              setPermisosSucursal([]);
+            }
+          }
+        }
+      } catch (e) {
+        if (!cancel) console.error("Error al cargar detalle-usuario específico:", e.message);
+        setPermisosSucursal([]);
+      }
+    }
+    
+    if (sucursal || user.idusuario) {
+      loadDetalleUsuarioEspecifico();
+    }
+    
+    return () => {
+      cancel = true;
+    };
+  }, [sucursal, user.idusuario, router]);
 
   useEffect(() => {
     let cancel = false;
@@ -113,8 +215,6 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
             nombre: sucursalData.nombre ?? "",
             telefono: sucursalData.telefono ?? "",
             complemento: sucursalData.complemento ?? "",
-            codactividad: sucursalData.codactividad ?? "",
-            desactividad: sucursalData.desactividad ?? "",
             tipoestablecimiento: sucursalData.tipoestablecimiento ?? "",
             codestablemh: sucursalData.codestablemh ?? "",
             codpuntoventamh: sucursalData.codpuntoventamh ?? "",
@@ -141,8 +241,6 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
         nombre: sucursal.nombre ?? "",
         telefono: sucursal.telefono ?? "",
         complemento: sucursal.complemento ?? "",
-        codactividad: sucursal.codactividad ?? "",
-        desactividad: sucursal.desactividad ?? "",
         tipoestablecimiento: sucursal.tipoestablecimiento ?? "",
         codestablemh: sucursal.codestablemh ?? "",
         codpuntoventamh: sucursal.codpuntoventamh ?? "",
@@ -155,12 +253,11 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
 
   const hasChanges = useMemo(() => {
     if (!sucursal) return false;
-    return (
+    
+    const sucursalChanges = (
       form.nombre.trim() !== (sucursal.nombre ?? "").trim() ||
       form.telefono.trim() !== (sucursal.telefono ?? "").trim() ||
       form.complemento.trim() !== (sucursal.complemento ?? "").trim() ||
-      form.codactividad.trim() !== (sucursal.codactividad ?? "").trim() ||
-      form.desactividad.trim() !== (sucursal.desactividad ?? "").trim() ||
       form.tipoestablecimiento.trim() !== (sucursal.tipoestablecimiento ?? "").trim() ||
       form.codestablemh.trim() !== (sucursal.codestablemh ?? "").trim() ||
       form.codpuntoventamh.trim() !== (sucursal.codpuntoventamh ?? "").trim() ||
@@ -168,9 +265,11 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
       form.departamento.trim() !== (sucursal.departamento ?? "").trim() ||
       form.municipio.trim() !== (sucursal.municipio ?? "").trim()
     );
+
+    return sucursalChanges;
   }, [form, sucursal]);
 
-    useEffect(() => {
+  useEffect(() => {
     setDepartamentoOptions(departamentos);
     setMunicipioOptions(municipios);
     setActividadOptions(codactividad);
@@ -204,35 +303,6 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
       setForm(prev => ({ ...prev, municipio: "" }));
     }
   }, [form.departamento]);
-
-  useEffect(() => {
-    if (form.codactividad) {
-      const actividadEncontrada = codactividad.find(
-        a => a.codigo === form.codactividad
-      );
-      if (actividadEncontrada) {
-        setForm(prev => ({ ...prev, desactividad: actividadEncontrada.nombre }));
-      } else {
-        setForm(prev => ({ ...prev, desactividad: "" }));
-      }
-    }
-  }, [form.codactividad]);
-
-
-  const filterActividades = (searchTerm) => {
-    if (!searchTerm) {
-      setFilteredActividades([]);
-      return;
-    }
-    
-    const filtered = codactividad.filter(
-      a => a.codigo.includes(searchTerm) || 
-           a.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredActividades(filtered.slice(0, 10));
-  };
-
-
 
   const canSubmit = useMemo(() => {
     if (saving) return false;
@@ -292,12 +362,11 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
       setError("");
       setOkMsg("");
       
-      const payload = {
+      // Preparar payload para sucursal
+      const sucursalPayload = {
         nombre: form.nombre.trim(),
         telefono: form.telefono.trim(),
         complemento: form.complemento.trim(),
-        codactividad: form.codactividad.trim(),
-        desactividad: form.desactividad.trim(),
         tipoestablecimiento: form.tipoestablecimiento.trim(),
         codestablemh: form.codestablemh.trim(),
         codpuntoventamh: form.codpuntoventamh.trim(),
@@ -306,57 +375,61 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
         municipio: form.municipio.trim()
       };
       
-      Object.keys(payload).forEach(key => {
-        if (sucursal && payload[key] === (sucursal[key] || "")) {
-          delete payload[key];
+      Object.keys(sucursalPayload).forEach(key => {
+        if (sucursal && sucursalPayload[key] === (sucursal[key] || "")) {
+          delete sucursalPayload[key];
         }
       });
 
-      if (Object.keys(payload).length === 0) {
-        setOkMsg("No se detectaron cambios para guardar.");
-        setSaving(false);
-        return;
-      }
-      
-      const res = await fetch(`${API_BASE}/sucursal/update/${sucursal.idsucursal}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
-      
-      if (res.status === 401) {
-        router.push("/auth/login");
-        return;
-      }
-      
-      const body = await res.json();
-      if (!res.ok) {
-        setError(body?.error ?? body?.message ?? "No se pudo actualizar la sucursal.");
-        return;
-      }
-      
-      setOkMsg("Sucursal actualizada con éxito.");
-      
-      if (body.data) {
-        setForm({
-          nombre: body.data.nombre ?? "",
-          telefono: body.data.telefono ?? "",
-          complemento: body.data.complemento ?? "",
-          codactividad: body.data.codactividad ?? "",
-          desactividad: body.data.desactividad ?? "",
-          tipoestablecimiento: body.data.tipoestablecimiento ?? "",
-          codestablemh: body.data.codestablemh ?? "",
-          codpuntoventamh: body.data.codpuntoventamh ?? "",
-          codpuntoventa: body.data.codpuntoventa ?? "",
-          departamento: body.data.departamento ?? "",
-          municipio: body.data.municipio ?? ""
+      let sucursalUpdated = false;
+
+      // Actualizar sucursal si hay cambios
+      if (Object.keys(sucursalPayload).length > 0) {
+        const res = await fetch(`${API_BASE}/sucursal/update/${sucursal.idsucursal}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(sucursalPayload),
         });
+        
+        if (res.status === 401) {
+          router.push("/auth/login");
+          return;
+        }
+        
+        const body = await res.json();
+        if (!res.ok) {
+          setError(body?.error ?? body?.message ?? "No se pudo actualizar la sucursal.");
+          return;
+        }
+        
+        sucursalUpdated = true;
+        
+        if (body.data) {
+          setForm({
+            nombre: body.data.nombre ?? "",
+            telefono: body.data.telefono ?? "",
+            complemento: body.data.complemento ?? "",
+            tipoestablecimiento: body.data.tipoestablecimiento ?? "",
+            codestablemh: body.data.codestablemh ?? "",
+            codpuntoventamh: body.data.codpuntoventamh ?? "",
+            codpuntoventa: body.data.codpuntoventa ?? "",
+            departamento: body.data.departamento ?? "",
+            municipio: body.data.municipio ?? ""
+          });
+        }
+      }
+
+      // Mostrar mensaje de éxito
+      if (sucursalUpdated) {
+        setOkMsg("Sucursal actualizada con éxito.");
+      } else {
+        setOkMsg("No se detectaron cambios para guardar.");
       }
       
     } catch (err) {
-      console.error("[sucursal] PUT /sucursales/update:", err);
-      setError("Error de red al actualizar la sucursal.");
+      console.error("[sucursal] Error al guardar:", err);
+      setError("Error de red al actualizar los datos.");
     } finally {
       setSaving(false);
     }
@@ -364,6 +437,19 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
+  };
+
+  // Función para formatear nombres de permisos
+  const formatearPermiso = (permiso) => {
+    const permisosFormateados = {
+      'ver': 'Ver',
+      'editar': 'Editar',
+      'eliminar': 'Eliminar',
+      'crear': 'Crear',
+      'admin': 'Administrar'
+    };
+    
+    return permisosFormateados[permiso] || permiso.charAt(0).toUpperCase() + permiso.slice(1);
   };
 
   if (loading) {
@@ -378,7 +464,7 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
 
         <div className="flex flex-1 h-full">
           <div
-            className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-0"
               } ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}
           >
             <Sidebar />
@@ -537,57 +623,6 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
                 </div>
               </div>
 
-              <div className="text-black grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="min-w-0">
-                  <Label>Código de Actividad</Label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={form.codactividad}
-                      onChange={(e) => {
-                        setForm({...form, codactividad: e.target.value});
-                        filterActividades(e.target.value);
-                      }}
-                      onFocus={(e) => filterActividades(e.target.value)}
-                      disabled={user.rol !== "admin"}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Buscar por código o nombre"
-                    />
-                    {filteredActividades.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                        {filteredActividades.map((actividad) => (
-                          <div
-                            key={actividad.codigo}
-                            className="px-3 py-2 cursor-pointer hover:bg-blue-50"
-                            onClick={() => {
-                              setForm({
-                                ...form,
-                                codactividad: actividad.codigo,
-                                desactividad: actividad.nombre
-                              });
-                              setFilteredActividades([]);
-                            }}
-                          >
-                            <div className="font-medium">{actividad.codigo}</div>
-                            <div className="text-sm text-gray-600">{actividad.nombre}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="min-w-0">
-                  <Label>Descripción de Actividad</Label>
-                  <input
-                    type="text"
-                    value={form.desactividad}
-                    readOnly
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500 bg-gray-100"
-                  />
-                </div>
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="min-w-0">
                   <Label>Tipo de Establecimiento</Label>
@@ -684,6 +719,129 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
                 </div>
               </div>
 
+              {/* Sección de Actividades Económicas - SOLO LECTURA */}
+              {detalleUsuario && (
+                <div className="border-t border-gray-200 pt-6 mt-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <FaStore className="text-green-500" /> Actividades Económicas Registradas
+                  </h2>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Información de actividades económicas configuradas para esta sucursal.
+                  </p>
+
+                  {/* Actividad 1 */}
+                  {detalleUsuario.codactividad1 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="min-w-0">
+                        <Label>Código de Actividad 1</Label>
+                        <input
+                          type="text"
+                          value={detalleUsuario.codactividad1}
+                          disabled
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500 bg-gray-100"
+                        />
+                      </div>
+
+                      <div className="min-w-0">
+                        <Label>Descripción de Actividad 1</Label>
+                        <input
+                          type="text"
+                          value={detalleUsuario.desactividad1}
+                          disabled
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500 bg-gray-100"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actividad 2 */}
+                  {detalleUsuario.codactividad2 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="min-w-0">
+                        <Label>Código de Actividad 2</Label>
+                        <input
+                          type="text"
+                          value={detalleUsuario.codactividad2}
+                          disabled
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500 bg-gray-100"
+                        />
+                      </div>
+
+                      <div className="min-w-0">
+                        <Label>Descripción de Actividad 2</Label>
+                        <input
+                          type="text"
+                          value={detalleUsuario.desactividad2}
+                          disabled
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500 bg-gray-100"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actividad 3 */}
+                  {detalleUsuario.codactividad3 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      <div className="min-w-0">
+                        <Label>Código de Actividad 3</Label>
+                        <input
+                          type="text"
+                          value={detalleUsuario.codactividad3}
+                          disabled
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500 bg-gray-100"
+                        />
+                      </div>
+
+                      <div className="min-w-0">
+                        <Label>Descripción de Actividad 3</Label>
+                        <input
+                          type="text"
+                          value={detalleUsuario.desactividad3}
+                          disabled
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500 bg-gray-100"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {!detalleUsuario.codactividad1 && !detalleUsuario.codactividad2 && !detalleUsuario.codactividad3 && (
+                    <div className="text-center py-4 text-gray-500">
+                      No hay actividades económicas registradas para esta sucursal.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Nueva Sección: Secciones habilitadas para la sucursal */}
+              <div className="border-t border-gray-200 pt-6 mt-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <FaCheck className="text-purple-500" /> Secciones habilitadas para la sucursal
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Permisos y funcionalidades disponibles para esta sucursal.
+                </p>
+
+                {permisosSucursal && permisosSucursal.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {permisosSucursal.map((permiso, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-md"
+                      >
+                        <FaCheck className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-800">
+                          {formatearPermiso(permiso)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    No se han configurado permisos específicos para esta sucursal.
+                  </div>
+                )}
+              </div>
+
               {/* Footer acciones */}
               <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
                 <button
@@ -716,21 +874,13 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
 }
 
 function Label({ children }) {
-  return <label className="mb-1 block text-sm font-medium text-gray-700">{children}</label>;
+  return (
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {children}
+    </label>
+  );
 }
 
 function Help({ children }) {
-  return <p className="mt-1 text-xs text-gray-500">{children}</p>;
-}
-
-function InfoRow({ label, value, icon }) {
-  return (
-    <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-md">
-      <div className="mt-1">{icon}</div>
-      <div>
-        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</div>
-        <div className="mt-0.5 text-sm text-gray-900">{value ?? "-"}</div>
-      </div>
-    </div>
-  );
+  return <p className="text-xs text-gray-500 mt-1">{children}</p>;
 }
