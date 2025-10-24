@@ -926,7 +926,6 @@ const guardarDetallesFactura = async (iddtefactura) => {
   }, [sucursalUsuario, correoVendedor]);
 
   const idEmisor =  sucursalUsuario.usuario.id;
-  console.log("ID Emisor:", idEmisor);
 
   const formatMoney = (value) => {
     if (value === undefined || value === null || isNaN(value)) {

@@ -1,7 +1,7 @@
 // src/app/dashboard/facturas/contingencia/contingencia.js
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFilePdf, FaChevronLeft, FaChevronRight, FaLayerGroup, FaFileCode, FaExclamationTriangle } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFilePdf, FaChevronLeft, FaChevronRight, FaLayerGroup, FaFileCode, FaExclamationTriangle, FaFilter } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
@@ -17,6 +17,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
   const [currentPage, setCurrentPage] = useState(1);
   const [pdfLoading, setPdfLoading] = useState(null);
   const [generandoLote, setGenerandoLote] = useState(false);
+  const [filtroFecha, setFiltroFecha] = useState("hoy");
   const itemsPerPage = 6;
   const router = useRouter();
 
@@ -60,11 +61,68 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
     });
   };
 
+  const formatearFecha = (fecha) => {
+    const date = new Date(fecha);
+    const dia = date.getDate().toString().padStart(2, '0');
+    const mes = (date.getMonth() + 1).toString().padStart(2, '0');
+    const año = date.getFullYear();
+    return `${dia}-${mes}-${año}`;
+  };
+
   const facturasFiltradas = Array.isArray(facturas)
     ? facturas.filter((factura) => {
         if (!factura) return false;
+        
+        // Aplicar filtro de fecha primero
+        if (filtroFecha !== "todos") {
+          const fechaFactura = new Date(factura.fechaemision);
+          const hoy = new Date();
+          let fechaInicio = new Date();
+          let fechaFin = new Date();
+          
+          switch (filtroFecha) {
+            case "hoy":
+              fechaInicio.setHours(0, 0, 0, 0);
+              fechaFin.setHours(23, 59, 59, 999);
+              break;
+            case "ayer":
+              fechaInicio.setDate(hoy.getDate() - 1);
+              fechaInicio.setHours(0, 0, 0, 0);
+              fechaFin.setDate(hoy.getDate() - 1);
+              fechaFin.setHours(23, 59, 59, 999);
+              break;
+            case "anteayer":
+              fechaInicio.setDate(hoy.getDate() - 2);
+              fechaInicio.setHours(0, 0, 0, 0);
+              fechaFin.setDate(hoy.getDate() - 2);
+              fechaFin.setHours(23, 59, 59, 999);
+              break;
+            case "hace3dias":
+              fechaInicio.setDate(hoy.getDate() - 3);
+              fechaInicio.setHours(0, 0, 0, 0);
+              fechaFin.setDate(hoy.getDate() - 3);
+              fechaFin.setHours(23, 59, 59, 999);
+              break;
+            case "hace4dias":
+              fechaInicio.setDate(hoy.getDate() - 4);
+              fechaInicio.setHours(0, 0, 0, 0);
+              fechaFin.setDate(hoy.getDate() - 4);
+              fechaFin.setHours(23, 59, 59, 999);
+              break;
+            default:
+              fechaInicio = null;
+              fechaFin = null;
+          }
+          
+          if (fechaInicio && fechaFin) {
+            if (fechaFactura < fechaInicio || fechaFactura > fechaFin) {
+              return false;
+            }
+          }
+        }
+        
+        // Luego aplicar filtro de búsqueda
         const searchLower = searchTerm.toLowerCase();
-
         const matchSearch =
           (factura.codigogen?.toLowerCase() || "").includes(searchLower) ||
           (factura.nombrecibe?.toLowerCase() || "").includes(searchLower) ||
@@ -96,6 +154,13 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
       '11': 'COMPROBANTE RETENCION'
     };
     return tipos[tipodte] || `DTE ${tipodte}`;
+  };
+
+  const getFechaFiltro = (diasAtras) => {
+    const hoy = new Date();
+    const fecha = new Date();
+    fecha.setDate(hoy.getDate() - diasAtras);
+    return formatearFecha(fecha);
   };
 
   const handleGenerarLote = async () => {
@@ -306,7 +371,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
           <div className="flex items-center text-gray-600">
             <FaCalendarAlt className="mr-1 text-indigo-500 text-xs" />
             <span className="text-xs">
-              {new Date(factura.fechaemision).toISOString().split("T")[0]}
+              {formatearFecha(factura.fechaemision)}
             </span>
           </div>
           <span className={`text-xs px-2 py-1 rounded-full font-medium ${
@@ -550,59 +615,86 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
                   <div>
                     <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Envío en Contingencia</h1>
                     <p className="text-gray-600">
-                      {facturas.length} {facturas.length === 1 ? "documento en contingencia" : "documentos en contingencia"} 
-                      {searchTerm && ` (${facturasFiltradas.length} encontrados)`}
+                      {facturasFiltradas.length} {facturasFiltradas.length === 1 ? "documento encontrado" : "documentos encontrados"} 
+                      {filtroFecha !== "todos" && ` del ${getFechaFiltro({
+                        'hoy': 0,
+                        'ayer': 1,
+                        'anteayer': 2,
+                        'hace3dias': 3,
+                        'hace4dias': 4
+                      }[filtroFecha] || 0)}`}
                     </p>
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                  <button
-                    onClick={handleGenerarLote}
-                    disabled={facturasFiltradas.length === 0 || generandoLote}
-                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                      facturasFiltradas.length === 0 || generandoLote
-                        ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow-md transform hover:-translate-y-0.5'
-                    } ${generandoLote ? 'animate-pulse' : ''}`}
-                  >
-                    {generandoLote ? (
-                      <>
-                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                        Generando Lote...
-                      </>
-                    ) : (
-                      <>
-                        <FaLayerGroup className="mr-2" />
-                        Generar Lote ({facturasFiltradas.length})
-                      </>
-                    )}
-                  </button>
+                    <button
+                      onClick={handleGenerarLote}
+                      disabled={facturasFiltradas.length === 0 || generandoLote}
+                      className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                        facturasFiltradas.length === 0 || generandoLote
+                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow-md transform hover:-translate-y-0.5'
+                      } ${generandoLote ? 'animate-pulse' : ''}`}
+                    >
+                      {generandoLote ? (
+                        <>
+                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                          Generando Lote...
+                        </>
+                      ) : (
+                        <>
+                          <FaLayerGroup className="mr-2" />
+                          Generar Lote ({facturasFiltradas.length})
+                        </>
+                      )}
+                    </button>
 
-                    <div className="relative w-full md:w-64">
-                      <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Buscar documentos..."
-                        className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        value={searchTerm}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative w-full md:w-64">
+                        <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Buscar documentos..."
+                          className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          value={searchTerm}
+                          onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+                        <select
+                          value={filtroFecha}
+                          onChange={(e) => {
+                            setFiltroFecha(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                          className="pl-10 pr-8 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-indigo-500 focus:border-indigo-500 text-gray-700 w-full md:w-48"
+                        >
+                          <option value="hoy">Hoy ({getFechaFiltro(0)})</option>
+                          <option value="ayer">Ayer ({getFechaFiltro(1)})</option>
+                          <option value="anteayer">Anteayer ({getFechaFiltro(2)})</option>
+                          <option value="hace3dias">Hace 3 días ({getFechaFiltro(3)})</option>
+                          <option value="hace4dias">Hace 4 días ({getFechaFiltro(4)})</option>
+                          <option value="todos">Todos los días</option>
+                        </select>
+                      </div>
+
+                      <select
+                        value={ordenFecha}
                         onChange={(e) => {
-                          setSearchTerm(e.target.value);
+                          setOrdenFecha(e.target.value);
                           setCurrentPage(1);
                         }}
-                      />
+                        className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-indigo-500 focus:border-indigo-500 text-gray-700"
+                      >
+                        <option value="reciente">Más reciente</option>
+                        <option value="antigua">Más antigua</option>
+                      </select>
                     </div>
-
-                    <select
-                      value={ordenFecha}
-                      onChange={(e) => {
-                        setOrdenFecha(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-indigo-500 focus:border-indigo-500 text-gray-700"
-                    >
-                      <option value="reciente">Más reciente</option>
-                      <option value="antigua">Más antigua</option>
-                    </select>
                   </div>
                 </div>
 
@@ -642,7 +734,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
                     <p className="text-gray-500 mt-1">
                       {facturas.length === 0 
                         ? 'Los documentos marcados para contingencia aparecerán aquí' 
-                        : 'Intenta con otros términos de búsqueda'}
+                        : 'Intenta con otros términos de búsqueda o selecciona otro día'}
                     </p>
                   </div>
                 )}
