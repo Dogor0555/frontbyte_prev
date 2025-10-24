@@ -85,6 +85,7 @@ export default function Sidebar({ onOpenPerfil }) {
       subMenu: [
         { name: "DTE Factura", icon: <FaFileInvoice />, href: "/dashboard/dte_factura" },
         { name: "DTE Crédito", icon: <FaFileContract />, href: "/dashboard/dte_credito" },
+        { name: "DTE Sujeto Excluido", icon: <FaClipboardList />, href: "/dashboard/dte_sujexcluido" },
       ],
       menuKey: "dtes",
     },
@@ -112,39 +113,16 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "creditos",
     },
 
-    // 📦 Nota de Remisión Electrónica
-    {
-      name: "Nota de Remisión",
-      icon: <FaTruck />,
-      href: "#",
-      subMenu: [
-        { name: "Emitir NRE", icon: <FaFileAlt />, href: "/dashboard/nota_remision" },
-        { name: "Ver NRE Emitidas", icon: <FaEye />, href: "/dashboard/nota_remision/ver" },
-        { name: "Anular NRE", icon: <FaBan />, href: "/dashboard/nota_remision/anular" },
-      ],
-      menuKey: "remision",
-    },
+    
 
-    // 💸 Comprobante de Retención Electrónico
-    {
-      name: "Comprobantes de Retención",
-      icon: <FaReceipt />,
-      href: "#",
-      subMenu: [
-        { name: "Emitir CRE", icon: <FaFileAlt />, href: "/dashboard/retencion" },
-        { name: "Ver CRE Emitidos", icon: <FaEye />, href: "/dashboard/retencion/ver" },
-        { name: "Anular CRE", icon: <FaBan />, href: "/dashboard/retencion/anular" },
-      ],
-      menuKey: "retencion",
-    },
+    
 
     // 📜 Comprobante de Liquidación Electrónico
     {
-      name: "Comprobantes de Liquidación",
+      name: "Sujeto Excluido",
       icon: <FaClipboardList />,
       href: "#",
       subMenu: [
-        { name: "Emitir CLE", icon: <FaFileAlt />, href: "/dashboard/liquidacion" },
         { name: "Ver CLE Emitidos", icon: <FaEye />, href: "/dashboard/liquidacion/ver" },
         { name: "Anular CLE", icon: <FaBan />, href: "/dashboard/liquidacion/anular" },
       ],
