@@ -1,4 +1,3 @@
-// src/app/dashboard/components/sidebar.js
 "use client";
 import { useRouter } from "next/navigation";
 import Link from "next/link"; 
@@ -31,6 +30,7 @@ import {
   FaTruck,             // Para Nota de Remisión
   FaReceipt,           // Para Retención
   FaClipboardList,     // Para Liquidación
+  FaHistory
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -40,10 +40,15 @@ export default function Sidebar({ onOpenPerfil }) {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [empleado, setEmpleado] = useState(null);
+  const [permisos, setPermisos] = useState([]);
+  const [loadingPermisos, setLoadingPermisos] = useState(true);
   const [openMenus, setOpenMenus] = useState({
     dtes: false,
     facturas: false,
     creditos: false,
+    remision: false,
+    retencion: false,
+    liquidacion: false,
     admin: false,
   });
   const [hoveredItem, setHoveredItem] = useState(null);
@@ -51,9 +56,40 @@ export default function Sidebar({ onOpenPerfil }) {
   useEffect(() => {
     const empleadoData = localStorage.getItem("empleado");
     if (empleadoData) {
-      setEmpleado(JSON.parse(empleadoData));
+      const empleadoParsed = JSON.parse(empleadoData);
+      setEmpleado(empleadoParsed);
+      cargarPermisos();
     }
   }, []);
+
+  const cargarPermisos = async () => {
+    try {
+      setLoadingPermisos(true);
+      const response = await fetch(`http://localhost:3000/permisos/`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPermisos(data.permisos || []);
+      } else {
+        console.error('Error al cargar permisos:', response.status);
+        setPermisos([]);
+      }
+    } catch (error) {
+      console.error('Error al cargar permisos:', error);
+      setPermisos([]);
+    } finally {
+      setLoadingPermisos(false);
+    }
+  };
+
+  const tienePermiso = (nombrePermiso) => {
+    if (loadingPermisos) return false;
+    return permisos.includes(nombrePermiso);
+  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -75,83 +111,275 @@ export default function Sidebar({ onOpenPerfil }) {
     }));
   };
 
-  const menuItems = [
-    { name: "Inicio", icon: <FaHome />, href: "/dashboard" },
+  const todosLosMenuItems = [
+    { 
+      name: "Inicio", 
+      icon: <FaHome />, 
+      href: "/dashboard",
+      permiso: "Inicio" 
+    },
 
+    // 📋 DTES
     {
       name: "DTES",
       icon: <FaFileInvoiceDollar />,
       href: "#",
       subMenu: [
-        { name: "DTE Factura", icon: <FaFileInvoice />, href: "/dashboard/dte_factura" },
-        { name: "DTE Crédito", icon: <FaFileContract />, href: "/dashboard/dte_credito" },
-        { name: "DTE Sujeto Excluido", icon: <FaClipboardList />, href: "/dashboard/dte_sujexcluido" },
+        { 
+          name: "DTE Factura", 
+          icon: <FaFileInvoice />, 
+          href: "/dashboard/dte_factura",
+          permiso: "DTE Factura" 
+        },
+        { 
+          name: "DTE Crédito", 
+          icon: <FaFileContract />, 
+          href: "/dashboard/dte_credito",
+          permiso: "DTE Crédito" 
+        },
+        { 
+          name: "DTE Sujeto Excluido", 
+          icon: <FaClipboardList />, 
+          href: "/dashboard/dte_sujexcluido",
+          permiso: "DTE Sujeto Excluido" 
+        },
       ],
       menuKey: "dtes",
+      permiso: "DTES"
     },
 
+    // 🧾 Facturas
     {
       name: "Facturas",
       icon: <FaFileInvoice />,
       href: "#",
       subMenu: [
-        { name: "Ver Facturas", icon: <FaEye />, href: "/dashboard/facturas" },
-        { name: "Anular Facturas", icon: <FaBan />, href: "/dashboard/anular_facturas" },
+        { 
+          name: "Ver Facturas", 
+          icon: <FaEye />, 
+          href: "/dashboard/facturas",
+          permiso: "Ver Facturas" 
+        },
+        { 
+          name: "Anular Facturas", 
+          icon: <FaBan />, 
+          href: "/dashboard/anular_facturas",
+          permiso: "Anular Facturas" 
+        },
       ],
       menuKey: "facturas",
+      permiso: "Facturas"
     },
 
+    // 💳 Créditos
     {
       name: "Créditos",
       icon: <FaCreditCard />,
       href: "#",
       subMenu: [
-        { name: "Ver Créditos", icon: <FaEye />, href: "/dashboard/creditos" },
-        { name: "Anular Créditos", icon: <FaBan />, href: "/dashboard/anular_creditos" },
-        { name: "Enviar Nota de Crédito/Débito", icon: <FaArrowCircleUp />, href: "/dashboard/nota_debito" },
+        { 
+          name: "Ver Créditos", 
+          icon: <FaEye />, 
+          href: "/dashboard/creditos",
+          permiso: "Ver Créditos" 
+        },
+        { 
+          name: "Anular Créditos", 
+          icon: <FaBan />, 
+          href: "/dashboard/anular_creditos",
+          permiso: "Anular Créditos" 
+        },
+        { 
+          name: "Enviar Nota de Crédito/Débito", 
+          icon: <FaArrowCircleUp />, 
+          href: "/dashboard/nota_debito",
+          permiso: "Enviar Nota de Crédito/Débito" 
+        },
       ],
       menuKey: "creditos",
+      permiso: "Créditos"
     },
 
-    
+    // 📦 Nota de Remisión Electrónica
+    {
+      name: "Nota de Remisión",
+      icon: <FaTruck />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Emitir NRE", 
+          icon: <FaFileAlt />, 
+          href: "/dashboard/nota_remision",
+          permiso: "Emitir NRE" 
+        },
+        { 
+          name: "Ver NRE Emitidas", 
+          icon: <FaEye />, 
+          href: "/dashboard/nota_remision/ver",
+          permiso: "Ver NRE Emitidas" 
+        },
+        { 
+          name: "Anular NRE", 
+          icon: <FaBan />, 
+          href: "/dashboard/nota_remision/anular",
+          permiso: "Anular NRE" 
+        },
+      ],
+      menuKey: "remision",
+      permiso: "Nota de Remisión"
+    },
 
-    
+    // 💸 Comprobante de Retención Electrónico
+    {
+      name: "Comprobantes de Retención",
+      icon: <FaReceipt />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Emitir CRE", 
+          icon: <FaFileAlt />, 
+          href: "/dashboard/retencion",
+          permiso: "Emitir CRE" 
+        },
+        { 
+          name: "Ver CRE Emitidos", 
+          icon: <FaEye />, 
+          href: "/dashboard/retencion/ver",
+          permiso: "Ver CRE Emitidos" 
+        },
+        { 
+          name: "Anular CRE", 
+          icon: <FaBan />, 
+          href: "/dashboard/retencion/anular",
+          permiso: "Anular CRE" 
+        },
+      ],
+      menuKey: "retencion",
+      permiso: "Comprobantes de Retención"
+    },
 
-    // 📜 Comprobante de Liquidación Electrónico
+    // 📜 Comprobante de Liquidación Electrónico (Sujeto Excluido)
     {
       name: "Sujeto Excluido",
       icon: <FaClipboardList />,
       href: "#",
       subMenu: [
-        { name: "Ver CLE Emitidos", icon: <FaEye />, href: "/dashboard/liquidacion/ver" },
-        { name: "Anular CLE", icon: <FaBan />, href: "/dashboard/liquidacion/anular" },
+        { 
+          name: "Emitir CLE", 
+          icon: <FaFileAlt />, 
+          href: "/dashboard/liquidacion",
+          permiso: "Emitir CLE" 
+        },
+        { 
+          name: "Ver CLE Emitidos", 
+          icon: <FaEye />, 
+          href: "/dashboard/liquidacion/ver",
+          permiso: "Ver CLE Emitidos" 
+        },
+        { 
+          name: "Anular CLE", 
+          icon: <FaBan />, 
+          href: "/dashboard/liquidacion/anular",
+          permiso: "Anular CLE" 
+        },
       ],
       menuKey: "liquidacion",
+      permiso: "Comprobantes de Liquidación"
     },
 
     // ⚠️ Contingencia
-    { name: "Contingencia", icon: <FaExclamationTriangle />, href: "/dashboard/contingencia" },
+    { 
+      name: "Contingencia", 
+      icon: <FaExclamationTriangle />, 
+      href: "/dashboard/contingencia",
+      permiso: "Contingencia" 
+    },
 
     // 📚 Otros
-    { name: "Libro de Ventas", icon: <FaBook />, href: "/dashboard/libro_de_ventas" },
-    { name: "Reportes", icon: <FaChartLine />, href: "/dashboard/reportes" },
-    { name: "Editar Sucursal", icon: <FaEdit />, href: "/dashboard/editar_sucursal" },
+    { 
+      name: "Libro de Ventas", 
+      icon: <FaBook />, 
+      href: "/dashboard/libro_de_ventas",
+      permiso: "Libro de Ventas" 
+    },
+    { 
+      name: "Reportes", 
+      icon: <FaChartLine />, 
+      href: "/dashboard/reportes",
+      permiso: "Reportes" 
+    },
+    { 
+      name: "Editar Sucursal", 
+      icon: <FaEdit />, 
+      href: "/dashboard/editar_sucursal",
+      permiso: "Editar Sucursal" 
+    },
   ];
 
-  if (empleado && isAdmin(empleado)) {
-    menuItems.push({
-      name: "Administración",
-      icon: <FaCog />,
-      href: "#",
-      subMenu: [
-        { name: "Empleados", icon: <FaUserTie />, href: "/dashboard/empleados" },
-        { name: "Productos", icon: <FaBoxOpen />, href: "/dashboard/productos" },
-        { name: "Clientes", icon: <FaBuilding />, href: "/dashboard/clientes" },
-      ],
-      menuKey: "admin",
-    });
-  } else {
-    menuItems.push({ name: "Configuración", icon: <FaCog />, href: "#" });
+  // Filtrar items del menú basado en permisos
+  const menuItems = todosLosMenuItems.filter(item => {
+    // Si el item tiene submenú, verificar si al menos un subitem tiene permiso
+    if (item.subMenu) {
+      const subMenuConPermiso = item.subMenu.filter(subItem => 
+        tienePermiso(subItem.permiso)
+      );
+      return subMenuConPermiso.length > 0;
+    }
+    
+    // Si es un item simple, verificar permiso directo
+    return tienePermiso(item.permiso);
+  });
+
+  // Agregar menú de administración si tiene permisos
+  if (tienePermiso("Administración")) {
+    const adminSubMenu = [];
+    
+    if (tienePermiso("Empleados")) {
+      adminSubMenu.push({ 
+        name: "Empleados", 
+        icon: <FaUserTie />, 
+        href: "/dashboard/empleados",
+        permiso: "Empleados" 
+      });
+    }
+    
+    if (tienePermiso("Productos")) {
+      adminSubMenu.push({ 
+        name: "Productos", 
+        icon: <FaBoxOpen />, 
+        href: "/dashboard/productos",
+        permiso: "Productos" 
+      });
+    }
+    
+    if (tienePermiso("Clientes")) {
+      adminSubMenu.push({ 
+        name: "Clientes", 
+        icon: <FaBuilding />, 
+        href: "/dashboard/clientes",
+        permiso: "Clientes" 
+      });
+    }
+
+    if (tienePermiso("Registro de eventos")) {
+      adminSubMenu.push({
+        name: "Registro de eventos",
+        icon: <FaHistory />,
+        href: "/dashboard/registro-eventos",
+        permiso: "Registro de eventos"
+      });
+    }
+
+    if (adminSubMenu.length > 0) {
+      menuItems.push({
+        name: "Administración",
+        icon: <FaCog />,
+        href: "#",
+        subMenu: adminSubMenu,
+        menuKey: "admin",
+        permiso: "Administración"
+      });
+    }
   }
 
   const perfilLabel = empleado && isAdmin(empleado) ? "Editar Perfil" : "Ver Perfil";
@@ -211,7 +439,9 @@ export default function Sidebar({ onOpenPerfil }) {
                       ${openMenus[menuKey] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
                     `}>
                       <ul className="mt-2 ml-4 space-y-1 border-l-2 border-blue-400/30 pl-4">
-                        {subMenu.map(({ name: subName, icon: subIcon, href: subHref }, index) => (
+                        {subMenu
+                          .filter(subItem => tienePermiso(subItem.permiso))
+                          .map(({ name: subName, icon: subIcon, href: subHref }, index) => (
                           <li 
                             key={subName}
                             className={`
