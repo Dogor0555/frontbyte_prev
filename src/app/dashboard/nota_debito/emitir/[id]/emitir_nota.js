@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../../components/sidebar";
 import Footer from "../../../components/footer";
 import Navbar from "../../../components/navbar";
+import MensajeModal from "../../../components/MensajeModal";
 import { 
   FaArrowLeft, 
   FaFileAlt, 
@@ -29,6 +30,17 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
   const [montoNota, setMontoNota] = useState("");
   const [tipoNota, setTipoNota] = useState("debito");
   const [errorMonto, setErrorMonto] = useState("");
+
+  // Estados para el modal de mensajes
+  const [mostrarMensaje, setMostrarMensaje] = useState(false);
+  const [mensajeConfig, setMensajeConfig] = useState({
+    tipo: "exito",
+    titulo: "",
+    mensaje: "",
+    detalles: "",
+    idFactura: null
+  });
+  const [descargandoTicket, setDescargandoTicket] = useState(false);
 
   useEffect(() => {
     const tipoFromUrl = searchParams.get('tipo');
@@ -181,9 +193,87 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
     }
   };
 
+  // Función para mostrar mensajes en el modal
+  const mostrarModalMensaje = (tipo, titulo, mensaje, detalles = "", idFactura = null) => {
+    setMensajeConfig({
+      tipo,
+      titulo,
+      mensaje,
+      detalles,
+      idFactura
+    });
+    setMostrarMensaje(true);
+  };
+
+  // Función para descargar el ticket de la nota
+  const descargarTicketNota = async (idNota) => {
+    setDescargandoTicket(true);
+    
+    try {
+      // Determinar el endpoint según el tipo de nota
+      const endpoint = tipoNota === "debito" 
+        ? `http://localhost:3000/facturas/${idNota}/descargar-compacto`
+        : `http://localhost:3000/facturas/${idNota}/descargar-compacto`;
+
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        // Crear un blob y descargar el archivo
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        
+        // Obtener el nombre del archivo del header Content-Disposition o usar uno por defecto
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = `nota_${tipoNota}_${idNota}.pdf`;
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+          }
+        }
+        
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        mostrarModalMensaje(
+          "exito", 
+          "Descarga Exitosa", 
+          `El ticket de la nota de ${tipoNota === "debito" ? "débito" : "crédito"} se ha descargado correctamente.`,
+          `Archivo: ${filename}`
+        );
+      } else {
+        throw new Error('Error al descargar el ticket');
+      }
+    } catch (error) {
+      console.error('Error al descargar ticket:', error);
+      mostrarModalMensaje(
+        "error",
+        "Error en Descarga",
+        `No se pudo descargar el ticket de la nota de ${tipoNota === "debito" ? "débito" : "crédito"}.`,
+        error.message
+      );
+    } finally {
+      setDescargandoTicket(false);
+    }
+  };
+
   const handleGenerarNota = async () => {
     if (!factura || !motivoNota.trim() || !montoNota) {
-      alert("Por favor complete todos los campos requeridos");
+      mostrarModalMensaje(
+        "error",
+        "Datos Incompletos",
+        "Por favor complete todos los campos requeridos"
+      );
       return;
     }
 
@@ -191,13 +281,22 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
     const validacionMonto = validarMontoNota(montoNota, tipoNota, factura);
     if (!validacionMonto.valido) {
       setErrorMonto(validacionMonto.mensaje);
+      mostrarModalMensaje(
+        "error",
+        "Error de Validación",
+        validacionMonto.mensaje
+      );
       return;
     }
 
     setErrorMonto(""); // Limpiar error si la validación pasa
 
     if (parseFloat(montoNota) <= 0) {
-      alert("El monto debe ser mayor a 0");
+      mostrarModalMensaje(
+        "error",
+        "Monto Inválido",
+        "El monto debe ser mayor a 0"
+      );
       return;
     }
 
@@ -305,33 +404,45 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
           const detallesResult = await detallesResponse.json();
           console.log("Detalles procesados:", detallesResult);
 
-          let mensajeExito = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada exitosamente`;
+          let mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} Generada`;
+          let mensajeDetalles = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada exitosamente`;
           
           if (detallesResult.hacienda && detallesResult.hacienda.estado) {
             if (detallesResult.hacienda.estado === "PROCESADO" && detallesResult.hacienda.descripcionMsg === "RECIBIDO") {
-              mensajeExito = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada y transmitida exitosamente`;
+              mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} Transmitida`;
+              mensajeDetalles = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada y transmitida exitosamente a Hacienda`;
             } else {
               throw new Error(detallesResult.hacienda.descripcionMsg || `Error en Hacienda: ${detallesResult.hacienda.estado}`);
             }
           } 
           
           if (detallesResult.contingencia && detallesResult.aviso) {
-            alert(`${detallesResult.aviso}\n${detallesResult.message || mensajeExito}`);
+            mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} en Contingencia`;
+            mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message || "La nota se ha generado en modo de contingencia."}`;
           } 
 
           else if (detallesResult.transmitido) {
-            alert(mensajeExito);
-          }
-          // Caso por defecto
-          else {
-            alert(mensajeExito);
+            mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} Transmitida`;
+            mensajeDetalles = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} transmitida exitosamente`;
           }
 
-          router.push("/dashboard/nota_debito");
+          // Mostrar mensaje de éxito en el modal
+          mostrarModalMensaje(
+            "exito",
+            mensajeTitulo,
+            `La nota de ${tipoNota === "debito" ? "débito" : "crédito"} se ha procesado correctamente.`,
+            mensajeDetalles,
+            iddtefactura
+          );
 
         } catch (error) {
           console.error(`Error al generar nota de ${tipoNota}:`, error);
-          alert("Error: " + error.message);
+          mostrarModalMensaje(
+            "error",
+            "Error al Generar Nota",
+            `No se pudo generar la nota de ${tipoNota === "debito" ? "débito" : "crédito"}.`,
+            error.message
+          );
         } finally {
           setEnviando(false);
         }
@@ -363,6 +474,18 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('es-SV');
+  };
+
+  // Función para manejar el cierre del modal de mensajes
+  const handleCierreMensaje = () => {
+    setMostrarMensaje(false);
+    // Si fue un mensaje de éxito, redirigir a la lista de notas
+    if (mensajeConfig.tipo === "exito") {
+      const rutaRedireccion = tipoNota === "debito" 
+        ? "/dashboard/nota_debito" 
+        : "/dashboard/nota_debito";
+      router.push(rutaRedireccion);
+    }
   };
 
   if (loading) {
@@ -724,6 +847,19 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
 
         <Footer />
       </div>
+
+      {/* Modal de Mensajes */}
+      <MensajeModal
+        isOpen={mostrarMensaje}
+        onClose={handleCierreMensaje}
+        tipo={mensajeConfig.tipo}
+        titulo={mensajeConfig.titulo}
+        mensaje={mensajeConfig.mensaje}
+        detalles={mensajeConfig.detalles}
+        idFactura={mensajeConfig.idFactura}
+        onDescargarTicket={descargarTicketNota}
+        descargando={descargandoTicket}
+      />
     </div>
   );
 }

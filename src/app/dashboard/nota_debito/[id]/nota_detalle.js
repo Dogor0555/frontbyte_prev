@@ -1,7 +1,6 @@
-// src/app/dashboard/notas-debito/[id]/page.js
 "use client";
 import { useState, useEffect } from "react";
-import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaPlusCircle, FaMinusCircle, FaExchangeAlt, FaInfoCircle } from "react-icons/fa";
+import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaPlusCircle, FaMinusCircle, FaExchangeAlt, FaInfoCircle, FaTicketAlt } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
@@ -14,6 +13,7 @@ export default function NotaDetallePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [generandoPDF, setGenerandoPDF] = useState(false);
+  const [generandoTicket, setGenerandoTicket] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tipoNota, setTipoNota] = useState("");
   const [documentoFirmadoData, setDocumentoFirmadoData] = useState(null);
@@ -255,6 +255,44 @@ export default function NotaDetallePage() {
     }
   };
 
+  const handleGenerateTicket = async () => {
+    setGenerandoTicket(true);
+    try {
+      const response = await fetch(`http://localhost:3000/facturas/${numeroNota}/descargar-compacto`, {
+        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          throw new Error(errorText || "Error al descargar ticket");
+        }
+        throw new Error(errorData.detalles || errorData.error || "Error al descargar ticket");
+      }
+      
+      const ticketBlob = await response.blob();
+      const ticketUrl = URL.createObjectURL(ticketBlob);
+      const link = document.createElement('a');
+      link.href = ticketUrl;
+      link.download = `TICKET-${config.prefijo}-${numeroNotaDisplay}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(ticketUrl);
+    } catch (error) {
+      console.error("Error al generar ticket:", error);
+      alert("Error al generar el ticket: " + error.message);
+    } finally {
+      setGenerandoTicket(false);
+    }
+  };
+
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
@@ -377,29 +415,57 @@ export default function NotaDetallePage() {
                   <span className="font-semibold">{config.textoCompleto}</span>
                 </div>
                 
-                <button
-                  onClick={handleGeneratePDF}
-                  disabled={generandoPDF || !notaData?.documentofirmado}
-                  className={`flex items-center px-4 py-2 rounded text-white ${
-                    generandoPDF ? 'bg-gray-400 cursor-not-allowed' : 
-                    !notaData?.documentofirmado ? 'bg-gray-500 cursor-not-allowed' : 
-                    `${config.bgColor} hover:opacity-90`
-                  }`}
-                >
-                  {generandoPDF ? (
-                    <>
-                      <FaSpinner className="animate-spin mr-2" /> Generando...
-                    </>
-                  ) : !notaData?.documentofirmado ? (
-                    <>
-                      <FaFilePdf className="mr-2" /> PDF no disponible
-                    </>
-                  ) : (
-                    <>
-                      <FaFilePdf className="mr-2" /> Descargar PDF
-                    </>
-                  )}
-                </button>
+                <div className="flex gap-2">
+                  {/* Botón Generar Ticket */}
+                  <button
+                    onClick={handleGenerateTicket}
+                    disabled={generandoTicket || !notaData?.documentofirmado}
+                    className={`flex items-center px-4 py-2 rounded text-white ${
+                      generandoTicket ? 'bg-gray-400 cursor-not-allowed' : 
+                      !notaData?.documentofirmado ? 'bg-gray-500 cursor-not-allowed' : 
+                      `${config.bgColor} hover:opacity-90`
+                    }`}
+                  >
+                    {generandoTicket ? (
+                      <>
+                        <FaSpinner className="animate-spin mr-2" /> Generando...
+                      </>
+                    ) : !notaData?.documentofirmado ? (
+                      <>
+                        <FaTicketAlt className="mr-2" /> Ticket no disponible
+                      </>
+                    ) : (
+                      <>
+                        <FaTicketAlt className="mr-2" /> Generar Ticket
+                      </>
+                    )}
+                  </button>
+
+                  {/* Botón Descargar PDF */}
+                  <button
+                    onClick={handleGeneratePDF}
+                    disabled={generandoPDF || !notaData?.documentofirmado}
+                    className={`flex items-center px-4 py-2 rounded text-white ${
+                      generandoPDF ? 'bg-gray-400 cursor-not-allowed' : 
+                      !notaData?.documentofirmado ? 'bg-gray-500 cursor-not-allowed' : 
+                      `${config.bgColor} hover:opacity-90`
+                    }`}
+                  >
+                    {generandoPDF ? (
+                      <>
+                        <FaSpinner className="animate-spin mr-2" /> Generando...
+                      </>
+                    ) : !notaData?.documentofirmado ? (
+                      <>
+                        <FaFilePdf className="mr-2" /> PDF no disponible
+                      </>
+                    ) : (
+                      <>
+                        <FaFilePdf className="mr-2" /> Descargar PDF
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -267,7 +267,7 @@ export default function Sidebar({ onOpenPerfil }) {
         { 
           name: "Emitir CLE", 
           icon: <FaFileAlt />, 
-          href: "/dashboard/liquidacion",
+          href: "/dashboard/sujeto_excluido",
           permiso: "Emitir CLE" 
         },
         { 

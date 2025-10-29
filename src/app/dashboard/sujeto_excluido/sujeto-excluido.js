@@ -15,11 +15,10 @@ import FormaPago from "./components/FormaPago";
 import DatosEntrega from "./components/DatosAdicionalesEntrega";
 import FechaHoraEmision from "./components/FechaHoraEmision";
 import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaModal";
-import MensajeModal from "./components/MensajeModal";
 import { useReactToPrint } from 'react-to-print';
 
-export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
-  // Estados para la factura
+export default function SujetoExcluidoViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
+  // Estados para el documento de sujeto excluido
   const [cliente, setCliente] = useState(null);
   const [nombreCliente, setNombreCliente] = useState("");
   const [documentoCliente, setDocumentoCliente] = useState("");
@@ -28,8 +27,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [items, setItems] = useState([]);
   const [sumaopesinimpues, setSumaopesinimpues] = useState(0);
   const [totaldescuento, setTotaldescuento] = useState(0);
-  const [ventasgrabadas, setVentasgrabadas] = useState(0);
-  const [valoriva, setValoriva] = useState(0);
+  const [ventasexentas, setVentasexentas] = useState(0);
   const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [showClientList, setShowClientList] = useState(false);
@@ -37,7 +35,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [selectedClient, setSelectedClient] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [numeroFactura, setNumeroFactura] = useState(0);
+  const [numeroDocumento, setNumeroDocumento] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(""); 
   const [clientes, setClientes] = useState(initialClientes);
@@ -51,7 +49,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [direccionEmisor, setDireccionEmisor] = useState("");
   const [correoVendedor, setCorreoVendedor] = useState("");
   const [telefonoEmisor, setTelefonoEmisor] = useState("");
-  // --- Receptor (cliente de la factura) ---
+  // --- Receptor (cliente del documento) ---
   const [tipoDocumentoReceptor, setTipoDocumentoReceptor] = useState("");
   const [numeroDocumentoReceptor, setNumeroDocumentoReceptor] = useState("");
   const [nombreReceptor, setNombreReceptor] = useState("");
@@ -62,14 +60,12 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [tipoDocumentoLabel, setTipoDocumentoLabel] = useState("Documento");
   const [idReceptor, setIdReceptor] = useState(null);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
-  const [descuentoGrabadasMonto, setDescuentoGrabadasMonto] = useState(0);
   const [descuentoExentasMonto, setDescuentoExentasMonto] = useState(0);
   const [exentasConDescuentoState, setExentasConDescuentoState] = useState(0);
-  const [gravadasSinDescuentoState, setGravadasSinDescuentoState] = useState(0);
   const [exentasSinDescuentoState, setExentasSinDescuentoState] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [formasPago, setFormasPago] = useState([]);
-  const [guardandoFactura, setGuardandoFactura] = useState(false);
+  const [guardandoDocumento, setGuardandoDocumento] = useState(false);
   const [datosEntrega, setDatosEntrega] = useState({
     emisorDocumento: "",
     emisorNombre: "",
@@ -84,18 +80,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [errorValidacion, setErrorValidacion] = useState("");
   const [emisorDocumento, setEmisorDocumento] = useState("");
   const [emisorNombre, setEmisorNombre] = useState("");
-  const [tributosDetallados, setTributosDetallados] = useState({});
-
-  // Nuevos estados para el MensajeModal
-  const [mostrarMensaje, setMostrarMensaje] = useState(false);
-  const [mensajeConfig, setMensajeConfig] = useState({
-    tipo: "exito",
-    titulo: "",
-    mensaje: "",
-    detalles: "",
-    idFactura: null
-  });
-  const [descargandoTicket, setDescargandoTicket] = useState(false);
 
   // Inicializar correo desde user o, si no hay, desde localStorage
   useEffect(() => {
@@ -160,100 +144,32 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     { codigo: "99", nombre: "Otra" },
   ]);
 
-  // Función para mostrar mensajes
-  const mostrarModalMensaje = (tipo, titulo, mensaje, detalles = "", idFactura = null) => {
-    setMensajeConfig({
-      tipo,
-      titulo,
-      mensaje,
-      detalles,
-      idFactura
-    });
-    setMostrarMensaje(true);
-  };
-
-const descargarTicketFactura = async (idFactura) => {
-    setDescargandoTicket(true);
-    
-    try {
-      const response = await fetch(`http://localhost:3000/facturas/${idFactura}/ver-compacto`, {
-        method: 'GET',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        
-        const newTab = window.open(url, '_blank');
-        
-        if (!newTab) {
-          throw new Error('El navegador bloqueó la nueva pestaña. Por favor, permite ventanas emergentes.');
-        }
-        
-        const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = `factura_${idFactura}.pdf`;
-        
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
-          if (filenameMatch && filenameMatch[1]) {
-            filename = filenameMatch[1];
-          }
-        }
-        
-        mostrarModalMensaje(
-          "exito", 
-          "Ticket Abierto", 
-          "El ticket de la factura se ha abierto en una nueva pestaña.",
-          `Archivo: ${filename}`
-        );
-        
-        setTimeout(() => {
-          window.URL.revokeObjectURL(url);
-        }, 5000);
-        
-      } else {
-        throw new Error('Error al generar el ticket');
-      }
-    } catch (error) {
-      console.error('Error al abrir ticket:', error);
-      mostrarModalMensaje(
-        "error",
-        "Error al Abrir Ticket",
-        "No se pudo abrir el ticket de la factura.",
-        error.message
-      );
-    } finally {
-      setDescargandoTicket(false);
-    }
-  };
-
-  const validarDatosFactura = () => {
+  const validarDatosDocumento = () => {
     if (!nombreReceptor.trim()) {
       const mensaje = "El nombre del cliente es obligatorio";
       setErrorValidacion(mensaje);
-      mostrarModalMensaje("error", "Datos Incompletos", mensaje);
+      alert(mensaje);
       return false;
     }
     
     if (!numeroDocumentoReceptor.trim()) {
       const mensaje = "El documento del cliente es obligatorio";
       setErrorValidacion(mensaje);
-      mostrarModalMensaje("error", "Datos Incompletos", mensaje);
+      alert(mensaje);
       return false;
     }
     
     if (items.length === 0) {
-      const mensaje = "Debe agregar al menos un item a la factura";
+      const mensaje = "Debe agregar al menos un item al documento";
       setErrorValidacion(mensaje);
-      mostrarModalMensaje("error", "Factura Vacía", mensaje);
+      alert(mensaje);
       return false;
     }
     
     if (formasPago.length === 0) {
       const mensaje = "Debe especificar al menos una forma de pago";
       setErrorValidacion(mensaje);
-      mostrarModalMensaje("error", "Forma de Pago Requerida", mensaje);
+      alert(mensaje);
       return false;
     }
     
@@ -261,70 +177,52 @@ const descargarTicketFactura = async (idFactura) => {
     return true;
   };
 
-  const guardarFactura = async () => {
-    if (guardandoFactura) return;
+  const guardarDocumento = async () => {
+    if (guardandoDocumento) return;
     
-    if (!validarDatosFactura()) {
+    if (!validarDatosDocumento()) {
       return;
     }
     
     try {
-      setGuardandoFactura(true); 
+      setGuardandoDocumento(true); 
       
-      const datosFactura = prepararDatosFactura();
+      const datosDocumento = prepararDatosDocumento();
       
-      if (!datosFactura.formapago) {
-        mostrarModalMensaje(
-          "error",
-          "Error de Validación",
-          "No se pudo determinar la forma de pago"
-        );
-        setGuardandoFactura(false);
+      if (!datosDocumento.formapago) {
+        alert("Error: No se pudo determinar la forma de pago");
+        setGuardandoDocumento(false); 
         return;
       }
       
-      console.log("Enviando encabezado:", datosFactura);
+      console.log("Enviando encabezado:", datosDocumento);
       
-      const responseEncabezado = await fetch("http://localhost:3000/facturas/encabezado", {
+      const responseEncabezado = await fetch("http://localhost:3000/sujeto-excluido/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(datosFactura)
+        body: JSON.stringify(datosDocumento)
       });
 
       if (responseEncabezado.ok) {
         const result = await responseEncabezado.json();
-        console.log("Encabezado de factura guardado:", result);
+        console.log("Encabezado de sujeto excluido guardado:", result);
         
-        const detallesResult = await guardarDetallesFactura(result.iddtefactura);
+        const detallesResult = await guardarDetallesDocumento(result.iddtefactura);
         
         if (detallesResult) {
           setShowConfirmModal(false);
           
-          let mensajeTitulo = "Factura Guardada";
-          let mensajeDetalles = "";
-          let idFacturaParaDescarga = result.iddtefactura;
-
           // Mostrar aviso si se envió en contingencia
           if (detallesResult.contingencia && detallesResult.aviso) {
-            mensajeTitulo = "Factura en Contingencia";
-            mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message}`;
+            alert(`${detallesResult.aviso}\n${detallesResult.message}`);
           } else if (detallesResult.transmitido) {
-            mensajeTitulo = "Factura Transmitida";
-            mensajeDetalles = `Factura ${result.ncontrol} guardada y transmitida exitosamente`;
+            alert(`Documento de Sujeto Excluido ${result.ncontrol} guardado y transmitido exitosamente`);
           } else {
-            mensajeDetalles = `Factura ${result.ncontrol} guardada exitosamente`;
+            alert(`Documento de Sujeto Excluido ${result.ncontrol} guardado exitosamente`);
           }
-          
-          mostrarModalMensaje(
-            "exito",
-            mensajeTitulo,
-            "La factura se ha procesado correctamente.",
-            mensajeDetalles,
-            idFacturaParaDescarga
-          );
           
           reiniciarEstados();
         }
@@ -334,14 +232,9 @@ const descargarTicketFactura = async (idFactura) => {
       }
     } catch (error) {
       console.error("Error:", error);
-      mostrarModalMensaje(
-        "error",
-        "Error al Guardar",
-        "No se pudo guardar la factura.",
-        error.message
-      );
+      alert("Error al guardar el documento: " + error.message);
     } finally {
-      setGuardandoFactura(false);
+      setGuardandoDocumento(false);
     }
   };
 
@@ -356,78 +249,152 @@ const descargarTicketFactura = async (idFactura) => {
     setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
     setSumaopesinimpues(0);
     setTotaldescuento(0);
-    setVentasgrabadas(0);
-    setValoriva(0);
+    setVentasexentas(0);
     setTotal(0);
-    setDescuentoGrabadasMonto(0);
     setDescuentoExentasMonto(0);
     setFormasPago([]);
-    obtenerUltimoNumeroFactura();
+    obtenerUltimoNumeroDocumento();
   };
 
-  const reiniciarEstados = () => {
-    setCliente(null);
-    setNombreCliente("");
-    setDocumentoCliente("");
-    setTipoDocumentoReceptor("");
-    setNumeroDocumentoReceptor("");
-    setNombreReceptor("");
-    setDireccionReceptor("");
-    setCorreoReceptor("");
-    setTelefonoReceptor("");
-    setComplementoReceptor("");
-    setTipoDocumentoLabel("Documento");
-    setItems([]);
-    setSumaopesinimpues(0);
-    setTotaldescuento(0);
-    setVentasgrabadas(0);
-    setValoriva(0);
-    setTotal(0);
-    setDescuentoGrabadasMonto(0);
-    setDescuentoExentasMonto(0);
-    setExentasConDescuentoState(0);
-    setGravadasSinDescuentoState(0);
-    setExentasSinDescuentoState(0);
-    setCondicionPago("Contado");
-    setFormasPago([]);
-    setDatosEntrega({
-      emisorDocumento: "",
-      emisorNombre: "",
-      receptorDocumento: "",
-      receptorNombre: ""
-    });
-    
-    const nextMonth = new Date();
-    nextMonth.setDate(nextMonth.getDate() + 30);
-    setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
-    obtenerUltimoNumeroFactura();
-    setShowModal(false);
-    setShowDiscountModal(false);
-    setShowConfirmModal(false);
-    setShowClientList(false);
-    setShowClientDetails(false);
-    setSearchTerm("");
-  };
+const reiniciarEstados = () => {
+  setCliente(null);
+  setNombreCliente("");
+  setDocumentoCliente("");
+  setTipoDocumentoReceptor("");
+  setNumeroDocumentoReceptor("");
+  setNombreReceptor("");
+  setDireccionReceptor("");
+  setCorreoReceptor("");
+  setTelefonoReceptor("");
+  setComplementoReceptor("");
+  setTipoDocumentoLabel("Documento");
+  setItems([]);
+  setSumaopesinimpues(0);
+  setTotaldescuento(0);
+  setVentasexentas(0);
+  setTotal(0);
+  setDescuentoExentasMonto(0);
+  setExentasConDescuentoState(0);
+  setExentasSinDescuentoState(0);
+  setCondicionPago("Contado");
+  setFormasPago([]);
+  setDatosEntrega({
+    emisorDocumento: "",
+    emisorNombre: "",
+    receptorDocumento: "",
+    receptorNombre: ""
+  });
+  
+  const nextMonth = new Date();
+  nextMonth.setDate(nextMonth.getDate() + 30);
+  setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
+  obtenerUltimoNumeroDocumento();
+  setShowModal(false);
+  setShowDiscountModal(false);
+  setShowConfirmModal(false);
+  setShowClientList(false);
+  setShowClientDetails(false);
+  setSearchTerm("");
+};
 
-  const verDatosFactura = () => {
-    if (items.length === 0) {
-      mostrarModalMensaje("error", "Factura Vacía", "La factura debe tener al menos un item");
-      return;
+const verDatosDocumento = () => {
+  if (items.length === 0) {
+    alert("El documento debe tener al menos un item");
+    return;
+  }
+
+  const datosDocumento = prepararDatosDocumento();
+  
+  console.log("====== DATOS COMPLETOS DE SUJETO EXCLUIDO (SOLO VISUALIZACIÓN) ======");
+  console.log("ENCABEZADO:");
+  console.log(JSON.stringify(datosDocumento, null, 2));
+  
+  const detalles = items.map((item, index) => {
+    const subtotalItem = item.precioUnitario * item.cantidad;
+    const descuentoItem = subtotalItem * (item.descuento / 100);
+    const baseImponible = subtotalItem - descuentoItem;
+
+    const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+
+    return {
+      numitem: index + 1,
+      tipoitem: "1",
+      numerodocumento: null,
+      cantidad: parseFloat(item.cantidad.toFixed(2)),
+      codigo: codigoItem,
+      codtributo: null,
+      unimedida: item.unidadMedida || "59",
+      descripcion: item.descripcion,
+      preciouni: parseFloat(item.precioUnitario.toFixed(2)),
+      montodescu: parseFloat(descuentoItem.toFixed(2)),
+      ventanosuj: 0.00,
+      ventaexenta: parseFloat(baseImponible.toFixed(2)),
+      ventagravada: 0.00,
+      tributos: null,
+      psv: 0,
+      nogravado: 0.00,
+      ivaitem: 0.00
+    };
+  });
+  
+  const datosDetalles = {
+    transmitir: true,
+    idEnvio: Math.floor(1000 + Math.random() * 9000),
+    detalles: detalles,
+  };
+  
+  console.log("DETALLES:");
+  console.log(JSON.stringify(datosDetalles, null, 2));
+  console.log("=============================================================");
+  
+  alert("Datos de sujeto excluido mostrados en consola. Revisa la consola del navegador (F12).");
+};
+
+const actualizarStockProductos = async (itemsDocumento) => {
+  try {
+    // Filtrar solo items que son productos, necesitan actualización de stock y NO son servicios
+    const productosParaActualizar = itemsDocumento.filter(item => 
+      item.actualizarStock && item.productoId && item.tipo === "producto"
+    );
+
+    console.log("Productos a actualizar stock:", productosParaActualizar);
+
+    // Actualizar stock para cada producto
+    for (const producto of productosParaActualizar) {
+      try {
+        const response = await fetch(`http://localhost:3000/productos/decrementStock/${producto.productoId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ cantidad: producto.cantidad })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`Stock actualizado para producto ${producto.productoId}:`, result);
+        } else {
+          console.error(`Error al actualizar stock para producto ${producto.productoId}:`, response.statusText);
+        }
+      } catch (error) {
+        console.error(`Error al actualizar stock para producto ${producto.productoId}:`, error);
+      }
     }
 
-    const datosFactura = prepararDatosFactura();
-    
-    console.log("====== DATOS COMPLETOS DE FACTURA (SOLO VISUALIZACIÓN) ======");
-    console.log("ENCABEZADO:");
-    console.log(JSON.stringify(datosFactura, null, 2));
-    
+    return true;
+  } catch (error) {
+    console.error("Error general en actualización de stock:", error);
+    throw error;
+  }
+};
+
+const guardarDetallesDocumento = async (iddtefactura) => {
+  try {
     const detalles = items.map((item, index) => {
       const subtotalItem = item.precioUnitario * item.cantidad;
       const descuentoItem = subtotalItem * (item.descuento / 100);
       const baseImponible = subtotalItem - descuentoItem;
-
-      const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
-      const esExento = item.tipo === "noAfecto";
 
       const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
 
@@ -443,147 +410,53 @@ const descargarTicketFactura = async (idFactura) => {
         preciouni: parseFloat(item.precioUnitario.toFixed(2)),
         montodescu: parseFloat(descuentoItem.toFixed(2)),
         ventanosuj: 0.00,
-        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+        ventaexenta: parseFloat(baseImponible.toFixed(2)),
+        ventagravada: 0.00,
         tributos: null,
         psv: 0,
         nogravado: 0.00,
         ivaitem: 0.00
       };
     });
-    
+
     const datosDetalles = {
       transmitir: true,
       idEnvio: Math.floor(1000 + Math.random() * 9000),
       detalles: detalles,
     };
-    
-    console.log("DETALLES:");
-    console.log(JSON.stringify(datosDetalles, null, 2));
-    console.log("=============================================================");
-    
-    mostrarModalMensaje(
-      "exito",
-      "Datos en Consola",
-      "Datos de factura mostrados en consola.",
-      "Revisa la consola del navegador (F12) para ver los detalles completos."
-    );
-  };
 
-  const actualizarStockProductos = async (itemsFactura) => {
-    try {
-      // Filtrar solo items que son productos, necesitan actualización de stock y NO son servicios
-      const productosParaActualizar = itemsFactura.filter(item => 
-        item.actualizarStock && item.productoId && item.tipo === "producto"
-      );
+    console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
 
-      console.log("Productos a actualizar stock:", productosParaActualizar);
+    const responseDetalles = await fetch(`http://localhost:3000/sujeto-excluido/${iddtefactura}/detalles`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(datosDetalles),
+    });
 
-      // Actualizar stock para cada producto
-      for (const producto of productosParaActualizar) {
-        try {
-          const response = await fetch(`http://localhost:3000/productos/decrementStock/${producto.productoId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({ cantidad: producto.cantidad })
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            console.log(`Stock actualizado para producto ${producto.productoId}:`, result);
-          } else {
-            console.error(`Error al actualizar stock para producto ${producto.productoId}:`, response.statusText);
-          }
-        } catch (error) {
-          console.error(`Error al actualizar stock para producto ${producto.productoId}:`, error);
-        }
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Error general en actualización de stock:", error);
-      throw error;
+    if (responseDetalles.ok) {
+      const resultDetalles = await responseDetalles.json();
+      console.log("Detalles de sujeto excluido guardados:", resultDetalles);
+      
+      // ACTUALIZAR STOCK DESPUÉS DE GUARDAR LOS DETALLES
+      await actualizarStockProductos(items);
+      
+      // RETORNAR LA RESPUESTA COMPLETA EN LUGAR DE SOLO 'true'
+      return resultDetalles;
+    } else {
+      const errorText = await responseDetalles.text();
+      console.error("Error response from server:", errorText);
+      throw new Error(`Error al guardar los detalles: ${errorText}`);
     }
-  };
+  } catch (error) {
+    console.error("Error al guardar detalles:", error);
+    throw error;
+  }
+};
 
-  const guardarDetallesFactura = async (iddtefactura) => {
+  const obtenerUltimoNumeroDocumento = async () => {
     try {
-      const detalles = items.map((item, index) => {
-        const subtotalItem = item.precioUnitario * item.cantidad;
-        const descuentoItem = subtotalItem * (item.descuento / 100);
-        const baseImponible = subtotalItem - descuentoItem;
-
-        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
-        const esExento = item.tipo === "noAfecto";
-
-        const tasaIVA = 13;
-        const ivaItem = esGravado ? 
-          (baseImponible * tasaIVA) / (100 + tasaIVA) : 0;
-
-        const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
-
-        return {
-          numitem: index + 1,
-          tipoitem: "1",
-          numerodocumento: null,
-          cantidad: parseFloat(item.cantidad.toFixed(2)),
-          codigo: codigoItem,
-          codtributo: null,
-          unimedida: item.unidadMedida || "59",
-          descripcion: item.descripcion,
-          preciouni: parseFloat(item.precioUnitario.toFixed(2)),
-          montodescu: parseFloat(descuentoItem.toFixed(2)),
-          ventanosuj: 0.00,
-          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-          tributos: item.tributos,
-          psv: 0,
-          nogravado: 0.00,
-          ivaitem: parseFloat(ivaItem.toFixed(2)) 
-        };
-      });
-
-      const datosDetalles = {
-        transmitir: true,
-        idEnvio: Math.floor(1000 + Math.random() * 9000),
-        detalles: detalles,
-      };
-
-      console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
-
-      const responseDetalles = await fetch(`http://localhost:3000/facturas/${iddtefactura}/detalles`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(datosDetalles),
-      });
-
-      if (responseDetalles.ok) {
-        const resultDetalles = await responseDetalles.json();
-        console.log("Detalles de factura guardados:", resultDetalles);
-        
-        // ACTUALIZAR STOCK DESPUÉS DE GUARDAR LOS DETALLES
-        await actualizarStockProductos(items);
-        
-        // RETORNAR LA RESPUESTA COMPLETA EN LUGAR DE SOLO 'true'
-        return resultDetalles;
-      } else {
-        const errorText = await responseDetalles.text();
-        console.error("Error response from server:", errorText);
-        throw new Error(`Error al guardar los detalles: ${errorText}`);
-      }
-    } catch (error) {
-      console.error("Error al guardar detalles:", error);
-      throw error;
-    }
-  };
-
-  const obtenerUltimoNumeroFactura = async () => {
-    try {
-      const response = await fetch("http://localhost:3000/facturas/ultima", {
+      const response = await fetch("http://localhost:3000/sujeto-excluido/ultima", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -593,19 +466,19 @@ const descargarTicketFactura = async (idFactura) => {
 
       if (response.ok) {
         const data = await response.json();
-        const ultimoNumero = typeof data.ultimaFactura === 'number' ? data.ultimaFactura + 1 : 1;
-        setNumeroFactura(ultimoNumero);
+        const ultimoNumero = typeof data.ultimoDocumento === 'number' ? data.ultimoDocumento + 1 : 1;
+        setNumeroDocumento(ultimoNumero);
       } else {
         console.warn("No se pudo obtener el último número, usando 1 por defecto");
-        setNumeroFactura(1);
+        setNumeroDocumento(1);
       }
     } catch (error) {
-      console.error("Error al obtener el último número de factura:", error);
-      setNumeroFactura(1);
+      console.error("Error al obtener el último número de documento:", error);
+      setNumeroDocumento(1);
     }
   };
 
-  const prepararDatosFactura = () => {
+  const prepararDatosDocumento = () => {
     const subtotal = sumaopesinimpues;
     const totalPagar = total;
     
@@ -624,90 +497,76 @@ const descargarTicketFactura = async (idFactura) => {
       }
     }
 
-    const gravadasBase = items
-      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
-    
     const exentasBase = items
-      .filter(item => item.tipo === "noAfecto")
       .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
-    
-    const gravadasConDescuento = gravadasBase - 
-      (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
-      descuentoGrabadasMonto;
     
     const exentasConDescuento = exentasBase - 
-      (items.filter(item => item.tipo === "noAfecto")
-        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
+      (items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
       descuentoExentasMonto;
 
-    const tasaIVA = 13;
-    const ivaIncluido = gravadasConDescuento > 0 ? 
-      (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
+    return {
+      idcliente: idReceptor,
+      sellorec: "", 
+      modelofac: "11", // Código específico para sujeto excluido
+      verjson: "1.0",
+      tipotran: "1",
+      fechaemision: fechaEmision,
+      horaemision: horaEmision,
+      transaccioncontable: `TRX-${numeroDocumento}`,
+      tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "crédito",
+      formapago: formapagoValue,
+      estado: "",
 
-      return {
-        idcliente: idReceptor,
-        sellorec: "", 
-        modelofac: "01",
-        verjson: "1.0",
-        tipotran: "1",
-        fechaemision: fechaEmision,
-        horaemision: horaEmision,
-        transaccioncontable: `TRX-${numeroFactura}`,
-        tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "crédito",
-        formapago: formapagoValue,
-        estado: "",
+      sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
+      totaldescuento: parseFloat(totaldescuento.toFixed(2)),
+      valoriva: 0.00, // Sujeto excluido no tiene IVA
+      subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
+      ivapercibido: 0.00,
+      montototalope: parseFloat(subtotal - totaldescuento).toFixed(2),
+      totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
+      totalapagar: parseFloat(totalPagar.toFixed(2)),
+      valorletras: convertirNumeroALetras(totalPagar),
+      tipocontingencia: "",
+      motivocontin: "",
 
-        sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
-        totaldescuento: parseFloat(totaldescuento.toFixed(2)),
-        valoriva: parseFloat(ivaIncluido.toFixed(2)), 
-        subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
-        ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
-        montototalope: parseFloat(subtotal - totaldescuento).toFixed(2),
-        totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
-        totalapagar: parseFloat(totalPagar.toFixed(2)),
-        valorletras: convertirNumeroALetras(totalPagar),
-        tipocontingencia: "",
-        motivocontin: "",
+      totalnosuj: 0.00,
+      totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
+      totalgravada: 0.00, // Sujeto excluido no tiene ventas gravadas
+      subtotalventas: parseFloat(subtotal.toFixed(2)),
 
-        totalnosuj: 0.00,
-        totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
-        totalgravada: parseFloat(gravadasBase.toFixed(2)),
-        subtotalventas: parseFloat(subtotal.toFixed(2)),
+      descunosuj: 0.00,
+      descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
+      descugravada: 0.00,
+      porcentajedescuento: totaldescuento > 0 ? parseFloat(((totaldescuento / sumaopesinimpues) * 100).toFixed(2)) : 0.00,
+      totaldescu: parseFloat(totaldescuento.toFixed(2)),
+      tributosf: null,
+      codigot: "",
+      descripciont: "",
+      valort: 0.00,
 
-        descunosuj: 0.00,
-        descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
-        descugravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
-        porcentajedescuento: totaldescuento > 0 ? parseFloat(((totaldescuento / sumaopesinimpues) * 100).toFixed(2)) : 0.00,
-        totaldescu: parseFloat(totaldescuento.toFixed(2)),
-        tributosf: null,
-        codigot: "",
-        descripciont: "",
-        valort: 0.00,
+      ivaperci1: 0.00,
+      ivarete1: 0.00,
+      reterenta: 0.00,
 
-        ivaperci1: parseFloat(ivaIncluido.toFixed(2)),
-        ivarete1: 0.00,
-        reterenta: 0.00,
+      montototaloperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
+      totalpagar: parseFloat(totalPagar.toFixed(2)), 
+      totalpagar: parseFloat(totalPagar.toFixed(2)),
+      totalletras: convertirNumeroALetras(totalPagar),
+      totaliva: 0.00,
+      saldofavor: 0.00,
 
-        montototaloperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
-        totalpagar: parseFloat(totalPagar.toFixed(2)),
-        totalletras: convertirNumeroALetras(totalPagar),
-        totaliva: parseFloat(ivaIncluido.toFixed(2)),
-        saldofavor: 0.00,
+      condicionoperacion: 1,
+      codigo: "11", // Código específico para sujeto excluido
+      montopago: parseFloat(totalPagar.toFixed(2)),
+      referencia: "",
+      plazo: null,
+      periodo: null,
+      numpagoelectronico: "",
+      nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
+      docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
 
-        condicionoperacion: 1,
-        codigo: "01",
-        montopago: parseFloat(totalPagar.toFixed(2)),
-        referencia: "",
-        plazo: null,
-        periodo: null,
-        numpagoelectronico: "",
-        nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
-        docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
-
-        documentofirmado: null
-      };
+      documentofirmado: null
+    };
   };
 
   const convertirNumeroALetras = (numero) => {
@@ -773,7 +632,7 @@ const descargarTicketFactura = async (idFactura) => {
   }, []);
 
   useEffect(() => {
-    obtenerUltimoNumeroFactura();
+    obtenerUltimoNumeroDocumento();
   }, []);
 
   useEffect(() => {
@@ -825,98 +684,27 @@ const descargarTicketFactura = async (idFactura) => {
     const descuentoItems = items.reduce((sum, item) => 
       sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0);
 
-    const gravadasBase = items
-      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
-    
     const exentasBase = items
-      .filter(item => item.tipo === "noAfecto")
       .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
 
-    const descuentoGrabadas = descuentoGrabadasMonto;
     const descuentoExentas = descuentoExentasMonto;
     
-    const descuentoTotal = descuentoItems + descuentoGrabadas + descuentoExentas;
-    
-    const gravadasConDescuento = gravadasBase - 
-      (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
-      descuentoGrabadas;
+    const descuentoTotal = descuentoItems + descuentoExentas;
     
     const exentasConDescuento = exentasBase - 
-      (items.filter(item => item.tipo === "noAfecto")
-        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
+      (items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
       descuentoExentas;
 
-    // Calcular tributos detallados
-    const nuevosTributos = {};
-    
-    items.forEach(item => {
-      if (item.tributos && Array.isArray(item.tributos)) {
-        item.tributos.forEach(tributo => {
-          const subtotalItem = item.precioUnitario * item.cantidad;
-          const descuentoItem = subtotalItem * (item.descuento / 100);
-          const baseImponible = subtotalItem - descuentoItem;
-          
-          // Calcular el valor del tributo para este item
-          let valorTributo = 0;
-          
-          if (tributo.codigo === "20") {
-            // IVA 13%
-            valorTributo = baseImponible * 0.13;
-          } else {
-            // Para otros tributos, usar el valor calculado o calcularlo
-            valorTributo = tributo.valor || 0;
-          }
-          
-          if (nuevosTributos[tributo.codigo]) {
-            nuevosTributos[tributo.codigo].valor += valorTributo;
-          } else {
-            nuevosTributos[tributo.codigo] = {
-              codigo: tributo.codigo,
-              descripcion: tributo.descripcion || obtenerDescripcionTributo(tributo.codigo),
-              valor: valorTributo
-            };
-          }
-        });
-      }
-    });
-    
-    setTributosDetallados(nuevosTributos);
-
-    const tasaIVA = 13; 
-    const ivaIncluido = gravadasConDescuento > 0 ? 
-      (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
-
-    const total = gravadasConDescuento + exentasConDescuento;
+    const total = exentasConDescuento;
 
     setSumaopesinimpues(parseFloat(suma.toFixed(2)));
     setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
-    setVentasgrabadas(parseFloat(gravadasConDescuento.toFixed(2)));
-    setValoriva(parseFloat(ivaIncluido.toFixed(2))); 
+    setVentasexentas(parseFloat(exentasConDescuento.toFixed(2)));
     setTotal(parseFloat(total.toFixed(2)));
     
-    setGravadasSinDescuentoState(parseFloat(gravadasBase.toFixed(2)));
     setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
     setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
-  }, [items, descuentoGrabadasMonto, descuentoExentasMonto]);
-
-  const obtenerDescripcionTributo = (codigo) => {
-    const tributosMap = {
-      "20": "IVA 13%",
-      "59": "Turismo: por alojamiento (5%)",
-      "71": "Turismo: salida del país por vía aérea $7.00",
-      "D1": "FOVIAL ($0.20 por galón)",
-      "C8": "COTRANS ($0.10 por galón)",
-      "D5": "Otras tasas casos especiales",
-      "D4": "Otros impuestos casos especiales",
-      "C5": "Impuesto ad-valorem bebidas alcohólicas (8%)",
-      "C6": "Impuesto ad-valorem tabaco cigarrillos (39%)",
-      "C7": "Impuesto ad-valorem tabaco cigarros (100%)",
-    };
-    
-    return tributosMap[codigo] || `Tributo ${codigo}`;
-  };
+  }, [items, descuentoExentasMonto]);
 
   const showClientDetailsPopup = (cliente) => {
     setSelectedClient(cliente);
@@ -924,7 +712,6 @@ const descargarTicketFactura = async (idFactura) => {
   };
 
   const handleApplyDiscounts = (discounts) => {
-    setDescuentoGrabadasMonto(discounts.grabadas);
     setDescuentoExentasMonto(discounts.exentas);
   };
 
@@ -1072,32 +859,6 @@ const descargarTicketFactura = async (idFactura) => {
     return unidad ? unidad.nombre : "Unidad";
   };
 
-  const calcularTotalProducto = () => {
-    if (!productoSeleccionado) return;
-
-    const cantidad = parseFloat(document.getElementById('cantidadProducto')?.value) || 1;
-    const precio = parseFloat(productoSeleccionado.precio) || 0;
-    const impuestoSelect = document.getElementById('impuestoProducto');
-    const tasaImpuesto = impuestoSelect.value === "20" ? 0.13 : impuestoSelect.value === "21" ? 0.15 : 0;
-
-    const subtotal = cantidad * precio;
-    const impuesto = subtotal * tasaImpuesto;
-    const total = subtotal + impuesto;
-
-    document.getElementById('totalProducto').textContent = `$${total.toFixed(2)}`;
-  };
-
-  const handleSeleccionProducto = (productoId) => {
-    const producto = productosCargados.find(p => p.id === parseInt(productoId));
-    if (producto) {
-      setProductoSeleccionado(producto);
-
-      setTimeout(() => {
-        calcularTotalProducto();
-      }, 100);
-    }
-  };
-
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
@@ -1111,12 +872,12 @@ const descargarTicketFactura = async (idFactura) => {
         <header className="bg-white shadow-sm">
           <div className="flex items-center justify-between p-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Facturación</h1>
-              <p className="text-gray-600">Sistema de facturación electrónica</p>
+              <h1 className="text-2xl font-bold text-gray-800">Sujeto Excluido</h1>
+              <p className="text-gray-600">Documento para sujetos excluidos del IVA</p>
             </div>
             <div className="flex items-center space-x-4">
               <div className="bg-blue-100 p-3 rounded-lg">
-                <p className="text-lg font-semibold text-blue-600">N° {String(numeroFactura).padStart(4, '0')}</p>
+                <p className="text-lg font-semibold text-blue-600">N° {String(numeroDocumento).padStart(4, '0')}</p>
               </div>
               <FechaHoraEmision onFechaHoraChange={handleFechaHoraChange} />
             </div>
@@ -1171,10 +932,10 @@ const descargarTicketFactura = async (idFactura) => {
                 actividadesEconomicas={codactividad}
               />
 
-              {/* Detalle de Factura */}
+              {/* Detalle del Documento */}
               <div className="text-black mb-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-800">Detalle de Factura</h2>
+                  <h2 className="text-xl font-semibold text-gray-800">Detalle del Documento</h2>
                   <button
                     onClick={openModalSelector}
                     className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
@@ -1267,12 +1028,6 @@ const descargarTicketFactura = async (idFactura) => {
                       <span className="font-medium">{formatMoney(sumaopesinimpues)}</span>
                     </div>
                     
-                    {descuentoGrabadasMonto > 0 && (
-                      <div className="flex justify-between text-blue-600">
-                        <span className="text-sm">Descuento ventas gravadas:</span>
-                        <span className="text-sm font-medium">-{formatMoney(descuentoGrabadasMonto)}</span>
-                      </div>
-                    )}
                     {descuentoExentasMonto > 0 && (
                       <div className="flex justify-between text-blue-600">
                         <span className="text-sm">Descuento ventas exentas:</span>
@@ -1295,17 +1050,10 @@ const descargarTicketFactura = async (idFactura) => {
                       <span className="font-medium">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
                     
-                    {/* Mostrar tributos desglosados */}
-                    {Object.values(tributosDetallados).map((tributo) => (
-                      <div key={tributo.codigo} className="flex justify-between text-sm">
-                        <span className="text-gray-600">
-                          {tributo.codigo} - {tributo.descripcion}:
-                        </span>
-                        <span className="font-medium text-green-600">
-                          +{formatMoney(tributo.valor)}
-                        </span>
-                      </div>
-                    ))}
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Ventas Exentas:</span>
+                      <span className="font-medium text-green-600">{formatMoney(ventasexentas)}</span>
+                    </div>
                     
                     <div className="flex justify-between pt-2 border-t border-gray-300">
                       <span className="text-gray-900 font-bold text-lg">Total a pagar:</span>
@@ -1327,10 +1075,9 @@ const descargarTicketFactura = async (idFactura) => {
                     Agregar Descuentos
                   </button>
                   
-                  {(descuentoGrabadasMonto > 0 || descuentoExentasMonto > 0) && (
+                  {descuentoExentasMonto > 0 && (
                     <button 
                       onClick={() => {
-                        setDescuentoGrabadasMonto(0);
                         setDescuentoExentasMonto(0);
                       }}
                       className="flex items-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
@@ -1341,10 +1088,9 @@ const descargarTicketFactura = async (idFactura) => {
                   )}
                 </div>
                 
-                {(descuentoGrabadasMonto > 0 || descuentoExentasMonto > 0) && (
+                {descuentoExentasMonto > 0 && (
                   <div className="mt-2 text-sm text-gray-600">
-                    {descuentoGrabadasMonto > 0 && <p>Descuento ventas gravadas: {formatMoney(descuentoGrabadasMonto)}</p>}
-                    {descuentoExentasMonto > 0 && <p>Descuento ventas exentas: {formatMoney(descuentoExentasMonto)}</p>}
+                    <p>Descuento ventas exentas: {formatMoney(descuentoExentasMonto)}</p>
                   </div>
                 )}
               </div>
@@ -1368,15 +1114,22 @@ const descargarTicketFactura = async (idFactura) => {
               {/* Botones de acción */}
               <div className="flex justify-end space-x-4">
                 <button 
-                  onClick={guardarFactura}
-                  disabled={guardandoFactura}
+                  onClick={verDatosDocumento}
+                  className="flex items-center bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
+                >
+                  <FaInfoCircle className="mr-2" />
+                  Ver Datos
+                </button>
+                <button 
+                  onClick={guardarDocumento}
+                  disabled={guardandoDocumento}
                   className={`flex items-center px-4 py-2 rounded-md ${
-                    guardandoFactura 
+                    guardandoDocumento 
                       ? "bg-gray-400 cursor-not-allowed" 
                       : "bg-green-600 hover:bg-green-700" 
                   } text-white`}
                 >
-                  {guardandoFactura ? (
+                  {guardandoDocumento ? (
                     <>
                       <FaSpinner className="mr-2 animate-spin" />
                       Guardando...
@@ -1384,7 +1137,7 @@ const descargarTicketFactura = async (idFactura) => {
                   ) : (
                     <>
                       <FaSave className="mr-2" />
-                      Guardar Factura
+                      Guardar Documento
                     </>
                   )}
                 </button>
@@ -1456,28 +1209,14 @@ const descargarTicketFactura = async (idFactura) => {
         isOpen={showDiscountModal}
         onClose={() => setShowDiscountModal(false)}
         onApplyDiscounts={handleApplyDiscounts}
-        currentGrabadasDiscount={descuentoGrabadasMonto}  
         currentExentasDiscount={descuentoExentasMonto}    
       />
 
       <ConfirmacionFacturaModal
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
-        onConfirm={guardarFactura}
-        datosFactura={prepararDatosFactura()}
-      />
-
-      {/* Nuevo Modal de Mensajes */}
-      <MensajeModal
-        isOpen={mostrarMensaje}
-        onClose={() => setMostrarMensaje(false)}
-        tipo={mensajeConfig.tipo}
-        titulo={mensajeConfig.titulo}
-        mensaje={mensajeConfig.mensaje}
-        detalles={mensajeConfig.detalles}
-        idFactura={mensajeConfig.idFactura}
-        onDescargarTicket={descargarTicketFactura}
-        descargando={descargandoTicket}
+        onConfirm={guardarDocumento}
+        datosFactura={prepararDatosDocumento()}
       />
 
       {/* Pop-up de detalles del cliente */}

@@ -15,6 +15,7 @@ import FormaPago from "./components/FormaPago";
 import DatosEntrega from "./components/DatosAdicionalesEntrega";
 import FechaHoraEmision from "./components/FechaHoraEmision";
 import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaModal";
+import MensajeModal from "../components/MensajeModal";
 import { useReactToPrint } from 'react-to-print';
 
 export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
@@ -85,6 +86,17 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [emisorNombre, setEmisorNombre] = useState("");
   const [tributosDetallados, setTributosDetallados] = useState({});
 
+  // Nuevos estados para el MensajeModal
+  const [mostrarMensaje, setMostrarMensaje] = useState(false);
+  const [mensajeConfig, setMensajeConfig] = useState({
+    tipo: "exito",
+    titulo: "",
+    mensaje: "",
+    detalles: "",
+    idFactura: null
+  });
+  const [descargandoTicket, setDescargandoTicket] = useState(false);
+
   // Inicializar correo desde user o, si no hay, desde localStorage
   useEffect(() => {
     const fromUser =
@@ -148,39 +160,106 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     { codigo: "99", nombre: "Otra" },
   ]);
 
+  // Función para mostrar mensajes
+  const mostrarModalMensaje = (tipo, titulo, mensaje, detalles = "", idFactura = null) => {
+    setMensajeConfig({
+      tipo,
+      titulo,
+      mensaje,
+      detalles,
+      idFactura
+    });
+    setMostrarMensaje(true);
+  };
+
+  // Función para descargar el ticket
+  const descargarTicketFactura = async (idFactura) => {
+    setDescargandoTicket(true);
+    
+    try {
+      const response = await fetch(`http://localhost:3000/facturas/${idFactura}/ver-compacto`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        const newTab = window.open(url, '_blank');
+        
+        if (!newTab) {
+          throw new Error('El navegador bloqueó la nueva pestaña. Por favor, permite ventanas emergentes.');
+        }
+        
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = `factura_${idFactura}.pdf`;
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+          }
+        }
+        
+        mostrarModalMensaje(
+          "exito", 
+          "Ticket Abierto", 
+          "El ticket de la factura se ha abierto en una nueva pestaña.",
+          `Archivo: ${filename}`
+        );
+        
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 5000);
+        
+      } else {
+        throw new Error('Error al generar el ticket');
+      }
+    } catch (error) {
+      console.error('Error al abrir ticket:', error);
+      mostrarModalMensaje(
+        "error",
+        "Error al Abrir Ticket",
+        "No se pudo abrir el ticket de la factura.",
+        error.message
+      );
+    } finally {
+      setDescargandoTicket(false);
+    }
+  };
   const validarDatosFactura = () => {
     if (!nombreReceptor.trim()) {
       const mensaje = "El nombre del cliente es obligatorio";
       setErrorValidacion(mensaje);
-      alert(mensaje);
+      mostrarModalMensaje("error", "Datos Incompletos", mensaje);
       return false;
     }
     
     if (!numeroDocumentoReceptor.trim()) {
       const mensaje = "El documento del cliente es obligatorio";
       setErrorValidacion(mensaje);
-      alert(mensaje);
+      mostrarModalMensaje("error", "Datos Incompletos", mensaje);
       return false;
     }
     
     if (items.length === 0) {
-      const mensaje = "Debe agregar al menos un item a la factura";
+      const mensaje = "Debe agregar al menos un item al crédito fiscal";
       setErrorValidacion(mensaje);
-      alert(mensaje);
+      mostrarModalMensaje("error", "Crédito Vacío", mensaje);
       return false;
     }
     
     if (formasPago.length === 0) {
       const mensaje = "Debe especificar al menos una forma de pago";
       setErrorValidacion(mensaje);
-      alert(mensaje);
+      mostrarModalMensaje("error", "Forma de Pago Requerida", mensaje);
       return false;
     }
     
     setErrorValidacion("");
     return true;
   };
-
 
   const guardarFactura = async () => {
     if (guardandoFactura) return;
@@ -195,7 +274,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       const datosFactura = prepararDatosFactura();
       
       if (!datosFactura.formapago) {
-        alert("Error: No se pudo determinar la forma de pago");
+        mostrarModalMensaje(
+          "error",
+          "Error de Validación",
+          "No se pudo determinar la forma de pago"
+        );
         setGuardandoFactura(false); 
         return;
       }
@@ -213,11 +296,15 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
       if (responseEncabezado.ok) {
         const result = await responseEncabezado.json();
-        console.log("Encabezado de factura guardado:", result);
+        console.log("Encabezado de crédito guardado:", result);
 
         // Validar que iddtefactura sea un número válido antes de enviar detalles
         if (result.iddtefactura === null || result.iddtefactura === undefined || isNaN(result.iddtefactura)) {
-          alert("Error: El iddtefactura recibido es inválido.");
+          mostrarModalMensaje(
+            "error",
+            "Error del Servidor",
+            "El ID del crédito fiscal recibido es inválido."
+          );
           setGuardandoFactura(false);
           return;
         }
@@ -227,14 +314,28 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         if (detallesGuardados) {
           setShowConfirmModal(false);
           
+          let mensajeTitulo = "Crédito Fiscal Guardado";
+          let mensajeDetalles = "";
+          let idCreditoParaDescarga = result.iddtefactura;
+
           // MOSTRAR AVISO SI SE ENVIÓ EN CONTINGENCIA (COMO EN dteFactura.js)
           if (detallesGuardados.contingencia && detallesGuardados.aviso) {
-            alert(`${detallesGuardados.aviso}\n${detallesGuardados.message}`);
+            mensajeTitulo = "Crédito Fiscal en Contingencia";
+            mensajeDetalles = `${detallesGuardados.aviso}\n${detallesGuardados.message}`;
           } else if (detallesGuardados.transmitido) {
-            alert(`Crédito Fiscal ${result.ncontrol} guardado y transmitido exitosamente`);
+            mensajeTitulo = "Crédito Fiscal Transmitido";
+            mensajeDetalles = `Crédito Fiscal ${result.ncontrol} guardado y transmitido exitosamente`;
           } else {
-            alert(`Crédito Fiscal ${result.ncontrol} guardado exitosamente`);
+            mensajeDetalles = `Crédito Fiscal ${result.ncontrol} guardado exitosamente`;
           }
+          
+          mostrarModalMensaje(
+            "exito",
+            mensajeTitulo,
+            "El crédito fiscal se ha procesado correctamente.",
+            mensajeDetalles,
+            idCreditoParaDescarga
+          );
           
           reiniciarEstados();
         }
@@ -244,7 +345,12 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al guardar el crédito fiscal: " + error.message);
+      mostrarModalMensaje(
+        "error",
+        "Error al Guardar",
+        "No se pudo guardar el crédito fiscal.",
+        error.message
+      );
     } finally {
       setGuardandoFactura(false);
     }
@@ -270,148 +376,152 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     obtenerUltimoNumeroFactura();
   };
 
-const reiniciarEstados = () => {
-  setCliente(null);
-  setNombreCliente("");
-  setDocumentoCliente("");
-  setTipoDocumentoReceptor("");
-  setNumeroDocumentoReceptor("");
-  setNombreReceptor("");
-  setDireccionReceptor("");
-  setCorreoReceptor("");
-  setTelefonoReceptor("");
-  setComplementoReceptor("");
-  setTipoDocumentoLabel("Documento");
-  setItems([]);
-  setSumaopesinimpues(0);
-  setTotaldescuento(0);
-  setVentasgrabadas(0);
-  setValoriva(0);
-  setTotal(0);
-  setDescuentoGrabadasMonto(0);
-  setDescuentoExentasMonto(0);
-  setExentasConDescuentoState(0);
-  setGravadasSinDescuentoState(0);
-  setExentasSinDescuentoState(0);
-  setCondicionPago("Contado");
-  setFormasPago([]);
-  setDatosEntrega({
-    emisorDocumento: "",
-    emisorNombre: "",
-    receptorDocumento: "",
-    receptorNombre: ""
-  });
-  
-  const nextMonth = new Date();
-  nextMonth.setDate(nextMonth.getDate() + 30);
-  setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
-  obtenerUltimoNumeroFactura();
-  setShowModal(false);
-  setShowDiscountModal(false);
-  setShowConfirmModal(false);
-  setShowClientList(false);
-  setShowClientDetails(false);
-  setSearchTerm("");
-};
-
-
-const verDatosFactura = () => {
-  if (items.length === 0) {
-    alert("La factura debe tener al menos un item");
-    return;
-  }
-  
-  const datosFactura = prepararDatosFactura();
-  
-  console.log("====== DATOS COMPLETOS DE FACTURA (SOLO VISUALIZACIÓN) ======");
-  console.log("ENCABEZADO:");
-  console.log(JSON.stringify(datosFactura, null, 2));
-  
-  const detalles = items.map((item, index) => {
-    const subtotalItem = item.precioUnitario * item.cantidad;
-    const descuentoItem = subtotalItem * (item.descuento / 100);
-    const baseImponible = subtotalItem - descuentoItem;
-
-    const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
-    const esExento = item.tipo === "noAfecto";
-
-    const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
-    tipoProducto = item.tipoProducto;
-
-    console.log("tipo produc", tipoProducto);
-
-    return {
-      numitem: index + 1,
-      tipoitem: tipoProducto,
-      numerodocumento: null,
-      cantidad: parseFloat(item.cantidad.toFixed(2)),
-      codigo: codigoItem,
-      codtributo: null,
-      unimedida: item.unidadMedida || "59",
-      descripcion: item.descripcion,
-      preciouni: parseFloat(item.precioUnitario.toFixed(2)),
-      montodescu: parseFloat(descuentoItem.toFixed(2)),
-      ventanosuj: 0.00,
-      ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-      ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-      tributos: null,
-      psv: 0,
-      nogravado: 0.00,
-      ivaitem: 0.00
-    };
-  });
-  
-  const datosDetalles = {
-    transmitir: true,
-    idEnvio: Math.floor(1000 + Math.random() * 9000),
-    detalles: detalles,
+  const reiniciarEstados = () => {
+    setCliente(null);
+    setNombreCliente("");
+    setDocumentoCliente("");
+    setTipoDocumentoReceptor("");
+    setNumeroDocumentoReceptor("");
+    setNombreReceptor("");
+    setDireccionReceptor("");
+    setCorreoReceptor("");
+    setTelefonoReceptor("");
+    setComplementoReceptor("");
+    setTipoDocumentoLabel("Documento");
+    setItems([]);
+    setSumaopesinimpues(0);
+    setTotaldescuento(0);
+    setVentasgrabadas(0);
+    setValoriva(0);
+    setTotal(0);
+    setDescuentoGrabadasMonto(0);
+    setDescuentoExentasMonto(0);
+    setExentasConDescuentoState(0);
+    setGravadasSinDescuentoState(0);
+    setExentasSinDescuentoState(0);
+    setCondicionPago("Contado");
+    setFormasPago([]);
+    setDatosEntrega({
+      emisorDocumento: "",
+      emisorNombre: "",
+      receptorDocumento: "",
+      receptorNombre: ""
+    });
+    
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 30);
+    setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
+    obtenerUltimoNumeroFactura();
+    setShowModal(false);
+    setShowDiscountModal(false);
+    setShowConfirmModal(false);
+    setShowClientList(false);
+    setShowClientDetails(false);
+    setSearchTerm("");
   };
-  
-  console.log("DETALLES:");
-  console.log(JSON.stringify(datosDetalles, null, 2));
-  console.log("=============================================================");
-  
-  alert("Datos de factura mostrados en consola. Revisa la consola del navegador (F12).");
-};
 
-const actualizarStockProductos = async (itemsFactura) => {
-  try {
-    // Filtrar solo items que son productos, necesitan actualización de stock y NO son servicios
-    const productosParaActualizar = itemsFactura.filter(item => 
-      item.actualizarStock && item.productoId && item.tipo === "producto"
-    );
-
-    console.log("Productos a actualizar stock:", productosParaActualizar);
-
-    // Actualizar stock para cada producto
-    for (const producto of productosParaActualizar) {
-      try {
-        const response = await fetch(`http://localhost:3000/productos/decrementStock/${producto.productoId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ cantidad: producto.cantidad })
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          console.log(`Stock actualizado para producto ${producto.productoId}:`, result);
-        } else {
-          console.error(`Error al actualizar stock para producto ${producto.productoId}:`, response.statusText);
-        }
-      } catch (error) {
-        console.error(`Error al actualizar stock para producto ${producto.productoId}:`, error);
-      }
+  const verDatosFactura = () => {
+    if (items.length === 0) {
+      mostrarModalMensaje("error", "Crédito Vacío", "El crédito fiscal debe tener al menos un item");
+      return;
     }
+    
+    const datosFactura = prepararDatosFactura();
+    
+    console.log("====== DATOS COMPLETOS DE CRÉDITO FISCAL (SOLO VISUALIZACIÓN) ======");
+    console.log("ENCABEZADO:");
+    console.log(JSON.stringify(datosFactura, null, 2));
+    
+    const detalles = items.map((item, index) => {
+      const subtotalItem = item.precioUnitario * item.cantidad;
+      const descuentoItem = subtotalItem * (item.descuento / 100);
+      const baseImponible = subtotalItem - descuentoItem;
 
-    return true;
-  } catch (error) {
-    console.error("Error general en actualización de stock:", error);
-    throw error;
-  }
-};
+      const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+      const esExento = item.tipo === "noAfecto";
+
+      const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+      const tipoProducto = item.tipoProducto;
+
+      console.log("tipo produc", tipoProducto);
+
+      return {
+        numitem: index + 1,
+        tipoitem: tipoProducto,
+        numerodocumento: null,
+        cantidad: parseFloat(item.cantidad.toFixed(2)),
+        codigo: codigoItem,
+        codtributo: null,
+        unimedida: item.unidadMedida || "59",
+        descripcion: item.descripcion,
+        preciouni: parseFloat(item.precioUnitario.toFixed(2)),
+        montodescu: parseFloat(descuentoItem.toFixed(2)),
+        ventanosuj: 0.00,
+        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+        tributos: null,
+        psv: 0,
+        nogravado: 0.00,
+        ivaitem: 0.00
+      };
+    });
+    
+    const datosDetalles = {
+      transmitir: true,
+      idEnvio: Math.floor(1000 + Math.random() * 9000),
+      detalles: detalles,
+    };
+    
+    console.log("DETALLES:");
+    console.log(JSON.stringify(datosDetalles, null, 2));
+    console.log("=============================================================");
+    
+    mostrarModalMensaje(
+      "exito",
+      "Datos en Consola",
+      "Datos del crédito fiscal mostrados en consola.",
+      "Revisa la consola del navegador (F12) para ver los detalles completos."
+    );
+  };
+
+  const actualizarStockProductos = async (itemsFactura) => {
+    try {
+      // Filtrar solo items que son productos, necesitan actualización de stock y NO son servicios
+      const productosParaActualizar = itemsFactura.filter(item => 
+        item.actualizarStock && item.productoId && item.tipo === "producto"
+      );
+
+      console.log("Productos a actualizar stock:", productosParaActualizar);
+
+      // Actualizar stock para cada producto
+      for (const producto of productosParaActualizar) {
+        try {
+          const response = await fetch(`http://localhost:3000/productos/decrementStock/${producto.productoId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ cantidad: producto.cantidad })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`Stock actualizado para producto ${producto.productoId}:`, result);
+          } else {
+            console.error(`Error al actualizar stock para producto ${producto.productoId}:`, response.statusText);
+          }
+        } catch (error) {
+          console.error(`Error al actualizar stock para producto ${producto.productoId}:`, error);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error general en actualización de stock:", error);
+      throw error;
+    }
+  };
 
   const guardarDetallesFactura = async (iddtefactura) => {
     try {
@@ -804,11 +914,6 @@ const actualizarStockProductos = async (itemsFactura) => {
     
     setTributosDetallados(nuevosTributos);
 
-    // ELIMINAR este cálculo duplicado del IVA
-    // const tasaIVA = 0.13;
-    // const ivaIncluido = gravadasConDescuento > 0 ? 
-    //   (gravadasConDescuento * tasaIVA) : 0;
-
     const subtotal = suma - descuentoTotal;
     
     // Usar solo totalImpuestos que ya incluye el IVA de los tributos
@@ -828,6 +933,23 @@ const actualizarStockProductos = async (itemsFactura) => {
     setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
     setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
   }, [items, descuentoGrabadasMonto, descuentoExentasMonto]);
+
+  const obtenerDescripcionTributo = (codigo) => {
+    const tributosMap = {
+      "20": "IVA 13%",
+      "59": "Turismo: por alojamiento (5%)",
+      "71": "Turismo: salida del país por vía aérea $7.00",
+      "D1": "FOVIAL ($0.20 por galón)",
+      "C8": "COTRANS ($0.10 por galón)",
+      "D5": "Otras tasas casos especiales",
+      "D4": "Otros impuestos casos especiales",
+      "C5": "Impuesto ad-valorem bebidas alcohólicas (8%)",
+      "C6": "Impuesto ad-valorem tabaco cigarrillos (39%)",
+      "C7": "Impuesto ad-valorem tabaco cigarros (100%)",
+    };
+    
+    return tributosMap[codigo] || `Tributo ${codigo}`;
+  };
 
   const showClientDetailsPopup = (cliente) => {
     setSelectedClient(cliente);
@@ -1022,7 +1144,7 @@ const actualizarStockProductos = async (itemsFactura) => {
         <header className="bg-white shadow-sm">
           <div className="flex items-center justify-between p-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Facturación</h1>
+              <h1 className="text-2xl font-bold text-gray-800">Crédito Fiscal</h1>
               <p className="text-gray-600">Sistema de facturación electrónica</p>
             </div>
             <div className="flex items-center space-x-4">
@@ -1362,6 +1484,19 @@ const actualizarStockProductos = async (itemsFactura) => {
         onClose={() => setShowConfirmModal(false)}
         onConfirm={guardarFactura}
         datosFactura={prepararDatosFactura()}
+      />
+
+      {/* Nuevo Modal de Mensajes */}
+      <MensajeModal
+        isOpen={mostrarMensaje}
+        onClose={() => setMostrarMensaje(false)}
+        tipo={mensajeConfig.tipo}
+        titulo={mensajeConfig.titulo}
+        mensaje={mensajeConfig.mensaje}
+        detalles={mensajeConfig.detalles}
+        idFactura={mensajeConfig.idFactura}
+        onDescargarTicket={descargarTicketFactura}
+        descargando={descargandoTicket}
       />
 
       {/* Pop-up de detalles del cliente */}

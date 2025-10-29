@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox } from "react-icons/fa";
+import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox, FaTicketAlt } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
@@ -13,6 +13,7 @@ export default function FacturaDetallePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [generandoPDF, setGenerandoPDF] = useState(false);
+  const [generandoTicket, setGenerandoTicket] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
 
@@ -83,6 +84,44 @@ export default function FacturaDetallePage() {
       alert("Error al generar el PDF: " + error.message);
     } finally {
       setGenerandoPDF(false);
+    }
+  };
+
+  const handleGenerateTicket = async () => {
+    setGenerandoTicket(true);
+    try {
+      const response = await fetch(`http://localhost:3000/facturas/${idFactura}/descargar-compacto`, {
+        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          throw new Error(errorText || "Error al descargar ticket");
+        }
+        throw new Error(errorData.detalles || errorData.error || "Error al descargar ticket");
+      }
+      
+      const ticketBlob = await response.blob();
+      const ticketUrl = URL.createObjectURL(ticketBlob);
+      const link = document.createElement('a');
+      link.href = ticketUrl;
+      link.download = `TICKET-${facturaData.factura.numerofacturausuario || idFactura}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(ticketUrl);
+    } catch (error) {
+      console.error("Error al generar ticket:", error);
+      alert("Error al generar el ticket: " + error.message);
+    } finally {
+      setGenerandoTicket(false);
     }
   };
 
@@ -205,29 +244,57 @@ export default function FacturaDetallePage() {
                 <FaArrowLeft className="mr-1" /> Volver a facturas
               </button>
               
-              <button
-                onClick={handleGeneratePDF}
-                disabled={generandoPDF || !facturaData?.factura?.documentofirmado}
-                className={`flex items-center px-4 py-2 rounded ${
-                  generandoPDF ? 'bg-gray-400' : 
-                  !facturaData?.factura?.documentofirmado ? 'bg-gray-500' : 
-                  'bg-red-600 hover:bg-red-700'
-                } text-white`}
-              >
-                {generandoPDF ? (
-                  <>
-                    <FaSpinner className="animate-spin mr-2" /> Generando...
-                  </>
-                ) : !facturaData?.factura?.documentofirmado ? (
-                  <>
-                    <FaFilePdf className="mr-2" /> PDF no disponible
-                  </>
-                ) : (
-                  <>
-                    <FaFilePdf className="mr-2" /> Descargar PDF
-                  </>
-                )}
-              </button>
+              <div className="flex gap-2">
+                {/* Botón Generar Ticket */}
+                <button
+                  onClick={handleGenerateTicket}
+                  disabled={generandoTicket || !facturaData?.factura?.documentofirmado}
+                  className={`flex items-center px-4 py-2 rounded ${
+                    generandoTicket ? 'bg-gray-400' : 
+                    !facturaData?.factura?.documentofirmado ? 'bg-gray-500' : 
+                    'bg-green-600 hover:bg-green-700'
+                  } text-white`}
+                >
+                  {generandoTicket ? (
+                    <>
+                      <FaSpinner className="animate-spin mr-2" /> Generando...
+                    </>
+                  ) : !facturaData?.factura?.documentofirmado ? (
+                    <>
+                      <FaTicketAlt className="mr-2" /> Ticket no disponible
+                    </>
+                  ) : (
+                    <>
+                      <FaTicketAlt className="mr-2" /> Generar Ticket
+                    </>
+                  )}
+                </button>
+
+                {/* Botón Descargar PDF */}
+                <button
+                  onClick={handleGeneratePDF}
+                  disabled={generandoPDF || !facturaData?.factura?.documentofirmado}
+                  className={`flex items-center px-4 py-2 rounded ${
+                    generandoPDF ? 'bg-gray-400' : 
+                    !facturaData?.factura?.documentofirmado ? 'bg-gray-500' : 
+                    'bg-red-600 hover:bg-red-700'
+                  } text-white`}
+                >
+                  {generandoPDF ? (
+                    <>
+                      <FaSpinner className="animate-spin mr-2" /> Generando...
+                    </>
+                  ) : !facturaData?.factura?.documentofirmado ? (
+                    <>
+                      <FaFilePdf className="mr-2" /> PDF no disponible
+                    </>
+                  ) : (
+                    <>
+                      <FaFilePdf className="mr-2" /> Descargar PDF
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="bg-white text-blue-900 rounded-xl shadow-md overflow-hidden">
