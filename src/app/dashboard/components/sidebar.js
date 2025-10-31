@@ -201,7 +201,7 @@ export default function Sidebar({ onOpenPerfil }) {
     },
 
     // 📦 Nota de Remisión Electrónica
-    {
+    /* {
       name: "Nota de Remisión",
       icon: <FaTruck />,
       href: "#",
@@ -227,10 +227,10 @@ export default function Sidebar({ onOpenPerfil }) {
       ],
       menuKey: "remision",
       permiso: "Nota de Remisión"
-    },
+    }, */
 
     // 💸 Comprobante de Retención Electrónico
-    {
+    /* {
       name: "Comprobantes de Retención",
       icon: <FaReceipt />,
       href: "#",
@@ -256,7 +256,7 @@ export default function Sidebar({ onOpenPerfil }) {
       ],
       menuKey: "retencion",
       permiso: "Comprobantes de Retención"
-    },
+    }, */
 
     // 📜 Comprobante de Liquidación Electrónico (Sujeto Excluido)
     {
