@@ -97,6 +97,30 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   });
   const [descargandoTicket, setDescargandoTicket] = useState(false);
 
+  const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
+    if (!tipoDocumento || !numeroDocumento.trim()) {
+      return { valido: false, mensaje: "El número de documento es requerido" };
+    }
+
+    const VALIDACIONES_DOCUMENTO = {
+      "13": { regex: /^\d{8}-\d{1}$/, mensaje: "Formato de DUI inválido. Debe ser: 12345678-9" },
+      "36": { regex: /^\d{4}-\d{6}-\d{3}-\d{1}$/, mensaje: "Formato de NIT inválido. Debe ser: 1234-123456-123-1" },
+      "03": { regex: /^[A-Za-z0-9]{5,20}$/, mensaje: "Pasaporte debe contener solo letras y números (5-20 caracteres)" },
+      "02": { regex: /^[A-Za-z0-9]{5,20}$/, mensaje: "Carnet de residente debe contener solo letras y números (5-20 caracteres)" }
+    };
+
+    const validacion = VALIDACIONES_DOCUMENTO[tipoDocumento];
+    if (!validacion) {
+      return { valido: false, mensaje: "Tipo de documento no válido" };
+    }
+
+    if (!validacion.regex.test(numeroDocumento)) {
+      return { valido: false, mensaje: validacion.mensaje };
+    }
+
+    return { valido: true, mensaje: "" };
+  };
+
   // Inicializar correo desde user o, si no hay, desde localStorage
   useEffect(() => {
     const fromUser =
@@ -242,6 +266,16 @@ const descargarTicketFactura = async (idFactura) => {
       mostrarModalMensaje("error", "Datos Incompletos", mensaje);
       return false;
     }
+
+    if (tipoDocumentoReceptor) {
+      const validacionDocumento = validarFormatoDocumento(tipoDocumentoReceptor, numeroDocumentoReceptor);
+      if (!validacionDocumento.valido) {
+        const mensaje = `Documento inválido: ${validacionDocumento.mensaje}`;
+        setErrorValidacion(mensaje);
+        mostrarModalMensaje("error", "Documento Inválido", mensaje);
+        return false;
+      }
+    }
     
     if (items.length === 0) {
       const mensaje = "Debe agregar al menos un item a la factura";
@@ -256,6 +290,8 @@ const descargarTicketFactura = async (idFactura) => {
       mostrarModalMensaje("error", "Forma de Pago Requerida", mensaje);
       return false;
     }
+
+
     
     setErrorValidacion("");
     return true;

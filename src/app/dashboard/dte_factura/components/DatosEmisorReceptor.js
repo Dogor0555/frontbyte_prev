@@ -18,6 +18,42 @@ const LIMITES = {
     DESCACTIVIDAD: 255,
 };
 
+const VALIDACIONES_DOCUMENTO = {
+  "13": {
+    regex: /^\d{8}-\d{1}$/,
+    mensaje: "Formato de DUI inválido. Debe ser: 12345678-9"
+  },
+  "36": {
+    regex: /^\d{4}-\d{6}-\d{3}-\d{1}$/,
+    mensaje: "Formato de NIT inválido. Debe ser: 1234-123456-123-1"
+  },
+  "03": {
+    regex: /^[A-Za-z0-9]{5,20}$/,
+    mensaje: "Pasaporte debe contener solo letras y números (5-20 caracteres)"
+  },
+  "02": {
+    regex: /^[A-Za-z0-9]{5,20}$/,
+    mensaje: "Carnet de residente debe contener solo letras y números (5-20 caracteres)"
+  }
+};
+
+const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
+  if (!tipoDocumento || !numeroDocumento.trim()) {
+    return { valido: false, mensaje: "El número de documento es requerido" };
+  }
+
+  const validacion = VALIDACIONES_DOCUMENTO[tipoDocumento];
+  if (!validacion) {
+    return { valido: false, mensaje: "Tipo de documento no válido" };
+  }
+
+  if (!validacion.regex.test(numeroDocumento)) {
+    return { valido: false, mensaje: validacion.mensaje };
+  }
+
+  return { valido: true, mensaje: "" };
+};
+
 const DatosEmisorReceptor = ({ 
   // Estados del receptor
   tipoDocumentoReceptor, 
@@ -283,8 +319,26 @@ const DatosEmisorReceptor = ({
         limite = LIMITES.NIT;
     }
     
+    // Validar longitud primero
     if (validarCampo('numeroDocumentoReceptor', valor, limite)) {
       setNumeroDocumentoReceptor(valor);
+      
+      // Validar formato solo si hay valor
+      if (valor.trim() && tipoDocumentoReceptor) {
+        const validacion = validarFormatoDocumento(tipoDocumentoReceptor, valor);
+        if (!validacion.valido) {
+          setErrores(prev => ({
+            ...prev,
+            formatoDocumento: validacion.mensaje
+          }));
+        } else {
+          setErrores(prev => {
+            const nuevosErrores = { ...prev };
+            delete nuevosErrores.formatoDocumento;
+            return nuevosErrores;
+          });
+        }
+      }
     }
   };
 
@@ -293,37 +347,43 @@ const DatosEmisorReceptor = ({
     setIdReceptor(valor);
   }
 
- const selectCliente = (clienteSeleccionado) => {
-    
-    setTipoDocumentoReceptor(clienteSeleccionado.tipodocumento || "");
-    
-    let numeroDoc = "";
-    switch (clienteSeleccionado.tipodocumento) {
-      case "13": 
-        numeroDoc = clienteSeleccionado.dui || "";
-        break;
-      case "36":
-        numeroDoc = clienteSeleccionado.nit || "";
-        break;
-      case "03":
-        numeroDoc = clienteSeleccionado.pasaporte || "";
-        break;
-      case "02":
-        numeroDoc = clienteSeleccionado.carnetresidente || "";
-        break;
-      default:
-        numeroDoc = clienteSeleccionado.nit || clienteSeleccionado.dui || clienteSeleccionado.pasaporte || clienteSeleccionado.carnetresidente || "";
-    }
-    
-    setNumeroDocumentoReceptor(numeroDoc);
-    setNombreReceptor(clienteSeleccionado.nombre || "");
-    setDireccionReceptor(clienteSeleccionado.complemento || "");
-    setCorreoReceptor(clienteSeleccionado.correo || "");
-    setTelefonoReceptor(clienteSeleccionado.telefono || "");
-    setSearchTerm("");
-    setShowClientList(false);
-    setIdReceptor(clienteSeleccionado.id || clienteSeleccionado.idcliente || null);
-  };
+  const selectCliente = (clienteSeleccionado) => {
+      setTipoDocumentoReceptor(clienteSeleccionado.tipodocumento || "");
+      
+      let numeroDoc = "";
+      switch (clienteSeleccionado.tipodocumento) {
+        case "13": 
+          numeroDoc = clienteSeleccionado.dui || "";
+          break;
+        case "36":
+          numeroDoc = clienteSeleccionado.nit || "";
+          break;
+        case "03":
+          numeroDoc = clienteSeleccionado.pasaporte || "";
+          break;
+        case "02":
+          numeroDoc = clienteSeleccionado.carnetresidente || "";
+          break;
+        default:
+          numeroDoc = clienteSeleccionado.nit || clienteSeleccionado.dui || clienteSeleccionado.pasaporte || clienteSeleccionado.carnetresidente || "";
+      }
+      
+      setNumeroDocumentoReceptor(numeroDoc);
+      setNombreReceptor(clienteSeleccionado.nombre || "");
+      setDireccionReceptor(clienteSeleccionado.complemento || "");
+      setCorreoReceptor(clienteSeleccionado.correo || "");
+      setTelefonoReceptor(clienteSeleccionado.telefono || "");
+      setSearchTerm("");
+      setShowClientList(false);
+      setIdReceptor(clienteSeleccionado.id || clienteSeleccionado.idcliente || null);
+      
+      // Limpiar errores de formato al seleccionar cliente
+      setErrores(prev => {
+        const nuevosErrores = { ...prev };
+        delete nuevosErrores.formatoDocumento;
+        return nuevosErrores;
+      });
+    };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -545,11 +605,11 @@ const DatosEmisorReceptor = ({
                 value={numeroDocumentoReceptor}
                 onChange={handleNumeroDocumentoChange}
                 className={`w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
-                  errores.numeroDocumentoReceptor ? 'border-red-500' : 'border-gray-300'
+                  errores.numeroDocumentoReceptor || errores.formatoDocumento ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder={
-                  tipoDocumentoReceptor === "36" ? "Número de NIT" :
-                  tipoDocumentoReceptor === "13" ? "Número de DUI" :
+                  tipoDocumentoReceptor === "36" ? "0000-000000-000-0" :
+                  tipoDocumentoReceptor === "13" ? "00000000-0" :
                   tipoDocumentoReceptor === "03" ? "Número de Pasaporte" :
                   tipoDocumentoReceptor === "02" ? "Número de Carnet de Residente" :
                   "Número de documento"
@@ -564,6 +624,9 @@ const DatosEmisorReceptor = ({
               />
               {errores.numeroDocumentoReceptor && (
                 <p className="text-red-500 text-xs mt-1">{errores.numeroDocumentoReceptor}</p>
+              )}
+              {errores.formatoDocumento && (
+                <p className="text-red-500 text-xs mt-1">{errores.formatoDocumento}</p>
               )}
               <p className="text-gray-500 text-xs mt-1">
                 {numeroDocumentoReceptor.length}/{
