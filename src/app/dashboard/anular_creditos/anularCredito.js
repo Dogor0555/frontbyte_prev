@@ -64,9 +64,13 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
     if (!['TRANSMITIDO', 'RE-TRANSMITIDO'].includes(credito.estado)) return false;
     
     if (credito.fechaemision) {
-      const fechaEmision = new Date(credito.fechaemision);
       const ahora = new Date();
-      const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
+      const offset = -6;
+      const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+          
+      const fechaEmision = new Date(credito.fechaemision);
+      const horasTranscurridas = (salvadorTime - fechaEmision) / (1000 * 60 * 60);
+          
       return horasTranscurridas <= 24;
     }
     

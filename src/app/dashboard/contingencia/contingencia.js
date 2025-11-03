@@ -63,9 +63,9 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
 
   const formatearFecha = (fecha) => {
     const date = new Date(fecha);
-    const dia = date.getDate().toString().padStart(2, '0');
-    const mes = (date.getMonth() + 1).toString().padStart(2, '0');
-    const año = date.getFullYear();
+    const dia = date.getUTCDate().toString().padStart(2, '0');
+    const mes = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const año = date.getUTCFullYear();
     return `${dia}-${mes}-${año}`;
   };
 
@@ -73,41 +73,44 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
     ? facturas.filter((factura) => {
         if (!factura) return false;
         
-        // Aplicar filtro de fecha primero
         if (filtroFecha !== "todos") {
           const fechaFactura = new Date(factura.fechaemision);
-          const hoy = new Date();
-          let fechaInicio = new Date();
-          let fechaFin = new Date();
+          
+          const ahora = new Date();
+          const offset = -6;
+          const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+          
+          let fechaInicio = new Date(salvadorTime);
+          let fechaFin = new Date(salvadorTime);
           
           switch (filtroFecha) {
             case "hoy":
-              fechaInicio.setHours(0, 0, 0, 0);
-              fechaFin.setHours(23, 59, 59, 999);
+              fechaInicio.setUTCHours(0, 0, 0, 0);
+              fechaFin.setUTCHours(23, 59, 59, 999);
               break;
             case "ayer":
-              fechaInicio.setDate(hoy.getDate() - 1);
-              fechaInicio.setHours(0, 0, 0, 0);
-              fechaFin.setDate(hoy.getDate() - 1);
-              fechaFin.setHours(23, 59, 59, 999);
+              fechaInicio.setUTCDate(fechaInicio.getUTCDate() - 1);
+              fechaInicio.setUTCHours(0, 0, 0, 0);
+              fechaFin.setUTCDate(fechaFin.getUTCDate() - 1);
+              fechaFin.setUTCHours(23, 59, 59, 999);
               break;
             case "anteayer":
-              fechaInicio.setDate(hoy.getDate() - 2);
-              fechaInicio.setHours(0, 0, 0, 0);
-              fechaFin.setDate(hoy.getDate() - 2);
-              fechaFin.setHours(23, 59, 59, 999);
+              fechaInicio.setUTCDate(fechaInicio.getUTCDate() - 2);
+              fechaInicio.setUTCHours(0, 0, 0, 0);
+              fechaFin.setUTCDate(fechaFin.getUTCDate() - 2);
+              fechaFin.setUTCHours(23, 59, 59, 999);
               break;
             case "hace3dias":
-              fechaInicio.setDate(hoy.getDate() - 3);
-              fechaInicio.setHours(0, 0, 0, 0);
-              fechaFin.setDate(hoy.getDate() - 3);
-              fechaFin.setHours(23, 59, 59, 999);
+              fechaInicio.setUTCDate(fechaInicio.getUTCDate() - 3);
+              fechaInicio.setUTCHours(0, 0, 0, 0);
+              fechaFin.setUTCDate(fechaFin.getUTCDate() - 3);
+              fechaFin.setUTCHours(23, 59, 59, 999);
               break;
             case "hace4dias":
-              fechaInicio.setDate(hoy.getDate() - 4);
-              fechaInicio.setHours(0, 0, 0, 0);
-              fechaFin.setDate(hoy.getDate() - 4);
-              fechaFin.setHours(23, 59, 59, 999);
+              fechaInicio.setUTCDate(fechaInicio.getUTCDate() - 4);
+              fechaInicio.setUTCHours(0, 0, 0, 0);
+              fechaFin.setUTCDate(fechaFin.getUTCDate() - 4);
+              fechaFin.setUTCHours(23, 59, 59, 999);
               break;
             default:
               fechaInicio = null;
@@ -157,10 +160,17 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
   };
 
   const getFechaFiltro = (diasAtras) => {
-    const hoy = new Date();
-    const fecha = new Date();
-    fecha.setDate(hoy.getDate() - diasAtras);
-    return formatearFecha(fecha);
+    const ahora = new Date();
+    const offset = -6;
+    const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+    
+    const fecha = new Date(salvadorTime);
+    fecha.setDate(fecha.getDate() - diasAtras);
+    
+    const dia = fecha.getUTCDate().toString().padStart(2, '0');
+    const mes = (fecha.getUTCMonth() + 1).toString().padStart(2, '0');
+    const año = fecha.getUTCFullYear();
+    return `${dia}-${mes}-${año}`;
   };
 
   const handleGenerarLote = async () => {

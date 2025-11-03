@@ -59,18 +59,22 @@ export default function AnularFacturaView({ user, hasHaciendaToken, haciendaStat
   }, []);
 
   const puedeAnular = (factura) => {
-    if (!factura) return false;
-    if (factura.estado === 'ANULADO', factura.estado === 'CONTINGENCIA') return false;
-    if (!['TRANSMITIDO', 'RE-TRANSMITIDO'].includes(factura.estado)) return false;
-    
-    if (factura.fechaemision) {
-      const fechaEmision = new Date(factura.fechaemision);
-      const ahora = new Date();
-      const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
-      return horasTranscurridas <= 24;
-    }
-    
-    return false;
+      if (!factura) return false;
+      if (factura.estado === 'ANULADO' || factura.estado === 'CONTINGENCIA') return false;
+      if (!['TRANSMITIDO', 'RE-TRANSMITIDO'].includes(factura.estado)) return false;
+      
+      if (factura.fechaemision) {
+          const ahora = new Date();
+          const offset = -6;
+          const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+          
+          const fechaEmision = new Date(factura.fechaemision);
+          const horasTranscurridas = (salvadorTime - fechaEmision) / (1000 * 60 * 60);
+          
+          return horasTranscurridas <= 24;
+      }
+      
+      return false;
   };
 
   const ordenarFacturasPorFecha = (facturas, orden) => {

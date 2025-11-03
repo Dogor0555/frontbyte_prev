@@ -1,5 +1,5 @@
-// components/MensajeModal.js (versión actualizada)
-import { FaCheckCircle, FaExclamationTriangle, FaTimes, FaDownload, FaEnvelope } from "react-icons/fa";
+// components/MensajeModal.js
+import { FaCheckCircle, FaExclamationTriangle, FaTimes, FaDownload } from "react-icons/fa";
 
 export default function MensajeModal({ 
   isOpen, 
@@ -9,11 +9,8 @@ export default function MensajeModal({
   mensaje, 
   detalles,
   onDescargarTicket,
-  onEnviarDteCorreo,
   idFactura,
-  descargando = false,
-  enviandoCorreo = false,
-  mostrarEnvioCorreo = false
+  descargando = false
 }) {
   if (!isOpen) return null;
 
@@ -40,12 +37,6 @@ export default function MensajeModal({
   const handleDescargarTicket = () => {
     if (onDescargarTicket && idFactura) {
       onDescargarTicket(idFactura);
-    }
-  };
-
-  const handleEnviarDteCorreo = () => {
-    if (onEnviarDteCorreo && idFactura) {
-      onEnviarDteCorreo(idFactura);
     }
   };
 
@@ -78,66 +69,33 @@ export default function MensajeModal({
             </div>
           )}
 
-          {/* Botones para éxito */}
+          {/* Botón de descarga para éxito */}
           {tipo === "exito" && idFactura && (
-            <div className="space-y-3 mb-4">
-              {/* Botón de descarga */}
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-700 mb-2">
-                  ¿Desea descargar el comprobante de la factura?
-                </p>
-                <button
-                  onClick={handleDescargarTicket}
-                  disabled={descargando}
-                  className={`flex items-center justify-center w-full px-4 py-2 rounded-md ${
-                    descargando 
-                      ? "bg-blue-400 cursor-not-allowed" 
-                      : "bg-blue-600 hover:bg-blue-700"
-                  } text-white transition-colors`}
-                >
-                  {descargando ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Descargando...
-                    </>
-                  ) : (
-                    <>
-                      <FaDownload className="mr-2" />
-                      Generar Ticket de Factura
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Botón de envío por correo - Solo mostrar cuando se transmitió exitosamente */}
-              {mostrarEnvioCorreo && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-sm text-green-700 mb-2">
-                    ¿Desea enviar el DTE por correo electrónico al cliente?
-                  </p>
-                  <button
-                    onClick={handleEnviarDteCorreo}
-                    disabled={enviandoCorreo}
-                    className={`flex items-center justify-center w-full px-4 py-2 rounded-md ${
-                      enviandoCorreo 
-                        ? "bg-green-400 cursor-not-allowed" 
-                        : "bg-green-600 hover:bg-green-700"
-                    } text-white transition-colors`}
-                  >
-                    {enviandoCorreo ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Enviando...
-                      </>
-                    ) : (
-                      <>
-                        <FaEnvelope className="mr-2" />
-                        Enviar DTE por Correo
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-700 mb-2">
+                ¿Desea descargar el comprobante de la factura?
+              </p>
+              <button
+                onClick={handleDescargarTicket}
+                disabled={descargando}
+                className={`flex items-center justify-center w-full px-4 py-2 rounded-md ${
+                  descargando 
+                    ? "bg-blue-400 cursor-not-allowed" 
+                    : "bg-blue-600 hover:bg-blue-700"
+                } text-white transition-colors`}
+              >
+                {descargando ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Descargando...
+                  </>
+                ) : (
+                  <>
+                    <FaDownload className="mr-2" />
+                    Generar Ticket de Factura
+                  </>
+                )}
+              </button>
             </div>
           )}
         </div>

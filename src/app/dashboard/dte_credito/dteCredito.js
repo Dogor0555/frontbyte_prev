@@ -625,18 +625,21 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     const totalPagar = subtotal + valoriva;
     
     const ahora = new Date();
-    const fechaEmision = fechaHoraEmision.fechaEmision || ahora.toISOString().split('T')[0];
-    const horaEmision = fechaHoraEmision.horaEmision || ahora.toTimeString().split(' ')[0];
+    const offset = -6;
+    const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+    
+    const year = salvadorTime.getUTCFullYear();
+    const month = String(salvadorTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(salvadorTime.getUTCDate()).padStart(2, '0');
+    const fechaEmision = `${year}-${month}-${day}`;
+    
+    const horaEmision = ahora.toTimeString().split(' ')[0];
 
     let formapagoValue = "Efectivo";
     
     if (formasPago && formasPago.length > 0) {
-      const metodoPago = formasPago[0]?.metodo?.toLowerCase() || "";
-      
-      if (formasPago && formasPago.length > 0) {
-        const metodoPago = formasPago[0]?.metodo || "";
-        formapagoValue = metodoPago || "Efectivo";
-      }
+      const metodoPago = formasPago[0]?.metodo || "";
+      formapagoValue = metodoPago || "Efectivo";
     }
 
     const gravadasBase = items
@@ -687,7 +690,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       formapago: formapagoValue,
       estado: "",
 
-      // RESUMEN CON TRIBUTOS
       sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
       totaldescuento: parseFloat(totaldescuento.toFixed(2)),
       valoriva: parseFloat(ivaIncluido.toFixed(2)), 

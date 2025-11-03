@@ -470,11 +470,6 @@ export default function ProductModal({
                   className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={productoSeleccionado ? `$${parseFloat(productoSeleccionado.precio).toFixed(2)}` : "$0.00"}
                 />
-                {esExento && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    Precio sin IVA: ${productoSeleccionado ? (parseFloat(productoSeleccionado.precio)).toFixed(2) : "0.00"}
-                  </p>
-                )}
               </div>
 
               {/* SECCIÓN DE DESCUENTO SIMPLIFICADA */}
@@ -671,23 +666,13 @@ export default function ProductModal({
             <div className="space-y-5">
               <div className="border-b border-gray-200 pb-2">
                 <h3 className="font-semibold text-gray-900 text-lg">Información de tributos</h3>
-                {tipoVenta === "1" && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    El IVA (20) se ha agregado automáticamente para productos gravados
-                  </p>
-                )}
-                {esExento && (
-                  <p className="text-xs text-red-600 mt-1">
-                    Los productos exentos no pueden tener tributos/impuestos
-                  </p>
-                )}
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Seleccionar Impuesto:</label>
                 <div className="flex gap-2 mb-2">
                   <select
-                    className="flex-1 p-3 w-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={impuestoSeleccionado}
                     onChange={(e) => setImpuestoSeleccionado(e.target.value)}
                     disabled={esExento}
@@ -716,7 +701,7 @@ export default function ProductModal({
                   <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
                     <h4 className="font-semibold text-gray-900 mb-2">Tributos agregados:</h4>
                     <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {tributos.map((tributo, index) => (
+                      {tributos.filter(tributo => tributo.codigo !== "20").map((tributo, index) => (
                         <div key={index} className="flex justify-between items-center p-2 bg-white rounded border border-gray-200">
                           <div className="flex-1">
                             <div className="text-sm font-medium">{tributo.codigo} - {tributo.descripcion}</div>
@@ -756,7 +741,7 @@ export default function ProductModal({
                     <span className="font-semibold text-gray-900">${subtotalConDescuento.toFixed(2)}</span>
                   </div>
                   
-                  {tributos.map((tributo, index) => (
+                  {tributos.filter(tributo => tributo.codigo !== "20").map((tributo, index) => (
                     <div key={index} className="flex justify-between py-1">
                       <span className="text-sm text-gray-600">{tributo.codigo}: ${tributo.valor.toFixed(2)}</span>
                     </div>
@@ -766,11 +751,6 @@ export default function ProductModal({
                     <span className="text-lg font-semibold text-gray-900">Total:</span>
                     <span className="text-xl font-bold text-blue-700">${total.toFixed(2)}</span>
                   </div>
-                  {esExento && (
-                    <div className="text-xs text-blue-600 mt-2 text-center">
-                      * Precio sin IVA aplicado para producto exento
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

@@ -317,26 +317,36 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
         : "http://localhost:3000/notascredito";
 
       const encabezadoData = {
-        idcliente: idCliente,
-        iddte_relacionado: factura.iddtefactura,
-        fechaemision: new Date().toISOString().split('T')[0], 
-        horaemision: new Date().toTimeString().split(' ')[0].substring(0, 8),
-        subtotal: monto.toFixed(2),
-        totalapagar: total.toFixed(2),
-        totalgravada: monto.toFixed(2),
-        valorletras: convertirNumeroALetras(total),
-        tipoventa: "contado",
-        formapago: "efectivo",
-        estado: 1,
-        verjson: "3.0",
-        transaccioncontable: `TRX-ND-${Date.now()}`,
-        tributos: [
-          {
-            codigo: "20",
-            descripcion: "IVA Débito Fiscal",
-            valor: iva
-          }
-        ]
+          idcliente: idCliente,
+          iddte_relacionado: factura.iddtefactura,
+          
+          fechaemision: (() => {
+              const ahora = new Date();
+              const offset = -6;
+              const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+              const year = salvadorTime.getUTCFullYear();
+              const month = String(salvadorTime.getUTCMonth() + 1).padStart(2, '0');
+              const day = String(salvadorTime.getUTCDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+          })(),
+          
+          horaemision: new Date().toTimeString().split(' ')[0].substring(0, 8),
+          subtotal: monto.toFixed(2),
+          totalapagar: total.toFixed(2),
+          totalgravada: monto.toFixed(2),
+          valorletras: convertirNumeroALetras(total),
+          tipoventa: "contado",
+          formapago: "efectivo",
+          estado: 1,
+          verjson: "3.0",
+          transaccioncontable: `TRX-ND-${Date.now()}`,
+          tributos: [
+              {
+                  codigo: "20",
+                  descripcion: "IVA Débito Fiscal",
+                  valor: iva
+              }
+          ]
       };
 
       console.log("Enviando encabezado con cliente:", encabezadoData);

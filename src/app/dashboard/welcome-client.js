@@ -68,6 +68,14 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
     return `${hours}h ${minutes}m`;
     };
 
+    const now = new Date();
+    console.log('=== INFORMACIÓN DEL FRONTEND ===');
+    console.log('Fecha y hora:', now.toString());
+    console.log('Zona horaria:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+    console.log('Timestamp:', now.getTime());
+    console.log('Formato local:', now.toLocaleString());
+    console.log('==============================');
+
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
       {/* Overlay para cuando el sidebar está abierto en móvil */}

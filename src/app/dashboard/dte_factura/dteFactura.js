@@ -645,16 +645,28 @@ const descargarTicketFactura = async (idFactura) => {
     const subtotal = sumaopesinimpues;
     const totalPagar = total;
     
+    // OBTENER FECHA CORRECTA PARA EL SALVADOR (UTC-6)
     const ahora = new Date();
-    const fechaEmision = fechaHoraEmision.fechaEmision || ahora.toISOString().split('T')[0];
-    const horaEmision = fechaHoraEmision.horaEmision || ahora.toTimeString().split(' ')[0];
+    
+    // Ajustar a zona horaria de El Salvador (UTC-6)
+    const offset = -6; // UTC-6 para El Salvador
+    const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+    
+    // Formatear fecha YYYY-MM-DD
+    const year = salvadorTime.getUTCFullYear();
+    const month = String(salvadorTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(salvadorTime.getUTCDate()).padStart(2, '0');
+    const fechaEmision = `${year}-${month}-${day}`;
+    
+    // Formatear hora HH:MM:SS (usar la hora local ya ajustada)
+    const horaEmision = ahora.toTimeString().split(' ')[0];
 
     let formapagoValue = "Efectivo";
     
     if (formasPago && formasPago.length > 0) {
       const metodoPago = formasPago[0]?.metodo?.toLowerCase() || "";
       
-    if (formasPago && formasPago.length > 0) {
+      if (formasPago && formasPago.length > 0) {
         const metodoPago = formasPago[0]?.metodo || "";
         formapagoValue = metodoPago || "Efectivo";
       }
@@ -682,68 +694,68 @@ const descargarTicketFactura = async (idFactura) => {
     const ivaIncluido = gravadasConDescuento > 0 ? 
       (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
 
-      return {
-        idcliente: idReceptor,
-        sellorec: "", 
-        modelofac: "01",
-        verjson: "1.0",
-        tipotran: "1",
-        fechaemision: fechaEmision,
-        horaemision: horaEmision,
-        transaccioncontable: `TRX-${numeroFactura}`,
-        tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "crédito",
-        formapago: formapagoValue,
-        estado: "",
+    return {
+      idcliente: idReceptor,
+      sellorec: "", 
+      modelofac: "01",
+      verjson: "1.0",
+      tipotran: "1",
+      fechaemision: fechaEmision, // Ahora será la fecha correcta de El Salvador
+      horaemision: horaEmision,
+      transaccioncontable: `TRX-${numeroFactura}`,
+      tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "crédito",
+      formapago: formapagoValue,
+      estado: "",
 
-        sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
-        totaldescuento: parseFloat(totaldescuento.toFixed(2)),
-        valoriva: parseFloat(ivaIncluido.toFixed(2)), 
-        subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
-        ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
-        montototalope: parseFloat(subtotal - totaldescuento).toFixed(2),
-        totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
-        totalapagar: parseFloat(totalPagar.toFixed(2)),
-        valorletras: convertirNumeroALetras(totalPagar),
-        tipocontingencia: "",
-        motivocontin: "",
+      sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
+      totaldescuento: parseFloat(totaldescuento.toFixed(2)),
+      valoriva: parseFloat(ivaIncluido.toFixed(2)), 
+      subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
+      ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
+      montototalope: parseFloat(subtotal - totaldescuento).toFixed(2),
+      totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
+      totalapagar: parseFloat(totalPagar.toFixed(2)),
+      valorletras: convertirNumeroALetras(totalPagar),
+      tipocontingencia: "",
+      motivocontin: "",
 
-        totalnosuj: 0.00,
-        totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
-        totalgravada: parseFloat(gravadasBase.toFixed(2)),
-        subtotalventas: parseFloat(subtotal.toFixed(2)),
+      totalnosuj: 0.00,
+      totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
+      totalgravada: parseFloat(gravadasBase.toFixed(2)),
+      subtotalventas: parseFloat(subtotal.toFixed(2)),
 
-        descunosuj: 0.00,
-        descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
-        descugravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
-        porcentajedescuento: totaldescuento > 0 ? parseFloat(((totaldescuento / sumaopesinimpues) * 100).toFixed(2)) : 0.00,
-        totaldescu: parseFloat(totaldescuento.toFixed(2)),
-        tributosf: null,
-        codigot: "",
-        descripciont: "",
-        valort: 0.00,
+      descunosuj: 0.00,
+      descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
+      descugravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
+      porcentajedescuento: totaldescuento > 0 ? parseFloat(((totaldescuento / sumaopesinimpues) * 100).toFixed(2)) : 0.00,
+      totaldescu: parseFloat(totaldescuento.toFixed(2)),
+      tributosf: null,
+      codigot: "",
+      descripciont: "",
+      valort: 0.00,
 
-        ivaperci1: parseFloat(ivaIncluido.toFixed(2)),
-        ivarete1: 0.00,
-        reterenta: 0.00,
+      ivaperci1: parseFloat(ivaIncluido.toFixed(2)),
+      ivarete1: 0.00,
+      reterenta: 0.00,
 
-        montototaloperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
-        totalpagar: parseFloat(totalPagar.toFixed(2)),
-        totalletras: convertirNumeroALetras(totalPagar),
-        totaliva: parseFloat(ivaIncluido.toFixed(2)),
-        saldofavor: 0.00,
+      montototaloperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
+      totalpagar: parseFloat(totalPagar.toFixed(2)),
+      totalletras: convertirNumeroALetras(totalPagar),
+      totaliva: parseFloat(ivaIncluido.toFixed(2)),
+      saldofavor: 0.00,
 
-        condicionoperacion: 1,
-        codigo: "01",
-        montopago: parseFloat(totalPagar.toFixed(2)),
-        referencia: "",
-        plazo: null,
-        periodo: null,
-        numpagoelectronico: "",
-        nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
-        docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
+      condicionoperacion: 1,
+      codigo: "01",
+      montopago: parseFloat(totalPagar.toFixed(2)),
+      referencia: "",
+      plazo: null,
+      periodo: null,
+      numpagoelectronico: "",
+      nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
+      docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
 
-        documentofirmado: null
-      };
+      documentofirmado: null
+    };
   };
 
   const convertirNumeroALetras = (numero) => {
