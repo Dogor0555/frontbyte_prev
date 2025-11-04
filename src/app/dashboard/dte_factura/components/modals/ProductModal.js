@@ -309,6 +309,7 @@ export default function ProductModal({
     onAddItem({
       descripcion: productoSeleccionado.nombre,
       cantidad: cantidad,
+      codigo: productoSeleccionado.codigo,
       precioUnitario: precioUnitario,
       descuento: descuentoAplicado,
       valorDescuento: valorDescuento,

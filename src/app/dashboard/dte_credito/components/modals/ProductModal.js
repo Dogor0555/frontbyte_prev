@@ -320,6 +320,7 @@ export default function ProductModal({
       descuento: descuentoAplicado,
       valorDescuento: valorDescuento,
       unidadMedida: productoSeleccionado.unidad || "59",
+      codigo: productoSeleccionado.codigo,
       tipo: tipoItem,
       tributos: tributos,
       productoId: !esServicio ? productoSeleccionado.id : null,
