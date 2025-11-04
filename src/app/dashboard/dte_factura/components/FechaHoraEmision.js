@@ -8,14 +8,16 @@ export default function FechaHoraEmision({ onFechaHoraChange }) {
 
   useEffect(() => {
     const ahora = new Date();
-    
-    const fecha = ahora.toISOString().split('T')[0];
+    const offset = -6;
+    const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
 
-    const horas = String(ahora.getHours()).padStart(2, '0');
-    const minutos = String(ahora.getMinutes()).padStart(2, '0');
-    const segundos = String(ahora.getSeconds()).padStart(2, '0');
+    const fecha = salvadorTime.toISOString().split('T')[0];
+
+    const horas = String(salvadorTime.getUTCHours()).padStart(2, '0');
+    const minutos = String(salvadorTime.getUTCMinutes()).padStart(2, '0');
+    const segundos = String(salvadorTime.getUTCSeconds()).padStart(2, '0');
     const hora = `${horas}:${minutos}:${segundos}`;
-    
+
     setFechaEmision(fecha);
     setHoraEmision(hora);
 

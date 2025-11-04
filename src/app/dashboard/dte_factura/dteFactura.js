@@ -1364,7 +1364,7 @@ const descargarTicketFactura = async (idFactura) => {
               </div>
 
               {/* Botón Agregar Descuentos */}
-              <div className="mb-6">
+              {/* <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">Descuentos</h3>
                 <div className="flex space-x-2">
                   <button 
@@ -1387,7 +1387,7 @@ const descargarTicketFactura = async (idFactura) => {
                       Eliminar Descuentos
                     </button>
                   )}
-                </div>
+                </div> 
                 
                 {(descuentoGrabadasMonto > 0 || descuentoExentasMonto > 0) && (
                   <div className="mt-2 text-sm text-gray-600">
@@ -1395,7 +1395,7 @@ const descargarTicketFactura = async (idFactura) => {
                     {descuentoExentasMonto > 0 && <p>Descuento ventas exentas: {formatMoney(descuentoExentasMonto)}</p>}
                   </div>
                 )}
-              </div>
+              </div> */}
 
               <FormaPago 
                 condicionPago={condicionPago}

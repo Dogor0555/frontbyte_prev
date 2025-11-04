@@ -1352,7 +1352,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 </div>
               </div>
 
-              {/* Botón Agregar Descuentos */}
+              {/* Botón Agregar Descuentos 
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">Agregar Descuentos</h3>
                 <button 
@@ -1368,7 +1368,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     {descuentoExentasMonto > 0 && <p>Descuento ventas exentas: {formatMoney(descuentoExentasMonto)}</p>}
                   </div>
                 )}
-              </div>
+              </div> */}
 
               <FormaPago 
                 condicionPago={condicionPago}
