@@ -154,7 +154,7 @@ const DatosEmisorReceptor = ({
             const data = await response.json();
             if (data.success) {
               const clientesFiltrados = data.data.filter(cliente => 
-                cliente.personanatural === true
+                cliente.personanatural === false
               );
               setClientes(clientesFiltrados);
             }
@@ -417,7 +417,7 @@ const DatosEmisorReceptor = ({
                 <p className="text-red-500 text-xs mt-1">{errores.direccionEmisor}</p>
               )}
               <p className="text-gray-500 text-xs mt-1">
-                {direccionEmisor.length}/{LIMITES.COMPLEMENTO} caracteres
+                {direccionEmisor ? direccionEmisor.length : 0}/{LIMITES.COMPLEMENTO} caracteres
               </p>
             </div>
 
@@ -440,7 +440,7 @@ const DatosEmisorReceptor = ({
                 <p className="text-red-500 text-xs mt-1">{errores.correoVendedor}</p>
               )}
               <p className="text-gray-500 text-xs mt-1">
-                {correoVendedor.length}/{LIMITES.CORREO} caracteres
+                {correoVendedor ? correoVendedor.length : 0}/{LIMITES.CORREO} caracteres
               </p>
             </div>
 
@@ -463,7 +463,7 @@ const DatosEmisorReceptor = ({
                 <p className="text-red-500 text-xs mt-1">{errores.telefonoEmisor}</p>
               )}
               <p className="text-gray-500 text-xs mt-1">
-                {telefonoEmisor.length}/{LIMITES.TELEFONO} caracteres
+                 {telefonoEmisor ? telefonoEmisor.length : 0}/{LIMITES.TELEFONO} caracteres
               </p>
             </div>
           </div>

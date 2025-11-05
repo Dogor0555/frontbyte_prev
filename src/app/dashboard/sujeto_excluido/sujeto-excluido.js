@@ -15,6 +15,7 @@ import FormaPago from "./components/FormaPago";
 import DatosEntrega from "./components/DatosAdicionalesEntrega";
 import FechaHoraEmision from "./components/FechaHoraEmision";
 import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaModal";
+import MensajeModal from "../components/MensajeModal";
 import { useReactToPrint } from 'react-to-print';
 
 export default function SujetoExcluidoViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
@@ -80,6 +81,15 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   const [errorValidacion, setErrorValidacion] = useState("");
   const [emisorDocumento, setEmisorDocumento] = useState("");
   const [emisorNombre, setEmisorNombre] = useState("");
+  const [mostrarMensaje, setMostrarMensaje] = useState(false);
+  const [mensajeConfig, setMensajeConfig] = useState({
+    tipo: "exito",
+    titulo: "",
+    mensaje: "",
+    detalles: "",
+    idFactura: null
+  });
+  const [descargandoTicket, setDescargandoTicket] = useState(false);
 
   // Inicializar correo desde user o, si no hay, desde localStorage
   useEffect(() => {
@@ -190,7 +200,11 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       const datosDocumento = prepararDatosDocumento();
       
       if (!datosDocumento.formapago) {
-        alert("Error: No se pudo determinar la forma de pago");
+        mostrarModalMensaje(
+          "error",
+          "Error de Validación",
+          "No se pudo determinar la forma de pago"
+        );
         setGuardandoDocumento(false); 
         return;
       }
@@ -215,14 +229,28 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
         if (detallesResult) {
           setShowConfirmModal(false);
           
-          // Mostrar aviso si se envió en contingencia
+          let mensajeTitulo = "Documento Guardado";
+          let mensajeDetalles = "";
+          let idDocumentoParaDescarga = result.iddtefactura;
+
+          // MOSTRAR AVISO SI SE ENVIÓ EN CONTINGENCIA
           if (detallesResult.contingencia && detallesResult.aviso) {
-            alert(`${detallesResult.aviso}\n${detallesResult.message}`);
+            mensajeTitulo = "Documento en Contingencia";
+            mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message}`;
           } else if (detallesResult.transmitido) {
-            alert(`Documento de Sujeto Excluido ${result.ncontrol} guardado y transmitido exitosamente`);
+            mensajeTitulo = "Documento Transmitido";
+            mensajeDetalles = `Documento de Sujeto Excluido ${result.ncontrol} guardado y transmitido exitosamente`;
           } else {
-            alert(`Documento de Sujeto Excluido ${result.ncontrol} guardado exitosamente`);
+            mensajeDetalles = `Documento de Sujeto Excluido ${result.ncontrol} guardado exitosamente`;
           }
+          
+          mostrarModalMensaje(
+            "exito",
+            mensajeTitulo,
+            "El documento se ha procesado correctamente.",
+            mensajeDetalles,
+            idDocumentoParaDescarga
+          );
           
           reiniciarEstados();
         }
@@ -232,7 +260,12 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al guardar el documento: " + error.message);
+      mostrarModalMensaje(
+        "error",
+        "Error al Guardar",
+        "No se pudo guardar el documento.",
+        error.message
+      );
     } finally {
       setGuardandoDocumento(false);
     }
@@ -859,6 +892,73 @@ const guardarDetallesDocumento = async (iddtefactura) => {
     return unidad ? unidad.nombre : "Unidad";
   };
 
+  const mostrarModalMensaje = (tipo, titulo, mensaje, detalles = "", idFactura = null) => {
+    setMensajeConfig({
+      tipo,
+      titulo,
+      mensaje,
+      detalles,
+      idFactura
+    });
+    setMostrarMensaje(true);
+  };
+
+   const descargarTicketFactura = async (idFactura) => {
+    setDescargandoTicket(true);
+    
+    try {
+      const response = await fetch(`http://localhost:3000/factura/${idFactura}/ver-compacto`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        const newTab = window.open(url, '_blank');
+        
+        if (!newTab) {
+          throw new Error('El navegador bloqueó la nueva pestaña. Por favor, permite ventanas emergentes.');
+        }
+        
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = `sujeto_excluido_${idFactura}.pdf`;
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+          }
+        }
+        
+        mostrarModalMensaje(
+          "exito", 
+          "Ticket Abierto", 
+          "El ticket del documento se ha abierto en una nueva pestaña.",
+          `Archivo: ${filename}`
+        );
+        
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 5000);
+        
+      } else {
+        throw new Error('Error al generar el ticket');
+      }
+    } catch (error) {
+      console.error('Error al abrir ticket:', error);
+      mostrarModalMensaje(
+        "error",
+        "Error al Abrir Ticket",
+        "No se pudo abrir el ticket del documento.",
+        error.message
+      );
+    } finally {
+      setDescargandoTicket(false);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
@@ -1253,6 +1353,20 @@ const guardarDetallesDocumento = async (iddtefactura) => {
           </div>
         </div>
       )}
+      <MensajeModal
+        isOpen={mostrarMensaje}
+        onClose={() => setMostrarMensaje(false)}
+        tipo={mensajeConfig.tipo}
+        titulo={mensajeConfig.titulo}
+        mensaje={mensajeConfig.mensaje}
+        detalles={mensajeConfig.detalles}
+        idFactura={mensajeConfig.idFactura}
+        onDescargarTicket={descargarTicketFactura}
+        descargando={descargandoTicket}
+      />
     </div>
+
   );
+
+
 }
