@@ -273,7 +273,7 @@ export default function Sidebar({ onOpenPerfil }) {
         { 
           name: "Ver CLE Emitidos", 
           icon: <FaEye />, 
-          href: "/dashboard/liquidacion/ver",
+          href: "/dashboard/facturas_sujeto_excluido",
           permiso: "Ver CLE Emitidos" 
         },
         { 
