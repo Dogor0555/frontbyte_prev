@@ -907,7 +907,7 @@ const guardarDetallesDocumento = async (iddtefactura) => {
     setDescargandoTicket(true);
     
     try {
-      const response = await fetch(`http://localhost:3000/factura/${idFactura}/ver-compacto`, {
+      const response = await fetch(`http://localhost:3000/facturas/${idFactura}/ver-compacto`, {
         method: 'GET',
         credentials: 'include'
       });
@@ -1213,13 +1213,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
 
               {/* Botones de acción */}
               <div className="flex justify-end space-x-4">
-                <button 
-                  onClick={verDatosDocumento}
-                  className="flex items-center bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
-                >
-                  <FaInfoCircle className="mr-2" />
-                  Ver Datos
-                </button>
                 <button 
                   onClick={guardarDocumento}
                   disabled={guardandoDocumento}

@@ -1,4 +1,3 @@
-// src/app/dashboard/facturas-excluidas/facturas-excluidas-view.js
 "use client";
 import { useState, useEffect } from "react";
 import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaPlus, FaExclamationTriangle } from "react-icons/fa";
@@ -17,6 +16,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pdfLoading, setPdfLoading] = useState(null);
+  const [jsonLoading, setJsonLoading] = useState(null);
   const [anulando, setAnulando] = useState(null);
   const [reTransmitiendo, setReTransmitiendo] = useState(null);
   const [transmitiendo, setTransmitiendo] = useState(null);
@@ -251,10 +251,50 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
     }
   };
 
+  // Función para descargar JSON
+  const handleDownloadJSON = async (iddtefactura) => {
+    setJsonLoading(iddtefactura);
+    try {
+      const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const disposition = response.headers.get("Content-Disposition");
+      let filename = `factura-excluida-${iddtefactura}.json`; 
+      if (disposition && disposition.includes("filename=")) {
+        filename = disposition
+          .split("filename=")[1]
+          .replace(/"/g, ""); 
+      }
+
+      const blob = await response.blob();
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Error descargando JSON:', error);
+      alert(`Error al descargar JSON: ${error.message}`);
+    } finally {
+      setJsonLoading(null);
+    }
+  };
+
   const handleGeneratePDF = async (facturaId) => {
     setPdfLoading(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-compacto`, {
+      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-pdf`, {
         credentials: "include"
       });
       
@@ -386,7 +426,6 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                   </p>
                 </div>
               </div>
-
 
               {/* Filtros y búsqueda */}
               <div className="flex flex-col sm:flex-row gap-3 mb-6 w-full">
@@ -626,6 +665,32 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                             <>
                               <FaFilePdf className="mr-1 text-xs" />
                               PDF
+                            </>
+                          )}
+                        </button>
+
+                        {/* Botón de Descargar JSON - NUEVO */}
+                        <button
+                          onClick={() => handleDownloadJSON(factura.iddtefactura)}
+                          disabled={jsonLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
+                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                            jsonLoading === factura.iddtefactura
+                              ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                              : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
+                                ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                                : 'bg-green-500 hover:bg-green-600 text-white'
+                          }`}
+                          title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Factura no firmada" : "Descargar DTE en JSON"}
+                        >
+                          {jsonLoading === factura.iddtefactura ? (
+                            <>
+                              <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                              Descargando
+                            </>
+                          ) : (
+                            <>
+                              <FaFileCode className="mr-1 text-xs" />
+                              JSON
                             </>
                           )}
                         </button>
