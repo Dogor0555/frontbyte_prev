@@ -50,6 +50,7 @@ export default function Sidebar({ onOpenPerfil }) {
     retencion: false,
     liquidacion: false,
     admin: false,
+    consumidorfinal: false, // Nuevo menú agregado
   });
   const [hoveredItem, setHoveredItem] = useState(null);
 
@@ -198,6 +199,28 @@ export default function Sidebar({ onOpenPerfil }) {
       ],
       menuKey: "creditos",
       permiso: "Créditos"
+    },
+
+    {
+      name: "Ventas a Consumidor Final",
+      icon: <FaBook />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Libro de Ventas a Consumidor Final", 
+          icon: <FaBook />, 
+          href: "/dashboard/libro_consumidor_final",
+          permiso: "Libro de Ventas a Consumidor Final" 
+        },
+        { 
+          name: "Anexo de Consumidor Final", 
+          icon: <FaFileAlt />, 
+          href: "/dashboard/anexo_consumidor_final",
+          permiso: "Anexo de Consumidor Final" 
+        },
+      ],
+      menuKey: "consumidorfinal",
+      permiso: "Ventas a Consumidor Final"
     },
 
     // 📦 Nota de Remisión Electrónica
