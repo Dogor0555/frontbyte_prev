@@ -318,13 +318,13 @@ export default function Sidebar({ onOpenPerfil }) {
       permiso: "Contingencia" 
     },
 
-    // 📚 Otros
+    /* 📚 Otros
     { 
       name: "Libro de Ventas", 
       icon: <FaBook />, 
       href: "/dashboard/libro_de_ventas",
       permiso: "Libro de Ventas" 
-    },
+    }, */
     { 
       name: "Reportes", 
       icon: <FaChartLine />, 
