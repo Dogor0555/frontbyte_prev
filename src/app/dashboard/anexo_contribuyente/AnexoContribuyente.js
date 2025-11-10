@@ -9,7 +9,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from 'exceljs';
 
-export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, haciendaStatus }) {
+export default function AnexoContribuyenteView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
   const [documentos, setDocumentos] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,8 +26,9 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
     totalGravadas: 0,
     totalExentas: 0,
     totalNoSujetas: 0,
-    totalExportaciones: 0,
-    totalZonasFrancas: 0,
+    totalDebitoFiscal: 0,
+    totalVentasTerceros: 0,
+    totalDebitoFiscalTerceros: 0,
     cantidadDocumentos: 0
   });
   
@@ -52,7 +53,7 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:3000/anexo-consumidor-final?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `http://localhost:3000/anexo-contribuyentes?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }
@@ -67,8 +68,9 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
         totalGravadas: 0,
         totalExentas: 0,
         totalNoSujetas: 0,
-        totalExportaciones: 0,
-        totalZonasFrancas: 0,
+        totalDebitoFiscal: 0,
+        totalVentasTerceros: 0,
+        totalDebitoFiscalTerceros: 0,
         cantidadDocumentos: 0
       });
     } catch (error) {
@@ -81,310 +83,246 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
     }
   };
 
-const handleExportExcel = async () => {
-  setExporting(true);
-  try {
-    let datosParaExportar = documentos;
-    
-    if (datosParaExportar.length === 0) {
-      const response = await fetch(
-        `http://localhost:3000/anexo-consumidor-final?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
-        {
-          credentials: "include"
-        }
-      );
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      let datosParaExportar = documentos;
       
-      if (!response.ok) throw new Error("Error al cargar datos para exportar");
-      const data = await response.json();
-      datosParaExportar = Array.isArray(data.documentos) ? data.documentos : [];
-    }
-
-    if (datosParaExportar.length === 0) {
-      alert("No hay datos para exportar en el período seleccionado");
-      return;
-    }
-
-    // Crear nuevo workbook con ExcelJS
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Anexo Consumidor Final');
-
-    // Definir columnas con anchos fijos para la mayoría
-    worksheet.columns = [
-      { header: 'FECHA DE EMISIÓN', key: 'fecha_emision', width: 12 },
-      { header: 'CLASE DE DOCUMENTO', key: 'clase_documento' }, // Se expandirá
-      { header: 'TIPO DE DOCUMENTO', key: 'tipo_documento', width: 15 },
-      { header: 'NÚMERO DE RESOLUCIÓN', key: 'numero_resolucion' }, // Se expandirá
-      { header: 'SERIE DEL DOCUMENTO', key: 'serie_documento', width: 15 },
-      { header: 'CONTROL INTERNO DEL', key: 'numero_control_interno_del', width: 12 },
-      { header: 'CONTROL INTERNO AL', key: 'numero_control_interno_al', width: 12 },
-      { header: 'DOCUMENTO DEL', key: 'numero_documento_del' }, // Se expandirá
-      { header: 'DOCUMENTO AL', key: 'numero_documento_al' }, // Se expandirá
-      { header: 'MÁQUINA REGISTRADORA', key: 'numero_maquina_registradora', width: 12 },
-      { header: 'VENTAS EXENTAS', key: 'ventas_exentas', width: 12 },
-      { header: 'VENTAS INTERNAS EXENTAS NO SUJETAS', key: 'ventas_internas_exentas_no_sujetas', width: 18 },
-      { header: 'VENTAS NO SUJETAS', key: 'ventas_no_sujetas', width: 14 },
-      { header: 'VENTAS GRAVADAS LOCALES', key: 'ventas_gravadas_locales', width: 15 },
-      { header: 'EXPORTACIONES CENTROAMÉRICA', key: 'exportaciones_centroamerica', width: 18 },
-      { header: 'EXPORTACIONES FUERA CENTROAMÉRICA', key: 'exportaciones_fuera_centroamerica', width: 22 },
-      { header: 'EXPORTACIONES SERVICIO', key: 'exportaciones_servicio', width: 16 },
-      { header: 'VENTAS ZONAS FRANCAS', key: 'ventas_zonas_francas', width: 15 },
-      { header: 'VENTAS CUENTA TERCEROS', key: 'ventas_cuenta_terceros', width: 16 },
-      { header: 'TOTAL VENTAS', key: 'total_ventas', width: 12 },
-      { header: 'TIPO OPERACIÓN', key: 'tipo_operacion', width: 12 },
-      { header: 'TIPO INGRESO', key: 'tipo_ingreso', width: 12 },
-      { header: 'NÚMERO ANEXO', key: 'numero_anexo', width: 10 }
-    ];
-
-    // Estilo para la cabecera - AZUL CLARO con letras BLANCAS
-    const headerRow = worksheet.getRow(1);
-    headerRow.eachCell((cell, colNumber) => {
-      cell.font = { 
-        color: { argb: 'FFFFFFFF' }, 
-        bold: true,
-        size: 10
-      };
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF4472C4' } // Azul claro
-      };
-      cell.alignment = { 
-        vertical: 'middle', 
-        horizontal: 'center',
-        wrapText: true
-      };
-      cell.border = {
-        top: { style: 'thin', color: { argb: 'FF000000' } },
-        left: { style: 'thin', color: { argb: 'FF000000' } },
-        bottom: { style: 'thin', color: { argb: 'FF000000' } },
-        right: { style: 'thin', color: { argb: 'FF000000' } }
-      };
-    });
-    headerRow.height = 25;
-
-    // Agregar datos con filas alternadas
-    datosParaExportar.forEach((doc, index) => {
-      const row = worksheet.addRow({
-        fecha_emision: doc.fecha_emision || '',
-        clase_documento: doc.clase_documento || '',
-        tipo_documento: doc.tipo_documento || '',
-        numero_resolucion: doc.numero_resolucion || '',
-        serie_documento: doc.serie_documento || '',
-        numero_control_interno_del: doc.numero_control_interno_del || '',
-        numero_control_interno_al: doc.numero_control_interno_al || '',
-        numero_documento_del: doc.numero_documento_del || '',
-        numero_documento_al: doc.numero_documento_al || '',
-        numero_maquina_registradora: doc.numero_maquina_registradora || '',
-        ventas_exentas: doc.ventas_exentas || 0,
-        ventas_internas_exentas_no_sujetas: doc.ventas_internas_exentas_no_sujetas || 0,
-        ventas_no_sujetas: doc.ventas_no_sujetas || 0,
-        ventas_gravadas_locales: doc.ventas_gravadas_locales || 0,
-        exportaciones_centroamerica: doc.exportaciones_centroamerica || 0,
-        exportaciones_fuera_centroamerica: doc.exportaciones_fuera_centroamerica || 0,
-        exportaciones_servicio: doc.exportaciones_servicio || 0,
-        ventas_zonas_francas: doc.ventas_zonas_francas || 0,
-        ventas_cuenta_terceros: doc.ventas_cuenta_terceros || 0,
-        total_ventas: doc.total_ventas || 0,
-        tipo_operacion: doc.tipo_operacion || '',
-        tipo_ingreso: doc.tipo_ingreso || '',
-        numero_anexo: doc.numero_anexo || ''
-      });
-
-      // Alternar colores de fila
-      const isEvenRow = index % 2 === 0;
-      const fillColor = isEvenRow ? 'FFD9E1F2' : 'FFFFFFFF';
-      
-      row.eachCell((cell, colNumber) => {
-        // Para la columna 10 (MÁQUINA REGISTRADORA) siempre aplicar estilo, aunque esté vacía
-        const isMaquinaRegistradora = colNumber === 10;
+      if (datosParaExportar.length === 0) {
+        const response = await fetch(
+          `http://localhost:3000/anexo-contribuyente?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+          {
+            credentials: "include"
+          }
+        );
         
-        // Aplicar estilo si la celda tiene contenido O es la columna de máquina registradora
-        if (cell.value !== null && cell.value !== undefined && cell.value !== '' || isMaquinaRegistradora) {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: fillColor }
-          };
-          
-          cell.font = {
-            color: { argb: 'FF000000' }, // Texto negro
-            size: 9
-          };
-          
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FF000000' } },
-            left: { style: 'thin', color: { argb: 'FF000000' } },
-            bottom: { style: 'thin', color: { argb: 'FF000000' } },
-            right: { style: 'thin', color: { argb: 'FF000000' } }
-          };
+        if (!response.ok) throw new Error("Error al cargar datos para exportar");
+        const data = await response.json();
+        datosParaExportar = Array.isArray(data.documentos) ? data.documentos : [];
+      }
 
-          // Formato numérico para columnas de valores (columnas 11-20)
-          if (colNumber >= 11 && colNumber <= 20) {
-            cell.numFmt = '#,##0.00';
-            cell.alignment = { horizontal: 'right', vertical: 'middle' };
-          }
+      if (datosParaExportar.length === 0) {
+        alert("No hay datos para exportar en el período seleccionado");
+        return;
+      }
 
-          // Alinear primera columna al centro
-          if (colNumber === 1) {
-            cell.alignment = { horizontal: 'center', vertical: 'middle' };
-          }
+      // Crear nuevo workbook con ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Anexo Contribuyente');
 
-          // Para la columna de máquina registradora, asegurar que tenga al menos un valor vacío
-          if (isMaquinaRegistradora && (cell.value === null || cell.value === undefined || cell.value === '')) {
-            cell.value = ''; // Asegurar que tenga un valor vacío para que se aplique el estilo
-          }
-        }
+      // Definir columnas para Anexo Contribuyente con anchos aumentados
+      worksheet.columns = [
+        { header: 'FECHA EMISIÓN', key: 'fecha_emision', width: 12 },
+        { header: 'CLASE DOCUMENTO', key: 'clase_documento', width: 25 }, // Aumentado de 20 a 25
+        { header: 'TIPO DOCUMENTO', key: 'tipo_documento', width: 20 }, // Aumentado de 15 a 20
+        { header: 'NÚMERO RESOLUCIÓN', key: 'numero_resolucion', width: 25 }, // Aumentado de 18 a 25
+        { header: 'SERIE DOCUMENTO', key: 'serie_documento', width: 20 }, // Aumentado de 15 a 20
+        { header: 'NÚMERO DOCUMENTO', key: 'numero_documento', width: 20 }, // Aumentado de 15 a 20
+        { header: 'CONTROL INTERNO', key: 'numero_control_interno', width: 15 },
+        { header: 'NIT/NRC CLIENTE', key: 'nit_nrc_cliente', width: 15 },
+        { header: 'RAZÓN SOCIAL', key: 'nombre_razon_social', width: 30 }, // Aumentado de 25 a 30
+        { header: 'VENTAS EXENTAS', key: 'ventas_exentas', width: 14 },
+        { header: 'VENTAS NO SUJETAS', key: 'ventas_no_sujetas', width: 14 },
+        { header: 'VENTAS GRAVADAS', key: 'ventas_gravadas_locales', width: 14 },
+        { header: 'DÉBITO FISCAL', key: 'debito_fiscal', width: 14 },
+        { header: 'VENTAS TERCEROS', key: 'ventas_cuenta_terceros', width: 14 },
+        { header: 'DÉBITO FISCAL TERCEROS', key: 'debito_fiscal_terceros', width: 16 },
+        { header: 'TOTAL VENTAS', key: 'total_ventas', width: 12 },
+        { header: 'DUI CLIENTE', key: 'numero_dui_cliente', width: 12 },
+        { header: 'TIPO OPERACIÓN', key: 'tipo_operacion', width: 12 },
+        { header: 'TIPO INGRESO', key: 'tipo_ingreso', width: 12 },
+        { header: 'NÚMERO ANEXO', key: 'numero_anexo', width: 10 }
+      ];
+
+      // Estilo para la cabecera - VERDE con letras BLANCAS
+      const headerRow = worksheet.getRow(1);
+      headerRow.eachCell((cell, colNumber) => {
+        cell.font = { 
+          color: { argb: 'FFFFFFFF' }, 
+          bold: true,
+          size: 10
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF70AD47' } // Verde
+        };
+        cell.alignment = { 
+          vertical: 'middle', 
+          horizontal: 'center',
+          wrapText: true
+        };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
+        };
       });
-    });
+      headerRow.height = 25;
 
-    // FUNCIÓN PARA CALCULAR ANCHO SOLO PARA COLUMNAS ESPECÍFICAS
-    const calculateAutoWidthColumns = () => {
-      const columns = worksheet.columns;
-      
-      // Índices de las columnas que se expandirán (base 0)
-      const autoWidthColumns = [1, 3, 7, 8]; // CLASE DOC, RESOLUCIÓN, DOC DEL, DOC AL
-      
-      autoWidthColumns.forEach(colIndex => {
-        let maxLength = 0;
+      // Agregar datos con filas alternadas
+      datosParaExportar.forEach((doc, index) => {
+        const row = worksheet.addRow({
+          fecha_emision: doc.fecha_emision || '',
+          clase_documento: doc.clase_documento || '',
+          tipo_documento: doc.tipo_documento || '',
+          numero_resolucion: doc.numero_resolucion || '',
+          serie_documento: doc.serie_documento || '',
+          numero_documento: doc.numero_documento || '',
+          numero_control_interno: doc.numero_control_interno || '',
+          nit_nrc_cliente: doc.nit_nrc_cliente || '',
+          nombre_razon_social: doc.nombre_razon_social || '',
+          ventas_exentas: doc.ventas_exentas || 0,
+          ventas_no_sujetas: doc.ventas_no_sujetas || 0,
+          ventas_gravadas_locales: doc.ventas_gravadas_locales || 0,
+          debito_fiscal: doc.debito_fiscal || 0,
+          ventas_cuenta_terceros: doc.ventas_cuenta_terceros || 0,
+          debito_fiscal_terceros: doc.debito_fiscal_terceros || 0,
+          total_ventas: doc.total_ventas || 0,
+          numero_dui_cliente: doc.numero_dui_cliente || '',
+          tipo_operacion: doc.tipo_operacion || '',
+          tipo_ingreso: doc.tipo_ingreso || '',
+          numero_anexo: doc.numero_anexo || ''
+        });
+
+        // Alternar colores de fila
+        const isEvenRow = index % 2 === 0;
+        const fillColor = isEvenRow ? 'FFE2EFDA' : 'FFFFFFFF';
         
-        // Revisar todas las filas para esta columna
-        worksheet.eachRow((row, rowNumber) => {
-          const cell = row.getCell(colIndex + 1); // +1 porque getCell usa base 1
-          
+        row.eachCell((cell, colNumber) => {
           if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
-            const cellText = String(cell.value);
-            const cellLength = cellText.length;
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: fillColor }
+            };
             
-            if (cellLength > maxLength) {
-              maxLength = cellLength;
+            cell.font = {
+              color: { argb: 'FF000000' },
+              size: 9
+            };
+            
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FF000000' } },
+              left: { style: 'thin', color: { argb: 'FF000000' } },
+              bottom: { style: 'thin', color: { argb: 'FF000000' } },
+              right: { style: 'thin', color: { argb: 'FF000000' } }
+            };
+
+            // Formato numérico para columnas de valores (columnas 10-16)
+            if (colNumber >= 10 && colNumber <= 16) {
+              cell.numFmt = '#,##0.00';
+              cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            }
+
+            // Alinear primera columna al centro
+            if (colNumber === 1) {
+              cell.alignment = { horizontal: 'center', vertical: 'middle' };
             }
           }
         });
-        
-        // Calcular ancho considerando el header también
-        const headerText = worksheet.getRow(1).getCell(colIndex + 1).value;
-        const headerLength = headerText ? String(headerText).length : 0;
-        maxLength = Math.max(maxLength, headerLength);
-        
-        // Aplicar ancho calculado con límites
-        let calculatedWidth = Math.max(
-          maxLength * 1.2, // Factor de conversión
-          15, // Ancho mínimo
-          50  // Ancho máximo
-        );
-        
-        if (columns[colIndex]) {
-          columns[colIndex].width = calculatedWidth;
-        }
       });
-    };
 
-    // Calcular y aplicar anchos automáticos para columnas específicas
-    calculateAutoWidthColumns();
+      // HOJA DE RESUMEN
+      const worksheetResumen = workbook.addWorksheet('Resumen');
 
-    // HOJA DE RESUMEN
-    const worksheetResumen = workbook.addWorksheet('Resumen');
+      // Datos para el resumen
+      const fechaGeneracion = new Date();
+      const datosResumen = [
+        ['ANEXO DE CONTRIBUYENTE - RESUMEN', ''],
+        ['', ''],
+        ['Fecha de generación:', fechaGeneracion.toLocaleDateString('es-SV')],
+        ['Período:', `${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`],
+        ['', ''],
+        ['RESUMEN GENERAL'],
+        ['Total Documentos:', resumen.cantidadDocumentos || 0],
+        ['Ventas Gravadas:', resumen.totalGravadas || 0],
+        ['Ventas Exentas:', resumen.totalExentas || 0],
+        ['Ventas No Sujetas:', resumen.totalNoSujetas || 0],
+        ['Débito Fiscal:', resumen.totalDebitoFiscal || 0],
+        ['Ventas a Terceros:', resumen.totalVentasTerceros || 0],
+        ['Débito Fiscal Terceros:', resumen.totalDebitoFiscalTerceros || 0],
+        ['Total Ventas:', resumen.totalVentas || 0]
+      ];
 
-    // Datos para el resumen
-    const fechaGeneracion = new Date();
-    const datosResumen = [
-      ['ANEXO DE CONSUMIDOR FINAL - RESUMEN', ''],
-      ['', ''],
-      ['Fecha de generación:', fechaGeneracion.toLocaleDateString('es-SV')],
-      ['Período:', `${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`],
-      ['', ''],
-      ['RESUMEN GENERAL'],
-      ['Total Documentos:', resumen.cantidadDocumentos || 0],
-      ['Ventas Gravadas:', resumen.totalGravadas || 0],
-      ['Ventas Exentas:', resumen.totalExentas || 0],
-      ['Ventas No Sujetas:', resumen.totalNoSujetas || 0],
-      ['Exportaciones:', resumen.totalExportaciones || 0],
-      ['Ventas Zonas Francas:', resumen.totalZonasFrancas || 0],
-      ['Total Ventas:', resumen.totalVentas || 0],
-      ['', ''],
-      ['DESGLOSE DE EXPORTACIONES'],
-      ['Exportaciones Centroamérica:', documentos.reduce((sum, doc) => sum + (doc.exportaciones_centroamerica || 0), 0)],
-      ['Exportaciones Fuera Centroamérica:', documentos.reduce((sum, doc) => sum + (doc.exportaciones_fuera_centroamerica || 0), 0)],
-      ['Exportaciones Servicio:', documentos.reduce((sum, doc) => sum + (doc.exportaciones_servicio || 0), 0)]
-    ];
-
-    // Agregar datos al resumen
-    datosResumen.forEach((fila, rowIndex) => {
-      const row = worksheetResumen.addRow(fila);
-      
-      row.eachCell((cell, colNumber) => {
-        // Solo aplicar estilo si la celda tiene contenido
-        if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
-          
-          // Estilo para títulos principales
-          if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
-            if (colNumber === 1) { // Solo la primera columna del título
-              cell.font = { 
-                color: { argb: 'FFFFFFFF' }, 
-                bold: true,
-                size: rowIndex === 0 ? 14 : 12
-              };
-              cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FF4472C4' }
-              };
-              cell.alignment = { horizontal: 'center' };
+      // Agregar datos al resumen
+      datosResumen.forEach((fila, rowIndex) => {
+        const row = worksheetResumen.addRow(fila);
+        
+        row.eachCell((cell, colNumber) => {
+          if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
+            
+            // Estilo para títulos principales
+            if (rowIndex === 0 || rowIndex === 5) {
+              if (colNumber === 1) {
+                cell.font = { 
+                  color: { argb: 'FFFFFFFF' }, 
+                  bold: true,
+                  size: rowIndex === 0 ? 14 : 12
+                };
+                cell.fill = {
+                  type: 'pattern',
+                  pattern: 'solid',
+                  fgColor: { argb: 'FF70AD47' } // Verde
+                };
+                cell.alignment = { horizontal: 'center' };
+              }
             }
-          }
-          
-          // Formato numérico para valores en la segunda columna
-          if (colNumber === 2 && typeof cell.value === 'number') {
-            cell.numFmt = '#,##0.00';
-            cell.alignment = { horizontal: 'right' };
-          }
+            
+            // Formato numérico para valores en la segunda columna
+            if (colNumber === 2 && typeof cell.value === 'number') {
+              cell.numFmt = '#,##0.00';
+              cell.alignment = { horizontal: 'right' };
+            }
 
-          // Bordes para todas las celdas con contenido
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FF000000' } },
-            left: { style: 'thin', color: { argb: 'FF000000' } },
-            bottom: { style: 'thin', color: { argb: 'FF000000' } },
-            right: { style: 'thin', color: { argb: 'FF000000' } }
-          };
+            // Bordes para todas las celdas con contenido
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FF000000' } },
+              left: { style: 'thin', color: { argb: 'FF000000' } },
+              bottom: { style: 'thin', color: { argb: 'FF000000' } },
+              right: { style: 'thin', color: { argb: 'FF000000' } }
+            };
+          }
+        });
+
+        // Ajustar altura solo para filas con contenido
+        if (fila.some(cell => cell !== null && cell !== undefined && cell !== '')) {
+          if (rowIndex === 0 || rowIndex === 5) {
+            row.height = 25;
+          }
         }
       });
 
-      // Ajustar altura solo para filas con contenido
-      if (fila.some(cell => cell !== null && cell !== undefined && cell !== '')) {
-        if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
-          row.height = 25;
-        }
-      }
-    });
+      // Anchos fijos para el resumen
+      worksheetResumen.columns = [
+        { width: 30 },
+        { width: 20 }
+      ];
 
-    // Anchos fijos para el resumen
-    worksheetResumen.columns = [
-      { width: 30 },
-      { width: 20 }
-    ];
+      // Generar y descargar el archivo
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `anexo-contribuyente-${fechaInicio}-a-${fechaFin}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error("Error al exportar Excel:", error);
+      alert("Error al exportar Excel: " + error.message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
-    // Generar y descargar el archivo
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { 
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-    });
-    
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `anexo-consumidor-final-${fechaInicio}-a-${fechaFin}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-  } catch (error) {
-    console.error("Error al exportar Excel:", error);
-    alert("Error al exportar Excel: " + error.message);
-  } finally {
-    setExporting(false);
-  }
-};
   const handleExportPDF = async () => {
     setExportingPDF(true);
     try {
@@ -407,7 +345,7 @@ const handleExportExcel = async () => {
         if (pageIndex === 0) {
           doc.setFontSize(16);
           doc.setFont("helvetica", "bold");
-          doc.text("ANEXO DE CONSUMIDOR FINAL", pageWidth / 2, 15, { align: "center" });
+          doc.text("ANEXO DE CONTRIBUYENTE", pageWidth / 2, 15, { align: "center" });
           
           doc.setFontSize(10);
           doc.setFont("helvetica", "normal");
@@ -422,8 +360,8 @@ const handleExportExcel = async () => {
           doc.setFont("helvetica", "normal");
           doc.text(`Total Documentos: ${resumen.cantidadDocumentos}`, margin, 42);
           doc.text(`Ventas Gravadas: ${formatCurrency(resumen.totalGravadas)}`, margin, 49);
-          doc.text(`Ventas Exentas: ${formatCurrency(resumen.totalExentas)}`, margin + 70, 42);
-          doc.text(`Exportaciones: ${formatCurrency(resumen.totalExportaciones)}`, margin + 70, 49);
+          doc.text(`Débito Fiscal: ${formatCurrency(resumen.totalDebitoFiscal)}`, margin + 70, 42);
+          doc.text(`Total Ventas: ${formatCurrency(resumen.totalVentas)}`, margin + 70, 49);
         }
         
         const tableData = chunk.map(doc => [
@@ -432,21 +370,18 @@ const handleExportExcel = async () => {
           doc.tipo_documento || '-',
           doc.numero_resolucion || '-',
           doc.serie_documento || '-',
-          doc.numero_control_interno_del || '-',
-          doc.numero_control_interno_al || '-',
-          doc.numero_documento_del || '-',
-          doc.numero_documento_al || '-',
-          doc.numero_maquina_registradora || '-',
+          doc.numero_documento || '-',
+          doc.numero_control_interno || '-',
+          doc.nit_nrc_cliente || '-',
+          doc.nombre_razon_social || '-',
           formatCurrency(doc.ventas_exentas),
-          formatCurrency(doc.ventas_internas_exentas_no_sujetas),
           formatCurrency(doc.ventas_no_sujetas),
           formatCurrency(doc.ventas_gravadas_locales),
-          formatCurrency(doc.exportaciones_centroamerica),
-          formatCurrency(doc.exportaciones_fuera_centroamerica),
-          formatCurrency(doc.exportaciones_servicio),
-          formatCurrency(doc.ventas_zonas_francas),
+          formatCurrency(doc.debito_fiscal),
           formatCurrency(doc.ventas_cuenta_terceros),
+          formatCurrency(doc.debito_fiscal_terceros),
           formatCurrency(doc.total_ventas),
+          doc.numero_dui_cliente || '-',
           doc.tipo_operacion || '-',
           doc.tipo_ingreso || '-',
           doc.numero_anexo || '-'
@@ -457,12 +392,12 @@ const handleExportExcel = async () => {
         autoTable(doc, {
           startY: startY,
           head: pageIndex === 0 ? [
-            ['Fecha', 'Clase Doc', 'Tipo Doc', 'Resolución', 'Serie', 'Ctrl Del', 'Ctrl Al', 'Doc Del', 'Doc Al', 'Máquina', 'Exentas', 'Int. Exentas', 'No Sujetas', 'Gravadas', 'Exp. CA', 'Exp. Fuera CA', 'Exp. Serv', 'Z. Francas', 'Cta Terceros', 'Total', 'Operación', 'Ingreso', 'Anexo']
+            ['Fecha', 'Clase', 'Tipo', 'Resolución', 'Serie', 'N° Doc', 'Control', 'NIT/NRC', 'Razón Social', 'Exentas', 'No Sujetas', 'Gravadas', 'Débito Fiscal', 'Ventas Terceros', 'Débito Terceros', 'Total', 'DUI', 'Operación', 'Ingreso', 'Anexo']
           ] : [],
           body: tableData,
           theme: 'grid',
           headStyles: {
-            fillColor: [75, 85, 99],
+            fillColor: [112, 173, 71], // Verde
             textColor: 255,
             fontStyle: 'bold',
             fontSize: 5
@@ -485,7 +420,7 @@ const handleExportExcel = async () => {
         );
       });
       
-      doc.save(`anexo-consumidor-final-${fechaInicio}-a-${fechaFin}.pdf`);
+      doc.save(`anexo-contribuyente-${fechaInicio}-a-${fechaFin}.pdf`);
       
     } catch (error) {
       console.error("Error al generar PDF:", error);
@@ -507,11 +442,12 @@ const handleExportExcel = async () => {
 
         return (
           (doc.serie_documento?.toLowerCase() || "").includes(searchLower) ||
-          (doc.numero_control_interno_del?.toString() || "").includes(searchTerm) ||
+          (doc.numero_documento?.toString() || "").includes(searchTerm) ||
           (doc.numero_resolucion?.toLowerCase() || "").includes(searchLower) ||
           (doc.tipo_documento?.toLowerCase() || "").includes(searchLower) ||
           (doc.clase_documento?.toLowerCase() || "").includes(searchLower) ||
-          (doc.numero_documento_del?.toLowerCase() || "").includes(searchLower)
+          (doc.nombre_razon_social?.toLowerCase() || "").includes(searchLower) ||
+          (doc.nit_nrc_cliente?.toLowerCase() || "").includes(searchLower)
         );
       })
     : [];
@@ -541,29 +477,27 @@ const handleExportExcel = async () => {
     setSidebarOpen(!sidebarOpen);
   };
 
+  // Columnas específicas para Anexo Contribuyente
   const columns = [
-    { key: 'fecha_emision', label: 'FECHA DE EMISIÓN', width: '100px' },
-    { key: 'clase_documento', label: 'CLASE DE DOCUMENTO', width: '220px' },
-    { key: 'tipo_documento', label: 'TIPO DE DOCUMENTO', width: '130px' },
-    { key: 'numero_resolucion', label: 'NÚMERO DE RESOLUCIÓN', width: '200px' },
-    { key: 'serie_documento', label: 'SERIE DEL DOCUMENTO', width: '180px' },
-    { key: 'numero_control_interno_del', label: 'CONTROL DEL', width: '90px' },
-    { key: 'numero_control_interno_al', label: 'CONTROL AL', width: '90px' },
-    { key: 'numero_documento_del', label: 'DOCUMENTO DEL', width: '170px' },
-    { key: 'numero_documento_al', label: 'DOCUMENTO AL', width: '170px' },
-    { key: 'numero_maquina_registradora', label: 'MÁQUINA', width: '100px' },
+    { key: 'fecha_emision', label: 'FECHA EMISIÓN', width: '100px' },
+    { key: 'clase_documento', label: 'CLASE DOCUMENTO', width: '150px' },
+    { key: 'tipo_documento', label: 'TIPO DOCUMENTO', width: '130px' },
+    { key: 'numero_resolucion', label: 'NÚMERO RESOLUCIÓN', width: '150px' },
+    { key: 'serie_documento', label: 'SERIE DOCUMENTO', width: '120px' },
+    { key: 'numero_documento', label: 'NÚMERO DOCUMENTO', width: '130px' },
+    { key: 'numero_control_interno', label: 'CONTROL INTERNO', width: '120px' },
+    { key: 'nit_nrc_cliente', label: 'NIT/NRC CLIENTE', width: '120px' },
+    { key: 'nombre_razon_social', label: 'RAZÓN SOCIAL', width: '200px' },
     { key: 'ventas_exentas', label: 'VENTAS EXENTAS', width: '110px', align: 'right' },
-    { key: 'ventas_internas_exentas_no_sujetas', label: 'INT. EXENTAS', width: '120px', align: 'right' },
     { key: 'ventas_no_sujetas', label: 'VENTAS NO SUJETAS', width: '120px', align: 'right' },
     { key: 'ventas_gravadas_locales', label: 'VENTAS GRAVADAS', width: '120px', align: 'right' },
-    { key: 'exportaciones_centroamerica', label: 'EXP. CA', width: '90px', align: 'right' },
-    { key: 'exportaciones_fuera_centroamerica', label: 'EXP. FUERA CA', width: '110px', align: 'right' },
-    { key: 'exportaciones_servicio', label: 'EXP. SERVICIO', width: '100px', align: 'right' },
-    { key: 'ventas_zonas_francas', label: 'ZONAS FRANCAS', width: '110px', align: 'right' },
-    { key: 'ventas_cuenta_terceros', label: 'CTA TERCEROS', width: '110px', align: 'right' },
+    { key: 'debito_fiscal', label: 'DÉBITO FISCAL', width: '110px', align: 'right' },
+    { key: 'ventas_cuenta_terceros', label: 'VENTAS TERCEROS', width: '120px', align: 'right' },
+    { key: 'debito_fiscal_terceros', label: 'DÉBITO TERCEROS', width: '120px', align: 'right' },
     { key: 'total_ventas', label: 'TOTAL VENTAS', width: '110px', align: 'right' },
+    { key: 'numero_dui_cliente', label: 'DUI CLIENTE', width: '100px' },
     { key: 'tipo_operacion', label: 'TIPO OPERACIÓN', width: '120px' },
-    { key: 'tipo_ingreso', label: 'TIPO INGRESO', width: '150px' },
+    { key: 'tipo_ingreso', label: 'TIPO INGRESO', width: '120px' },
     { key: 'numero_anexo', label: 'N° ANEXO', width: '80px' }
   ];
   
@@ -589,8 +523,8 @@ const handleExportExcel = async () => {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin h-12 w-12 border-4 border-gray-600 rounded-full border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Cargando anexo de consumidor final...</p>
+          <div className="animate-spin h-12 w-12 border-4 border-green-600 rounded-full border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Cargando anexo de contribuyente...</p>
         </div>
       </div>
     );
@@ -632,9 +566,9 @@ const handleExportExcel = async () => {
               {/* Header */}
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6">
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Anexo de Consumidor Final</h1>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Anexo de Contribuyente</h1>
                   <p className="text-gray-600 text-sm">
-                    Registro detallado de ventas a consumidores finales - Vista completa
+                    Registro detallado de ventas a contribuyentes - Vista completa
                   </p>
                 </div>
 
@@ -681,7 +615,7 @@ const handleExportExcel = async () => {
                         type="date"
                         value={fechaInicio}
                         onChange={(e) => setFechaInicio(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                       />
                     </div>
                   </div>
@@ -696,7 +630,7 @@ const handleExportExcel = async () => {
                         type="date"
                         value={fechaFin}
                         onChange={(e) => setFechaFin(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                       />
                     </div>
                   </div>
@@ -709,8 +643,8 @@ const handleExportExcel = async () => {
                       <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                       <input
                         type="text"
-                        placeholder="Serie, control, resolución, documento..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
+                        placeholder="Serie, documento, NIT, razón social..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                         value={searchTerm}
                         onChange={(e) => {
                           setSearchTerm(e.target.value);
@@ -722,16 +656,16 @@ const handleExportExcel = async () => {
                 </div>
               </div>
 
-              {/* Tabla de Documentos - VISTA COMPLETA SIEMPRE */}
+              {/* Tabla de Documentos */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-green-50">
                       <tr>
                         {columns.map((column) => (
                           <th 
                             key={column.key}
-                            className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                            className="px-3 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap"
                             style={{ width: column.width }}
                           >
                             {column.label}
@@ -741,19 +675,19 @@ const handleExportExcel = async () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {currentItems.map((doc, index) => (
-                        <tr key={doc.id || index} className="hover:bg-gray-50 transition-colors">
+                        <tr key={doc.id || index} className="hover:bg-green-50 transition-colors">
                           {columns.map((column) => (
                             <td 
                               key={column.key}
                               className={`px-3 py-3 text-sm ${
                                 column.align === 'right' ? 'text-right' : 'text-left'
                               } ${
-                                ['serie_documento', 'numero_resolucion', 'numero_documento_del', 'numero_documento_al'].includes(column.key)
+                                ['serie_documento', 'numero_resolucion', 'numero_documento', 'nit_nrc_cliente'].includes(column.key)
                                   ? 'font-mono text-gray-600 text-xs'
                                   : 'text-gray-700'
                               } whitespace-nowrap`}
                             >
-                              {column.key.includes('ventas') || column.key.includes('exportaciones') || column.key === 'total_ventas' ? (
+                              {column.key.includes('ventas') || column.key.includes('debito') || column.key === 'total_ventas' ? (
                                 formatCurrency(doc[column.key] || 0)
                               ) : (
                                 doc[column.key] || '-'
@@ -768,7 +702,7 @@ const handleExportExcel = async () => {
 
                 {/* Paginación */}
                 {documentosFiltrados.length > itemsPerPage && (
-                  <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                  <div className="px-4 py-3 bg-green-50 border-t border-gray-200">
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-gray-700">
                         Mostrando {indexOfFirstItem + 1} a {Math.min(indexOfLastItem, documentosFiltrados.length)} de {documentosFiltrados.length} registros

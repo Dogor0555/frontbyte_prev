@@ -9,7 +9,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from 'exceljs';
 
-export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, haciendaStatus }) {
+export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
   const [libro, setLibro] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,10 +24,13 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
   const [resumen, setResumen] = useState({
     totalVentasExentas: 0,
     totalVentasGravadas: 0,
-    totalExportaciones: 0,
-    totalVentasPropias: 0,
-    totalVentasTerceros: 0,
-    diasConVentas: 0
+    totalDebitoFiscal: 0,
+    totalVentasExentasTerceros: 0,
+    totalVentasGravadasTerceros: 0,
+    totalDebitoFiscalTerceros: 0,
+    totalIvaPercibido: 0,
+    totalGeneral: 0,
+    cantidadDocumentos: 0
   });
   
   const itemsPerPage = 10;
@@ -59,27 +62,30 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:3000/libro-ventas-consumidores-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `http://localhost:3000/libro-contribuyentes?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }
       );
       
-      if (!response.ok) throw new Error("Error al cargar libro de ventas");
+      if (!response.ok) throw new Error("Error al cargar libro de ventas a contribuyentes");
       const data = await response.json();
       
       setLibro(Array.isArray(data.libro) ? data.libro : []);
       setResumen(data.resumen || {
         totalVentasExentas: 0,
         totalVentasGravadas: 0,
-        totalExportaciones: 0,
-        totalVentasPropias: 0,
-        totalVentasTerceros: 0,
-        diasConVentas: 0
+        totalDebitoFiscal: 0,
+        totalVentasExentasTerceros: 0,
+        totalVentasGravadasTerceros: 0,
+        totalDebitoFiscalTerceros: 0,
+        totalIvaPercibido: 0,
+        totalGeneral: 0,
+        cantidadDocumentos: 0
       });
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cargar el libro de ventas: " + error.message);
+      alert("Error al cargar el libro de ventas a contribuyentes: " + error.message);
       setLibro([]);
     } finally {
       setLoading(false);
@@ -87,257 +93,231 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
     }
   };
 
-
   const handleExportExcel = async () => {
-      setExporting(true);
-      try {
-          let datosParaExportar = libro;
-          
-          if (datosParaExportar.length === 0) {
-              const response = await fetch(
-                  `http://localhost:3000/libro-ventas-consumidores-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
-                  {
-                      credentials: "include"
-                  }
-              );
-              
-              if (!response.ok) throw new Error("Error al cargar datos para exportar");
-              const data = await response.json();
-              datosParaExportar = Array.isArray(data.libro) ? data.libro : [];
+    setExporting(true);
+    try {
+      let datosParaExportar = libro;
+      
+      if (datosParaExportar.length === 0) {
+        const response = await fetch(
+          `http://localhost:3000/libro-contribuyentes"?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+          {
+            credentials: "include"
           }
+        );
+        
+        if (!response.ok) throw new Error("Error al cargar datos para exportar");
+        const data = await response.json();
+        datosParaExportar = Array.isArray(data.libro) ? data.libro : [];
+      }
 
-          if (datosParaExportar.length === 0) {
-              alert("No hay datos para exportar en el período seleccionado");
-              return;
+      if (datosParaExportar.length === 0) {
+        alert("No hay datos para exportar en el período seleccionado");
+        return;
+      }
+
+      const workbook = new ExcelJS.Workbook();
+
+      const worksheet = workbook.addWorksheet('Libro Ventas Contribuyentes');
+      worksheet.columns = [
+        { header: 'N°', key: 'numero', width: 8 },
+        { header: 'FECHA DE EMISIÓN DEL DOCUMENTO', key: 'fecha_emision', width: 15 },
+        { header: 'NÚMERO DE CORRELATIVO PREEIMPRESO', key: 'numero_correlativo', width: 20 },
+        { header: 'NÚMERO DE CONTROL INTERNO SISTEMA FORMULARIO ÚNICO', key: 'numero_control_interno', width: 25 },
+        { header: 'NOMBRE DEL CLIENTE MANDANTE O MANDATARIO', key: 'nombre_cliente', width: 30 },
+        { header: 'NRC DEL CLIENTE', key: 'nrc_cliente', width: 15 },
+        { header: 'VENTAS EXENTAS', key: 'ventas_exentas', width: 14 },
+        { header: 'VENTAS INTERNAS GRAVADAS', key: 'ventas_internas_gravadas', width: 18 },
+        { header: 'DÉBITO FISCAL', key: 'debito_fiscal', width: 14 },
+        { header: 'VENTAS EXENTAS A CUENTA DE TERCEROS', key: 'ventas_exentas_terceros', width: 22 },
+        { header: 'VENTAS INTERNAS GRAVADAS A CUENTA DE TERCEROS', key: 'ventas_gravadas_terceros', width: 28 },
+        { header: 'DEBITO FISCAL POR CUENTA DE TERCEROS', key: 'debito_fiscal_terceros', width: 25 },
+        { header: 'IVA PERCIBIDO', key: 'iva_percibido', width: 14 },
+        { header: 'TOTAL', key: 'total', width: 14 }
+      ];
+
+      const headerRow = worksheet.getRow(1);
+      headerRow.eachCell((cell, colNumber) => {
+        cell.font = { 
+          color: { argb: 'FFFFFFFF' }, 
+          bold: true,
+          size: 10
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF70AD47' } 
+        };
+        cell.alignment = { 
+          vertical: 'middle', 
+          horizontal: 'center',
+          wrapText: true
+        };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
+        };
+      });
+      headerRow.height = 30;
+
+      datosParaExportar.forEach((doc, index) => {
+        const row = worksheet.addRow({
+          numero: doc.numero || index + 1,
+          fecha_emision: doc.fecha_emision || '',
+          numero_correlativo: doc.numero_correlativo || '',
+          numero_control_interno: doc.numero_control_interno || '',
+          nombre_cliente: doc.nombre_cliente || '',
+          nrc_cliente: doc.nrc_cliente || '',
+          ventas_exentas: doc.ventas_exentas || 0,
+          ventas_internas_gravadas: doc.ventas_internas_gravadas || 0,
+          debito_fiscal: doc.debito_fiscal || 0,
+          ventas_exentas_terceros: doc.ventas_exentas_terceros || 0,
+          ventas_gravadas_terceros: doc.ventas_gravadas_terceros || 0,
+          debito_fiscal_terceros: doc.debito_fiscal_terceros || 0,
+          iva_percibido: doc.iva_percibido || 0,
+          total: doc.total || 0
+        });
+
+        const isEvenRow = index % 2 === 0;
+        const fillColor = isEvenRow ? 'FFE2EFDA' : 'FFFFFFFF';
+        
+        row.eachCell((cell, colNumber) => {
+          if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: fillColor }
+            };
+            
+            cell.font = {
+              color: { argb: 'FF000000' },
+              size: 9
+            };
+            
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FF000000' } },
+              left: { style: 'thin', color: { argb: 'FF000000' } },
+              bottom: { style: 'thin', color: { argb: 'FF000000' } },
+              right: { style: 'thin', color: { argb: 'FF000000' } }
+            };
+
+            if (colNumber >= 7 && colNumber <= 14) {
+              cell.numFmt = '#,##0.00';
+              cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            }
+            if (colNumber === 1) {
+              cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            }
           }
+        });
+      });
 
-          const workbook = new ExcelJS.Workbook();
-          
-          const worksheet = workbook.addWorksheet('Libro de Ventas');
+      const worksheetResumen = workbook.addWorksheet('Resumen');
 
-          worksheet.columns = [
-              { header: 'FECHA', key: 'fecha', width: 12 },
-              { header: 'DOCUMENTO EMITIDO DEL', key: 'doc_del' }, 
-              { header: 'DOCUMENTO EMITIDO AL', key: 'doc_al' },   
-              { header: 'CAJA SISTEMA', key: 'caja', width: 15 },
-              { header: 'VENTAS EXENTAS', key: 'exentas', width: 15 },
-              { header: 'VENTAS GRAVADAS', key: 'gravadas', width: 15 },
-              { header: 'EXPORTACIONES', key: 'exportaciones', width: 15 },
-              { header: 'TOTAL VENTAS PROPIAS', key: 'propias', width: 18 },
-              { header: 'VENTAS DE TERCEROS', key: 'terceros', width: 18 }
-          ];
+      const fechaGeneracion = getCurrentDateElSalvador();
+      const datosResumen = [
+        ['LIBRO DE VENTAS A CONTRIBUYENTES - RESUMEN', ''],
+        ['', ''],
+        ['Fecha de generación:', fechaGeneracion.toLocaleDateString('es-SV')],
+        ['Período:', `${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`],
+        ['', ''],
+        ['RESUMEN GENERAL'],
+        ['Total Documentos:', resumen.cantidadDocumentos || 0],
+        ['Ventas Exentas:', resumen.totalVentasExentas || 0],
+        ['Ventas Internas Gravadas:', resumen.totalVentasGravadas || 0],
+        ['Débito Fiscal:', resumen.totalDebitoFiscal || 0],
+        ['Ventas Exentas Terceros:', resumen.totalVentasExentasTerceros || 0],
+        ['Ventas Gravadas Terceros:', resumen.totalVentasGravadasTerceros || 0],
+        ['Débito Fiscal Terceros:', resumen.totalDebitoFiscalTerceros || 0],
+        ['IVA Percibido:', resumen.totalIvaPercibido || 0],
+        ['Total General:', resumen.totalGeneral || 0],
+        ['', ''],
+        ['TOTALES GENERALES', ''],
+        ['Ventas Exentas:', totales.ventasExentas],
+        ['Ventas Internas Gravadas:', totales.ventasInternasGravadas],
+        ['Débito Fiscal:', totales.debitoFiscal],
+        ['Ventas Exentas Terceros:', totales.ventasExentasTerceros],
+        ['Ventas Gravadas Terceros:', totales.ventasGravadasTerceros],
+        ['Débito Fiscal Terceros:', totales.debitoFiscalTerceros],
+        ['IVA Percibido:', totales.ivaPercibido],
+        ['Total General:', totales.totalGeneral]
+      ];
 
-          const headerRow = worksheet.getRow(1);
-          headerRow.eachCell((cell, colNumber) => {
-              cell.font = { 
+      datosResumen.forEach((fila, rowIndex) => {
+        const row = worksheetResumen.addRow(fila);
+        
+        row.eachCell((cell, colNumber) => {
+          if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
+
+            if (rowIndex === 0 || rowIndex === 5 || rowIndex === 16) {
+              if (colNumber === 1) {
+                cell.font = { 
                   color: { argb: 'FFFFFFFF' }, 
                   bold: true,
-                  size: 11
-              };
-              cell.fill = {
+                  size: rowIndex === 0 ? 14 : 12
+                };
+                cell.fill = {
                   type: 'pattern',
                   pattern: 'solid',
-                  fgColor: { argb: 'FF4472C4' } 
-              };
-              cell.alignment = { 
-                  vertical: 'middle', 
-                  horizontal: 'center'
-              };
-              cell.border = {
-                  top: { style: 'thin', color: { argb: 'FF000000' } },
-                  left: { style: 'thin', color: { argb: 'FF000000' } },
-                  bottom: { style: 'thin', color: { argb: 'FF000000' } },
-                  right: { style: 'thin', color: { argb: 'FF000000' } }
-              };
-          });
-          headerRow.height = 25;
-
-          datosParaExportar.forEach((dia, index) => {
-              const row = worksheet.addRow({
-                  fecha: dia.dia || '',
-                  doc_del: dia.documento_emitido_del || '',
-                  doc_al: dia.documento_emitido_al || '',
-                  caja: dia.numero_caja_sistema || '',
-                  exentas: dia.ventas_exentas || 0,
-                  gravadas: dia.ventas_internas_gravadas || 0,
-                  exportaciones: dia.exportaciones || 0,
-                  propias: dia.total_ventas_diarias_propias || 0,
-                  terceros: dia.ventas_cuenta_terceros || 0
-              });
-
-              const isEvenRow = index % 2 === 0;
-              const fillColor = isEvenRow ? 'FFD9E1F2' : 'FFFFFFFF';
-              
-              row.eachCell((cell, colNumber) => {
-                  if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
-                      cell.fill = {
-                          type: 'pattern',
-                          pattern: 'solid',
-                          fgColor: { argb: fillColor }
-                      };
-                      
-                      cell.font = {
-                          color: { argb: 'FF000000' }, 
-                          size: 10
-                      };
-                      
-                      cell.border = {
-                          top: { style: 'thin', color: { argb: 'FF000000' } },
-                          left: { style: 'thin', color: { argb: 'FF000000' } },
-                          bottom: { style: 'thin', color: { argb: 'FF000000' } },
-                          right: { style: 'thin', color: { argb: 'FF000000' } }
-                      };
-
-                      if (colNumber >= 5 && colNumber <= 9) {
-                          cell.numFmt = '#,##0.00';
-                          cell.alignment = { horizontal: 'right' };
-                      }
-
-                      if (colNumber === 1) {
-                          cell.alignment = { horizontal: 'center' };
-                      }
-                  }
-              });
-          });
-
-          const calculateDocumentColumnsWidth = () => {
-              const columns = worksheet.columns;
-              
-              const documentColumns = [1, 2];
-              
-              documentColumns.forEach(colIndex => {
-                  let maxLength = 0;
-                  
-                  worksheet.eachRow((row, rowNumber) => {
-                      const cell = row.getCell(colIndex + 1); 
-                      
-                      if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
-                          const cellText = String(cell.value);
-                          const cellLength = cellText.length;
-                          
-                          if (cellLength > maxLength) {
-                              maxLength = cellLength;
-                          }
-                      }
-                  });
-                  
-                  const headerText = worksheet.getRow(1).getCell(colIndex + 1).value;
-                  const headerLength = headerText ? String(headerText).length : 0;
-                  maxLength = Math.max(maxLength, headerLength);
-
-                  let calculatedWidth = Math.max(
-                      maxLength * 1.2, 
-                      20, 
-                      60  
-                  );
-                  
-                  if (columns[colIndex]) {
-                      columns[colIndex].width = calculatedWidth;
-                  }
-              });
-          };
-
-          calculateDocumentColumnsWidth();
-
-          const worksheetResumen = workbook.addWorksheet('Resumen');
-
-          const fechaGeneracion = getCurrentDateElSalvador();
-          const datosResumen = [
-              ['LIBRO DE VENTAS A CONSUMIDORES - RESUMEN', ''],
-              ['', ''],
-              ['Fecha de generación:', fechaGeneracion.toLocaleDateString('es-SV')],
-              ['Período:', `${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`],
-              ['', ''],
-              ['RESUMEN DE VENTAS', ''],
-              ['Días con ventas:', resumen.diasConVentas || 0],
-              ['Ventas Exentas:', resumen.totalVentasExentas || 0],
-              ['Ventas Gravadas:', resumen.totalVentasGravadas || 0],
-              ['Exportaciones:', resumen.totalExportaciones || 0],
-              ['Total Ventas Propias:', resumen.totalVentasPropias || 0],
-              ['Total Ventas de Terceros:', resumen.totalVentasTerceros || 0],
-              ['', ''],
-              ['TOTALES GENERALES', ''],
-              ['Ventas Exentas:', totales.ventasExentas],
-              ['Ventas Gravadas:', totales.ventasGravadas],
-              ['Exportaciones:', totales.exportaciones],
-              ['Total Ventas:', totales.totalVentas],
-              ['Ventas Terceros:', totales.ventasTerceros]
-          ];
-
-          datosResumen.forEach((fila, rowIndex) => {
-              const row = worksheetResumen.addRow(fila);
-              
-              row.eachCell((cell, colNumber) => {
-                  if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
-
-                      if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
-                          if (colNumber === 1) { 
-                              cell.font = { 
-                                  color: { argb: 'FFFFFFFF' }, 
-                                  bold: true,
-                                  size: rowIndex === 0 ? 14 : 12
-                              };
-                              cell.fill = {
-                                  type: 'pattern',
-                                  pattern: 'solid',
-                                  fgColor: { argb: 'FF4472C4' }
-                              };
-                              cell.alignment = { horizontal: 'center' };
-                          }
-                      }
-
-                      if (colNumber === 2 && typeof cell.value === 'number') {
-                          cell.numFmt = '#,##0.00';
-                          cell.alignment = { horizontal: 'right' };
-                      }
-
-                      cell.border = {
-                          top: { style: 'thin', color: { argb: 'FF000000' } },
-                          left: { style: 'thin', color: { argb: 'FF000000' } },
-                          bottom: { style: 'thin', color: { argb: 'FF000000' } },
-                          right: { style: 'thin', color: { argb: 'FF000000' } }
-                      };
-                  }
-              });
-
-              if (fila.some(cell => cell !== null && cell !== undefined && cell !== '')) {
-                  if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
-                      row.height = 25;
-                  }
+                  fgColor: { argb: 'FF70AD47' } // Verde
+                };
+                cell.alignment = { horizontal: 'center' };
               }
-          });
+            }
+            if (colNumber === 2 && typeof cell.value === 'number') {
+              cell.numFmt = '#,##0.00';
+              cell.alignment = { horizontal: 'right' };
+            }
 
-          worksheetResumen.columns = [
-              { width: 25 },
-              { width: 20 }
-          ];
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FF000000' } },
+              left: { style: 'thin', color: { argb: 'FF000000' } },
+              bottom: { style: 'thin', color: { argb: 'FF000000' } },
+              right: { style: 'thin', color: { argb: 'FF000000' } }
+            };
+          }
+        });
 
-          const buffer = await workbook.xlsx.writeBuffer();
-          const blob = new Blob([buffer], { 
-              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-          });
-          
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `libro-ventas-consumidores-${fechaInicio}-a-${fechaFin}.xlsx`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-          
-      } catch (error) {
-          console.error("Error al exportar Excel:", error);
-          alert("Error al exportar Excel: " + error.message);
-      } finally {
-          setExporting(false);
-      }
+        if (fila.some(cell => cell !== null && cell !== undefined && cell !== '')) {
+          if (rowIndex === 0 || rowIndex === 5 || rowIndex === 16) {
+            row.height = 25;
+          }
+        }
+      });
+
+      worksheetResumen.columns = [
+        { width: 35 },
+        { width: 20 }
+      ];
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `libro-ventas-contribuyentes-${fechaInicio}-a-${fechaFin}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error("Error al exportar Excel:", error);
+      alert("Error al exportar Excel: " + error.message);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleExportPDF = async () => {
     setExportingPDF(true);
     try {
-      const rowsPerPage = 15;
+      const rowsPerPage = 12;
       const chunks = [];
       for (let i = 0; i < libroFiltrado.length; i += rowsPerPage) {
         chunks.push(libroFiltrado.slice(i, i + rowsPerPage));
@@ -357,7 +337,7 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
         if (pageIndex === 0) {
           doc.setFontSize(16);
           doc.setFont("helvetica", "bold");
-          doc.text("LIBRO DE VENTAS A CONSUMIDORES", pageWidth / 2, 15, { align: "center" });
+          doc.text("LIBRO DE VENTAS A CONTRIBUYENTES", pageWidth / 2, 15, { align: "center" });
           
           doc.setFontSize(10);
           doc.setFont("helvetica", "normal");
@@ -369,22 +349,27 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
           doc.text("RESUMEN", margin, 35);
           
           doc.setFont("helvetica", "normal");
-          doc.text(`Días con ventas: ${resumen.diasConVentas}`, margin, 42);
+          doc.text(`Total Documentos: ${resumen.cantidadDocumentos}`, margin, 42);
           doc.text(`Ventas Exentas: ${formatCurrency(resumen.totalVentasExentas)}`, margin, 49);
           doc.text(`Ventas Gravadas: ${formatCurrency(resumen.totalVentasGravadas)}`, margin + 70, 42);
-          doc.text(`Total Ventas: ${formatCurrency(resumen.totalVentasPropias)}`, margin + 70, 49);
+          doc.text(`Total General: ${formatCurrency(resumen.totalGeneral)}`, margin + 70, 49);
         }
         
-        const tableData = chunk.map(dia => [
-          dia.dia || '-',
-          dia.documento_emitido_del || '-',
-          dia.documento_emitido_al || '-',
-          dia.numero_caja_sistema || '-',
-          formatCurrency(dia.ventas_exentas),
-          formatCurrency(dia.ventas_internas_gravadas),
-          formatCurrency(dia.exportaciones),
-          formatCurrency(dia.total_ventas_diarias_propias),
-          formatCurrency(dia.ventas_cuenta_terceros)
+        const tableData = chunk.map(doc => [
+          doc.numero || '-',
+          doc.fecha_emision || '-',
+          doc.numero_correlativo || '-',
+          doc.numero_control_interno || '-',
+          doc.nombre_cliente || '-',
+          doc.nrc_cliente || '-',
+          formatCurrency(doc.ventas_exentas),
+          formatCurrency(doc.ventas_internas_gravadas),
+          formatCurrency(doc.debito_fiscal),
+          formatCurrency(doc.ventas_exentas_terceros),
+          formatCurrency(doc.ventas_gravadas_terceros),
+          formatCurrency(doc.debito_fiscal_terceros),
+          formatCurrency(doc.iva_percibido),
+          formatCurrency(doc.total)
         ]);
         
         const startY = pageIndex === 0 ? 55 : 20;
@@ -392,18 +377,18 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
         autoTable(doc, {
           startY: startY,
           head: pageIndex === 0 ? [
-            ['Día', 'Doc. Del', 'Doc. Al', 'Caja Sistema', 'Ventas Exentas', 'Ventas Gravadas', 'Exportaciones', 'Total Ventas', 'Ventas Terceros']
+            ['N°', 'FECHA', 'CORRELATIVO', 'CONTROL INTERNO', 'CLIENTE', 'NRC', 'EXENTAS', 'GRAVADAS', 'DÉBITO FISCAL', 'EXENTAS TERCEROS', 'GRAVADAS TERCEROS', 'DÉBITO TERCEROS', 'IVA PERCIBIDO', 'TOTAL']
           ] : [],
           body: tableData,
           theme: 'grid',
           headStyles: {
-            fillColor: [75, 85, 99],
+            fillColor: [112, 173, 71], // Verde
             textColor: 255,
             fontStyle: 'bold',
-            fontSize: 6
+            fontSize: 4
           },
           styles: {
-            fontSize: 5,
+            fontSize: 3,
             cellPadding: 1,
             valign: 'middle'
           },
@@ -420,7 +405,7 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
         );
       });
       
-      doc.save(`libro-ventas-consumidores-${fechaInicio}-a-${fechaFin}.pdf`);
+      doc.save(`libro-ventas-contribuyentes-${fechaInicio}-a-${fechaFin}.pdf`);
       
     } catch (error) {
       console.error("Error al generar PDF:", error);
@@ -436,15 +421,16 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
   };
 
   const libroFiltrado = Array.isArray(libro)
-    ? libro.filter((dia) => {
-        if (!dia) return false;
+    ? libro.filter((doc) => {
+        if (!doc) return false;
         const searchLower = searchTerm.toLowerCase();
 
         return (
-          (dia.documento_emitido_del?.toLowerCase() || "").includes(searchLower) ||
-          (dia.documento_emitido_al?.toLowerCase() || "").includes(searchLower) ||
-          (dia.numero_caja_sistema?.toLowerCase() || "").includes(searchLower) ||
-          (dia.dia?.toString() || "").includes(searchTerm)
+          (doc.numero_correlativo?.toLowerCase() || "").includes(searchLower) ||
+          (doc.numero_control_interno?.toString() || "").includes(searchTerm) ||
+          (doc.nombre_cliente?.toLowerCase() || "").includes(searchLower) ||
+          (doc.nrc_cliente?.toLowerCase() || "").includes(searchLower) ||
+          (doc.fecha_emision?.toString() || "").includes(searchTerm)
         );
       })
     : [];
@@ -475,31 +461,43 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
     setSidebarOpen(!sidebarOpen);
   };
 
+  // Columnas específicas para Libro de Ventas Contribuyentes
   const columns = [
-    { key: 'dia', label: 'FECHA', width: '100px' },
-    { key: 'documento_emitido_del', label: 'DOC. EMITIDO DEL', width: '180px' },
-    { key: 'documento_emitido_al', label: 'DOC. EMITIDO AL', width: '180px' },
-    { key: 'numero_caja_sistema', label: 'CAJA SISTEMA', width: '120px' },
-    { key: 'ventas_exentas', label: 'VENTAS EXENTAS', width: '120px', align: 'right' },
+    { key: 'numero', label: 'N°', width: '60px', align: 'center' },
+    { key: 'fecha_emision', label: 'FECHA DE EMISIÓN', width: '110px' },
+    { key: 'numero_correlativo', label: 'CORRELATIVO PREEIMPRESO', width: '150px' },
+    { key: 'numero_control_interno', label: 'CONTROL INTERNO', width: '140px' },
+    { key: 'nombre_cliente', label: 'CLIENTE', width: '200px' },
+    { key: 'nrc_cliente', label: 'NRC CLIENTE', width: '100px' },
+    { key: 'ventas_exentas', label: 'VENTAS EXENTAS', width: '110px', align: 'right' },
     { key: 'ventas_internas_gravadas', label: 'VENTAS GRAVADAS', width: '120px', align: 'right' },
-    { key: 'exportaciones', label: 'EXPORTACIONES', width: '100px', align: 'right' },
-    { key: 'total_ventas_diarias_propias', label: 'TOTAL VENTAS', width: '120px', align: 'right' },
-    { key: 'ventas_cuenta_terceros', label: 'VENTAS TERCEROS', width: '120px', align: 'right' }
+    { key: 'debito_fiscal', label: 'DÉBITO FISCAL', width: '110px', align: 'right' },
+    { key: 'ventas_exentas_terceros', label: 'EXENTAS TERCEROS', width: '130px', align: 'right' },
+    { key: 'ventas_gravadas_terceros', label: 'GRAVADAS TERCEROS', width: '130px', align: 'right' },
+    { key: 'debito_fiscal_terceros', label: 'DÉBITO TERCEROS', width: '120px', align: 'right' },
+    { key: 'iva_percibido', label: 'IVA PERCIBIDO', width: '110px', align: 'right' },
+    { key: 'total', label: 'TOTAL', width: '110px', align: 'right' }
   ];
 
   const getTotales = () => {
-    return libroFiltrado.reduce((acc, dia) => ({
-      ventasExentas: acc.ventasExentas + (dia.ventas_exentas || 0),
-      ventasGravadas: acc.ventasGravadas + (dia.ventas_internas_gravadas || 0),
-      exportaciones: acc.exportaciones + (dia.exportaciones || 0),
-      totalVentas: acc.totalVentas + (dia.total_ventas_diarias_propias || 0),
-      ventasTerceros: acc.ventasTerceros + (dia.ventas_cuenta_terceros || 0)
+    return libroFiltrado.reduce((acc, doc) => ({
+      ventasExentas: acc.ventasExentas + (doc.ventas_exentas || 0),
+      ventasInternasGravadas: acc.ventasInternasGravadas + (doc.ventas_internas_gravadas || 0),
+      debitoFiscal: acc.debitoFiscal + (doc.debito_fiscal || 0),
+      ventasExentasTerceros: acc.ventasExentasTerceros + (doc.ventas_exentas_terceros || 0),
+      ventasGravadasTerceros: acc.ventasGravadasTerceros + (doc.ventas_gravadas_terceros || 0),
+      debitoFiscalTerceros: acc.debitoFiscalTerceros + (doc.debito_fiscal_terceros || 0),
+      ivaPercibido: acc.ivaPercibido + (doc.iva_percibido || 0),
+      totalGeneral: acc.totalGeneral + (doc.total || 0)
     }), {
       ventasExentas: 0,
-      ventasGravadas: 0,
-      exportaciones: 0,
-      totalVentas: 0,
-      ventasTerceros: 0
+      ventasInternasGravadas: 0,
+      debitoFiscal: 0,
+      ventasExentasTerceros: 0,
+      ventasGravadasTerceros: 0,
+      debitoFiscalTerceros: 0,
+      ivaPercibido: 0,
+      totalGeneral: 0
     });
   };
 
@@ -527,8 +525,8 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin h-12 w-12 border-4 border-gray-600 rounded-full border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Cargando libro de ventas a consumidores...</p>
+          <div className="animate-spin h-12 w-12 border-4 border-green-600 rounded-full border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Cargando libro de ventas a contribuyentes...</p>
         </div>
       </div>
     );
@@ -566,9 +564,9 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
             <div className="max-w-full mx-auto">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6">
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Libro de Ventas a Consumidores</h1>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Libro de Ventas a Contribuyentes</h1>
                   <p className="text-gray-600 text-sm">
-                    Registro diario de ventas a consumidores - Vista simplificada
+                    Registro detallado de ventas a contribuyentes según formato oficial
                   </p>
                 </div>
 
@@ -602,11 +600,11 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
                 </div>
               </div>
 
-              <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-gray-200 p-4 mb-6">
+              <div className="bg-gradient-to-r from-gray-50 to-green-50 rounded-lg border border-gray-200 p-4 mb-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 text-center">
                   <div>
-                    <div className="text-sm text-gray-600 font-medium">Días con ventas</div>
-                    <div className="text-xl font-bold text-gray-800">{resumen.diasConVentas || 0}</div>
+                    <div className="text-sm text-gray-600 font-medium">Total Documentos</div>
+                    <div className="text-xl font-bold text-gray-800">{resumen.cantidadDocumentos || 0}</div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-600 font-medium">Ventas Exentas</div>
@@ -614,15 +612,15 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
                   </div>
                   <div>
                     <div className="text-sm text-gray-600 font-medium">Ventas Gravadas</div>
-                    <div className="text-xl font-bold text-blue-600">{formatCurrency(totales.ventasGravadas)}</div>
+                    <div className="text-xl font-bold text-blue-600">{formatCurrency(totales.ventasInternasGravadas)}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600 font-medium">Total Ventas</div>
-                    <div className="text-xl font-bold text-gray-800">{formatCurrency(totales.totalVentas)}</div>
+                    <div className="text-sm text-gray-600 font-medium">Débito Fiscal</div>
+                    <div className="text-xl font-bold text-purple-600">{formatCurrency(totales.debitoFiscal)}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600 font-medium">Exportaciones</div>
-                    <div className="text-xl font-bold text-orange-600">{formatCurrency(totales.exportaciones)}</div>
+                    <div className="text-sm text-gray-600 font-medium">Total General</div>
+                    <div className="text-xl font-bold text-gray-800">{formatCurrency(totales.totalGeneral)}</div>
                   </div>
                 </div>
               </div>
@@ -639,7 +637,7 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
                         type="date"
                         value={fechaInicio}
                         onChange={(e) => setFechaInicio(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                       />
                     </div>
                   </div>
@@ -654,7 +652,7 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
                         type="date"
                         value={fechaFin}
                         onChange={(e) => setFechaFin(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                       />
                     </div>
                   </div>
@@ -667,8 +665,8 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
                       <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                       <input
                         type="text"
-                        placeholder="Fecha, documento, caja..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
+                        placeholder="Correlativo, control, cliente, NRC..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                         value={searchTerm}
                         onChange={(e) => {
                           setSearchTerm(e.target.value);
@@ -683,12 +681,12 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-green-50">
                       <tr>
                         {columns.map((column) => (
                           <th 
                             key={column.key}
-                            className={`px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap ${
+                            className={`px-3 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap ${
                               column.align === 'right' ? 'text-right' : 
                               column.align === 'center' ? 'text-center' : 'text-left'
                             }`}
@@ -700,8 +698,8 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {currentItems.map((dia, index) => (
-                        <tr key={index} className="hover:bg-gray-50 transition-colors">
+                      {currentItems.map((doc, index) => (
+                        <tr key={doc.id || index} className="hover:bg-green-50 transition-colors">
                           {columns.map((column) => (
                             <td 
                               key={column.key}
@@ -709,15 +707,15 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
                                 column.align === 'right' ? 'text-right' : 
                                 column.align === 'center' ? 'text-center' : 'text-left'
                               } ${
-                                ['documento_emitido_del', 'documento_emitido_al', 'numero_caja_sistema'].includes(column.key)
+                                ['numero_correlativo', 'numero_control_interno', 'nrc_cliente'].includes(column.key)
                                   ? 'font-mono text-gray-600 text-xs'
                                   : 'text-gray-700'
                               } whitespace-nowrap`}
                             >
-                              {column.key.includes('ventas') || column.key.includes('exportaciones') || column.key.includes('total_ventas') ? (
-                                formatCurrency(dia[column.key] || 0)
+                              {column.key.includes('ventas') || column.key.includes('debito') || column.key.includes('iva') || column.key === 'total' ? (
+                                formatCurrency(doc[column.key] || 0)
                               ) : (
-                                dia[column.key] || '-'
+                                doc[column.key] || '-'
                               )}
                             </td>
                           ))}
@@ -728,7 +726,7 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
                 </div>
 
                 {libroFiltrado.length > itemsPerPage && (
-                  <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                  <div className="px-4 py-3 bg-green-50 border-t border-gray-200">
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-gray-700">
                         Mostrando {indexOfFirstItem + 1} a {Math.min(indexOfLastItem, libroFiltrado.length)} de {libroFiltrado.length} registros
@@ -766,7 +764,7 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
                     </h3>
                     <p className="text-gray-500 text-sm">
                       {libro.length === 0 
-                        ? 'No hay ventas registradas en el período seleccionado' 
+                        ? 'No hay ventas a contribuyentes registradas en el período seleccionado' 
                         : 'No se encontraron coincidencias con los filtros aplicados'}
                     </p>
                   </div>

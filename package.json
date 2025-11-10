@@ -11,6 +11,7 @@
   "dependencies": {
     "axios": "^1.11.0",
     "dayjs": "^1.11.17",
+    "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.23.12",
     "jspdf": "^3.0.1",
@@ -25,7 +26,8 @@
     "react-select": "^5.10.1",
     "react-to-print": "^3.1.1",
     "recharts": "^3.1.2",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xlsx-style": "^0.8.13"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -336,7 +336,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   };
 
   const handleViewDetails = (facturaId) => {
-    router.push(`/dashboard/facturas-excluidas/${facturaId}`);
+    router.push(`/dashboard/facturas_sujeto_excluido/${facturaId}`);
   };
 
   const handleNuevaFactura = () => {

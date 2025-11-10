@@ -30,7 +30,9 @@ import {
   FaTruck,             // Para Nota de Remisión
   FaReceipt,           // Para Retención
   FaClipboardList,     // Para Liquidación
-  FaHistory
+  FaHistory,
+  FaUserCheck,         // Para Contribuyentes
+  FaFileExport         // Para Anexos
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -50,7 +52,8 @@ export default function Sidebar({ onOpenPerfil }) {
     retencion: false,
     liquidacion: false,
     admin: false,
-    consumidorfinal: false, // Nuevo menú agregado
+    consumidorfinal: false,
+    contribuyentes: false,
   });
   const [hoveredItem, setHoveredItem] = useState(null);
 
@@ -202,6 +205,29 @@ export default function Sidebar({ onOpenPerfil }) {
     },
 
     {
+      name: "Ventas a Contribuyentes",
+      icon: <FaBook />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Libro de Ventas a Contribuyentes", 
+          icon: <FaBook />, 
+          href: "/dashboard/libro_contribuyente",
+          permiso: "Libro de Ventas a Contribuyentes" 
+        },
+        { 
+          name: "Anexo de Contribuyentes", 
+          icon: <FaBook />, 
+          href: "/dashboard/anexo_contribuyente",
+          permiso: "Anexo de Contribuyentes" 
+        },
+      ],
+      menuKey: "contribuyentes",
+      permiso: "Ventas a Contribuyentes"
+    },
+
+    // 👤 VENTAS A CONSUMIDOR FINAL
+    {
       name: "Ventas a Consumidor Final",
       icon: <FaBook />,
       href: "#",
@@ -223,64 +249,6 @@ export default function Sidebar({ onOpenPerfil }) {
       permiso: "Ventas a Consumidor Final"
     },
 
-    // 📦 Nota de Remisión Electrónica
-    /* {
-      name: "Nota de Remisión",
-      icon: <FaTruck />,
-      href: "#",
-      subMenu: [
-        { 
-          name: "Emitir NRE", 
-          icon: <FaFileAlt />, 
-          href: "/dashboard/nota_remision",
-          permiso: "Emitir NRE" 
-        },
-        { 
-          name: "Ver NRE Emitidas", 
-          icon: <FaEye />, 
-          href: "/dashboard/nota_remision/ver",
-          permiso: "Ver NRE Emitidas" 
-        },
-        { 
-          name: "Anular NRE", 
-          icon: <FaBan />, 
-          href: "/dashboard/nota_remision/anular",
-          permiso: "Anular NRE" 
-        },
-      ],
-      menuKey: "remision",
-      permiso: "Nota de Remisión"
-    }, */
-
-    // 💸 Comprobante de Retención Electrónico
-    /* {
-      name: "Comprobantes de Retención",
-      icon: <FaReceipt />,
-      href: "#",
-      subMenu: [
-        { 
-          name: "Emitir CRE", 
-          icon: <FaFileAlt />, 
-          href: "/dashboard/retencion",
-          permiso: "Emitir CRE" 
-        },
-        { 
-          name: "Ver CRE Emitidos", 
-          icon: <FaEye />, 
-          href: "/dashboard/retencion/ver",
-          permiso: "Ver CRE Emitidos" 
-        },
-        { 
-          name: "Anular CRE", 
-          icon: <FaBan />, 
-          href: "/dashboard/retencion/anular",
-          permiso: "Anular CRE" 
-        },
-      ],
-      menuKey: "retencion",
-      permiso: "Comprobantes de Retención"
-    }, */
-
     // 📜 Comprobante de Liquidación Electrónico (Sujeto Excluido)
     {
       name: "Sujeto Excluido",
@@ -288,26 +256,26 @@ export default function Sidebar({ onOpenPerfil }) {
       href: "#",
       subMenu: [
         { 
-          name: "Emitir CLE", 
+          name: "Emitir Factura Sujeto Excluido", 
           icon: <FaFileAlt />, 
           href: "/dashboard/sujeto_excluido",
-          permiso: "Emitir CLE" 
+          permiso: "Emitir Factura Sujeto Excluido" 
         },
         { 
-          name: "Ver CLE Emitidos", 
+          name: "Ver Facturas Sujeto Excluido", 
           icon: <FaEye />, 
           href: "/dashboard/facturas_sujeto_excluido",
-          permiso: "Ver CLE Emitidos" 
+          permiso: "Ver Facturas Sujeto Excluido" 
         },
         { 
-          name: "Anular CLE", 
+          name: "Anular Factura Sujeto Excluido", 
           icon: <FaBan />, 
-          href: "/dashboard/liquidacion/anular",
-          permiso: "Anular CLE" 
+          href: "/dashboard/anular_facturas_sujeto_excluido",
+          permiso: "Anular Factura Sujeto Excluido" 
         },
       ],
-      menuKey: "liquidacion",
-      permiso: "Comprobantes de Liquidación"
+      menuKey: "sujeto_excluido",
+      permiso: "Facturas Sujeto Excluido"
     },
 
     // ⚠️ Contingencia
@@ -318,13 +286,6 @@ export default function Sidebar({ onOpenPerfil }) {
       permiso: "Contingencia" 
     },
 
-    /* 📚 Otros
-    { 
-      name: "Libro de Ventas", 
-      icon: <FaBook />, 
-      href: "/dashboard/libro_de_ventas",
-      permiso: "Libro de Ventas" 
-    }, */
     { 
       name: "Reportes", 
       icon: <FaChartLine />, 
