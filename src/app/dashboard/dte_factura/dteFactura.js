@@ -456,10 +456,12 @@ const descargarTicketFactura = async (idFactura) => {
     console.log("====== DATOS COMPLETOS DE FACTURA (SOLO VISUALIZACIÓN) ======");
     console.log("ENCABEZADO:");
     console.log(JSON.stringify(datosFactura, null, 2));
+    console.log("========== Items ==================")
+    console.log(items)
     
     const detalles = items.map((item, index) => {
       const subtotalItem = item.precioUnitario * item.cantidad;
-      const descuentoItem = subtotalItem * (item.descuento / 100);
+      const descuentoItem = item.descuento;
       const baseImponible = subtotalItem - descuentoItem;
 
       const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
@@ -545,77 +547,79 @@ const descargarTicketFactura = async (idFactura) => {
     }
   };
 
-  const guardarDetallesFactura = async (iddtefactura) => {
-    try {
-      const detalles = items.map((item, index) => {
-        const subtotalItem = item.precioUnitario * item.cantidad;
-        const descuentoItem = subtotalItem * (item.descuento / 100);
-        const baseImponible = subtotalItem - descuentoItem;
+const guardarDetallesFactura = async (iddtefactura) => {
+  try {
+    const detalles = items.map((item, index) => {
+      const subtotalItem = item.precioUnitario * item.cantidad;
+      
+      // CORRECCIÓN: Usar descuento como monto fijo, no como porcentaje
+      const descuentoItem = item.descuento || 0; // ← MONTO FIJO, no porcentaje
+      const baseImponible = subtotalItem - descuentoItem;
 
-        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
-        const esExento = item.tipo === "noAfecto";
+      const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+      const esExento = item.tipo === "noAfecto";
 
-        const tasaIVA = 13;
-        const ivaItem = esGravado ? 
-          (baseImponible * tasaIVA) / (100 + tasaIVA) : 0;
+      const tasaIVA = 13;
+      const ivaItem = esGravado ? 
+        (baseImponible * tasaIVA) / (100 + tasaIVA) : 0;
 
-        const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+      const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
 
-        return {
-          numitem: index + 1,
-          tipoitem: "1",
-          numerodocumento: null,
-          cantidad: parseFloat(item.cantidad.toFixed(2)),
-          codigo: codigoItem,
-          codtributo: null,
-          unimedida: item.unidadMedida || "59",
-          descripcion: item.descripcion,
-          preciouni: parseFloat(item.precioUnitario.toFixed(2)),
-          montodescu: parseFloat(descuentoItem.toFixed(2)),
-          ventanosuj: 0.00,
-          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-          tributos: item.tributos,
-          psv: 0,
-          nogravado: 0.00,
-          ivaitem: parseFloat(ivaItem.toFixed(2)) 
-        };
-      });
-
-      const datosDetalles = {
-        transmitir: true,
-        idEnvio: Math.floor(1000 + Math.random() * 9000),
-        detalles: detalles,
+      return {
+        numitem: index + 1,
+        tipoitem: "1",
+        numerodocumento: null,
+        cantidad: parseFloat(item.cantidad.toFixed(2)),
+        codigo: codigoItem,
+        codtributo: null,
+        unimedida: item.unidadMedida || "59",
+        descripcion: item.descripcion,
+        preciouni: parseFloat(item.precioUnitario.toFixed(2)),
+        montodescu: parseFloat(descuentoItem.toFixed(2)), // ← MONTO FIJO del descuento
+        ventanosuj: 0.00,
+        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+        tributos: item.tributos,
+        psv: 0,
+        nogravado: 0.00,
+        ivaitem: parseFloat(ivaItem.toFixed(2)) 
       };
+    });
 
-      console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
+    const datosDetalles = {
+      transmitir: true,
+      idEnvio: Math.floor(1000 + Math.random() * 9000),
+      detalles: detalles,
+    };
 
-      const responseDetalles = await fetch(`http://localhost:3000/facturas/${iddtefactura}/detalles`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(datosDetalles),
-      });
+    console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
 
-      if (responseDetalles.ok) {
-        const resultDetalles = await responseDetalles.json();
-        console.log("Detalles de factura guardados:", resultDetalles);
-        
-        // ACTUALIZAR STOCK DESPUÉS DE GUARDAR LOS DETALLES
-        await actualizarStockProductos(items);
-        
-        // RETORNAR LA RESPUESTA COMPLETA EN LUGAR DE SOLO 'true'
-        return resultDetalles;
-      } else {
-        const errorText = await responseDetalles.text();
-        console.error("Error response from server:", errorText);
-        throw new Error(`Error al guardar los detalles: ${errorText}`);
-      }
-    } catch (error) {
-      console.error("Error al guardar detalles:", error);
-      throw error;
+    const responseDetalles = await fetch(`http://localhost:3000/facturas/${iddtefactura}/detalles`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(datosDetalles),
+    });
+
+    if (responseDetalles.ok) {
+      const resultDetalles = await responseDetalles.json();
+      console.log("Detalles de factura guardados:", resultDetalles);
+      
+      // ACTUALIZAR STOCK DESPUÉS DE GUARDAR LOS DETALLES
+      await actualizarStockProductos(items);
+      
+      // RETORNAR LA RESPUESTA COMPLETA EN LUGAR DE SOLO 'true'
+      return resultDetalles;
+    } else {
+      const errorText = await responseDetalles.text();
+      console.error("Error response from server:", errorText);
+      throw new Error(`Error al guardar los detalles: ${errorText}`);
     }
-  };
+  } catch (error) {
+    console.error("Error al guardar detalles:", error);
+    throw error;
+  }
+};
 
   const obtenerUltimoNumeroFactura = async () => {
     try {
@@ -680,14 +684,15 @@ const descargarTicketFactura = async (idFactura) => {
       .filter(item => item.tipo === "noAfecto")
       .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
     
+    // CORRECCIÓN: Usar descuento como monto fijo en todos los cálculos
     const gravadasConDescuento = gravadasBase - 
       (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) - // ← MONTO FIJO
       descuentoGrabadasMonto;
     
     const exentasConDescuento = exentasBase - 
       (items.filter(item => item.tipo === "noAfecto")
-        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) - // ← MONTO FIJO
       descuentoExentasMonto;
 
     const tasaIVA = 13;
@@ -870,8 +875,9 @@ const descargarTicketFactura = async (idFactura) => {
   useEffect(() => {
     const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
     
+    // CORRECCIÓN: Usar descuento como monto fijo
     const descuentoItems = items.reduce((sum, item) => 
-      sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0);
+      sum + (item.descuento || 0), 0); // ← MONTO FIJO
 
     const gravadasBase = items
       .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
@@ -886,14 +892,15 @@ const descargarTicketFactura = async (idFactura) => {
     
     const descuentoTotal = descuentoItems + descuentoGrabadas + descuentoExentas;
     
+    // CORRECCIÓN: Usar descuento como monto fijo en todos los cálculos
     const gravadasConDescuento = gravadasBase - 
       (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) - // ← MONTO FIJO
       descuentoGrabadas;
     
     const exentasConDescuento = exentasBase - 
       (items.filter(item => item.tipo === "noAfecto")
-        .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) - // ← MONTO FIJO
       descuentoExentas;
 
     // Calcular tributos detallados
@@ -903,7 +910,8 @@ const descargarTicketFactura = async (idFactura) => {
       if (item.tributos && Array.isArray(item.tributos)) {
         item.tributos.forEach(tributo => {
           const subtotalItem = item.precioUnitario * item.cantidad;
-          const descuentoItem = subtotalItem * (item.descuento / 100);
+          // CORRECCIÓN: Usar descuento como monto fijo
+          const descuentoItem = item.descuento || 0;
           const baseImponible = subtotalItem - descuentoItem;
           
           // Calcular el valor del tributo para este item
@@ -1029,20 +1037,22 @@ const descargarTicketFactura = async (idFactura) => {
     setShowClientDetails(false);
   };
 
-  const handleItemChange = (id, field, value) => {
-    const updatedItems = items.map((item) => {
-      if (item.id === id) {
-        const updatedItem = { ...item, [field]: value };
-        if (field === "cantidad" || field === "precioUnitario" || field === "descuento") {
-          const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
-          updatedItem.total = subtotalItem * (1 - updatedItem.descuento / 100);
-        }
-        return updatedItem;
+const handleItemChange = (id, field, value) => {
+  const updatedItems = items.map((item) => {
+    if (item.id === id) {
+      const updatedItem = { ...item, [field]: value };
+      if (field === "cantidad" || field === "precioUnitario" || field === "descuento") {
+        const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
+        // CORRECCIÓN: Tratar descuento como monto fijo, no porcentaje
+        const descuentoMonto = updatedItem.descuento || 0;
+        updatedItem.total = Math.max(0, subtotalItem - descuentoMonto);
       }
-      return item;
-    });
-    setItems(updatedItems);
-  };
+      return updatedItem;
+    }
+    return item;
+  });
+  setItems(updatedItems);
+};
 
   const removeItem = (id) => {
     setItems(items.filter((item) => item.id !== id));
@@ -1098,22 +1108,33 @@ const descargarTicketFactura = async (idFactura) => {
     setModalType(tipo);
   };
 
-  const agregarItemDesdeModal = (tipo, datos) => {
-    const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
+const agregarItemDesdeModal = (tipo, datos) => {
+  console.log("=== DEBUG dteFactura: Item recibido ===");
+  console.log("Tipo:", tipo);
+  console.log("Datos descuento:", {
+    descuento: datos.descuento,
+    valorDescuento: datos.valorDescuento,
+    precioUnitario: datos.precioUnitario,
+    cantidad: datos.cantidad,
+    subtotal: datos.precioUnitario * datos.cantidad
+  });
+  console.log("======================================");
+  
+  const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
 
-    const newItem = {
-      id: newId,
-      tipo: tipo,
-      ...datos,
-      total: datos.cantidad * datos.precioUnitario * (1 - (datos.descuento || 0) / 100)
-    };
-    
-    setItems([...items, newItem]);
-    setShowModal(false);
-    setModalType("");
-    setProductoSeleccionado(null);
-    setTotalModal(0); 
+  const newItem = {
+    id: newId,
+    tipo: tipo,
+    ...datos,
+    total: (datos.cantidad * datos.precioUnitario) - (datos.descuento || 0)
   };
+  
+  setItems([...items, newItem]);
+  setShowModal(false);
+  setModalType("");
+  setProductoSeleccionado(null);
+  setTotalModal(0); 
+};
 
   const obtenerNombreUnidad = (codigoUnidad) => {
     const unidad = unidades.find(u => u.codigo === codigoUnidad.toString());
