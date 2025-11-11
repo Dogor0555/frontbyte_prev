@@ -13,8 +13,8 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
   const [facturasInvalidadas, setFacturasInvalidadas] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchTermInvalidadas, setSearchTermInvalidadas] = useState("");
-  const [ordenFecha, setOrdenFecha] = useState("reciente");
-  const [ordenFechaInvalidadas, setOrdenFechaInvalidadas] = useState("reciente");
+  const [orden, setOrden] = useState("numero-reciente");
+  const [ordenInvalidadas, setOrdenInvalidadas] = useState("numero-reciente");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,15 +80,22 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
     return false;
   };
 
-  const ordenarFacturasPorFecha = (facturas, orden) => {
+  const ordenarFacturas = (facturas, orden) => {
     return [...facturas].sort((a, b) => {
-      const fechaA = new Date(a.fechainvalidado || a.fechaemision || 0);
-      const fechaB = new Date(b.fechainvalidado || b.fechaemision || 0);
+      let valorA, valorB;
       
-      if (orden === "reciente") {
-        return fechaB - fechaA;
+      if (orden.includes("numero")) {
+        valorA = a.numerofacturausuario || 0;
+        valorB = b.numerofacturausuario || 0;
       } else {
-        return fechaA - fechaB;
+        valorA = new Date(a.fechainvalidado || a.fechaemision || 0);
+        valorB = new Date(b.fechainvalidado || b.fechaemision || 0);
+      }
+      
+      if (orden.includes("reciente")) {
+        return valorB - valorA;
+      } else {
+        return valorA - valorB;
       }
     });
   };
@@ -110,7 +117,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
       })
     : [];
 
-  const facturasOrdenadas = ordenarFacturasPorFecha(facturasFiltradas, ordenFecha);
+  const facturasOrdenadas = ordenarFacturas(facturasFiltradas, orden);
 
   const facturasInvalidadasFiltradas = Array.isArray(facturasInvalidadas)
     ? facturasInvalidadas.filter((factura) => {
@@ -129,7 +136,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
       })
     : [];
 
-  const facturasInvalidadasOrdenadas = ordenarFacturasPorFecha(facturasInvalidadasFiltradas, ordenFechaInvalidadas);
+  const facturasInvalidadasOrdenadas = ordenarFacturas(facturasInvalidadasFiltradas, ordenInvalidadas);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -656,15 +663,17 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
                   </div>
 
                   <select
-                    value={ordenFecha}
+                    value={orden}
                     onChange={(e) => {
-                      setOrdenFecha(e.target.value);
+                      setOrden(e.target.value);
                       setCurrentPage(1);
                     }}
                     className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
                   >
-                    <option value="reciente">Más reciente</option>
-                    <option value="antigua">Más antigua</option>
+                    <option value="numero-reciente">Número de factura (más alto)</option>
+                    <option value="numero-antigua">Número de factura (más bajo)</option>
+                    <option value="fecha-reciente">Fecha (más reciente)</option>
+                    <option value="fecha-antigua">Fecha (más antigua)</option>
                   </select>
                 </div>
               </div>
@@ -740,15 +749,17 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
                     </div>
 
                     <select
-                      value={ordenFechaInvalidadas}
+                      value={ordenInvalidadas}
                       onChange={(e) => {
-                        setOrdenFechaInvalidadas(e.target.value);
+                        setOrdenInvalidadas(e.target.value);
                         setCurrentPageInvalidadas(1);
                       }}
                       className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-red-500 focus:border-red-500 text-gray-700"
                     >
-                      <option value="reciente">Más reciente</option>
-                      <option value="antigua">Más antigua</option>
+                      <option value="numero-reciente">Número de factura (más alto)</option>
+                      <option value="numero-antigua">Número de factura (más bajo)</option>
+                      <option value="fecha-reciente">Fecha (más reciente)</option>
+                      <option value="fecha-antigua">Fecha (más antigua)</option>
                     </select>
                   </div>
                 </div>

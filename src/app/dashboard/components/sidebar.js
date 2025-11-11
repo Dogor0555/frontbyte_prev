@@ -144,7 +144,7 @@ export default function Sidebar({ onOpenPerfil }) {
         { 
           name: "DTE Sujeto Excluido", 
           icon: <FaClipboardList />, 
-          href: "/dashboard/dte_sujexcluido",
+          href: "/dashboard/sujeto_excluido",
           permiso: "DTE Sujeto Excluido" 
         },
       ],
@@ -255,12 +255,6 @@ export default function Sidebar({ onOpenPerfil }) {
       icon: <FaClipboardList />,
       href: "#",
       subMenu: [
-        { 
-          name: "Emitir Factura Sujeto Excluido", 
-          icon: <FaFileAlt />, 
-          href: "/dashboard/sujeto_excluido",
-          permiso: "Emitir Factura Sujeto Excluido" 
-        },
         { 
           name: "Ver Facturas Sujeto Excluido", 
           icon: <FaEye />, 

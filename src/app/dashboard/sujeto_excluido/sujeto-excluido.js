@@ -489,7 +489,7 @@ const guardarDetallesDocumento = async (iddtefactura) => {
 
   const obtenerUltimoNumeroDocumento = async () => {
     try {
-      const response = await fetch("http://localhost:3000/sujeto-excluido/ultima", {
+      const response = await fetch("http://localhost:3000/facturas/ultima", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

@@ -13,8 +13,8 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
   const [creditosAnulados, setCreditosAnulados] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchTermAnulados, setSearchTermAnulados] = useState("");
-  const [ordenFecha, setOrdenFecha] = useState("reciente");
-  const [ordenFechaAnulados, setOrdenFechaAnulados] = useState("reciente");
+  const [orden, setOrden] = useState("numero-reciente");
+  const [ordenAnulados, setOrdenAnulados] = useState("numero-reciente");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,15 +77,22 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
     return false;
   };
 
-  const ordenarCreditosPorFecha = (creditos, orden) => {
+  const ordenarCreditos = (creditos, orden) => {
     return [...creditos].sort((a, b) => {
-      const fechaA = new Date(a.fechaanulado || a.fechaemision || 0);
-      const fechaB = new Date(b.fechaanulado || b.fechaemision || 0);
+      let valorA, valorB;
       
-      if (orden === "reciente") {
-        return fechaB - fechaA;
+      if (orden.includes("numero")) {
+        valorA = a.numerofacturausuario || 0;
+        valorB = b.numerofacturausuario || 0;
       } else {
-        return fechaA - fechaB;
+        valorA = new Date(a.fechaanulado || a.fechaemision || 0);
+        valorB = new Date(b.fechaanulado || b.fechaemision || 0);
+      }
+      
+      if (orden.includes("reciente")) {
+        return valorB - valorA;
+      } else {
+        return valorA - valorB;
       }
     });
   };
@@ -105,7 +112,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
       })
     : [];
 
-  const creditosOrdenados = ordenarCreditosPorFecha(creditosFiltrados, ordenFecha);
+  const creditosOrdenados = ordenarCreditos(creditosFiltrados, orden);
 
   const creditosAnuladosFiltrados = Array.isArray(creditosAnulados)
     ? creditosAnulados.filter((credito) => {
@@ -122,7 +129,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
       })
     : [];
 
-  const creditosAnuladosOrdenados = ordenarCreditosPorFecha(creditosAnuladosFiltrados, ordenFechaAnulados);
+  const creditosAnuladosOrdenados = ordenarCreditos(creditosAnuladosFiltrados, ordenAnulados);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -626,15 +633,17 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
                     </div>
 
                     <select
-                      value={ordenFecha}
+                      value={orden}
                       onChange={(e) => {
-                        setOrdenFecha(e.target.value);
+                        setOrden(e.target.value);
                         setCurrentPage(1);
                       }}
                       className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                     >
-                      <option value="reciente">Más reciente</option>
-                      <option value="antigua">Más antigua</option>
+                      <option value="numero-reciente">Número de crédito (más alto)</option>
+                      <option value="numero-antigua">Número de crédito (más bajo)</option>
+                      <option value="fecha-reciente">Fecha (más reciente)</option>
+                      <option value="fecha-antigua">Fecha (más antigua)</option>
                     </select>
                   </div>
                 </div>
@@ -707,15 +716,17 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
                     </div>
 
                     <select
-                      value={ordenFechaAnulados}
+                      value={ordenAnulados}
                       onChange={(e) => {
-                        setOrdenFechaAnulados(e.target.value);
+                        setOrdenAnulados(e.target.value);
                         setCurrentPageAnulados(1);
                       }}
                       className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-red-500 focus:border-red-500 text-gray-700"
                     >
-                      <option value="reciente">Más reciente</option>
-                      <option value="antigua">Más antigua</option>
+                      <option value="numero-reciente">Número de crédito (más alto)</option>
+                      <option value="numero-antigua">Número de crédito (más bajo)</option>
+                      <option value="fecha-reciente">Fecha (más reciente)</option>
+                      <option value="fecha-antigua">Fecha (más antigua)</option>
                     </select>
                   </div>
                 </div>
