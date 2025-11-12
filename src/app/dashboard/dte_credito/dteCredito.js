@@ -97,47 +97,47 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   });
   const [descargandoTicket, setDescargandoTicket] = useState(false);
 
-    const [unidades, setUnidades] = useState([
-      { codigo: "1", nombre: "metro" },
-      { codigo: "2", nombre: "Yarda" },
-      { codigo: "6", nombre: "milímetro" },
-      { codigo: "10", nombre: "Hectárea" },
-      { codigo: "13", nombre: "metro cuadrado" },
-      { codigo: "15", nombre: "Vara cuadrada" },
-      { codigo: "18", nombre: "metro cúbico" },
-      { codigo: "20", nombre: "Barril" },
-      { codigo: "22", nombre: "Galón" },
-      { codigo: "23", nombre: "Litro" },
-      { codigo: "24", nombre: "Botella" },
-      { codigo: "26", nombre: "Mililitro" },
-      { codigo: "30", nombre: "Tonelada" },
-      { codigo: "32", nombre: "Quintal" },
-      { codigo: "33", nombre: "Arroba" },
-      { codigo: "34", nombre: "Kilogramo" },
-      { codigo: "36", nombre: "Libra" },
-      { codigo: "37", nombre: "Onza troy" },
-      { codigo: "38", nombre: "Onza" },
-      { codigo: "39", nombre: "Gramo" },
-      { codigo: "40", nombre: "Miligramo" },
-      { codigo: "42", nombre: "Megawatt" },
-      { codigo: "43", nombre: "Kilowatt" },
-      { codigo: "44", nombre: "Watt" },
-      { codigo: "45", nombre: "Megavoltio-amperio" },
-      { codigo: "46", nombre: "Kilovoltio-amperio" },
-      { codigo: "47", nombre: "Voltio-amperio" },
-      { codigo: "49", nombre: "Gigawatt-hora" },
-      { codigo: "50", nombre: "Megawatt-hora" },
-      { codigo: "51", nombre: "Kilowatt-hora" },
-      { codigo: "52", nombre: "Watt-hora" },
-      { codigo: "53", nombre: "Kilovoltio" },
-      { codigo: "54", nombre: "Voltio" },
-      { codigo: "55", nombre: "Kilómetro" },
-      { codigo: "56", nombre: "Medio millar" },
-      { codigo: "57", nombre: "Ciento" },
-      { codigo: "58", nombre: "Docena" },
-      { codigo: "59", nombre: "Unidad" },
-      { codigo: "99", nombre: "Otra" },
-    ]);
+  const [unidades, setUnidades] = useState([
+    { codigo: "1", nombre: "metro" },
+    { codigo: "2", nombre: "Yarda" },
+    { codigo: "6", nombre: "milímetro" },
+    { codigo: "10", nombre: "Hectárea" },
+    { codigo: "13", nombre: "metro cuadrado" },
+    { codigo: "15", nombre: "Vara cuadrada" },
+    { codigo: "18", nombre: "metro cúbico" },
+    { codigo: "20", nombre: "Barril" },
+    { codigo: "22", nombre: "Galón" },
+    { codigo: "23", nombre: "Litro" },
+    { codigo: "24", nombre: "Botella" },
+    { codigo: "26", nombre: "Mililitro" },
+    { codigo: "30", nombre: "Tonelada" },
+    { codigo: "32", nombre: "Quintal" },
+    { codigo: "33", nombre: "Arroba" },
+    { codigo: "34", nombre: "Kilogramo" },
+    { codigo: "36", nombre: "Libra" },
+    { codigo: "37", nombre: "Onza troy" },
+    { codigo: "38", nombre: "Onza" },
+    { codigo: "39", nombre: "Gramo" },
+    { codigo: "40", nombre: "Miligramo" },
+    { codigo: "42", nombre: "Megawatt" },
+    { codigo: "43", nombre: "Kilowatt" },
+    { codigo: "44", nombre: "Watt" },
+    { codigo: "45", nombre: "Megavoltio-amperio" },
+    { codigo: "46", nombre: "Kilovoltio-amperio" },
+    { codigo: "47", nombre: "Voltio-amperio" },
+    { codigo: "49", nombre: "Gigawatt-hora" },
+    { codigo: "50", nombre: "Megawatt-hora" },
+    { codigo: "51", nombre: "Kilowatt-hora" },
+    { codigo: "52", nombre: "Watt-hora" },
+    { codigo: "53", nombre: "Kilovoltio" },
+    { codigo: "54", nombre: "Voltio" },
+    { codigo: "55", nombre: "Kilómetro" },
+    { codigo: "56", nombre: "Medio millar" },
+    { codigo: "57", nombre: "Ciento" },
+    { codigo: "58", nombre: "Docena" },
+    { codigo: "59", nombre: "Unidad" },
+    { codigo: "99", nombre: "Otra" },
+  ]);
 
   const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
     if (!tipoDocumento || !numeroDocumento.trim()) {
@@ -533,6 +533,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
         const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
         const esExento = item.tipo === "noAfecto";
+        const esNoSujeto = item.tipo === "noSuj";
 
         const tasaIVA = 0.13;
         const ivaItem = esGravado ? 
@@ -551,7 +552,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           descripcion: item.descripcion,
           preciouni: parseFloat(item.precioUnitario.toFixed(2)),
           montodescu: parseFloat(descuentoItem.toFixed(2)),
-          ventanosuj: 0.00,
+          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(2)) : 0.00,
           ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
           ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
           tributos: item.tributos,
@@ -653,6 +654,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       .filter(item => item.tipo === "noAfecto")
       .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
     
+    const noSujetasBase = items
+      .filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+
     const gravadasConDescuento = gravadasBase - 
       (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
         .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
@@ -662,6 +667,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       (items.filter(item => item.tipo === "noAfecto")
         .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
       descuentoExentasMonto;
+
+    const noSujetasConDescuento = noSujetasBase - 
+      (items.filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0));
 
     const tasaIVA = 0.13;
     const ivaIncluido = gravadasConDescuento * tasaIVA;
@@ -694,7 +703,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       tipocontingencia: "",
       motivocontin: "",
 
-      totalnosuj: 0.00,
+      totalnosuj: parseFloat(noSujetasConDescuento.toFixed(2)),
       totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
       totalgravada: parseFloat(gravadasConDescuento.toFixed(2)),
       subtotalventas: parseFloat((subtotal - totaldescuento).toFixed(2)),
@@ -856,6 +865,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       .filter(item => item.tipo === "noAfecto")
       .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
 
+    const noSujetasBase = items
+      .filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+
     const descuentoGrabadas = descuentoGrabadasMonto;
     const descuentoExentas = descuentoExentasMonto;
     
@@ -870,6 +883,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       (items.filter(item => item.tipo === "noAfecto")
         .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
       descuentoExentas;
+
+    const noSujetasConDescuento = noSujetasBase - 
+      (items.filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0));
 
     const nuevosTributos = {};
     
@@ -906,8 +923,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     const tasaIVA = 0.13;
     const ivaIncluido = gravadasConDescuento * tasaIVA;
 
-    const subtotalConDescuento = suma - descuentoTotal;
-    const total = subtotalConDescuento + ivaIncluido;
+    const total = gravadasConDescuento + exentasConDescuento + noSujetasConDescuento + ivaIncluido;
 
     setSumaopesinimpues(parseFloat(suma.toFixed(2)));
     setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
@@ -1007,7 +1023,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         if (field === "cantidad" || field === "precioUnitario" || field === "descuento" || 
             field === "descuentoGravado" || field === "descuentoExento" || field === "descuentoNoSujeto") {
           const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
-          // CORRECCIÓN: Tratar descuento como monto fijo, no porcentaje
           const descuentoMonto = updatedItem.descuento || 0;
           updatedItem.total = Math.max(0, subtotalItem - descuentoMonto);
         }
@@ -1094,7 +1109,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       tipo: tipo,
       ...datos,
       total: (datos.cantidad * datos.precioUnitario) - (datos.descuento || 0),
-      // Asegurar que los campos de descuento distribuido estén presentes
       descuentoGravado: datos.descuentoGravado || 0,
       descuentoExento: datos.descuentoExento || 0,
       descuentoNoSujeto: datos.descuentoNoSujeto || 0
@@ -1223,6 +1237,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     Agregar Detalle
                   </button>
                 </div>
+
                 {/* Tabla de items */}
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
@@ -1233,84 +1248,117 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Cantidad</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Precio</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Sub Total</th>
-                        {/* NUEVAS COLUMNAS PARA DESCUENTOS DISTRIBUIDOS */}
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Gravado</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Exento</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Sujeto</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total Gravado</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total Exento</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total No Sujeto</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {items.length === 0 ? (
                         <tr>
-                          <td colSpan="9" className="px-4 py-4 text-center text-gray-500 border-b">
+                          <td colSpan="13" className="px-4 py-4 text-center text-gray-500 border-b">
                             No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.
                           </td>
                         </tr>
                       ) : (
-                        items.map((item) => (
-                          <tr key={item.id}>
-                            <td className="px-4 py-2 border-b">
-                              <span className="text-sm">
-                                {item.unidadMedida} - {obtenerNombreUnidad(item.unidadMedida)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 border-b">
-                              <input
-                                type="text"
-                                value={item.descripcion}
-                                onChange={(e) => handleItemChange(item.id, "descripcion", e.target.value)}
-                                className="w-full p-1 border border-gray-300 rounded"
-                              />
-                            </td>
-                            <td className="px-4 py-2 border-b">
-                              <input
-                                type="number"
-                                min="1"
-                                value={item.cantidad}
-                                onChange={(e) => handleItemChange(item.id, "cantidad", parseFloat(e.target.value))}
-                                className="w-20 p-1 border border-gray-300 rounded"
-                              />
-                            </td>
-                            <td className="px-4 py-2 border-b">
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={item.precioUnitario}
-                                onChange={(e) => handleItemChange(item.id, "precioUnitario", parseFloat(e.target.value))}
-                                className="w-24 p-1 border border-gray-300 rounded"
-                              />
-                            </td>
-                            <td className="px-4 py-2 font-medium border-b">
-                              {formatMoney(item.total)}
-                            </td>
-                            {/* NUEVAS CELDAS PARA DESCUENTOS DISTRIBUIDOS */}
-                            <td className="px-4 py-2 border-b text-center">
-                              <span className="text-sm text-red-600 font-medium">
-                                {formatMoney(item.descuentoGravado || 0)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 border-b text-center">
-                              <span className="text-sm text-red-600 font-medium">
-                                {formatMoney(item.descuentoExento || 0)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 border-b text-center">
-                              <span className="text-sm text-red-600 font-medium">
-                                {formatMoney(item.descuentoNoSujeto || 0)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 border-b">
-                              <button
-                                onClick={() => removeItem(item.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <FaTrash />
-                              </button>
-                            </td>
-                          </tr>
-                        ))
+                        items.map((item) => {
+                          const subtotal = item.precioUnitario * item.cantidad;
+                      
+                          const totalGravado = (item.tipo === "producto" || item.tipo === "impuestos") 
+                            ? subtotal - (item.descuentoGravado || 0) 
+                            : 0;
+                            
+                          const totalExento = (item.tipo === "noAfecto") 
+                            ? subtotal - (item.descuentoExento || 0) 
+                            : 0;
+                            
+                          const totalNoSujeto = subtotal - (item.descuentoNoSujeto || 0);
+
+                          const totalItem = ((item.precioUnitario * item.cantidad) - item.descuentoGravado -  item.descuentoExento - item.descuentoNoSujeto);
+
+                          return (
+                            <tr key={item.id}>
+                              <td className="px-4 py-2 border-b">
+                                <span className="text-sm">
+                                  {item.unidadMedida} - {obtenerNombreUnidad(item.unidadMedida)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <input
+                                  type="text"
+                                  value={item.descripcion}
+                                  onChange={(e) => handleItemChange(item.id, "descripcion", e.target.value)}
+                                  className="w-full p-1 border border-gray-300 rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.cantidad}
+                                  onChange={(e) => handleItemChange(item.id, "cantidad", parseFloat(e.target.value))}
+                                  className="w-20 p-1 border border-gray-300 rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.precioUnitario}
+                                  onChange={(e) => handleItemChange(item.id, "precioUnitario", parseFloat(e.target.value))}
+                                  className="w-24 p-1 border border-gray-300 rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-2 font-medium border-b">
+                                {formatMoney(subtotal)}
+                              </td>
+                              {/* CELDAS DE DESCUENTOS */}
+                              <td className="px-4 py-2 border-b text-center">
+                                <span className="text-sm text-red-600 font-medium">
+                                  {formatMoney(item.descuentoGravado || 0)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 border-b text-center">
+                                <span className="text-sm text-red-600 font-medium">
+                                  {formatMoney(item.descuentoExento || 0)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 border-b text-center">
+                                <span className="text-sm text-red-600 font-medium">
+                                  {formatMoney(item.descuentoNoSujeto || 0)}
+                                </span>
+                              </td>
+                              {/* CELDAS DE TOTALES POR TIPO DESPUÉS DE DESCUENTOS */}
+                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
+                                {formatMoney(totalGravado)}
+                              </td>
+                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
+                                {formatMoney(totalExento)}
+                              </td>
+                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
+                                {formatMoney(totalNoSujeto)}
+                              </td>
+                              {/* NUEVA COLUMNA PARA EL TOTAL */}
+                              <td className="px-4 py-2 border-b text-center font-bold text-blue-700">
+                                {formatMoney(totalItem)}
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <button
+                                  onClick={() => removeItem(item.id)}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <FaTrash />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -1326,18 +1374,37 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       <span className="font-medium">{formatMoney(sumaopesinimpues)}</span>
                     </div>
                     
-                    {descuentoGrabadasMonto > 0 && (
-                      <div className="flex justify-between text-blue-600">
-                        <span className="text-sm">Descuento ventas gravadas:</span>
-                        <span className="text-sm font-medium">-{formatMoney(descuentoGrabadasMonto)}</span>
-                      </div>
-                    )}
-                    {descuentoExentasMonto > 0 && (
-                      <div className="flex justify-between text-blue-600">
-                        <span className="text-sm">Descuento ventas exentas:</span>
-                        <span className="text-sm font-medium">-{formatMoney(descuentoExentasMonto)}</span>
-                      </div>
-                    )}
+                    {/* Descuentos desglosados de los items */}
+                    {(() => {
+                      // Calcular totales de descuentos por tipo desde los items
+                      const totalDescuentoGravado = items.reduce((sum, item) => sum + (item.descuentoGravado || 0), 0);
+                      const totalDescuentoExento = items.reduce((sum, item) => sum + (item.descuentoExento || 0), 0);
+                      const totalDescuentoNoSujeto = items.reduce((sum, item) => sum + (item.descuentoNoSujeto || 0), 0);
+                      
+                      return (
+                        <>
+                          {totalDescuentoGravado > 0 && (
+                            <div className="flex justify-between text-blue-600">
+                              <span className="text-sm">Descuento ventas gravadas:</span>
+                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoGravado)}</span>
+                            </div>
+                          )}
+                          {totalDescuentoExento > 0 && (
+                            <div className="flex justify-between text-blue-600">
+                              <span className="text-sm">Descuento ventas exentas:</span>
+                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoExento)}</span>
+                            </div>
+                          )}
+                          {totalDescuentoNoSujeto > 0 && (
+                            <div className="flex justify-between text-blue-600">
+                              <span className="text-sm">Descuento ventas no sujetas:</span>
+                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoNoSujeto)}</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                    
                     <div className="flex justify-between text-red-600">
                       <span className="text-gray-700">Total descuentos:</span>
                       <span className="font-medium">-{formatMoney(totaldescuento)}</span>
@@ -1349,10 +1416,33 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   </div>
                   
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">Ventas gravadas después de descuentos:</span>
-                      <span className="font-medium">{formatMoney(ventasgrabadas)}</span>
+                    <div className="space-y-1 pl-4 border-l-2 border-gray-300">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Gravado:</span>
+                        <span className="font-medium">
+                          {formatMoney(
+                            items.reduce((sum, item) => sum + (item.ventaGravada || 0), 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Exento:</span>
+                        <span className="font-medium">
+                          {formatMoney(
+                            items.reduce((sum, item) => sum + (item.ventaExenta || 0), 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">No Sujeto:</span>
+                        <span className="font-medium">
+                          {formatMoney(
+                            items.reduce((sum, item) => sum + (item.ventaNoSujeta || 0), 0)
+                          )}
+                        </span>
+                      </div>
                     </div>
+                    
                     
                     <div className="flex justify-between">
                       <span className="text-gray-700">IVA (13% sobre ventas gravadas):</span>
@@ -1360,16 +1450,19 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     </div>
                     
                     {/* Mostrar tributos desglosados */}
-                    {Object.values(tributosDetallados).map((tributo) => (
-                      <div key={tributo.codigo} className="flex justify-between text-sm">
-                        <span className="text-gray-600">
-                          {tributo.codigo} - {tributo.descripcion}:
-                        </span>
-                        <span className="font-medium text-green-600">
-                          +{formatMoney(tributo.valor)}
-                        </span>
-                      </div>
-                    ))}
+                    {Object.values(tributosDetallados)
+                      .filter(tributo => tributo.codigo !== "20")
+                      .map((tributo) => (
+                        <div key={tributo.codigo} className="flex justify-between text-sm">
+                          <span className="text-gray-600">
+                            {tributo.codigo} - {tributo.descripcion}:
+                          </span>
+                          <span className="font-medium text-green-600">
+                            +{formatMoney(tributo.valor)}
+                          </span>
+                        </div>
+                      ))
+                    }
                     
                     <div className="flex justify-between pt-2 border-t border-gray-300">
                       <span className="text-gray-900 font-bold text-lg">Total a pagar:</span>

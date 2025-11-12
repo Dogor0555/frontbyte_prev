@@ -69,11 +69,13 @@ export default function ProductModal({
     }
   }, [productoSeleccionado]);
 
+  // CORRECCIÓN: Manejar tributos según tipo de venta
   useEffect(() => {
-    if (tipoVenta === "1" && productoSeleccionado) {
+    if (tipoVenta === "1") {
+      // Gravado - Agregar IVA automáticamente si no existe
       const ivaExiste = tributos.some(t => t.codigo === "20");
       
-      if (!ivaExiste) {
+      if (!ivaExiste && productoSeleccionado) {
         const precio = parseFloat(productoSeleccionado.precio) || 0;
         const subtotalSinDescuento = cantidad * precio;
         const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
@@ -87,7 +89,8 @@ export default function ProductModal({
         
         setTributos([ivaTributo]);
       }
-    } else if (tipoVenta !== "1") {
+    } else {
+      // Exento o No Sujeto - Remover IVA si existe
       setTributos(tributos.filter(t => t.codigo !== "20"));
     }
   }, [tipoVenta, productoSeleccionado, cantidad, descuentoAplicado]);
@@ -154,18 +157,18 @@ export default function ProductModal({
       "51": "Bebidas Alcohólicas",
       "52": "Cerveza",
       "53": "Productos del Tabaco",
-      "54": "Bebidas Carbonatadas o Gaseosas Simples ou Endulzadas",
+      "54": "Bebidas Carbonatadas ou Gaseosas Simples ou Endulzadas",
       "55": "Otros Específicos",
       "58": "Alcohol",
       "77": "Importador de Jugos, Néctares, Bebidas con Jugo y Refrescos",
       "78": "Distribuidor de Jugos, Néctares, Bebidas con Jugo y Refrescos",
       "79": "Sobre Llamadas Telefónicas Provenientes del Ext.",
       "85": "Detallista de Jugos, Néctares, Bebidas con Jugo y Refrescos",
-      "86": "Fabricante de Preparaciones Concentradas o en Polvo para la Elaboración de Bebidas",
+      "86": "Fabricante de Preparaciones Concentradas ou en Polvo para la Elaboración de Bebidas",
       "91": "Fabricante de Jugos, Néctares, Bebidas con Jugo y Refrescos",
-      "92": "Importador de Preparaciones Concentradas o en Polvo para la Elaboración de Bebidas",
+      "92": "Importador de Preparaciones Concentradas ou en Polvo para la Elaboración de Bebidas",
       "A1": "Específicos y Ad-valorem",
-      "A5": "Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes o Estimulantes",
+      "A5": "Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes ou Estimulantes",
       "A7": "Alcohol Etílico",
       "A9": "Sacos Sintéticos"
     };
@@ -202,6 +205,13 @@ export default function ProductModal({
   const agregarTributo = () => {
     if (!productoSeleccionado) return;
     
+    // CORRECCIÓN: No permitir agregar tributos para No Sujeto
+    if (tipoVenta === "3") {
+      alert("No puede agregar tributos a un producto No Sujeto");
+      return;
+    }
+    
+    // CORRECCIÓN: No permitir agregar IVA a productos exentos
     if (tipoVenta === "2" && impuestoSeleccionado === "20") {
       alert("No puede agregar IVA a un producto exento");
       return;
@@ -228,6 +238,7 @@ export default function ProductModal({
   };
 
   const eliminarTributo = (codigo) => {
+    // CORRECCIÓN: No permitir eliminar IVA de productos gravados
     if (tipoVenta === "1" && codigo === "20") {
       alert("No puede eliminar el IVA de un producto gravado");
       return;
@@ -243,17 +254,18 @@ export default function ProductModal({
     const subtotalSinDescuento = cantidad * precio;
     const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
     
-    if (tipoVenta === "2") {
-      const precioSinIVA = precio;
-      const subtotalSinDescuentoSinIVA = cantidad * precioSinIVA;
-      const descuentoSinIVA = parseFloat(valorDescuento) || 0;
-      const subtotalConDescuentoSinIVA = subtotalSinDescuentoSinIVA - descuentoSinIVA;
-      
-      return Math.max(0, subtotalConDescuentoSinIVA);
+    // CORRECCIÓN: Para No Sujeto, solo retornar el subtotal con descuento
+    if (tipoVenta === "3") {
+      return Math.max(0, subtotalConDescuento);
     }
     
-    const impuestosNoIVA = tributos.filter(tributo => tributo.codigo !== "20");
-    const totalImpuestos = impuestosNoIVA.reduce((sum, tributo) => sum + tributo.valor, 0);
+    if (tipoVenta === "2") {
+      // Exento - sin impuestos
+      return Math.max(0, subtotalConDescuento);
+    }
+    
+    // Gravado - sumar tributos (incluye IVA automático)
+    const totalImpuestos = tributos.reduce((sum, tributo) => sum + tributo.valor, 0);
     
     return Math.max(0, subtotalConDescuento + totalImpuestos);
   };
@@ -288,7 +300,7 @@ export default function ProductModal({
         tipoItem = "noAfecto";
         break;
       case "3":
-        tipoItem = "noAfecto"; 
+        tipoItem = "noSuj"; 
         break;
       default:
         tipoItem = "producto";
@@ -297,12 +309,7 @@ export default function ProductModal({
     const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
     
-    let precioUnitario;
-    if (tipoVenta === "2") {
-      precioUnitario = parseFloat(productoSeleccionado.precio);
-    } else {
-      precioUnitario = parseFloat(productoSeleccionado.precio);
-    }
+    let precioUnitario = parseFloat(productoSeleccionado.precio);
 
     const total = calcularTotal();
     
@@ -342,15 +349,15 @@ export default function ProductModal({
       valorDescuento: valorDescuento,
       unidadMedida: productoSeleccionado.unidad || "59",
       tipo: tipoItem,
-      tributos: tributos,
+      tributos: tipoVenta === "3" ? [] : tributos, // CORRECCIÓN: No Sujeto no lleva tributos
       productoId: !esServicio ? productoSeleccionado.id : null,
       actualizarStock: necesitaActualizarStock,
       stockAnterior: !esServicio ? productoSeleccionado.stock : null,
       esServicio: esServicio,
       // Nuevos campos para tipos de venta
-      ventaGravada: ventaGravada,
-      ventaExenta: ventaExenta,
-      ventaNoSujeta: ventaNoSujeta,
+      ventaGravada: (ventaGravada - descuentoGravado),
+      ventaExenta: (ventaExenta - descuentoExento),
+      ventaNoSujeta: (ventaNoSujeta - descuentoNoSujeto),
       // Nuevos campos para descuentos por tipo
       descuentoGravado: descuentoGravado,
       descuentoExento: descuentoExento,
@@ -372,10 +379,7 @@ export default function ProductModal({
   if (!isOpen) return null;
 
   const subtotalSinDescuento = productoSeleccionado ? 
-    (tipoVenta === "2" 
-      ? cantidad * (parseFloat(productoSeleccionado.precio))
-      : cantidad * parseFloat(productoSeleccionado.precio)
-    ) || 0 : 0;
+    cantidad * parseFloat(productoSeleccionado.precio) || 0 : 0;
 
   const subtotalConDescuento = Math.max(0, subtotalSinDescuento - descuentoAplicado);
   const total = calcularTotal();
@@ -386,6 +390,7 @@ export default function ProductModal({
                            cantidad > productoSeleccionado.stock;
 
   const esExento = tipoVenta === "2";
+  const esNoSujeto = tipoVenta === "3"; // CORRECCIÓN: Variable para No Sujeto
 
   return (
     <div className="text-black fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
@@ -716,7 +721,7 @@ export default function ProductModal({
                     className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={impuestoSeleccionado}
                     onChange={(e) => setImpuestoSeleccionado(e.target.value)}
-                    disabled={esExento}
+                    disabled={esExento || esNoSujeto} // CORRECCIÓN: Deshabilitar para No Sujeto también
                   >
                     <option value="20">20 - Impuesto al Valor Agregado 13%</option>
                     <option value="59">59 - Turismo: por alojamiento (5%)</option>
@@ -732,7 +737,7 @@ export default function ProductModal({
                   <button
                     onClick={agregarTributo}
                     className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    disabled={!productoSeleccionado || esExento}
+                    disabled={!productoSeleccionado || esExento || esNoSujeto} // CORRECCIÓN: Deshabilitar para No Sujeto
                   >
                     <FaPlus />
                   </button>
@@ -742,7 +747,7 @@ export default function ProductModal({
                   <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
                     <h4 className="font-semibold text-gray-900 mb-2">Tributos agregados:</h4>
                     <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {tributos.filter(tributo => tributo.codigo !== "20").map((tributo, index) => (
+                      {tributos.map((tributo, index) => (
                         <div key={index} className="flex justify-between items-center p-2 bg-white rounded border border-gray-200">
                           <div className="flex-1">
                             <div className="text-sm font-medium">{tributo.codigo} - {tributo.descripcion}</div>
@@ -751,13 +756,22 @@ export default function ProductModal({
                           <button
                             onClick={() => eliminarTributo(tributo.codigo)}
                             className="text-red-500 hover:text-red-700 ml-2"
-                            disabled={(tipoVenta === "1" && tributo.codigo === "20") || esExento}
+                            disabled={(tipoVenta === "1" && tributo.codigo === "20") || esExento || esNoSujeto} // CORRECCIÓN: Deshabilitar para No Sujeto
                           >
                             <FaTrash size={14} />
                           </button>
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* CORRECCIÓN: Mensaje informativo para No Sujeto */}
+                {esNoSujeto && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-2">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Producto No Sujeto:</strong> No se aplican impuestos ni tributos.
+                    </p>
                   </div>
                 )}
               </div>
@@ -790,7 +804,7 @@ export default function ProductModal({
                   
                   <div className="flex justify-between py-3 border-t border-gray-300 mt-2">
                     <span className="text-lg font-semibold text-gray-900">Total:</span>
-                    <span className="text-xl font-bold text-blue-700">${total.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-blue-700">${subtotalConDescuento.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
