@@ -718,7 +718,7 @@ export default function ProductModal({
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Seleccionar Impuesto:</label>
                 <div className="flex gap-2 mb-2">
                   <select
-                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-1/2"
                     value={impuestoSeleccionado}
                     onChange={(e) => setImpuestoSeleccionado(e.target.value)}
                     disabled={esExento || esNoSujeto} // CORRECCIÓN: Deshabilitar para No Sujeto también
