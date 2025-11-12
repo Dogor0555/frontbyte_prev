@@ -25,6 +25,7 @@ export default function ProductModalCredito({
   const [productosFiltrados, setProductosFiltrados] = useState([]);
   const [valorDescuento, setValorDescuento] = useState(0);
   const [descuentoAplicado, setDescuentoAplicado] = useState(0);
+  const [errorDescuento, setErrorDescuento] = useState("");
 
   useEffect(() => {
     const checkMobile = () => {
@@ -110,11 +111,63 @@ export default function ProductModalCredito({
     }
   }, [descuentoAplicado, cantidad, productoSeleccionado]);
 
+  const validarDescuento = (valorDescuento, productoSeleccionado, cantidad) => {
+    if (!productoSeleccionado) {
+      setErrorDescuento("");
+      return true;
+    }
+
+    const precio = parseFloat(productoSeleccionado.precio) || 0;
+    const subtotalSinDescuento = cantidad * precio;
+    const descuento = parseFloat(valorDescuento) || 0;
+
+    if (descuento > subtotalSinDescuento) {
+      setErrorDescuento(`El descuento no puede ser mayor al subtotal (${formatMoney(subtotalSinDescuento)})`);
+      return false;
+    } else {
+      setErrorDescuento("");
+      return true;
+    }
+  };
+
+  const calcularDescuento = () => {
+    if (!productoSeleccionado) {
+      setDescuentoAplicado(0);
+      return;
+    }
+
+    const precio = parseFloat(productoSeleccionado.precio) || 0;
+    const subtotalSinDescuento = cantidad * precio;
+    const descuento = parseFloat(valorDescuento) || 0;
+    
+    // Validar que el descuento no sea mayor al subtotal
+    if (descuento > subtotalSinDescuento) {
+      setDescuentoAplicado(0);
+      return;
+    }
+    
+    const descuentoFinal = Math.min(descuento, subtotalSinDescuento);
+    setDescuentoAplicado(descuentoFinal);
+  };
+
+  const handleValorDescuentoChange = (value) => {
+    const numericValue = value === "" ? "" : parseFloat(value);
+    setValorDescuento(numericValue);
+    
+    // Validar en tiempo real
+    if (productoSeleccionado) {
+      validarDescuento(numericValue, productoSeleccionado, cantidad);
+    }
+  };
+
   useEffect(() => {
     if (productoSeleccionado) {
       calcularDescuento();
+      // Validar el descuento actual cuando cambia el producto o cantidad
+      validarDescuento(valorDescuento, productoSeleccionado, cantidad);
     } else {
       setDescuentoAplicado(0);
+      setErrorDescuento("");
     }
   }, [valorDescuento, productoSeleccionado, cantidad]);
 
@@ -129,6 +182,7 @@ export default function ProductModalCredito({
     setTributos([]);
     setValorDescuento(0);
     setDescuentoAplicado(0);
+    setErrorDescuento("");
   };
 
   useEffect(() => {
@@ -203,18 +257,12 @@ export default function ProductModalCredito({
     return subtotal * tasa;
   };
 
-  const calcularDescuento = () => {
-    if (!productoSeleccionado) {
-      setDescuentoAplicado(0);
-      return;
-    }
-
-    const precio = parseFloat(productoSeleccionado.precio) || 0;
-    const subtotalSinDescuento = cantidad * precio;
-    const descuento = parseFloat(valorDescuento) || 0;
-    const descuentoFinal = Math.min(descuento, subtotalSinDescuento);
-    
-    setDescuentoAplicado(descuentoFinal);
+  const formatMoney = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(amount);
   };
 
   const agregarTributo = () => {
@@ -288,6 +336,12 @@ export default function ProductModalCredito({
   const handleAgregarItem = () => {
     if (!productoSeleccionado) {
       alert("Por favor seleccione un producto");
+      return;
+    }
+
+    // Validar descuento antes de agregar
+    if (!validarDescuento(valorDescuento, productoSeleccionado, cantidad)) {
+      alert("El descuento no puede ser mayor al precio del item");
       return;
     }
 
@@ -528,7 +582,7 @@ export default function ProductModalCredito({
                 />
               </div>
 
-              {/* SECCIÓN DE DESCUENTO SIMPLIFICADA */}
+              {/* SECCIÓN DE DESCUENTO CON VALIDACIÓN */}
               <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <FaPercent className="mr-2 text-gray-600" />
@@ -550,12 +604,22 @@ export default function ProductModalCredito({
                       value={valorDescuento === 0 ? "" : valorDescuento}
                       onChange={(e) => {
                         const value = e.target.value;
-                        setValorDescuento(value === "" ? "" : parseFloat(value));
+                        handleValorDescuentoChange(value);
                       }}
-                      className="flex-1 min-w-0 rounded-r-lg border border-gray-300 p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className={`flex-1 min-w-0 rounded-r-lg border p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        errorDescuento ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       placeholder="0.00"
                     />
                   </div>
+                  {errorDescuento && (
+                    <p className="text-red-500 text-xs mt-1">{errorDescuento}</p>
+                  )}
+                  {productoSeleccionado && (
+                    <p className="text-gray-500 text-xs mt-1">
+                      Subtotal: {formatMoney(subtotalSinDescuento)}
+                    </p>
+                  )}
                 </div>
 
                 {descuentoAplicado > 0 && (
@@ -733,7 +797,7 @@ export default function ProductModalCredito({
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Seleccionar Impuesto:</label>
                 <div className="flex gap-2 mb-2">
                   <select
-                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-1/2"
                     value={impuestoSeleccionado}
                     onChange={(e) => setImpuestoSeleccionado(e.target.value)}
                     disabled={esExento || esNoSujeto}
@@ -845,7 +909,7 @@ export default function ProductModalCredito({
             <button
               onClick={handleAgregarItem}
               className="px-8 py-2.5 bg-blue-700 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-              disabled={!productoSeleccionado}
+              disabled={!productoSeleccionado || errorDescuento}
             >
               Agregar Item
             </button>
