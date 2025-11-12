@@ -6,14 +6,32 @@ export default function FechaHoraEmision({ onFechaHoraChange }) {
   const [fechaEmision, setFechaEmision] = useState("");
   const [horaEmision, setHoraEmision] = useState("");
 
-  useEffect(() => {
+  const obtenerFechaHoraElSalvador = () => {
     const ahora = new Date();
     
-    const fecha = ahora.toISOString().split('T')[0];
+    // Obtener la hora UTC actual en milisegundos
+    const utc = ahora.getTime() + (ahora.getTimezoneOffset() * 60000);
+    
+    // Ajustar a UTC-6 (El Salvador)
+    const offsetElSalvador = -6;
+    const horaElSalvador = new Date(utc + (3600000 * offsetElSalvador));
+    
+    return horaElSalvador;
+  };
 
-    const horas = String(ahora.getHours()).padStart(2, '0');
-    const minutos = String(ahora.getMinutes()).padStart(2, '0');
-    const segundos = String(ahora.getSeconds()).padStart(2, '0');
+  useEffect(() => {
+    const horaElSalvador = obtenerFechaHoraElSalvador();
+
+    // Formatear fecha manualmente para evitar problemas con toISOString()
+    const año = horaElSalvador.getFullYear();
+    const mes = String(horaElSalvador.getMonth() + 1).padStart(2, '0');
+    const dia = String(horaElSalvador.getDate()).padStart(2, '0');
+    const fecha = `${año}-${mes}-${dia}`;
+
+    // Formatear hora
+    const horas = String(horaElSalvador.getHours()).padStart(2, '0');
+    const minutos = String(horaElSalvador.getMinutes()).padStart(2, '0');
+    const segundos = String(horaElSalvador.getSeconds()).padStart(2, '0');
     const hora = `${horas}:${minutos}:${segundos}`;
     
     setFechaEmision(fecha);

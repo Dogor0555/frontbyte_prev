@@ -499,14 +499,14 @@ const guardarDetallesDocumento = async (iddtefactura) => {
 
       if (response.ok) {
         const data = await response.json();
-        const ultimoNumero = typeof data.ultimoDocumento === 'number' ? data.ultimoDocumento + 1 : 1;
+        const ultimoNumero = typeof data.ultimaFactura === 'number' ? data.ultimaFactura + 1 : 1;
         setNumeroDocumento(ultimoNumero);
       } else {
         console.warn("No se pudo obtener el último número, usando 1 por defecto");
         setNumeroDocumento(1);
       }
     } catch (error) {
-      console.error("Error al obtener el último número de documento:", error);
+      console.error("Error al obtener el último número de factura:", error);
       setNumeroDocumento(1);
     }
   };
