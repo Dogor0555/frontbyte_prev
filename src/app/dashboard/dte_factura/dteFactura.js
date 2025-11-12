@@ -1037,22 +1037,23 @@ const guardarDetallesFactura = async (iddtefactura) => {
     setShowClientDetails(false);
   };
 
-const handleItemChange = (id, field, value) => {
-  const updatedItems = items.map((item) => {
-    if (item.id === id) {
-      const updatedItem = { ...item, [field]: value };
-      if (field === "cantidad" || field === "precioUnitario" || field === "descuento") {
-        const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
-        // CORRECCIÓN: Tratar descuento como monto fijo, no porcentaje
-        const descuentoMonto = updatedItem.descuento || 0;
-        updatedItem.total = Math.max(0, subtotalItem - descuentoMonto);
+  const handleItemChange = (id, field, value) => {
+    const updatedItems = items.map((item) => {
+      if (item.id === id) {
+        const updatedItem = { ...item, [field]: value };
+        if (field === "cantidad" || field === "precioUnitario" || field === "descuento" || 
+            field === "descuentoGravado" || field === "descuentoExento" || field === "descuentoNoSujeto") {
+          const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
+          // CORRECCIÓN: Tratar descuento como monto fijo, no porcentaje
+          const descuentoMonto = updatedItem.descuento || 0;
+          updatedItem.total = Math.max(0, subtotalItem - descuentoMonto);
+        }
+        return updatedItem;
       }
-      return updatedItem;
-    }
-    return item;
-  });
-  setItems(updatedItems);
-};
+      return item;
+    });
+    setItems(updatedItems);
+  };
 
   const removeItem = (id) => {
     setItems(items.filter((item) => item.id !== id));
@@ -1108,33 +1109,40 @@ const handleItemChange = (id, field, value) => {
     setModalType(tipo);
   };
 
-const agregarItemDesdeModal = (tipo, datos) => {
-  console.log("=== DEBUG dteFactura: Item recibido ===");
-  console.log("Tipo:", tipo);
-  console.log("Datos descuento:", {
-    descuento: datos.descuento,
-    valorDescuento: datos.valorDescuento,
-    precioUnitario: datos.precioUnitario,
-    cantidad: datos.cantidad,
-    subtotal: datos.precioUnitario * datos.cantidad
-  });
-  console.log("======================================");
-  
-  const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
+  const agregarItemDesdeModal = (tipo, datos) => {
+    console.log("=== DEBUG dteFactura: Item recibido ===");
+    console.log("Tipo:", tipo);
+    console.log("Datos descuento distribuido:", {
+      descuentoGravado: datos.descuentoGravado,
+      descuentoExento: datos.descuentoExento,
+      descuentoNoSujeto: datos.descuentoNoSujeto,
+      descuento: datos.descuento,
+      valorDescuento: datos.valorDescuento,
+      precioUnitario: datos.precioUnitario,
+      cantidad: datos.cantidad,
+      subtotal: datos.precioUnitario * datos.cantidad
+    });
+    console.log("======================================");
+    
+    const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
 
-  const newItem = {
-    id: newId,
-    tipo: tipo,
-    ...datos,
-    total: (datos.cantidad * datos.precioUnitario) - (datos.descuento || 0)
+    const newItem = {
+      id: newId,
+      tipo: tipo,
+      ...datos,
+      total: (datos.cantidad * datos.precioUnitario) - (datos.descuento || 0),
+      // Asegurar que los campos de descuento distribuido estén presentes
+      descuentoGravado: datos.descuentoGravado || 0,
+      descuentoExento: datos.descuentoExento || 0,
+      descuentoNoSujeto: datos.descuentoNoSujeto || 0
+    };
+    
+    setItems([...items, newItem]);
+    setShowModal(false);
+    setModalType("");
+    setProductoSeleccionado(null);
+    setTotalModal(0); 
   };
-  
-  setItems([...items, newItem]);
-  setShowModal(false);
-  setModalType("");
-  setProductoSeleccionado(null);
-  setTotalModal(0); 
-};
 
   const obtenerNombreUnidad = (codigoUnidad) => {
     const unidad = unidades.find(u => u.codigo === codigoUnidad.toString());
@@ -1263,13 +1271,16 @@ const agregarItemDesdeModal = (tipo, datos) => {
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Cantidad</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Precio</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Sub Total</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Gravado</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Exento</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Sujeto</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {items.length === 0 ? (
                         <tr>
-                          <td colSpan="6" className="px-4 py-4 text-center text-gray-500 border-b">
+                          <td colSpan="9" className="px-4 py-4 text-center text-gray-500 border-b">
                             No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.
                           </td>
                         </tr>
@@ -1310,6 +1321,22 @@ const agregarItemDesdeModal = (tipo, datos) => {
                             </td>
                             <td className="px-4 py-2 font-medium border-b">
                               {formatMoney(item.total)}
+                            </td>
+                            {/* NUEVAS CELDAS PARA DESCUENTOS DISTRIBUIDOS */}
+                            <td className="px-4 py-2 border-b text-center">
+                              <span className="text-sm text-red-600 font-medium">
+                                {formatMoney(item.descuentoGravado || 0)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 border-b text-center">
+                              <span className="text-sm text-red-600 font-medium">
+                                {formatMoney(item.descuentoExento || 0)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 border-b text-center">
+                              <span className="text-sm text-red-600 font-medium">
+                                {formatMoney(item.descuentoNoSujeto || 0)}
+                              </span>
                             </td>
                             <td className="px-4 py-2 border-b">
                               <button

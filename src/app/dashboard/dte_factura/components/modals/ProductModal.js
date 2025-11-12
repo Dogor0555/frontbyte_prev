@@ -154,7 +154,7 @@ export default function ProductModal({
       "51": "Bebidas Alcohólicas",
       "52": "Cerveza",
       "53": "Productos del Tabaco",
-      "54": "Bebidas Carbonatadas o Gaseosas Simples o Endulzadas",
+      "54": "Bebidas Carbonatadas o Gaseosas Simples ou Endulzadas",
       "55": "Otros Específicos",
       "58": "Alcohol",
       "77": "Importador de Jugos, Néctares, Bebidas con Jugo y Refrescos",
@@ -306,6 +306,33 @@ export default function ProductModal({
 
     const total = calcularTotal();
     
+    // Calcular montos por tipo de venta
+    let ventaGravada = 0;
+    let ventaExenta = 0;
+    let ventaNoSujeta = 0;
+    
+    // Calcular descuentos por tipo de venta
+    let descuentoGravado = 0;
+    let descuentoExento = 0;
+    let descuentoNoSujeto = 0;
+    
+    const subtotalSinDescuento = cantidad * precioUnitario;
+    
+    switch (tipoVenta) {
+      case "1": // Gravado
+        ventaGravada = subtotalSinDescuento;
+        descuentoGravado = descuentoAplicado;
+        break;
+      case "2": // Exento
+        ventaExenta = subtotalSinDescuento;
+        descuentoExento = descuentoAplicado;
+        break;
+      case "3": // No sujeto
+        ventaNoSujeta = subtotalSinDescuento;
+        descuentoNoSujeto = descuentoAplicado;
+        break;
+    }
+    
     onAddItem({
       descripcion: productoSeleccionado.nombre,
       cantidad: cantidad,
@@ -319,7 +346,15 @@ export default function ProductModal({
       productoId: !esServicio ? productoSeleccionado.id : null,
       actualizarStock: necesitaActualizarStock,
       stockAnterior: !esServicio ? productoSeleccionado.stock : null,
-      esServicio: esServicio
+      esServicio: esServicio,
+      // Nuevos campos para tipos de venta
+      ventaGravada: ventaGravada,
+      ventaExenta: ventaExenta,
+      ventaNoSujeta: ventaNoSujeta,
+      // Nuevos campos para descuentos por tipo
+      descuentoGravado: descuentoGravado,
+      descuentoExento: descuentoExento,
+      descuentoNoSujeto: descuentoNoSujeto
     });
     
     limpiarFormulario();
@@ -510,6 +545,11 @@ export default function ProductModal({
                       <span className="font-semibold text-gray-900">
                         -${descuentoAplicado.toFixed(2)}
                       </span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {tipoVenta === "1" && "Descuento gravado"}
+                      {tipoVenta === "2" && "Descuento exento"}
+                      {tipoVenta === "3" && "Descuento no sujeto"}
                     </div>
                   </div>
                 )}

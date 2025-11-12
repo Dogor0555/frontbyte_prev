@@ -1004,8 +1004,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     const updatedItems = items.map((item) => {
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value };
-        if (field === "cantidad" || field === "precioUnitario" || field === "descuento") {
+        if (field === "cantidad" || field === "precioUnitario" || field === "descuento" || 
+            field === "descuentoGravado" || field === "descuentoExento" || field === "descuentoNoSujeto") {
           const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
+          // CORRECCIÓN: Tratar descuento como monto fijo, no porcentaje
           const descuentoMonto = updatedItem.descuento || 0;
           updatedItem.total = Math.max(0, subtotalItem - descuentoMonto);
         }
@@ -1073,7 +1075,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const agregarItemDesdeModal = (tipo, datos) => {
     console.log("=== DEBUG dteCredito: Item recibido ===");
     console.log("Tipo:", tipo);
-    console.log("Datos descuento:", {
+    console.log("Datos descuento distribuido:", {
+      descuentoGravado: datos.descuentoGravado,
+      descuentoExento: datos.descuentoExento,
+      descuentoNoSujeto: datos.descuentoNoSujeto,
       descuento: datos.descuento,
       valorDescuento: datos.valorDescuento,
       precioUnitario: datos.precioUnitario,
@@ -1088,7 +1093,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       id: newId,
       tipo: tipo,
       ...datos,
-      total: (datos.cantidad * datos.precioUnitario) - (datos.descuento || 0)
+      total: (datos.cantidad * datos.precioUnitario) - (datos.descuento || 0),
+      // Asegurar que los campos de descuento distribuido estén presentes
+      descuentoGravado: datos.descuentoGravado || 0,
+      descuentoExento: datos.descuentoExento || 0,
+      descuentoNoSujeto: datos.descuentoNoSujeto || 0
     };
     
     setItems([...items, newItem]);
@@ -1214,7 +1223,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     Agregar Detalle
                   </button>
                 </div>
-
                 {/* Tabla de items */}
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
@@ -1225,13 +1233,17 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Cantidad</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Precio</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Sub Total</th>
+                        {/* NUEVAS COLUMNAS PARA DESCUENTOS DISTRIBUIDOS */}
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Gravado</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Exento</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Sujeto</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {items.length === 0 ? (
                         <tr>
-                          <td colSpan="6" className="px-4 py-4 text-center text-gray-500 border-b">
+                          <td colSpan="9" className="px-4 py-4 text-center text-gray-500 border-b">
                             No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.
                           </td>
                         </tr>
@@ -1272,6 +1284,22 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                             </td>
                             <td className="px-4 py-2 font-medium border-b">
                               {formatMoney(item.total)}
+                            </td>
+                            {/* NUEVAS CELDAS PARA DESCUENTOS DISTRIBUIDOS */}
+                            <td className="px-4 py-2 border-b text-center">
+                              <span className="text-sm text-red-600 font-medium">
+                                {formatMoney(item.descuentoGravado || 0)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 border-b text-center">
+                              <span className="text-sm text-red-600 font-medium">
+                                {formatMoney(item.descuentoExento || 0)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 border-b text-center">
+                              <span className="text-sm text-red-600 font-medium">
+                                {formatMoney(item.descuentoNoSujeto || 0)}
+                              </span>
                             </td>
                             <td className="px-4 py-2 border-b">
                               <button

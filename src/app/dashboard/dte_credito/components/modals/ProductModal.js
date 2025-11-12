@@ -311,22 +311,62 @@ export default function ProductModal({
     const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
     
-    const precioUnitario = parseFloat(productoSeleccionado.precio) || 0;
+    let precioUnitario;
+    if (tipoVenta === "2") {
+      precioUnitario = parseFloat(productoSeleccionado.precio);
+    } else {
+      precioUnitario = parseFloat(productoSeleccionado.precio);
+    }
+
+    const total = calcularTotal();
+    
+    // Calcular montos por tipo de venta
+    let ventaGravada = 0;
+    let ventaExenta = 0;
+    let ventaNoSujeta = 0;
+    
+    // Calcular descuentos por tipo de venta
+    let descuentoGravado = 0;
+    let descuentoExento = 0;
+    let descuentoNoSujeto = 0;
+    
+    const subtotalSinDescuento = cantidad * precioUnitario;
+    
+    switch (tipoVenta) {
+      case "1": // Gravado
+        ventaGravada = subtotalSinDescuento;
+        descuentoGravado = descuentoAplicado;
+        break;
+      case "2": // Exento
+        ventaExenta = subtotalSinDescuento;
+        descuentoExento = descuentoAplicado;
+        break;
+      case "3": // No sujeto
+        ventaNoSujeta = subtotalSinDescuento;
+        descuentoNoSujeto = descuentoAplicado;
+        break;
+    }
     
     onAddItem({
       descripcion: productoSeleccionado.nombre,
       cantidad: cantidad,
-      precioUnitario: precioUnitario, 
+      codigo: productoSeleccionado.codigo,
+      precioUnitario: precioUnitario,
       descuento: descuentoAplicado,
       valorDescuento: valorDescuento,
       unidadMedida: productoSeleccionado.unidad || "59",
-      codigo: productoSeleccionado.codigo,
       tipo: tipoItem,
       tributos: tributos,
       productoId: !esServicio ? productoSeleccionado.id : null,
       actualizarStock: necesitaActualizarStock,
       stockAnterior: !esServicio ? productoSeleccionado.stock : null,
-      esServicio: esServicio
+      esServicio: esServicio,
+      ventaGravada: ventaGravada,
+      ventaExenta: ventaExenta,
+      ventaNoSujeta: ventaNoSujeta,
+      descuentoGravado: descuentoGravado,
+      descuentoExento: descuentoExento,
+      descuentoNoSujeto: descuentoNoSujeto
     });
     
     limpiarFormulario();
