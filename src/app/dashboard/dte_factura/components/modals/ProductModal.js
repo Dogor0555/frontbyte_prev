@@ -868,7 +868,7 @@ export default function ProductModal({
                   
                   <div className="flex justify-between py-3 border-t border-gray-300 mt-2">
                     <span className="text-lg font-semibold text-gray-900">Total:</span>
-                    <span className="text-xl font-bold text-blue-700">${total.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-blue-700">${subtotalConDescuento.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
