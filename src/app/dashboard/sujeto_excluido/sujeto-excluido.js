@@ -29,6 +29,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   const [sumaopesinimpues, setSumaopesinimpues] = useState(0);
   const [totaldescuento, setTotaldescuento] = useState(0);
   const [ventasexentas, setVentasexentas] = useState(0);
+  const [ventanosujetas, setVentanosujetas] = useState(0);
   const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [showClientList, setShowClientList] = useState(false);
@@ -62,8 +63,11 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   const [idReceptor, setIdReceptor] = useState(null);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [descuentoExentasMonto, setDescuentoExentasMonto] = useState(0);
+  const [descuentoNoSujetasMonto, setDescuentoNoSujetasMonto] = useState(0);
   const [exentasConDescuentoState, setExentasConDescuentoState] = useState(0);
   const [exentasSinDescuentoState, setExentasSinDescuentoState] = useState(0);
+  const [noSujetasConDescuentoState, setNoSujetasConDescuentoState] = useState(0);
+  const [noSujetasSinDescuentoState, setNoSujetasSinDescuentoState] = useState(0);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [formasPago, setFormasPago] = useState([]);
   const [guardandoDocumento, setGuardandoDocumento] = useState(false);
@@ -90,6 +94,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     idFactura: null
   });
   const [descargandoTicket, setDescargandoTicket] = useState(false);
+  const [tributosDetallados, setTributosDetallados] = useState({});
 
   // Inicializar correo desde user o, si no hay, desde localStorage
   useEffect(() => {
@@ -154,32 +159,44 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     { codigo: "99", nombre: "Otra" },
   ]);
 
+  // Función para mostrar mensajes
+  const mostrarModalMensaje = (tipo, titulo, mensaje, detalles = "", idFactura = null) => {
+    setMensajeConfig({
+      tipo,
+      titulo,
+      mensaje,
+      detalles,
+      idFactura
+    });
+    setMostrarMensaje(true);
+  };
+
   const validarDatosDocumento = () => {
     if (!nombreReceptor.trim()) {
       const mensaje = "El nombre del cliente es obligatorio";
       setErrorValidacion(mensaje);
-      alert(mensaje);
+      mostrarModalMensaje("error", "Datos Incompletos", mensaje);
       return false;
     }
     
     if (!numeroDocumentoReceptor.trim()) {
       const mensaje = "El documento del cliente es obligatorio";
       setErrorValidacion(mensaje);
-      alert(mensaje);
+      mostrarModalMensaje("error", "Datos Incompletos", mensaje);
       return false;
     }
     
     if (items.length === 0) {
       const mensaje = "Debe agregar al menos un item al documento";
       setErrorValidacion(mensaje);
-      alert(mensaje);
+      mostrarModalMensaje("error", "Documento Vacío", mensaje);
       return false;
     }
     
     if (formasPago.length === 0) {
       const mensaje = "Debe especificar al menos una forma de pago";
       setErrorValidacion(mensaje);
-      alert(mensaje);
+      mostrarModalMensaje("error", "Forma de Pago Requerida", mensaje);
       return false;
     }
     
@@ -283,8 +300,10 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     setSumaopesinimpues(0);
     setTotaldescuento(0);
     setVentasexentas(0);
+    setVentanosujetas(0);
     setTotal(0);
     setDescuentoExentasMonto(0);
+    setDescuentoNoSujetasMonto(0);
     setFormasPago([]);
     obtenerUltimoNumeroDocumento();
   };
@@ -305,10 +324,14 @@ const reiniciarEstados = () => {
   setSumaopesinimpues(0);
   setTotaldescuento(0);
   setVentasexentas(0);
+  setVentanosujetas(0);
   setTotal(0);
   setDescuentoExentasMonto(0);
+  setDescuentoNoSujetasMonto(0);
   setExentasConDescuentoState(0);
   setExentasSinDescuentoState(0);
+  setNoSujetasConDescuentoState(0);
+  setNoSujetasSinDescuentoState(0);
   setCondicionPago("Contado");
   setFormasPago([]);
   setDatosEntrega({
@@ -332,7 +355,7 @@ const reiniciarEstados = () => {
 
 const verDatosDocumento = () => {
   if (items.length === 0) {
-    alert("El documento debe tener al menos un item");
+    mostrarModalMensaje("error", "Documento Vacío", "El documento debe tener al menos un item");
     return;
   }
 
@@ -341,11 +364,17 @@ const verDatosDocumento = () => {
   console.log("====== DATOS COMPLETOS DE SUJETO EXCLUIDO (SOLO VISUALIZACIÓN) ======");
   console.log("ENCABEZADO:");
   console.log(JSON.stringify(datosDocumento, null, 2));
+  console.log("========== Items ==================")
+  console.log(items)
   
   const detalles = items.map((item, index) => {
     const subtotalItem = item.precioUnitario * item.cantidad;
-    const descuentoItem = subtotalItem * (item.descuento / 100);
+    // CORRECCIÓN: Usar descuento como monto fijo, no como porcentaje
+    const descuentoItem = item.descuento || 0; // ← MONTO FIJO, no porcentaje
     const baseImponible = subtotalItem - descuentoItem;
+
+    const esExento = item.tipo === "noAfecto";
+    const esNoSujeto = item.tipo === "noSuj";
 
     const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
 
@@ -359,10 +388,10 @@ const verDatosDocumento = () => {
       unimedida: item.unidadMedida || "59",
       descripcion: item.descripcion,
       preciouni: parseFloat(item.precioUnitario.toFixed(2)),
-      montodescu: parseFloat(descuentoItem.toFixed(2)),
-      ventanosuj: 0.00,
-      ventaexenta: parseFloat(baseImponible.toFixed(2)),
-      ventagravada: 0.00,
+      montodescu: parseFloat(descuentoItem.toFixed(2)), // ← MONTO FIJO del descuento
+      ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+      ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+      ventagravada: 0.00, // Sujeto excluido no tiene ventas gravadas
       tributos: null,
       psv: 0,
       nogravado: 0.00,
@@ -380,7 +409,12 @@ const verDatosDocumento = () => {
   console.log(JSON.stringify(datosDetalles, null, 2));
   console.log("=============================================================");
   
-  alert("Datos de sujeto excluido mostrados en consola. Revisa la consola del navegador (F12).");
+  mostrarModalMensaje(
+    "exito",
+    "Datos en Consola",
+    "Datos de sujeto excluido mostrados en consola.",
+    "Revisa la consola del navegador (F12) para ver los detalles completos."
+  );
 };
 
 const actualizarStockProductos = async (itemsDocumento) => {
@@ -423,34 +457,37 @@ const actualizarStockProductos = async (itemsDocumento) => {
 };
 
 const guardarDetallesDocumento = async (iddtefactura) => {
-  try {
-    const detalles = items.map((item, index) => {
-      const subtotalItem = item.precioUnitario * item.cantidad;
-      const descuentoItem = subtotalItem * (item.descuento / 100);
-      const baseImponible = subtotalItem - descuentoItem;
+    try {
+      const detalles = items.map((item, index) => {
+        const subtotalItem = item.precioUnitario * item.cantidad;
+        const descuentoItem = item.descuento || 0;
+        const baseImponible = subtotalItem - descuentoItem;
 
-      const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+        const esExento = item.tipo === "noAfecto";
+        const esNoSujeto = item.tipo === "noSuj"; 
 
-      return {
-        numitem: index + 1,
-        tipoitem: "1",
-        numerodocumento: null,
-        cantidad: parseFloat(item.cantidad.toFixed(2)),
-        codigo: codigoItem,
-        codtributo: null,
-        unimedida: item.unidadMedida || "59",
-        descripcion: item.descripcion,
-        preciouni: parseFloat(item.precioUnitario.toFixed(2)),
-        montodescu: parseFloat(descuentoItem.toFixed(2)),
-        ventanosuj: 0.00,
-        ventaexenta: parseFloat(baseImponible.toFixed(2)),
-        ventagravada: 0.00,
-        tributos: null,
-        psv: 0,
-        nogravado: 0.00,
-        ivaitem: 0.00
-      };
-    });
+        const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+
+        return {
+          numitem: index + 1,
+          tipoitem: "1",
+          numerodocumento: null,
+          cantidad: parseFloat(item.cantidad.toFixed(2)),
+          codigo: codigoItem,
+          codtributo: null,
+          unimedida: item.unidadMedida || "59",
+          descripcion: item.descripcion,
+          preciouni: parseFloat(item.precioUnitario.toFixed(2)),
+          montodescu: parseFloat(descuentoItem.toFixed(2)),
+          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+          ventagravada: 0.00, 
+          tributos: item.tributos,
+          psv: 0,
+          nogravado: 0.00,
+          ivaitem: 0.00
+        };
+      });
 
     const datosDetalles = {
       transmitir: true,
@@ -471,10 +508,8 @@ const guardarDetallesDocumento = async (iddtefactura) => {
       const resultDetalles = await responseDetalles.json();
       console.log("Detalles de sujeto excluido guardados:", resultDetalles);
       
-      // ACTUALIZAR STOCK DESPUÉS DE GUARDAR LOS DETALLES
       await actualizarStockProductos(items);
       
-      // RETORNAR LA RESPUESTA COMPLETA EN LUGAR DE SOLO 'true'
       return resultDetalles;
     } else {
       const errorText = await responseDetalles.text();
@@ -516,8 +551,16 @@ const guardarDetallesDocumento = async (iddtefactura) => {
     const totalPagar = total;
     
     const ahora = new Date();
-    const fechaEmision = fechaHoraEmision.fechaEmision || ahora.toISOString().split('T')[0];
-    const horaEmision = fechaHoraEmision.horaEmision || ahora.toTimeString().split(' ')[0];
+    
+    const offset = -6; 
+    const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+
+    const year = salvadorTime.getUTCFullYear();
+    const month = String(salvadorTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(salvadorTime.getUTCDate()).padStart(2, '0');
+    const fechaEmision = `${year}-${month}-${day}`;
+
+    const horaEmision = ahora.toTimeString().split(' ')[0];
 
     let formapagoValue = "Efectivo";
     
@@ -531,16 +574,29 @@ const guardarDetallesDocumento = async (iddtefactura) => {
     }
 
     const exentasBase = items
+      .filter(item => item.tipo === "noAfecto")
       .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
     
-    const exentasConDescuento = exentasBase - 
-      (items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
-      descuentoExentasMonto;
+    const noSujetasBase = items
+      .filter(item => item.tipo === "noSuj") 
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+
+    const descuentoExentasItems = items
+      .filter(item => item.tipo === "noAfecto")
+      .reduce((sum, item) => sum + (item.descuento || 0), 0);
+      
+    const descuentoNoSujetasItems = items
+      .filter(item => item.tipo === "noSuj")
+      .reduce((sum, item) => sum + (item.descuento || 0), 0);
+    
+    const exentasConDescuento = Math.max(0, exentasBase - descuentoExentasItems - descuentoExentasMonto);
+
+    const noSujetasConDescuento = Math.max(0, noSujetasBase - descuentoNoSujetasItems - descuentoNoSujetasMonto);
 
     return {
       idcliente: idReceptor,
       sellorec: "", 
-      modelofac: "11", // Código específico para sujeto excluido
+      modelofac: "11", 
       verjson: "1.0",
       tipotran: "1",
       fechaemision: fechaEmision,
@@ -552,7 +608,7 @@ const guardarDetallesDocumento = async (iddtefactura) => {
 
       sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
       totaldescuento: parseFloat(totaldescuento.toFixed(2)),
-      valoriva: 0.00, // Sujeto excluido no tiene IVA
+      valoriva: 0.00,
       subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
       ivapercibido: 0.00,
       montototalope: parseFloat(subtotal - totaldescuento).toFixed(2),
@@ -562,12 +618,12 @@ const guardarDetallesDocumento = async (iddtefactura) => {
       tipocontingencia: "",
       motivocontin: "",
 
-      totalnosuj: 0.00,
+      totalnosuj: parseFloat(noSujetasConDescuento.toFixed(2)),
       totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
-      totalgravada: 0.00, // Sujeto excluido no tiene ventas gravadas
+      totalgravada: 0.00,
       subtotalventas: parseFloat(subtotal.toFixed(2)),
 
-      descunosuj: 0.00,
+      descunosuj: parseFloat(descuentoNoSujetasMonto.toFixed(2)),
       descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
       descugravada: 0.00,
       porcentajedescuento: totaldescuento > 0 ? parseFloat(((totaldescuento / sumaopesinimpues) * 100).toFixed(2)) : 0.00,
@@ -711,33 +767,97 @@ const guardarDetallesDocumento = async (iddtefactura) => {
       (cliente?.dui?.toString() || "").includes(searchTerm.toLowerCase())
   ) : [];
 
-  useEffect(() => {
-    const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
-    
-    const descuentoItems = items.reduce((sum, item) => 
-      sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0);
+      useEffect(() => {
+        const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+        
+        const descuentoItems = items.reduce((sum, item) => 
+          sum + (item.descuento || 0), 0); // ← MONTO FIJO
 
-    const exentasBase = items
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+        const exentasBase = items
+          .filter(item => item.tipo === "noAfecto")
+          .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+        
+        const noSujetasBase = items
+          .filter(item => item.tipo === "noSuj") 
+          .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
 
-    const descuentoExentas = descuentoExentasMonto;
-    
-    const descuentoTotal = descuentoItems + descuentoExentas;
-    
-    const exentasConDescuento = exentasBase - 
-      (items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad * (item.descuento / 100)), 0)) - 
-      descuentoExentas;
+        const descuentoExentas = descuentoExentasMonto;
+        const descuentoNoSujetas = descuentoNoSujetasMonto;
+        
+        const descuentoTotal = descuentoItems + descuentoExentas + descuentoNoSujetas;
+        
+        const exentasConDescuento = exentasBase - 
+          (items.filter(item => item.tipo === "noAfecto")
+            .reduce((sum, item) => sum + (item.descuento || 0), 0)) - 
+          descuentoExentas;
 
-    const total = exentasConDescuento;
+        const noSujetasConDescuento = noSujetasBase - 
+          (items.filter(item => item.tipo === "noSuj") 
+            .reduce((sum, item) => sum + (item.descuento || 0), 0)) - 
+          descuentoNoSujetas;
 
-    setSumaopesinimpues(parseFloat(suma.toFixed(2)));
-    setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
-    setVentasexentas(parseFloat(exentasConDescuento.toFixed(2)));
-    setTotal(parseFloat(total.toFixed(2)));
+        const nuevosTributos = {};
+        
+        items.forEach(item => {
+          if (item.tributos && Array.isArray(item.tributos)) {
+            item.tributos.forEach(tributo => {
+              const subtotalItem = item.precioUnitario * item.cantidad;
+              const descuentoItem = item.descuento || 0;
+              const baseImponible = subtotalItem - descuentoItem;
+              
+              let valorTributo = 0;
+              
+              if (tributo.codigo === "20") {
+                valorTributo = 0;
+              } else {
+                valorTributo = tributo.valor || 0;
+              }
+              
+              if (nuevosTributos[tributo.codigo]) {
+                nuevosTributos[tributo.codigo].valor += valorTributo;
+              } else {
+                nuevosTributos[tributo.codigo] = {
+                  codigo: tributo.codigo,
+                  descripcion: tributo.descripcion || obtenerDescripcionTributo(tributo.codigo),
+                  valor: valorTributo
+                };
+              }
+            });
+          }
+        });
+        
+        setTributosDetallados(nuevosTributos);
+
+        const total = exentasConDescuento + noSujetasConDescuento;
+
+        setSumaopesinimpues(parseFloat(suma.toFixed(2)));
+        setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
+        setVentasexentas(parseFloat(exentasConDescuento.toFixed(2)));
+        setVentanosujetas(parseFloat(noSujetasConDescuento.toFixed(2)));
+        setTotal(parseFloat(total.toFixed(2)));
+        
+        setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
+        setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
+        setNoSujetasSinDescuentoState(parseFloat(noSujetasBase.toFixed(2)));
+        setNoSujetasConDescuentoState(parseFloat(noSujetasConDescuento.toFixed(2)));
+      }, [items, descuentoExentasMonto, descuentoNoSujetasMonto]);
+
+  const obtenerDescripcionTributo = (codigo) => {
+    const tributosMap = {
+      "20": "IVA 13%",
+      "59": "Turismo: por alojamiento (5%)",
+      "71": "Turismo: salida del país por vía aérea $7.00",
+      "D1": "FOVIAL ($0.20 por galón)",
+      "C8": "COTRANS ($0.10 por galón)",
+      "D5": "Otras tasas casos especiales",
+      "D4": "Otros impuestos casos especiales",
+      "C5": "Impuesto ad-valorem bebidas alcohólicas (8%)",
+      "C6": "Impuesto ad-valorem tabaco cigarrillos (39%)",
+      "C7": "Impuesto ad-valorem tabaco cigarros (100%)",
+    };
     
-    setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
-    setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
-  }, [items, descuentoExentasMonto]);
+    return tributosMap[codigo] || `Tributo ${codigo}`;
+  };
 
   const showClientDetailsPopup = (cliente) => {
     setSelectedClient(cliente);
@@ -746,6 +866,7 @@ const guardarDetallesDocumento = async (iddtefactura) => {
 
   const handleApplyDiscounts = (discounts) => {
     setDescuentoExentasMonto(discounts.exentas);
+    setDescuentoNoSujetasMonto(discounts.noSujetas || 0);
   };
 
   const handleDatosEntregaChange = (nuevosDatos) => {
@@ -805,9 +926,12 @@ const guardarDetallesDocumento = async (iddtefactura) => {
     const updatedItems = items.map((item) => {
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value };
-        if (field === "cantidad" || field === "precioUnitario" || field === "descuento") {
+        if (field === "cantidad" || field === "precioUnitario" || field === "descuento" || 
+            field === "descuentoExento" || field === "descuentoNoSujeto") {
           const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
-          updatedItem.total = subtotalItem * (1 - updatedItem.descuento / 100);
+          // CORRECCIÓN: Tratar descuento como monto fijo, no porcentaje
+          const descuentoMonto = updatedItem.descuento || 0;
+          updatedItem.total = Math.max(0, subtotalItem - descuentoMonto);
         }
         return updatedItem;
       }
@@ -871,13 +995,29 @@ const guardarDetallesDocumento = async (iddtefactura) => {
   };
 
   const agregarItemDesdeModal = (tipo, datos) => {
+    console.log("=== DEBUG SujetoExcluido: Item recibido ===");
+    console.log("Tipo:", tipo);
+    console.log("Datos descuento distribuido:", {
+      descuentoExento: datos.descuentoExento,
+      descuentoNoSujeto: datos.descuentoNoSujeto,
+      descuento: datos.descuento,
+      valorDescuento: datos.valorDescuento,
+      precioUnitario: datos.precioUnitario,
+      cantidad: datos.cantidad,
+      subtotal: datos.precioUnitario * datos.cantidad
+    });
+    console.log("======================================");
+    
     const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
 
     const newItem = {
       id: newId,
       tipo: tipo,
       ...datos,
-      total: datos.cantidad * datos.precioUnitario * (1 - (datos.descuento || 0) / 100)
+      total: (datos.cantidad * datos.precioUnitario) - (datos.descuento || 0),
+      // Asegurar que los campos de descuento distribuido estén presentes
+      descuentoExento: datos.descuentoExento || 0,
+      descuentoNoSujeto: datos.descuentoNoSujeto || 0
     };
     
     setItems([...items, newItem]);
@@ -890,17 +1030,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
   const obtenerNombreUnidad = (codigoUnidad) => {
     const unidad = unidades.find(u => u.codigo === codigoUnidad.toString());
     return unidad ? unidad.nombre : "Unidad";
-  };
-
-  const mostrarModalMensaje = (tipo, titulo, mensaje, detalles = "", idFactura = null) => {
-    setMensajeConfig({
-      tipo,
-      titulo,
-      mensaje,
-      detalles,
-      idFactura
-    });
-    setMostrarMensaje(true);
   };
 
    const descargarTicketFactura = async (idFactura) => {
@@ -1055,64 +1184,106 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Cantidad</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Precio</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Sub Total</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Exento</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. No Sujeto</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total Exento</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total No Sujeto</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {items.length === 0 ? (
                         <tr>
-                          <td colSpan="6" className="px-4 py-4 text-center text-gray-500 border-b">
+                          <td colSpan="11" className="px-4 py-4 text-center text-gray-500 border-b">
                             No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.
                           </td>
                         </tr>
                       ) : (
-                        items.map((item) => (
-                          <tr key={item.id}>
-                            <td className="px-4 py-2 border-b">
-                              <span className="text-sm">
-                                {item.unidadMedida} - {obtenerNombreUnidad(item.unidadMedida)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 border-b">
-                              <input
-                                type="text"
-                                value={item.descripcion}
-                                onChange={(e) => handleItemChange(item.id, "descripcion", e.target.value)}
-                                className="w-full p-1 border border-gray-300 rounded"
-                              />
-                            </td>
-                            <td className="px-4 py-2 border-b">
-                              <input
-                                type="number"
-                                min="1"
-                                value={item.cantidad}
-                                onChange={(e) => handleItemChange(item.id, "cantidad", parseFloat(e.target.value))}
-                                className="w-20 p-1 border border-gray-300 rounded"
-                              />
-                            </td>
-                            <td className="px-4 py-2 border-b">
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={item.precioUnitario}
-                                onChange={(e) => handleItemChange(item.id, "precioUnitario", parseFloat(e.target.value))}
-                                className="w-24 p-1 border border-gray-300 rounded"
-                              />
-                            </td>
-                            <td className="px-4 py-2 font-medium border-b">
-                              {formatMoney(item.total)}
-                            </td>
-                            <td className="px-4 py-2 border-b">
-                              <button
-                                onClick={() => removeItem(item.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <FaTrash />
-                              </button>
-                            </td>
-                          </tr>
-                        ))
+                        items.map((item) => {
+                          const subtotal = item.precioUnitario * item.cantidad;
+                      
+                          // En la tabla, para cada item:
+                          const totalExento = (item.tipo === "noAfecto") 
+                            ? Math.max(0, subtotal - (item.descuentoExento || 0))
+                            : 0;
+                            
+                          const totalNoSujeto = (item.tipo === "noSuj") 
+                            ? Math.max(0, subtotal - (item.descuentoNoSujeto || 0))
+                            : 0;
+
+                          // CORRECCIÓN: Calcular el total del item correctamente
+                          const totalItem = Math.max(0, subtotal - (item.descuentoExento || 0) - (item.descuentoNoSujeto || 0));
+                          return (
+                            <tr key={item.id}>
+                              <td className="px-4 py-2 border-b">
+                                <span className="text-sm">
+                                  {item.unidadMedida} - {obtenerNombreUnidad(item.unidadMedida)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <input
+                                  type="text"
+                                  value={item.descripcion}
+                                  onChange={(e) => handleItemChange(item.id, "descripcion", e.target.value)}
+                                  className="w-full p-1 border border-gray-300 rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.cantidad}
+                                  onChange={(e) => handleItemChange(item.id, "cantidad", parseFloat(e.target.value))}
+                                  className="w-20 p-1 border border-gray-300 rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.precioUnitario}
+                                  onChange={(e) => handleItemChange(item.id, "precioUnitario", parseFloat(e.target.value))}
+                                  className="w-24 p-1 border border-gray-300 rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-2 font-medium border-b">
+                                {formatMoney(subtotal)}
+                              </td>
+                              {/* CELDAS DE DESCUENTOS */}
+                              <td className="px-4 py-2 border-b text-center">
+                                <span className="text-sm text-red-600 font-medium">
+                                  {formatMoney(item.descuentoExento || 0)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 border-b text-center">
+                                <span className="text-sm text-red-600 font-medium">
+                                  {formatMoney(item.descuentoNoSujeto || 0)}
+                                </span>
+                              </td>
+                              {/* CELDAS DE TOTALES POR TIPO DESPUÉS DE DESCUENTOS */}
+                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
+                                {formatMoney(totalExento)}
+                              </td>
+                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
+                                {formatMoney(totalNoSujeto)}
+                              </td>
+                              {/* NUEVA COLUMNA PARA EL TOTAL */}
+                              <td className="px-4 py-2 border-b text-center font-bold text-blue-700">
+                                {formatMoney(totalItem)}
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <button
+                                  onClick={() => removeItem(item.id)}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <FaTrash />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -1128,18 +1299,36 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                       <span className="font-medium">{formatMoney(sumaopesinimpues)}</span>
                     </div>
                     
-                    {descuentoExentasMonto > 0 && (
-                      <div className="flex justify-between text-blue-600">
-                        <span className="text-sm">Descuento ventas exentas:</span>
-                        <span className="text-sm font-medium">-{formatMoney(descuentoExentasMonto)}</span>
-                      </div>
-                    )}
+                    {/* Descuentos desglosados de los items */}
+                    {(() => {
+                      // Calcular totales de descuentos por tipo desde los items
+                      const totalDescuentoExento = items.reduce((sum, item) => sum + (item.descuentoExento || 0), 0);
+                      const totalDescuentoNoSujeto = items.reduce((sum, item) => sum + (item.descuentoNoSujeto || 0), 0);
+                      
+                      return (
+                        <>
+                          {totalDescuentoExento > 0 && (
+                            <div className="flex justify-between text-blue-600">
+                              <span className="text-sm">Descuento ventas exentas:</span>
+                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoExento)}</span>
+                            </div>
+                          )}
+                          {totalDescuentoNoSujeto > 0 && (
+                            <div className="flex justify-between text-blue-600">
+                              <span className="text-sm">Descuento ventas no sujetas:</span>
+                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoNoSujeto)}</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                    
                     <div className="flex justify-between text-red-600">
                       <span className="text-gray-700">Total descuentos:</span>
                       <span className="font-medium">-{formatMoney(totaldescuento)}</span>
                     </div>
                     <div className="flex justify-between pt-2 border-t border-gray-300">
-                      <span className="text-gray-700 font-semibold">Sub Total:</span>
+                      <span className="text-gray-700 font-semibold">Sub Total después de descuentos:</span>
                       <span className="font-semibold">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
                   </div>
@@ -1149,11 +1338,36 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                       <span className="text-gray-700">Monto Total de la operación:</span>
                       <span className="font-medium">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">Ventas Exentas:</span>
-                      <span className="font-medium text-green-600">{formatMoney(ventasexentas)}</span>
+
+                    <div className="space-y-1 pl-4 border-l-2 border-gray-300">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Exento:</span>
+                        <span className="font-medium">
+                          {formatMoney(ventasexentas)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">No Sujeto:</span>
+                        <span className="font-medium">
+                          {formatMoney(ventanosujetas)}
+                        </span>
+                      </div>
                     </div>
+                    
+                    {/* Mostrar tributos desglosados */}
+                    {Object.values(tributosDetallados)
+                      .filter(tributo => tributo.valor > 0)
+                      .map((tributo) => (
+                        <div key={tributo.codigo} className="flex justify-between text-sm">
+                          <span className="text-gray-600">
+                            {tributo.codigo} - {tributo.descripcion}:
+                          </span>
+                          <span className="font-medium text-green-600">
+                            +{formatMoney(tributo.valor)}
+                          </span>
+                        </div>
+                      ))
+                    }
                     
                     <div className="flex justify-between pt-2 border-t border-gray-300">
                       <span className="text-gray-900 font-bold text-lg">Total a pagar:</span>
@@ -1175,10 +1389,11 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                     Agregar Descuentos
                   </button>
                   
-                  {descuentoExentasMonto > 0 && (
+                  {(descuentoExentasMonto > 0 || descuentoNoSujetasMonto > 0) && (
                     <button 
                       onClick={() => {
                         setDescuentoExentasMonto(0);
+                        setDescuentoNoSujetasMonto(0);
                       }}
                       className="flex items-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
                     >
@@ -1186,11 +1401,12 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                       Eliminar Descuentos
                     </button>
                   )}
-                </div>
+                </div> 
                 
-                {descuentoExentasMonto > 0 && (
+                {(descuentoExentasMonto > 0 || descuentoNoSujetasMonto > 0) && (
                   <div className="mt-2 text-sm text-gray-600">
-                    <p>Descuento ventas exentas: {formatMoney(descuentoExentasMonto)}</p>
+                    {descuentoExentasMonto > 0 && <p>Descuento ventas exentas: {formatMoney(descuentoExentasMonto)}</p>}
+                    {descuentoNoSujetasMonto > 0 && <p>Descuento ventas no sujetas: {formatMoney(descuentoNoSujetasMonto)}</p>}
                   </div>
                 )}
               </div>
@@ -1303,6 +1519,7 @@ const guardarDetallesDocumento = async (iddtefactura) => {
         onClose={() => setShowDiscountModal(false)}
         onApplyDiscounts={handleApplyDiscounts}
         currentExentasDiscount={descuentoExentasMonto}    
+        currentNoSujetasDiscount={descuentoNoSujetasMonto}
       />
 
       <ConfirmacionFacturaModal
@@ -1358,8 +1575,5 @@ const guardarDetallesDocumento = async (iddtefactura) => {
         descargando={descargandoTicket}
       />
     </div>
-
   );
-
-
 }

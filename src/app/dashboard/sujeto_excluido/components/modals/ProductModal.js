@@ -15,7 +15,7 @@ export default function ProductModal({
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [cantidad, setCantidad] = useState(1);
-  const [impuestoSeleccionado, setImpuestoSeleccionado] = useState("20");
+  const [impuestoSeleccionado, setImpuestoSeleccionado] = useState("59");
   const [tipoVenta, setTipoVenta] = useState("1");
   const [tipoProducto, setTipoProducto] = useState("1");
   const [isMobile, setIsMobile] = useState(false);
@@ -70,26 +70,8 @@ export default function ProductModal({
   }, [productoSeleccionado]);
 
   useEffect(() => {
-    if (tipoVenta === "1" && productoSeleccionado) {
-      const ivaExiste = tributos.some(t => t.codigo === "20");
-      
-      if (!ivaExiste) {
-        const precio = parseFloat(productoSeleccionado.precio) || 0;
-        const subtotalSinDescuento = cantidad * precio;
-        const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
-        const valorImpuesto = calcularValorImpuesto("20", subtotalConDescuento);
-        
-        const ivaTributo = {
-          codigo: "20",
-          descripcion: obtenerDescripcionImpuesto("20"),
-          valor: parseFloat(valorImpuesto.toFixed(2))
-        };
-        
-        setTributos([ivaTributo]);
-      }
-    } else if (tipoVenta !== "1") {
-      setTributos(tributos.filter(t => t.codigo !== "20"));
-    }
+    // CORRECCIÓN: Para sujeto excluido, eliminar cualquier tributo IVA si existe
+    setTributos(tributos.filter(t => t.codigo !== "20"));
   }, [tipoVenta, productoSeleccionado, cantidad, descuentoAplicado]);
 
   useEffect(() => {
@@ -104,7 +86,7 @@ export default function ProductModal({
     setProductoSeleccionado(null);
     setSearchTerm("");
     setCantidad(1);
-    setImpuestoSeleccionado("20");
+    setImpuestoSeleccionado("59");
     setTipoVenta("1");
     setMostrarAlertaStock(false);
     setStockDisponible(0);
@@ -126,7 +108,6 @@ export default function ProductModal({
 
   const obtenerDescripcionImpuesto = (codigo) => {
     const impuestos = {
-      "20": "Impuesto al Valor Agregado 13%",
       "59": "Turismo: por alojamiento (5%)",
       "71": "Turismo: salida del país por vía aérea $7.00",
       "D1": "FOVIAL ($0.20 Ctvs. por galón)",
@@ -174,7 +155,6 @@ export default function ProductModal({
 
   const calcularValorImpuesto = (codigoImpuesto, subtotal) => {
     const tasas = {
-      "20": 0.13, 
       "59": 0.05, 
       "C5": 0.08,
       "C6": 0.39, 
@@ -202,8 +182,9 @@ export default function ProductModal({
   const agregarTributo = () => {
     if (!productoSeleccionado) return;
     
-    if (tipoVenta === "2" && impuestoSeleccionado === "20") {
-      alert("No puede agregar IVA a un producto exento");
+    // CORRECCIÓN: Para sujeto excluido, no permitir IVA en ningún caso
+    if (impuestoSeleccionado === "20") {
+      alert("No puede agregar IVA en documentos de sujeto excluido");
       return;
     }
     
@@ -228,11 +209,7 @@ export default function ProductModal({
   };
 
   const eliminarTributo = (codigo) => {
-    if (tipoVenta === "1" && codigo === "20") {
-      alert("No puede eliminar el IVA de un producto gravado");
-      return;
-    }
-    
+    // CORRECCIÓN: Para sujeto excluido, permitir eliminar cualquier tributo
     setTributos(tributos.filter(t => t.codigo !== codigo));
   };
 
@@ -243,17 +220,9 @@ export default function ProductModal({
     const subtotalSinDescuento = cantidad * precio;
     const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
     
-    if (tipoVenta === "2") {
-      const precioSinIVA = precio;
-      const subtotalSinDescuentoSinIVA = cantidad * precioSinIVA;
-      const descuentoSinIVA = parseFloat(valorDescuento) || 0;
-      const subtotalConDescuentoSinIVA = subtotalSinDescuentoSinIVA - descuentoSinIVA;
-      
-      return Math.max(0, subtotalConDescuentoSinIVA);
-    }
-    
-    const impuestosNoIVA = tributos.filter(tributo => tributo.codigo !== "20");
-    const totalImpuestos = impuestosNoIVA.reduce((sum, tributo) => sum + tributo.valor, 0);
+    // CORRECCIÓN: Para sujeto excluido, no hay IVA en ningún caso
+    // Solo se aplican otros tributos específicos si existen
+    const totalImpuestos = tributos.reduce((sum, tributo) => sum + tributo.valor, 0);
     
     return Math.max(0, subtotalConDescuento + totalImpuestos);
   };
@@ -281,17 +250,14 @@ export default function ProductModal({
   const agregarItemConfirmado = () => {
     let tipoItem;
     switch (tipoVenta) {
-      case "1": 
-        tipoItem = "producto";
-        break;
       case "2": 
         tipoItem = "noAfecto";
         break;
       case "3":
-        tipoItem = "noAfecto"; 
+        tipoItem = "noSuj";
         break;
       default:
-        tipoItem = "producto";
+        tipoItem = "noAfecto";
     }
 
     const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
@@ -306,12 +272,25 @@ export default function ProductModal({
 
     const total = calcularTotal();
     
+    // CORRECCIÓN: Distribuir correctamente los descuentos según el tipo
+    let descuentoExento = 0;
+    let descuentoNoSujeto = 0;
+    
+    if (tipoItem === "noAfecto") {
+      descuentoExento = descuentoAplicado;
+    } else if (tipoItem === "noSuj") {
+      descuentoNoSujeto = descuentoAplicado;
+    }
+    
     onAddItem({
       descripcion: productoSeleccionado.nombre,
       cantidad: cantidad,
       precioUnitario: precioUnitario,
       descuento: descuentoAplicado,
       valorDescuento: valorDescuento,
+      // CORRECCIÓN: Agregar campos de descuento distribuido
+      descuentoExento: descuentoExento,
+      descuentoNoSujeto: descuentoNoSujeto,
       unidadMedida: productoSeleccionado.unidad || "59",
       tipo: tipoItem,
       tributos: tributos,
@@ -390,7 +369,7 @@ export default function ProductModal({
       
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="bg-gray-800 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
-          <h2 className="text-xl font-bold">Agregar Producto o Servicio</h2>
+          <h2 className="text-xl font-bold">Agregar Producto o Servicio - Sujeto Excluido</h2>
           <button
             onClick={handleClose}
             className="text-white hover:text-gray-300 transition-colors"
@@ -526,7 +505,6 @@ export default function ProductModal({
                   onChange={(e) => setTipoVenta(e.target.value)}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="1">Gravado</option>
                   <option value="2">Exento</option>
                   <option value="3">No sujeto</option>
                 </select>
@@ -671,16 +649,10 @@ export default function ProductModal({
             <div className="space-y-5">
               <div className="border-b border-gray-200 pb-2">
                 <h3 className="font-semibold text-gray-900 text-lg">Información de tributos</h3>
-                {tipoVenta === "1" && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    El IVA (20) se ha agregado automáticamente para productos gravados
-                  </p>
-                )}
-                {esExento && (
-                  <p className="text-xs text-red-600 mt-1">
-                    Los productos exentos no pueden tener tributos/impuestos
-                  </p>
-                )}
+                {/* CORRECCIÓN: Mensaje específico para sujeto excluido */}
+                <p className="text-xs text-red-600 mt-1">
+                  Documento de Sujeto Excluido - No se permite IVA
+                </p>
               </div>
 
               <div>
@@ -690,9 +662,8 @@ export default function ProductModal({
                     className="flex-1 p-3 w-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={impuestoSeleccionado}
                     onChange={(e) => setImpuestoSeleccionado(e.target.value)}
-                    disabled={esExento}
                   >
-                    <option value="20">20 - Impuesto al Valor Agregado 13%</option>
+                    {/* CORRECCIÓN: Eliminar la opción de IVA */}
                     <option value="59">59 - Turismo: por alojamiento (5%)</option>
                     <option value="71">71 - Turismo: salida del país por vía aérea $7.00</option>
                     <option value="D1">D1 - FOVIAL ($0.20 Ctvs. por galón)</option>
@@ -706,7 +677,7 @@ export default function ProductModal({
                   <button
                     onClick={agregarTributo}
                     className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    disabled={!productoSeleccionado || esExento}
+                    disabled={!productoSeleccionado}
                   >
                     <FaPlus />
                   </button>
@@ -725,7 +696,6 @@ export default function ProductModal({
                           <button
                             onClick={() => eliminarTributo(tributo.codigo)}
                             className="text-red-500 hover:text-red-700 ml-2"
-                            disabled={(tipoVenta === "1" && tributo.codigo === "20") || esExento}
                           >
                             <FaTrash size={14} />
                           </button>
@@ -766,11 +736,10 @@ export default function ProductModal({
                     <span className="text-lg font-semibold text-gray-900">Total:</span>
                     <span className="text-xl font-bold text-blue-700">${total.toFixed(2)}</span>
                   </div>
-                  {esExento && (
-                    <div className="text-xs text-blue-600 mt-2 text-center">
-                      * Precio sin IVA aplicado para producto exento
-                    </div>
-                  )}
+                  {/* CORRECCIÓN: Mensaje específico para sujeto excluido */}
+                  <div className="text-xs text-blue-600 mt-2 text-center">
+                    * Documento de Sujeto Excluido - Sin IVA
+                  </div>
                 </div>
               </div>
             </div>
