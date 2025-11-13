@@ -32,7 +32,8 @@ import {
   FaClipboardList,     // Para Liquidación
   FaHistory,
   FaUserCheck,         // Para Contribuyentes
-  FaFileExport         // Para Anexos
+  FaFileExport,        // Para Anexos
+  FaTicketAlt          // Nuevo ícono para Configurar Tickets
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -345,6 +346,16 @@ export default function Sidebar({ onOpenPerfil }) {
         icon: <FaHistory />,
         href: "/dashboard/registro-eventos",
         permiso: "Registro de eventos"
+      });
+    }
+
+    // Nuevo: Configurar Tickets
+    if (tienePermiso("Configurar Tickets")) {
+      adminSubMenu.push({
+        name: "Configurar Tickets",
+        icon: <FaTicketAlt />,
+        href: "/dashboard/configurar-tickets",
+        permiso: "Configurar Tickets"
       });
     }
 
