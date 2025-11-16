@@ -271,20 +271,22 @@ export default function NotaDetallePage() {
         try {
           errorData = JSON.parse(errorText);
         } catch {
-          throw new Error(errorText || "Error al descargar ticket");
+          throw new Error(errorText || "Error al generar ticket");
         }
-        throw new Error(errorData.detalles || errorData.error || "Error al descargar ticket");
+        throw new Error(errorData.detalles || errorData.error || "Error al generar ticket");
       }
+
+      const htmlContent = await response.text();
       
-      const ticketBlob = await response.blob();
-      const ticketUrl = URL.createObjectURL(ticketBlob);
-      const link = document.createElement('a');
-      link.href = ticketUrl;
-      link.download = `TICKET-${config.prefijo}-${numeroNotaDisplay}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(ticketUrl);
+      const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+      
+      if (!printWindow) {
+        throw new Error("El navegador bloqueó la ventana emergente. Por favor, permite ventanas emergentes para este sitio.");
+      }
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+
     } catch (error) {
       console.error("Error al generar ticket:", error);
       alert("Error al generar el ticket: " + error.message);

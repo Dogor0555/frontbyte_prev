@@ -88,41 +88,43 @@ export default function FacturaDetallePage() {
   };
 
   const handleGenerateTicket = async () => {
-    setGenerandoTicket(true);
-    try {
-      const response = await fetch(`http://localhost:3000/facturas/${idFactura}/descargar-compacto`, {
-        credentials: "include",
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      setGenerandoTicket(true);
+      try {
+        const response = await fetch(`http://localhost:3000/facturas/${idFactura}/ver-compacto`, {
+          credentials: "include",
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            throw new Error(errorText || "Error al generar ticket");
+          }
+          throw new Error(errorData.detalles || errorData.error || "Error al generar ticket");
         }
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          throw new Error(errorText || "Error al descargar ticket");
+
+        const htmlContent = await response.text();
+        
+        const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+        
+        if (!printWindow) {
+          throw new Error("El navegador bloqueó la ventana emergente. Por favor, permite ventanas emergentes para este sitio.");
         }
-        throw new Error(errorData.detalles || errorData.error || "Error al descargar ticket");
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+
+      } catch (error) {
+        console.error("Error al generar ticket:", error);
+        alert("Error al generar el ticket: " + error.message);
+      } finally {
+        setGenerandoTicket(false);
       }
-      
-      const ticketBlob = await response.blob();
-      const ticketUrl = URL.createObjectURL(ticketBlob);
-      const link = document.createElement('a');
-      link.href = ticketUrl;
-      link.download = `TICKET-${facturaData.factura.numerofacturausuario || idFactura}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(ticketUrl);
-    } catch (error) {
-      console.error("Error al generar ticket:", error);
-      alert("Error al generar el ticket: " + error.message);
-    } finally {
-      setGenerandoTicket(false);
-    }
   };
 
   const toggleSidebar = () => {
