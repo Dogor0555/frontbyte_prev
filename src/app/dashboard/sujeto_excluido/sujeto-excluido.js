@@ -1377,40 +1377,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                 </div>
               </div>
 
-              {/* Botón Agregar Descuentos */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Descuentos</h3>
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={() => setShowDiscountModal(true)}
-                    className="flex items-center bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
-                  >
-                    <FaTags className="mr-2" />
-                    Agregar Descuentos
-                  </button>
-                  
-                  {(descuentoExentasMonto > 0 || descuentoNoSujetasMonto > 0) && (
-                    <button 
-                      onClick={() => {
-                        setDescuentoExentasMonto(0);
-                        setDescuentoNoSujetasMonto(0);
-                      }}
-                      className="flex items-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
-                    >
-                      <FaTimes className="mr-2" />
-                      Eliminar Descuentos
-                    </button>
-                  )}
-                </div> 
-                
-                {(descuentoExentasMonto > 0 || descuentoNoSujetasMonto > 0) && (
-                  <div className="mt-2 text-sm text-gray-600">
-                    {descuentoExentasMonto > 0 && <p>Descuento ventas exentas: {formatMoney(descuentoExentasMonto)}</p>}
-                    {descuentoNoSujetasMonto > 0 && <p>Descuento ventas no sujetas: {formatMoney(descuentoNoSujetasMonto)}</p>}
-                  </div>
-                )}
-              </div>
-
               <FormaPago 
                 condicionPago={condicionPago}
                 setCondicionPago={setCondicionPago}
