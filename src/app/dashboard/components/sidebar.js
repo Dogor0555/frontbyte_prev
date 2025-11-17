@@ -33,7 +33,8 @@ import {
   FaHistory,
   FaUserCheck,         // Para Contribuyentes
   FaFileExport,        // Para Anexos
-  FaTicketAlt          // Nuevo ícono para Configurar Tickets
+  FaTicketAlt,         // Nuevo ícono para Configurar Tickets
+  FaFilePdf           // Nuevo ícono para Detalles de Documentos
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -222,6 +223,12 @@ export default function Sidebar({ onOpenPerfil }) {
           href: "/dashboard/anexo_contribuyente",
           permiso: "Anexo de Contribuyentes" 
         },
+        { 
+          name: "Detalle de Documentos", 
+          icon: <FaFilePdf />, 
+          href: "/dashboard/detalle_documentos_contribuyentes",
+          permiso: "Detalle de Documentos Contribuyentes" 
+        },
       ],
       menuKey: "contribuyentes",
       permiso: "Ventas a Contribuyentes"
@@ -244,6 +251,12 @@ export default function Sidebar({ onOpenPerfil }) {
           icon: <FaFileAlt />, 
           href: "/dashboard/anexo_consumidor_final",
           permiso: "Anexo de Consumidor Final" 
+        },
+        { 
+          name: "Detalle de Documentos", 
+          icon: <FaFilePdf />, 
+          href: "/dashboard/detalle_documentos_consumidor_final",
+          permiso: "Detalle de Documentos Consumidor Final" 
         },
       ],
       menuKey: "consumidorfinal",
