@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox, FaTicketAlt } from "react-icons/fa";
+import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox, FaTicketAlt, FaTag } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
@@ -130,6 +130,20 @@ export default function FacturaDetallePage() {
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
+
+  // Calcular totales de descuentos
+  const calcularTotalesDescuentos = () => {
+    if (!facturaData?.productos) return { totalDescuento: 0, totalDescGravado: 0, totalDescExento: 0, totalDescSujeto: 0 };
+    
+    return facturaData.productos.reduce((acc, producto) => ({
+      totalDescuento: acc.totalDescuento + (producto.montodescu || 0),
+      totalDescGravado: acc.totalDescGravado + (producto.desc_gravado || 0),
+      totalDescExento: acc.totalDescExento + (producto.desc_exento || 0),
+      totalDescSujeto: acc.totalDescSujeto + (producto.desc_sujeto || 0)
+    }), { totalDescuento: 0, totalDescGravado: 0, totalDescExento: 0, totalDescSujeto: 0 });
+  };
+
+  const totalesDescuentos = calcularTotalesDescuentos();
 
   if (loading) {
     return (
@@ -359,6 +373,10 @@ export default function FacturaDetallePage() {
                             <th className="py-2 px-4 border-b text-left">Descripción</th>
                             <th className="py-2 px-4 border-b text-center">Cantidad</th>
                             <th className="py-2 px-4 border-b text-right">Precio Unitario</th>
+                            <th className="py-2 px-4 border-b text-right">Descuento Total</th>
+                            <th className="py-2 px-4 border-b text-right">Desc. Gravado</th>
+                            <th className="py-2 px-4 border-b text-right">Desc. Exento</th>
+                            <th className="py-2 px-4 border-b text-right">Desc. Sujeto</th>
                             <th className="py-2 px-4 border-b text-right">Gravado</th>
                             <th className="py-2 px-4 border-b text-right">Exento</th>
                             <th className="py-2 px-4 border-b text-right">No Sujeto</th>
@@ -371,10 +389,18 @@ export default function FacturaDetallePage() {
                               <td className="py-2 px-4 border-b">{producto.descripcion || "Producto"}</td>
                               <td className="py-2 px-4 border-b text-center">{Math.floor(producto.cantidad)|| 1}</td>
                               <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.precioUnitario || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right text-red-600">
+                                {formatCurrency(producto.montodescu || 0)}
+                              </td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.desc_gravado || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.desc_exento || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.desc_sujeto || 0)}</td>
                               <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventagravada || 0)}</td>
                               <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventaExenta || 0)}</td>
                               <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventaNoSujeta || 0)}</td>
-                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.total || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right font-medium">
+                                {formatCurrency(producto.total || 0)}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -391,30 +417,69 @@ export default function FacturaDetallePage() {
 
                 {/* Totales */}
                 <div className="flex justify-end">
-                  <div className="w-full md:w-1/3 bg-gray-50 p-4 rounded">
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="font-medium">Venta Gravada:</span>
-                      <span className="font-medium">{formatCurrency(facturaData.factura.ventagravada)}</span>
+                  <div className="w-full md:w-1/2 bg-gray-50 p-4 rounded">
+                    {/* Sección de Descuentos */}
+                    <div className="mb-4 pb-3 border-b">
+                      <h4 className="font-semibold mb-2 flex items-center text-gray-700">
+                        <FaTag className="mr-2 text-blue-500" /> Descuentos Aplicados
+                      </h4>
+                      <div className="flex justify-between py-1">
+                        <span className="text-sm">Descuento Total:</span>
+                        <span className="text-sm font-medium text-red-600">
+                          {formatCurrency(totalesDescuentos.totalDescuento)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-sm text-gray-600 ml-2">↳ Descuento Gravado:</span>
+                        <span className="text-sm text-gray-600">
+                          {formatCurrency(totalesDescuentos.totalDescGravado)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-sm text-gray-600 ml-2">↳ Descuento Exento:</span>
+                        <span className="text-sm text-gray-600">
+                          {formatCurrency(totalesDescuentos.totalDescExento)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-sm text-gray-600 ml-2">↳ Descuento Sujeto:</span>
+                        <span className="text-sm text-gray-600">
+                          {formatCurrency(totalesDescuentos.totalDescSujeto)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="font-medium">Venta Exenta:</span>
-                      <span className="font-medium">{formatCurrency(facturaData.factura.ventaexenta)}</span>
+
+                    {/* Sección de Ventas */}
+                    <div className="mb-4 pb-3 border-b">
+                      <h4 className="font-semibold mb-2 text-gray-700">Totales de Venta</h4>
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="font-medium">Venta Gravada:</span>
+                        <span className="font-medium">{formatCurrency(facturaData.factura.ventagravada)}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="font-medium">Venta Exenta:</span>
+                        <span className="font-medium">{formatCurrency(facturaData.factura.ventaexenta)}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="font-medium">Venta No Sujeta:</span>
+                        <span className="font-medium">{formatCurrency(facturaData.factura.ventanosuj)}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="font-medium">Subtotal:</span>
+                        <span className="font-medium">{formatCurrency(facturaData.factura.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="font-medium">IVA:</span>
+                        <span className="font-medium">{formatCurrency(facturaData.factura.valoriva || 0)}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="font-medium">Venta No Sujeta:</span>
-                      <span className="font-medium">{formatCurrency(facturaData.factura.ventanosuj)}</span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="font-medium">Subtotal:</span>
-                      <span className="font-medium">{formatCurrency(facturaData.factura.subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="font-medium">IVA:</span>
-                      <span className="font-medium">{formatCurrency(0)}</span>
-                    </div>
-                    <div className="flex justify-between py-2">
-                      <span className="font-bold">Total:</span>
-                      <span className="font-bold">{formatCurrency(facturaData.factura.totalapagar)}</span>
+
+                    {/* Total Final */}
+                    <div className="flex justify-between py-2 bg-blue-50 px-2 rounded">
+                      <span className="font-bold text-lg">Total a Pagar:</span>
+                      <span className="font-bold text-lg text-blue-700">
+                        {formatCurrency(facturaData.factura.totalapagar)}
+                      </span>
                     </div>
                   </div>
                 </div>

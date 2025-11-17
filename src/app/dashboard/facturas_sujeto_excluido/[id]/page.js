@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox, FaTicketAlt, FaExclamationTriangle } from "react-icons/fa";
+import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox, FaTicketAlt, FaExclamationTriangle, FaTag } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
@@ -21,7 +21,7 @@ export default function FacturaExcluidaDetallePage() {
     const fetchFacturaExcluida = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/sujeto-excluido/${facturaId}`, {
+        const response = await fetch(`http://localhost:3000/sujeto-excluido/${facturaId}/productos`, {
           credentials: "include",
           headers: {
             'Content-Type': 'application/json',
@@ -43,20 +43,7 @@ export default function FacturaExcluidaDetallePage() {
           throw new Error(errorMessage);
         }
         
-        const contentType = response.headers.get('content-type');
-        let data;
-        
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          const text = await response.text();
-          try {
-            data = JSON.parse(text);
-          } catch {
-            throw new Error("Formato de respuesta no válido");
-          }
-        }
-        
+        const data = await response.json();
         setFacturaData(data);
       } catch (err) {
         console.error("Error al cargar factura excluida:", err);
@@ -71,10 +58,24 @@ export default function FacturaExcluidaDetallePage() {
     }
   }, [facturaId]);
 
+  // Calcular totales de descuentos
+  const calcularTotalesDescuentos = () => {
+    if (!facturaData?.productos) return { totalDescuento: 0, totalDescGravado: 0, totalDescExento: 0, totalDescSujeto: 0 };
+    
+    return facturaData.productos.reduce((acc, producto) => ({
+      totalDescuento: acc.totalDescuento + (parseFloat(producto.montodescu) || 0),
+      totalDescGravado: acc.totalDescGravado + (parseFloat(producto.desc_gravado) || 0),
+      totalDescExento: acc.totalDescExento + (parseFloat(producto.desc_exento) || 0),
+      totalDescSujeto: acc.totalDescSujeto + (parseFloat(producto.desc_sujeto) || 0)
+    }), { totalDescuento: 0, totalDescGravado: 0, totalDescExento: 0, totalDescSujeto: 0 });
+  };
+
+  const totalesDescuentos = calcularTotalesDescuentos();
+
   const handleGeneratePDF = async () => {
     setGenerandoPDF(true);
     try {
-      if (!facturaData?.documentofirmado) {
+      if (!facturaData?.factura?.documentofirmado) {
         throw new Error("La factura excluida no tiene documento firmado");
       }
 
@@ -101,7 +102,7 @@ export default function FacturaExcluidaDetallePage() {
       
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = `FAC-EXCLUIDA-${facturaData.numerofacturausuario || '0000'}.pdf`;
+      link.download = `FAC-EXCLUIDA-${facturaData.factura.numerofacturausuario || '0000'}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -114,10 +115,11 @@ export default function FacturaExcluidaDetallePage() {
       setGenerandoPDF(false);
     }
   };
+
   const handleGenerateTicket = async () => {
     setGenerandoTicket(true);
     try {
-      if (!facturaData?.documentofirmado) {
+      if (!facturaData?.factura?.documentofirmado) {
         throw new Error("La factura excluida no tiene documento firmado");
       }
 
@@ -281,10 +283,10 @@ export default function FacturaExcluidaDetallePage() {
                 {/* Botón Generar Ticket */}
                 <button
                   onClick={handleGenerateTicket}
-                  disabled={generandoTicket || !facturaData?.documentofirmado}
+                  disabled={generandoTicket || !facturaData?.factura?.documentofirmado}
                   className={`flex items-center px-4 py-2 rounded ${
                     generandoTicket ? 'bg-gray-400' : 
-                    !facturaData?.documentofirmado ? 'bg-gray-500' : 
+                    !facturaData?.factura?.documentofirmado ? 'bg-gray-500' : 
                     'bg-green-600 hover:bg-green-700'
                   } text-white`}
                 >
@@ -292,7 +294,7 @@ export default function FacturaExcluidaDetallePage() {
                     <>
                       <FaSpinner className="animate-spin mr-2" /> Generando...
                     </>
-                  ) : !facturaData?.documentofirmado ? (
+                  ) : !facturaData?.factura?.documentofirmado ? (
                     <>
                       <FaTicketAlt className="mr-2" /> Ticket no disponible
                     </>
@@ -306,10 +308,10 @@ export default function FacturaExcluidaDetallePage() {
                 {/* Botón Descargar PDF */}
                 <button
                   onClick={handleGeneratePDF}
-                  disabled={generandoPDF || !facturaData?.documentofirmado}
+                  disabled={generandoPDF || !facturaData?.factura?.documentofirmado}
                   className={`flex items-center px-4 py-2 rounded ${
                     generandoPDF ? 'bg-gray-400' : 
-                    !facturaData?.documentofirmado ? 'bg-gray-500' : 
+                    !facturaData?.factura?.documentofirmado ? 'bg-gray-500' : 
                     'bg-red-600 hover:bg-red-700'
                   } text-white`}
                 >
@@ -317,7 +319,7 @@ export default function FacturaExcluidaDetallePage() {
                     <>
                       <FaSpinner className="animate-spin mr-2" /> Generando...
                     </>
-                  ) : !facturaData?.documentofirmado ? (
+                  ) : !facturaData?.factura?.documentofirmado ? (
                     <>
                       <FaFilePdf className="mr-2" /> PDF no disponible
                     </>
@@ -337,17 +339,17 @@ export default function FacturaExcluidaDetallePage() {
                   <div className="flex items-center">
                     <FaExclamationTriangle className="mr-2 text-xl" />
                     <span className="font-semibold text-xl">
-                      FAC-EXCLUIDA-{facturaData.numerofacturausuario?.toString().padStart(4, '0') || '0000'}
+                      FAC-EXCLUIDA-{facturaData.factura.numerofacturausuario?.toString().padStart(4, '0') || '0000'}
                     </span>
                   </div>
                   <span className={`text-xs px-2 py-1 rounded ${
-                    facturaData.estado === 'TRANSMITIDO' ? 'bg-green-700' : 
-                    facturaData.estado === 'ANULADO' ? 'bg-red-700' :
-                    facturaData.estado === 'CONTINGENCIA' ? 'bg-yellow-700' :
-                    facturaData.estado === 'RE-TRANSMITIDO' ? 'bg-blue-700' :
+                    facturaData.factura.estado === 'TRANSMITIDO' ? 'bg-green-700' : 
+                    facturaData.factura.estado === 'ANULADO' ? 'bg-red-700' :
+                    facturaData.factura.estado === 'CONTINGENCIA' ? 'bg-yellow-700' :
+                    facturaData.factura.estado === 'RE-TRANSMITIDO' ? 'bg-blue-700' :
                     'bg-gray-700'
                   }`}>
-                    {facturaData.estado?.toUpperCase() || 'PENDIENTE'}
+                    {facturaData.factura.estado?.toUpperCase() || 'PENDIENTE'}
                   </span>
                 </div>
                 <div className="mt-2 text-sm opacity-90">
@@ -359,20 +361,20 @@ export default function FacturaExcluidaDetallePage() {
               <div className="text-black p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-4 rounded">
                   <h2 className="font-semibold mb-3 text-lg">Emisor</h2>
-                  <p className="font-medium">{facturaData.nombreemisor || "Nombre no disponible"}</p>
-                  <p>NIT: {facturaData.nitemisor || "NIT no disponible"}</p>
-                  <p>NRC: {facturaData.nrcemisor || "NRC no disponible"}</p>
-                  <p>Teléfono: {facturaData.telefonoemisor || "Teléfono no disponible"}</p>
-                  <p>Correo: {facturaData.correoemisor || "Correo no disponible"}</p>
+                  <p className="font-medium">{facturaData.emisor.nombre || "Nombre no disponible"}</p>
+                  <p>NIT: {facturaData.emisor.nit || "NIT no disponible"}</p>
+                  <p>NRC: {facturaData.emisor.nrc || "NRC no disponible"}</p>
+                  <p>Teléfono: {facturaData.emisor.telefono || "Teléfono no disponible"}</p>
+                  <p>Correo: {facturaData.emisor.correo || "Correo no disponible"}</p>
+                  <p>Sucursal: {facturaData.emisor.sucursal || "Sucursal no disponible"}</p>
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded">
                   <h2 className="font-semibold mb-3 text-lg">Cliente</h2>
-                  <p className="font-medium">{facturaData.nombrecibe || facturaData.nombrentrega || "Cliente no disponible"}</p>
-                  <p>Documento: {facturaData.docuentrega || "Documento no disponible"}</p>
-                  <p>Teléfono: {facturaData.telefonoentrega || "Teléfono no disponible"}</p>
-                  <p>Correo: {facturaData.correoentrega || "Correo no disponible"}</p>
-                  <p>Dirección: {facturaData.direccionentrega || "Dirección no disponible"}</p>
+                  <p className="font-medium">{facturaData.cliente.nombre || "Cliente no disponible"}</p>
+                  <p>Documento: {facturaData.cliente.documento || "Documento no disponible"}</p>
+                  <p>Teléfono: {facturaData.cliente.telefono || "Teléfono no disponible"}</p>
+                  <p>Correo: {facturaData.cliente.correo || "Correo no disponible"}</p>
                 </div>
               </div>
 
@@ -380,9 +382,9 @@ export default function FacturaExcluidaDetallePage() {
               <div className="p-5 border-t">
                 <div className="flex items-center mb-4 text-gray-600">
                   <FaCalendarAlt className="mr-2 text-green-500" />
-                  <span className="font-medium">Fecha: {facturaData.fechaemision?.split("T")[0] || formatDate(facturaData.fechaemision)}</span>
-                  {facturaData.horaemision && (
-                    <span className="font-medium ml-2">Hora: {facturaData.horaemision}</span>
+                  <span className="font-medium">Fecha: {facturaData.factura.fechaemision?.split("T")[0] || formatDate(facturaData.factura.fechaemision)}</span>
+                  {facturaData.factura.horaemision && (
+                    <span className="font-medium ml-2">Hora: {facturaData.factura.horaemision}</span>
                   )}
                 </div>
 
@@ -397,9 +399,13 @@ export default function FacturaExcluidaDetallePage() {
                             <th className="py-2 px-4 border-b text-left">Descripción</th>
                             <th className="py-2 px-4 border-b text-center">Cantidad</th>
                             <th className="py-2 px-4 border-b text-right">Precio Unitario</th>
-                            <th className="py-2 px-4 border-b text-right">Venta Gravada</th>
-                            <th className="py-2 px-4 border-b text-right">Venta Exenta</th>
-                            <th className="py-2 px-4 border-b text-right">Venta No Sujeta</th>
+                            <th className="py-2 px-4 border-b text-right">Descuento Total</th>
+                            <th className="py-2 px-4 border-b text-right">Desc. Gravado</th>
+                            <th className="py-2 px-4 border-b text-right">Desc. Exento</th>
+                            <th className="py-2 px-4 border-b text-right">Desc. Sujeto</th>
+                            <th className="py-2 px-4 border-b text-right">Gravado</th>
+                            <th className="py-2 px-4 border-b text-right">Exento</th>
+                            <th className="py-2 px-4 border-b text-right">No Sujeto</th>
                             <th className="py-2 px-4 border-b text-right">Subtotal</th>
                           </tr>
                         </thead>
@@ -408,11 +414,19 @@ export default function FacturaExcluidaDetallePage() {
                             <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                               <td className="py-2 px-4 border-b">{producto.descripcion || "Producto"}</td>
                               <td className="py-2 px-4 border-b text-center">{Math.floor(producto.cantidad) || 1}</td>
-                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.preciounitario || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.precioUnitario || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right text-red-600">
+                                {formatCurrency(producto.montodescu || 0)}
+                              </td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.desc_gravado || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.desc_exento || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.desc_sujeto || 0)}</td>
                               <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventagravada || 0)}</td>
-                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventaexenta || 0)}</td>
-                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventanosujeta || 0)}</td>
-                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.total || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventaExenta || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right">{formatCurrency(producto.ventaNoSujeta || 0)}</td>
+                              <td className="py-2 px-4 border-b text-right font-medium">
+                                {formatCurrency(producto.total || 0)}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -429,26 +443,69 @@ export default function FacturaExcluidaDetallePage() {
 
                 {/* Totales */}
                 <div className="flex justify-end">
-                  <div className="w-full md:w-1/3 bg-gray-50 p-4 rounded">
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="font-medium">Venta Gravada:</span>
-                      <span className="font-medium">{formatCurrency(facturaData.ventagravada)}</span>
+                  <div className="w-full md:w-1/2 bg-gray-50 p-4 rounded">
+                    {/* Sección de Descuentos */}
+                    <div className="mb-4 pb-3 border-b">
+                      <h4 className="font-semibold mb-2 flex items-center text-gray-700">
+                        <FaTag className="mr-2 text-green-500" /> Descuentos Aplicados
+                      </h4>
+                      <div className="flex justify-between py-1">
+                        <span className="text-sm">Descuento Total:</span>
+                        <span className="text-sm font-medium text-red-600">
+                          {formatCurrency(totalesDescuentos.totalDescuento)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-sm text-gray-600 ml-2">↳ Descuento Gravado:</span>
+                        <span className="text-sm text-gray-600">
+                          {formatCurrency(totalesDescuentos.totalDescGravado)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-sm text-gray-600 ml-2">↳ Descuento Exento:</span>
+                        <span className="text-sm text-gray-600">
+                          {formatCurrency(totalesDescuentos.totalDescExento)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-sm text-gray-600 ml-2">↳ Descuento Sujeto:</span>
+                        <span className="text-sm text-gray-600">
+                          {formatCurrency(totalesDescuentos.totalDescSujeto)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="font-medium">Venta Exenta:</span>
-                      <span className="font-medium">{formatCurrency(facturaData.ventaexenta)}</span>
+
+                    {/* Sección de Ventas */}
+                    <div className="mb-4 pb-3 border-b">
+                      <h4 className="font-semibold mb-2 text-gray-700">Totales de Venta</h4>
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="font-medium">Venta Gravada:</span>
+                        <span className="font-medium">{formatCurrency(facturaData.factura.ventagravada)}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="font-medium">Venta Exenta:</span>
+                        <span className="font-medium">{formatCurrency(facturaData.factura.ventaexenta)}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="font-medium">Venta No Sujeta:</span>
+                        <span className="font-medium">{formatCurrency(facturaData.factura.ventanosuj)}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="font-medium">Subtotal:</span>
+                        <span className="font-medium">{formatCurrency(facturaData.factura.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="font-medium">IVA:</span>
+                        <span className="font-medium">{formatCurrency(facturaData.factura.valoriva || 0)}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="font-medium">Venta No Sujeta:</span>
-                      <span className="font-medium">{formatCurrency(facturaData.ventanosuj)}</span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="font-medium">Subtotal:</span>
-                      <span className="font-medium">{formatCurrency(facturaData.subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between py-2">
-                      <span className="font-bold">Total:</span>
-                      <span className="font-bold">{formatCurrency(facturaData.totalpagar)}</span>
+
+                    {/* Total Final */}
+                    <div className="flex justify-between py-2 bg-green-50 px-2 rounded">
+                      <span className="font-bold text-lg">Total a Pagar:</span>
+                      <span className="font-bold text-lg text-green-700">
+                        {formatCurrency(facturaData.factura.totalapagar)}
+                      </span>
                     </div>
                     <div className="mt-2 text-xs text-green-600 text-center">
                       Sin IVA - Sujeto Excluido
@@ -459,17 +516,17 @@ export default function FacturaExcluidaDetallePage() {
                 {/* Total en letras */}
                 <div className="mt-6 p-4 bg-gray-50 rounded">
                   <p className="font-semibold">Total en letras:</p>
-                  <p className="italic">{facturaData.valorletras || "No disponible"}</p>
+                  <p className="italic">{facturaData.factura.valorletras || "No disponible"}</p>
                 </div>
 
                 {/* Información adicional */}
                 <div className="mt-4 p-4 bg-gray-50 rounded">
                   <p className="font-semibold">Información adicional:</p>
-                  <p>Forma de pago: {facturaData.formapago || "No especificado"}</p>
-                  <p>Tipo de venta: {facturaData.tipoventa || "No especificado"}</p>
-                  <p>Estado: {facturaData.estado || "No especificado"}</p>
-                  <p>N° Control: {facturaData.ncontrol || "No disponible"}</p>
-                  <p>Código DTE: {facturaData.codigo || "No disponible"}</p>
+                  <p>Forma de pago: {facturaData.factura.formapago || "No especificado"}</p>
+                  <p>Tipo de venta: {facturaData.factura.tipoventa || "No especificado"}</p>
+                  <p>Estado: {facturaData.factura.estado || "No especificado"}</p>
+                  <p>N° Control: {facturaData.factura.ncontrol || "No disponible"}</p>
+                  <p>Tipo DTE: {facturaData.factura.tipo_dte || "14 - Sujeto Excluido"}</p>
                 </div>
               </div>
             </div>
