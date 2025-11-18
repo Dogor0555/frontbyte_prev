@@ -19,7 +19,6 @@ import MensajeModal from "./components/MensajeModal";
 import { useReactToPrint } from 'react-to-print';
 
 export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
-  // Estados para la factura
   const [cliente, setCliente] = useState(null);
   const [nombreCliente, setNombreCliente] = useState("");
   const [documentoCliente, setDocumentoCliente] = useState("");
@@ -46,12 +45,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [cargandoProductos, setCargandoProductos] = useState(false);
   const [errorCargaProductos, setErrorCargaProductos] = useState(null);
-  // --- Emisor (vendedor logueado) ---
   const [actividadEconomica, setActividadEconomica] = useState("");
   const [direccionEmisor, setDireccionEmisor] = useState("");
   const [correoVendedor, setCorreoVendedor] = useState("");
   const [telefonoEmisor, setTelefonoEmisor] = useState("");
-  // --- Receptor (cliente de la factura) ---
   const [tipoDocumentoReceptor, setTipoDocumentoReceptor] = useState("");
   const [numeroDocumentoReceptor, setNumeroDocumentoReceptor] = useState("");
   const [nombreReceptor, setNombreReceptor] = useState("");
@@ -85,8 +82,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [emisorDocumento, setEmisorDocumento] = useState("");
   const [emisorNombre, setEmisorNombre] = useState("");
   const [tributosDetallados, setTributosDetallados] = useState({});
-
-  // Nuevos estados para el MensajeModal
   const [mostrarMensaje, setMostrarMensaje] = useState(false);
   const [mensajeConfig, setMensajeConfig] = useState({
     tipo: "exito",
@@ -139,6 +134,16 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     { codigo: "99", nombre: "Otra" },
   ]);
 
+  const calcularPrecioNetoEIVA = (precioBruto) => {
+    const precioNeto = precioBruto / 1.13;
+    const iva = precioBruto - precioNeto;
+    return {
+      neto: parseFloat(precioNeto.toFixed(2)),
+      iva: parseFloat(iva.toFixed(2)),
+      bruto: parseFloat(precioBruto.toFixed(2))
+    };
+  };
+
   const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
     if (!tipoDocumento || !numeroDocumento.trim()) {
       return { valido: false, mensaje: "El número de documento es requerido" };
@@ -163,7 +168,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     return { valido: true, mensaje: "" };
   };
 
-  // Función para mostrar mensajes
   const mostrarModalMensaje = (tipo, titulo, mensaje, detalles = "", idFactura = null) => {
     setMensajeConfig({
       tipo,
@@ -320,7 +324,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           let mensajeDetalles = "";
           let idFacturaParaDescarga = result.iddtefactura;
 
-          // Mostrar aviso si se envió en contingencia
           if (detallesResult.contingencia && detallesResult.aviso) {
             mensajeTitulo = "Crédito en Contingencia";
             mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message}`;
@@ -526,10 +529,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const guardarDetallesFactura = async (iddtefactura) => {
     try {
       const detalles = items.map((item, index) => {
-        const subtotalItem = item.precioUnitario * item.cantidad;
+        const precioNeto = item.precioNeto || (item.precioUnitario / 1.13);
+        const subtotalNeto = item.cantidad * precioNeto;
         
         const descuentoItem = item.descuento || 0;
-        const baseImponible = subtotalItem - descuentoItem;
+        const baseImponibleNeto = subtotalNeto - descuentoItem;
 
         const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
         const esExento = item.tipo === "noAfecto";
@@ -537,7 +541,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
         const tasaIVA = 0.13;
         const ivaItem = esGravado ? 
-          (baseImponible * tasaIVA) : 0;
+          (baseImponibleNeto * tasaIVA) : 0;
 
         const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
 
@@ -552,9 +556,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           descripcion: item.descripcion,
           preciouni: parseFloat(item.precioUnitario.toFixed(2)),
           montodescu: parseFloat(descuentoItem.toFixed(2)),
-          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+          ventanosuj: esNoSujeto ? parseFloat(baseImponibleNeto.toFixed(2)) : 0.00,
+          ventaexenta: esExento ? parseFloat(baseImponibleNeto.toFixed(2)) : 0.00,
+          ventagravada: esGravado ? parseFloat(baseImponibleNeto.toFixed(2)) : 0.00,
           tributos: item.tributos,
           psv: 0,
           nogravado: 0.00,
@@ -638,42 +642,47 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     let formapagoValue = "Efectivo";
     
     if (formasPago && formasPago.length > 0) {
-      const metodoPago = formasPago[0]?.metodo?.toLowerCase() || "";
-      
-      if (formasPago && formasPago.length > 0) {
-        const metodoPago = formasPago[0]?.metodo || "";
-        formapagoValue = metodoPago || "Efectivo";
-      }
+      const metodoPago = formasPago[0]?.metodo || "";
+      formapagoValue = metodoPago || "Efectivo";
     }
 
-    const gravadasBase = items
+    const gravadasBaseNeto = items
       .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+      .reduce((sum, item) => {
+        const precioNeto = item.precioNeto || (item.precioUnitario / 1.13);
+        return sum + (precioNeto * item.cantidad);
+      }, 0);
     
-    const exentasBase = items
+    const exentasBaseNeto = items
       .filter(item => item.tipo === "noAfecto")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+      .reduce((sum, item) => {
+        const precioNeto = item.precioNeto || item.precioUnitario;
+        return sum + (precioNeto * item.cantidad);
+      }, 0);
     
-    const noSujetasBase = items
+    const noSujetasBaseNeto = items
       .filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+      .reduce((sum, item) => {
+        const precioNeto = item.precioNeto || item.precioUnitario;
+        return sum + (precioNeto * item.cantidad);
+      }, 0);
 
-    const gravadasConDescuento = gravadasBase - 
+    const gravadasConDescuentoNeto = gravadasBaseNeto - 
       (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
         .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
       descuentoGrabadasMonto;
     
-    const exentasConDescuento = exentasBase - 
+    const exentasConDescuentoNeto = exentasBaseNeto - 
       (items.filter(item => item.tipo === "noAfecto")
         .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
       descuentoExentasMonto;
 
-    const noSujetasConDescuento = noSujetasBase - 
+    const noSujetasConDescuentoNeto = noSujetasBaseNeto - 
       (items.filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
         .reduce((sum, item) => sum + (item.descuento || 0), 0));
 
     const tasaIVA = 0.13;
-    const ivaIncluido = gravadasConDescuento * tasaIVA;
+    const ivaIncluido = gravadasConDescuentoNeto * tasaIVA;
 
     const montototaloperacion = subtotal - totaldescuento;
 
@@ -697,15 +706,15 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       subtotal: parseFloat((subtotal - totaldescuento).toFixed(2)),
       ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
       montototalope: parseFloat(totalPagar.toFixed(2)),
-      totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
+      totalotrosmnoafectos: parseFloat(exentasConDescuentoNeto.toFixed(2)),
       totalapagar: parseFloat(totalPagar.toFixed(2)),
       valorletras: convertirNumeroALetras(totalPagar),
       tipocontingencia: "",
       motivocontin: "",
 
-      totalnosuj: parseFloat(noSujetasConDescuento.toFixed(2)),
-      totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
-      totalgravada: parseFloat(gravadasConDescuento.toFixed(2)),
+      totalnosuj: parseFloat(noSujetasConDescuentoNeto.toFixed(2)),
+      totalexenta: parseFloat(exentasConDescuentoNeto.toFixed(2)),
+      totalgravada: parseFloat(gravadasConDescuentoNeto.toFixed(2)),
       subtotalventas: parseFloat((subtotal - totaldescuento).toFixed(2)),
 
       descunosuj: 0.00,
@@ -852,39 +861,51 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   ) : [];
 
   useEffect(() => {
-    const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    const sumaNeto = items.reduce((sum, item) => {
+      const precioNeto = item.precioNeto || (item.tipo === "producto" || item.tipo === "impuestos" ? (item.precioUnitario / 1.13) : item.precioUnitario);
+      return sum + (precioNeto * item.cantidad);
+    }, 0);
     
     const descuentoItems = items.reduce((sum, item) => 
       sum + (item.descuento || 0), 0);
 
-    const gravadasBase = items
+    const gravadasBaseNeto = items
       .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+      .reduce((sum, item) => {
+        const precioNeto = item.precioNeto || (item.precioUnitario / 1.13);
+        return sum + (precioNeto * item.cantidad);
+      }, 0);
     
-    const exentasBase = items
+    const exentasBaseNeto = items
       .filter(item => item.tipo === "noAfecto")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+      .reduce((sum, item) => {
+        const precioNeto = item.precioNeto || item.precioUnitario;
+        return sum + (precioNeto * item.cantidad);
+      }, 0);
 
-    const noSujetasBase = items
+    const noSujetasBaseNeto = items
       .filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+      .reduce((sum, item) => {
+        const precioNeto = item.precioNeto || item.precioUnitario;
+        return sum + (precioNeto * item.cantidad);
+      }, 0);
 
     const descuentoGrabadas = descuentoGrabadasMonto;
     const descuentoExentas = descuentoExentasMonto;
     
     const descuentoTotal = descuentoItems + descuentoGrabadas + descuentoExentas;
     
-    const gravadasConDescuento = gravadasBase - 
+    const gravadasConDescuentoNeto = gravadasBaseNeto - 
       (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
         .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
       descuentoGrabadas;
     
-    const exentasConDescuento = exentasBase - 
+    const exentasConDescuentoNeto = exentasBaseNeto - 
       (items.filter(item => item.tipo === "noAfecto")
         .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
       descuentoExentas;
 
-    const noSujetasConDescuento = noSujetasBase - 
+    const noSujetasConDescuentoNeto = noSujetasBaseNeto - 
       (items.filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
         .reduce((sum, item) => sum + (item.descuento || 0), 0));
 
@@ -893,14 +914,15 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     items.forEach(item => {
       if (item.tributos && Array.isArray(item.tributos)) {
         item.tributos.forEach(tributo => {
-          const subtotalItem = item.precioUnitario * item.cantidad;
+          const precioNeto = item.precioNeto || (item.tipo === "producto" || item.tipo === "impuestos" ? (item.precioUnitario / 1.13) : item.precioUnitario);
+          const subtotalNeto = item.cantidad * precioNeto;
           const descuentoItem = item.descuento || 0;
-          const baseImponible = subtotalItem - descuentoItem;
+          const baseImponibleNeto = subtotalNeto - descuentoItem;
           
           let valorTributo = 0;
           
           if (tributo.codigo === "20") {
-            valorTributo = baseImponible * 0.13;
+            valorTributo = baseImponibleNeto * 0.13;
           } else {
             valorTributo = tributo.valor || 0;
           }
@@ -921,19 +943,19 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setTributosDetallados(nuevosTributos);
 
     const tasaIVA = 0.13;
-    const ivaIncluido = gravadasConDescuento * tasaIVA;
+    const ivaIncluido = gravadasConDescuentoNeto * tasaIVA;
 
-    const total = gravadasConDescuento + exentasConDescuento + noSujetasConDescuento + ivaIncluido;
+    const totalFinal = gravadasConDescuentoNeto + exentasConDescuentoNeto + noSujetasConDescuentoNeto + ivaIncluido;
 
-    setSumaopesinimpues(parseFloat(suma.toFixed(2)));
+    setSumaopesinimpues(parseFloat(sumaNeto.toFixed(2)));
     setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
-    setVentasgrabadas(parseFloat(gravadasConDescuento.toFixed(2)));
+    setVentasgrabadas(parseFloat(gravadasConDescuentoNeto.toFixed(2)));
     setValoriva(parseFloat(ivaIncluido.toFixed(2))); 
-    setTotal(parseFloat(total.toFixed(2)));
+    setTotal(parseFloat(totalFinal.toFixed(2)));
     
-    setGravadasSinDescuentoState(parseFloat(gravadasBase.toFixed(2)));
-    setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
-    setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
+    setGravadasSinDescuentoState(parseFloat(gravadasBaseNeto.toFixed(2)));
+    setExentasSinDescuentoState(parseFloat(exentasBaseNeto.toFixed(2)));
+    setExentasConDescuentoState(parseFloat(exentasConDescuentoNeto.toFixed(2)));
   }, [items, descuentoGrabadasMonto, descuentoExentasMonto]);
 
   const obtenerDescripcionTributo = (codigo) => {
@@ -1097,6 +1119,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       descuento: datos.descuento,
       valorDescuento: datos.valorDescuento,
       precioUnitario: datos.precioUnitario,
+      precioNeto: datos.precioNeto,
       cantidad: datos.cantidad,
       subtotal: datos.precioUnitario * datos.cantidad
     });
@@ -1154,14 +1177,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
       <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}>
         <Sidebar />
       </div>
 
-      {/* Contenido principal */}
       <div className="text-black flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
         <header className="bg-white shadow-sm">
           <div className="flex items-center justify-between p-4">
             <div>
@@ -1177,13 +1197,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           </div>
         </header>
 
-        {/* Contenido principal con scroll */}
         <main className="flex-1 overflow-y-auto p-4">
           <div className="max-w-6xl mx-auto">
-            {/* Tarjeta principal */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
 
-              {/* Mostrar mensaje de error si existe */}
               {errorValidacion && (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                   <div className="flex items-center">
@@ -1193,7 +1210,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 </div>
               )}
 
-              {/* Datos del cliente */}
               <DatosEmisorReceptor
                 tipoDocumentoReceptor={tipoDocumentoReceptor}
                 setTipoDocumentoReceptor={setTipoDocumentoReceptor}
@@ -1225,7 +1241,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 actividadesEconomicas={codactividad}
               />
 
-              {/* Detalle de Crédito */}
               <div className="text-black mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-800">Detalle de Crédito</h2>
@@ -1238,7 +1253,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   </button>
                 </div>
 
-                {/* Tabla de items */}
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead className="bg-gray-50">
@@ -1318,7 +1332,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                               <td className="px-4 py-2 font-medium border-b">
                                 {formatMoney(subtotal)}
                               </td>
-                              {/* CELDAS DE DESCUENTOS */}
                               <td className="px-4 py-2 border-b text-center">
                                 <span className="text-sm text-red-600 font-medium">
                                   {formatMoney(item.descuentoGravado || 0)}
@@ -1334,7 +1347,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                                   {formatMoney(item.descuentoNoSujeto || 0)}
                                 </span>
                               </td>
-                              {/* CELDAS DE TOTALES POR TIPO DESPUÉS DE DESCUENTOS */}
                               <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
                                 {formatMoney(totalGravado)}
                               </td>
@@ -1344,7 +1356,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                               <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
                                 {formatMoney(totalNoSujeto)}
                               </td>
-                              {/* NUEVA COLUMNA PARA EL TOTAL */}
                               <td className="px-4 py-2 border-b text-center font-bold text-blue-700">
                                 {formatMoney(totalItem)}
                               </td>
@@ -1365,7 +1376,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 </div>
               </div>
 
-              {/* Totales */}
               <div className="bg-gray-50 p-4 rounded-lg mb-6 text-black">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -1374,9 +1384,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       <span className="font-medium">{formatMoney(sumaopesinimpues)}</span>
                     </div>
                     
-                    {/* Descuentos desglosados de los items */}
                     {(() => {
-                      // Calcular totales de descuentos por tipo desde los items
                       const totalDescuentoGravado = items.reduce((sum, item) => sum + (item.descuentoGravado || 0), 0);
                       const totalDescuentoExento = items.reduce((sum, item) => sum + (item.descuentoExento || 0), 0);
                       const totalDescuentoNoSujeto = items.reduce((sum, item) => sum + (item.descuentoNoSujeto || 0), 0);
@@ -1449,7 +1457,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       <span className="font-medium text-green-600">+{formatMoney(valoriva)}</span>
                     </div>
                     
-                    {/* Mostrar tributos desglosados */}
                     {Object.values(tributosDetallados)
                       .filter(tributo => tributo.codigo !== "20")
                       .map((tributo) => (
@@ -1488,7 +1495,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 emisorNombre={emisorNombre}
               />
 
-              {/* Botones de acción */}
               <div className="flex justify-end space-x-4">
                 <button 
                   onClick={guardarFactura}
@@ -1516,18 +1522,15 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           </div>
         </main>
 
-        {/* Footer */}
         <Footer />
       </div>
 
-      {/* Modal Selector de Tipo de Detalle */}
       <SelectorModal
         isOpen={showModal && modalType === "selector"}
         onClose={() => setShowModal(false)}
         onSelectTipoDetalle={selectTipoDetalle}
       />
 
-      {/* Modal para Producto o Servicio */}
       <ProductModal
         isOpen={showModal && modalType === "producto"}
         onClose={() => {
@@ -1546,7 +1549,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         onTotalChange={setTotalModal}
       />
 
-      {/* Modal para Monto No Afecto */}
       <NonTaxableModal
         isOpen={showModal && modalType === "noAfecto"}
         onClose={() => {
@@ -1556,7 +1558,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         onAddItem={(itemData) => agregarItemDesdeModal("noAfecto", itemData)}
       />
 
-      {/* Modal para Impuestos/Tasas */}
       <TaxModal
         isOpen={showModal && modalType === "impuestos"}
         onClose={() => {
@@ -1566,7 +1567,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         onAddItem={(itemData) => agregarItemDesdeModal("impuestos", itemData)}
       />
 
-      {/* Pop-up de lista de clientes */}
       <ClientListModal
         isOpen={showClientList && searchTerm}
         onClose={() => setShowClientList(false)}
@@ -1574,7 +1574,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         onSelectClient={showClientDetailsPopup}
       />
 
-      {/* Modal para Descuentos */}
       <DiscountModal
         isOpen={showDiscountModal}
         onClose={() => setShowDiscountModal(false)}
@@ -1590,7 +1589,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         datosFactura={prepararDatosFactura()}
       />
 
-      {/* Nuevo Modal de Mensajes */}
       <MensajeModal
         isOpen={mostrarMensaje}
         onClose={() => setMostrarMensaje(false)}
@@ -1603,7 +1601,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         descargando={descargandoTicket}
       />
 
-      {/* Pop-up de detalles del cliente */}
       {showClientDetails && selectedClient && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-11/12 max-w-md">
