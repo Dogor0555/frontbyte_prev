@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaBars, FaPlus, FaTimes, FaEdit, FaTrash, FaFilePdf, FaSave, FaTimes as FaClose, FaBoxOpen } from "react-icons/fa";
+import { FaSearch, FaBars, FaPlus, FaTimes, FaEdit, FaTrash, FaFilePdf, FaSave, FaTimes as FaClose, FaBoxOpen, FaTruck, FaShoppingCart } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
@@ -40,11 +40,13 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         precio: 0,
         preciooferta: 0,
         stock: 0,
-        es_servicio: false 
+        es_servicio: false,
+        idproveedor: ""
     });
     const [stockIncrement, setStockIncrement] = useState(0);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [selectedUnidad, setSelectedUnidad] = useState("");
+    const [selectedProveedor, setSelectedProveedor] = useState("");
     const [unidades, setUnidades] = useState([
         { codigo: "1", nombre: "metro" },
         { codigo: "2", nombre: "Yarda" },
@@ -87,6 +89,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         { codigo: "59", nombre: "Unidad" },
         { codigo: "99", nombre: "Otra" },
     ]);
+    const [proveedores, setProveedores] = useState([]);
     const [productToDelete, setProductToDelete] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
 
@@ -95,6 +98,12 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         const codigoNormalizado = codigo.toString().trim();
         const unidad = unidades.find(u => u.codigo === codigoNormalizado);
         return unidad ? unidad.nombre : "Desconocido";
+    };
+
+    const getNombreProveedor = (idproveedor) => {
+        if (!idproveedor) return "Sin proveedor";
+        const proveedor = proveedores.find(p => p.id === idproveedor);
+        return proveedor ? proveedor.nombre : "Proveedor no encontrado";
     };
 
     const validateNumber = (value) => {
@@ -218,6 +227,32 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         setFilteredProductos(results);
     }, [searchTerm, productos]);
 
+    // Fetch proveedores
+    const fetchProveedores = async () => {
+        try {
+            const response = await fetch("http://localhost:3000/proveedores/getAll", {
+                method: "GET",
+                headers: {
+                    Cookie: document.cookie,
+                },
+                credentials: "include",
+            });
+
+            if (!response.ok) {
+                throw new Error("Error al obtener los proveedores");
+            }
+
+            const data = await response.json();
+            setProveedores(data);
+        } catch (error) {
+            console.error("Error al obtener los proveedores:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchProveedores();
+    }, []);
+
     const handleSearch = () => {
         if (searchTerm.trim() !== "") {
             setShowSearchResultsModal(true);
@@ -306,6 +341,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         const producto = {
             ...formData,
             unidad: selectedUnidad,
+            idproveedor: selectedProveedor || null
         };
 
         try {
@@ -331,9 +367,11 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                 precio: 0,
                 preciooferta: 0,
                 stock: 0,
-                //es_servicio: false
+                es_servicio: false,
+                idproveedor: ""
             });
             setSelectedUnidad("");
+            setSelectedProveedor("");
             fetchProductos();
         } catch (error) {
             console.error("Error al agregar el producto:", error);
@@ -365,6 +403,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         const producto = {
             ...formData,
             unidad: selectedUnidad,
+            idproveedor: selectedProveedor || null
         };
 
         try {
@@ -389,9 +428,12 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                 unidad: "",
                 precio: 0,
                 preciooferta: 0,
-                stock: 0
+                stock: 0,
+                es_servicio: false,
+                idproveedor: ""
             });
             setSelectedUnidad("");
+            setSelectedProveedor("");
             fetchProductos();
         } catch (error) {
             console.error("Error al actualizar el producto:", error);
@@ -476,6 +518,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
     const handleEditClick = (producto) => {
         setFormData(producto);
         setSelectedUnidad(producto.unidad);
+        setSelectedProveedor(producto.idproveedor || "");
         setShowEditModal(true);
     };
 
@@ -499,13 +542,22 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         });
     };
 
-      const [currentPage, setCurrentPage] = useState(1);
-      const productosPorPagina = 5;
-      const totalPaginas = Math.ceil(filteredProductos.length / productosPorPagina);
-      const productosPagina = filteredProductos.slice(
+    const handleManageSuppliers = () => {
+        router.push("/dashboard/proveedores");
+    };
+
+
+    const handleMakePurchase = () => {
+        router.push("/dashboard/compras");
+    };
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const productosPorPagina = 10; 
+    const totalPaginas = Math.ceil(filteredProductos.length / productosPorPagina);
+    const productosPagina = filteredProductos.slice(
         (currentPage - 1) * productosPorPagina,
         currentPage * productosPorPagina
-      );
+    );
 
     return (
         <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
@@ -516,43 +568,59 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                 ></div>
             )}
 
-            <div className="flex flex-1 h-full">
+            <div className="flex flex-1 h-full overflow-hidden">
+                {/* Sidebar fija con altura completa y scroll interno */}
                 <div
-                    className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen
-                        ? 'translate-x-0'
-                        : '-translate-x-full'
-                        } ${!isMobile ? 'md:translate-x-0 md:w-64' : ''
-                        }`}
+                    className={`md:static fixed z-40 h-full transition-all duration-300 ${
+                        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                    } ${!isMobile ? 'md:translate-x-0 md:w-64' : ''}`}
                 >
-                    <Sidebar />
+                    <div className="h-full overflow-y-auto">
+                        <Sidebar />
+                    </div>
                 </div>
 
-                <div className="flex-1 flex flex-col">
-                <Navbar 
-                    user={user}
-                    hasHaciendaToken={hasHaciendaToken}
-                    haciendaStatus={haciendaStatus}
-                    onToggleSidebar={toggleSidebar}
-                    sidebarOpen={sidebarOpen}
-                />
+                {/* Contenido principal con scroll */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    <Navbar 
+                        user={user}
+                        hasHaciendaToken={hasHaciendaToken}
+                        haciendaStatus={haciendaStatus}
+                        onToggleSidebar={toggleSidebar}
+                        sidebarOpen={sidebarOpen}
+                    />
 
-                    <div className="flex-1 p-4 md:p-6">
+                    <div className="flex-1 p-4 md:p-6 overflow-y-auto">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                             <div className="flex items-center">
                                 <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Productos</h2>
                             </div>
-                            <button
-                                onClick={() => setShowAddModal(true)}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors shadow-sm flex items-center w-full sm:w-auto justify-center"
-                            >
-                                <FaPlus className="mr-2" /> Agregar
-                            </button>
-                            <button
-                                onClick={handleGenerateReport}
-                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors shadow-sm flex items-center w-full sm:w-auto justify-center"
-                            >
-                                <FaFilePdf className="mr-2" /> Generar Reporte
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                <button
+                                    onClick={() => setShowAddModal(true)}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors shadow-sm flex items-center justify-center"
+                                >
+                                    <FaPlus className="mr-2" /> Agregar
+                                </button>
+                                <button
+                                    onClick={handleManageSuppliers}
+                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors shadow-sm flex items-center justify-center"
+                                >
+                                    <FaTruck className="mr-2" /> Proveedores
+                                </button>
+                                <button
+                                    onClick={handleMakePurchase}
+                                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-md transition-colors shadow-sm flex items-center justify-center"
+                                >
+                                    <FaShoppingCart className="mr-2" /> Compras
+                                </button>
+                                <button
+                                    onClick={handleGenerateReport}
+                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors shadow-sm flex items-center justify-center"
+                                >
+                                    <FaFilePdf className="mr-2" /> Reporte
+                                </button>
+                            </div>
                         </div>
 
                         <div className="mb-6">
@@ -573,10 +641,11 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                             </div>
                         </div>
 
-                        <div className="hidden md:block">
-                            <div className="overflow-x-auto rounded-lg shadow">
-                                <table className="min-w-full bg-white border border-gray-200">
-                                    <thead className="bg-gray-50">
+                        {/* Tabla con scroll vertical */}
+                        <div className="hidden md:block bg-white rounded-lg shadow border border-gray-200">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full">
+                                    <thead className="bg-gray-50 sticky top-0 z-10">
                                         <tr>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
@@ -584,11 +653,12 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Oferta</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Proveedor</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                        {productosPagina && Array.isArray(productosPagina) && productosPagina.slice(0, 10).map((producto) => (
+                                        {productosPagina && Array.isArray(productosPagina) && productosPagina.map((producto) => (
                                             <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.nombre}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.codigo}</td>
@@ -598,6 +668,9 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.precio}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.preciooferta}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.stock}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                                                    {getNombreProveedor(producto.idproveedor)}
+                                                </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                                                     <div className="flex justify-center items-center space-x-2">
                                                         <button
@@ -627,8 +700,9 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                         ))}
                                     </tbody>
                                 </table>
-                                {/* Paginación */}
-                                <div className="flex justify-center items-center py-4 space-x-2">
+                            </div>
+                            {/* Paginación */}
+                            <div className="flex justify-center items-center py-4 space-x-2 border-t border-gray-200">
                                 <button
                                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                                     disabled={currentPage === 1}
@@ -646,86 +720,90 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                 >
                                     Siguiente
                                 </button>
-                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="md:hidden">
-                        <div className="space-y-4">
-                            {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.slice(0, 10).map((producto) => (
-                                <div key={producto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-                                    <div className="flex justify-between items-start">
-                                        <h3 className="text-lg font-medium text-gray-900">{producto.nombre}</h3>
-                                        <div className="flex space-x-2">
-                                            <button
-                                                onClick={() => handleEditClick(producto)}
-                                                className="text-blue-600 hover:text-blue-800"
-                                                aria-label="Editar"
-                                            >
-                                                <FaEdit />
-                                            </button>
-                                            <button
-                                                onClick={() => handleOpenStockModal(producto)}
-                                                className="text-green-600 hover:text-green-800"
-                                                aria-label="Añadir stock"
-                                            >
-                                                <FaBoxOpen />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteClick(producto.id)}
-                                                className="text-red-600 hover:text-red-800"
-                                                aria-label="Eliminar"
-                                            >
-                                                <FaTrash />
-                                            </button>
+                        {/* Vista móvil con scroll */}
+                        <div className="md:hidden">
+                            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                                {productosPagina && Array.isArray(productosPagina) && productosPagina.map((producto) => (
+                                    <div key={producto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                                        <div className="flex justify-between items-start">
+                                            <h3 className="text-lg font-medium text-gray-900">{producto.nombre}</h3>
+                                            <div className="flex space-x-2">
+                                                <button
+                                                    onClick={() => handleEditClick(producto)}
+                                                    className="text-blue-600 hover:text-blue-800"
+                                                    aria-label="Editar"
+                                                >
+                                                    <FaEdit />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleOpenStockModal(producto)}
+                                                    className="text-green-600 hover:text-green-800"
+                                                    aria-label="Añadir stock"
+                                                >
+                                                    <FaBoxOpen />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteClick(producto.id)}
+                                                    className="text-red-600 hover:text-red-800"
+                                                    aria-label="Eliminar"
+                                                >
+                                                    <FaTrash />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4 space-y-2">
+                                            <div className="flex justify-between">
+                                                <span className="text-sm font-medium text-gray-500">Código:</span>
+                                                <span className="text-sm text-gray-900">{producto.codigo}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-sm font-medium text-gray-500">Unidad:</span>
+                                                <span className="text-sm text-gray-900">{getNombreUnidad(producto.unidad)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-sm font-medium text-gray-500">Precio:</span>
+                                                <span className="text-sm text-gray-900">{producto.precio}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-sm font-medium text-gray-500">Precio Oferta:</span>
+                                                <span className="text-sm text-gray-900">{producto.preciooferta}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-sm font-medium text-gray-500">Stock:</span>
+                                                <span className="text-sm text-gray-900">{producto.stock}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-sm font-medium text-gray-500">Proveedor:</span>
+                                                <span className="text-sm text-gray-900">{getNombreProveedor(producto.idproveedor)}</span>
+                                            </div>
                                         </div>
                                     </div>
-
-                                    <div className="mt-4 space-y-2">
-                                        <div className="flex justify-between">
-                                            <span className="text-sm font-medium text-gray-500">Código:</span>
-                                            <span className="text-sm text-gray-900">{producto.codigo}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-sm font-medium text-gray-500">Unidad:</span>
-                                            <span className="text-sm text-gray-900">{getNombreUnidad(producto.unidad)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-sm font-medium text-gray-500">Precio:</span>
-                                            <span className="text-sm text-gray-900">{producto.precio}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-sm font-medium text-gray-500">Precio Oferta:</span>
-                                            <span className="text-sm text-gray-900">{producto.preciooferta}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-sm font-medium text-gray-500">Stock:</span>
-                                            <span className="text-sm text-gray-900">{producto.stock}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        {/* Paginación móvil */}
-                        <div className="flex justify-center items-center py-4 space-x-2">
-                            <button
-                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className={`px-3 py-1 rounded-md border ${currentPage === 1 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
-                            >
-                            Anterior
-                            </button>
-                            <span className="px-2 text-sm text-gray-700">
-                            Página {currentPage} de {totalPaginas}
-                            </span>
-                            <button
-                            onClick={() => setCurrentPage((p) => Math.min(totalPaginas, p + 1))}
-                            disabled={currentPage === totalPaginas || totalPaginas === 0}
-                            className={`px-3 py-1 rounded-md border ${currentPage === totalPaginas || totalPaginas === 0 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
-                            >
-                            Siguiente
-                            </button>
+                                ))}
+                            </div>
+                            {/* Paginación móvil */}
+                            <div className="flex justify-center items-center py-4 space-x-2 mt-4">
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className={`px-3 py-1 rounded-md border ${currentPage === 1 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                                >
+                                    Anterior
+                                </button>
+                                <span className="px-2 text-sm text-gray-700">
+                                    Página {currentPage} de {totalPaginas}
+                                </span>
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPaginas, p + 1))}
+                                    disabled={currentPage === totalPaginas || totalPaginas === 0}
+                                    className={`px-3 py-1 rounded-md border ${currentPage === totalPaginas || totalPaginas === 0 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 hover:bg-blue-50'}`}
+                                >
+                                    Siguiente
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -776,6 +854,10 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                                 <div className="flex justify-between">
                                                     <span className="text-sm font-medium text-gray-500">Stock:</span>
                                                     <span className="text-sm text-gray-900">{producto.stock}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm font-medium text-gray-500">Proveedor:</span>
+                                                    <span className="text-sm text-gray-900">{getNombreProveedor(producto.idproveedor)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -846,6 +928,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                     {codigoError && <p className="text-red-500 text-sm mt-1">{codigoError}</p>}
                                     <p className="text-xs text-gray-500 mt-1">{formData.codigo.length}/{LIMITES.CODIGO} caracteres</p>
                                 </div>
+
                                 {/* Nuevo campo: Es Servicio */}
                                 <div className="mb-4">
                                     <div className="flex items-center">
@@ -865,6 +948,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                         Marque esta casilla si está agregando un servicio en lugar de un producto físico.
                                     </p>
                                 </div>
+
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="unidad">
                                         Unidad
@@ -881,6 +965,26 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                         {unidades.map((unidad) => (
                                             <option key={unidad.codigo} value={unidad.codigo}>
                                                 {unidad.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="proveedor">
+                                        Proveedor
+                                    </label>
+                                    <select
+                                        id="proveedor"
+                                        name="proveedor"
+                                        value={selectedProveedor}
+                                        onChange={(e) => setSelectedProveedor(e.target.value)}
+                                        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    >
+                                        <option value="">Seleccione un proveedor</option>
+                                        {proveedores.map((proveedor) => (
+                                            <option key={proveedor.id} value={proveedor.id}>
+                                                {proveedor.nombre} ({proveedor.codigo})
                                             </option>
                                         ))}
                                     </select>
@@ -1015,7 +1119,8 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                     {codigoError && <p className="text-red-500 text-sm mt-1">{codigoError}</p>}
                                     <p className="text-xs text-gray-500 mt-1">{formData.codigo.length}/{LIMITES.CODIGO} caracteres</p>
                                 </div>
-                                                                {/* Nuevo campo: Es Servicio */}
+
+                                {/* Nuevo campo: Es Servicio */}
                                 <div className="mb-4">
                                     <div className="flex items-center">
                                         <input
@@ -1034,6 +1139,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                         Marque esta casilla si es un servicio en lugar de un producto físico.
                                     </p>
                                 </div>
+
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="unidad">
                                         Unidad
@@ -1050,6 +1156,26 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                         {unidades.map((unidad) => (
                                             <option key={unidad.codigo} value={unidad.codigo}>
                                                 {unidad.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="proveedor">
+                                        Proveedor
+                                    </label>
+                                    <select
+                                        id="proveedor"
+                                        name="proveedor"
+                                        value={selectedProveedor}
+                                        onChange={(e) => setSelectedProveedor(e.target.value)}
+                                        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    >
+                                        <option value="">Seleccione un proveedor</option>
+                                        {proveedores.map((proveedor) => (
+                                            <option key={proveedor.id} value={proveedor.id}>
+                                                {proveedor.nombre} ({proveedor.codigo})
                                             </option>
                                         ))}
                                     </select>
@@ -1127,6 +1253,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                 </div>
             )}
 
+            {/* Los demás modales se mantienen igual */}
             {showStockModal && selectedProduct && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
@@ -1275,9 +1402,12 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                             unidad: "",
                                             precio: 0,
                                             preciooferta: 0,
-                                            stock: 0
+                                            stock: 0,
+                                            es_servicio: false,
+                                            idproveedor: ""
                                         });
                                         setSelectedUnidad("");
+                                        setSelectedProveedor("");
                                     }}
                                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
                                 >
