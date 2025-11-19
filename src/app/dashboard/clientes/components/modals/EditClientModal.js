@@ -414,30 +414,6 @@ export default function EditClientModal({
                 />
                 {errors.nrc && <p className="text-red-500 text-xs mt-1">{errors.nrc}</p>}
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Giro
-                </label>
-                <input
-                  type="text"
-                  value={formData.giro || ""}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(
-                      /[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s\-\&]/g,
-                      ""
-                    );
-                    setFormData({ ...formData, giro: value });
-                    setErrors({ ...errors, giro: undefined });
-                  }}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                    errors.giro ? "border-red-500" : "border-gray-300"
-                  }`}
-                  maxLength={LIMITES.GIRO}
-                  placeholder="Actividad principal de la empresa"
-                />
-                {errors.giro && <p className="text-red-500 text-xs mt-1">{errors.giro}</p>}
-              </div>
             </>
           )}
 

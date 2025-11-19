@@ -529,19 +529,16 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const guardarDetallesFactura = async (iddtefactura) => {
     try {
       const detalles = items.map((item, index) => {
-        const precioNeto = item.precioNeto || (item.precioUnitario / 1.13);
-        const subtotalNeto = item.cantidad * precioNeto;
-        
-        const descuentoItem = item.descuento || 0;
-        const baseImponibleNeto = subtotalNeto - descuentoItem;
-
         const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
         const esExento = item.tipo === "noAfecto";
         const esNoSujeto = item.tipo === "noSuj";
 
+        const baseGravada = esGravado ? item.ventaGravada : 0;
+        const baseExenta = esExento ? item.ventaExenta : 0;
+        const baseNoSujeta = esNoSujeto ? item.ventaNoSujeta : 0;
+
         const tasaIVA = 0.13;
-        const ivaItem = esGravado ? 
-          (baseImponibleNeto * tasaIVA) : 0;
+        const ivaItem = baseGravada * tasaIVA;
 
         const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
 
@@ -554,11 +551,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           codtributo: null,
           unimedida: item.unidadMedida || "59",
           descripcion: item.descripcion,
-          preciouni: parseFloat(item.precioUnitario.toFixed(2)),
-          montodescu: parseFloat(descuentoItem.toFixed(2)),
-          ventanosuj: esNoSujeto ? parseFloat(baseImponibleNeto.toFixed(2)) : 0.00,
-          ventaexenta: esExento ? parseFloat(baseImponibleNeto.toFixed(2)) : 0.00,
-          ventagravada: esGravado ? parseFloat(baseImponibleNeto.toFixed(2)) : 0.00,
+          preciouni: parseFloat(item.precioUnitario.toFixed(2)), // Precio original
+          montodescu: parseFloat(item.descuento.toFixed(2)), // Descuento total
+          ventanosuj: parseFloat(baseNoSujeta.toFixed(2)),
+          ventaexenta: parseFloat(baseExenta.toFixed(2)),
+          ventagravada: parseFloat(baseGravada.toFixed(2)),
           tributos: item.tributos,
           psv: 0,
           nogravado: 0.00,
@@ -624,11 +621,35 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   };
 
   const prepararDatosFactura = () => {
-    const subtotal = sumaopesinimpues;
-    const totalPagar = total;
+    const subtotalBruto = items.reduce((sum, item) => {
+      return sum + (item.precioUnitario * item.cantidad);
+    }, 0);
+
+    const descuentoItems = items.reduce((sum, item) => 
+      sum + (item.descuento || 0), 0);
+
+    const baseGravadaNeto = items.reduce((sum, item) => 
+      sum + (item.ventaGravada || 0), 0);
     
+    const baseExentaNeto = items.reduce((sum, item) => 
+      sum + (item.ventaExenta || 0), 0);
+
+    const baseNoSujetaNeto = items.reduce((sum, item) => 
+      sum + (item.ventaNoSujeta || 0), 0);
+
+    let baseGravadaFinal = Math.max(0, baseGravadaNeto - descuentoGrabadasMonto);
+    let baseExentaFinal = Math.max(0, baseExentaNeto - descuentoExentasMonto);
+
+    const tasaIVA = 0.13;
+    const ivaCalculado = baseGravadaFinal * tasaIVA;
+
+    const descuentoTotal = descuentoItems + descuentoGrabadasMonto + descuentoExentasMonto;
+    
+    const subtotalNeto = baseGravadaFinal + baseExentaFinal + baseNoSujetaNeto;
+    
+    const totalFinal = subtotalNeto + ivaCalculado;
+
     const ahora = new Date();
-    
     const offset = -6;
     const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
     
@@ -640,51 +661,12 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     const horaEmision = ahora.toTimeString().split(' ')[0];
 
     let formapagoValue = "Efectivo";
-    
     if (formasPago && formasPago.length > 0) {
       const metodoPago = formasPago[0]?.metodo || "";
       formapagoValue = metodoPago || "Efectivo";
     }
 
-    const gravadasBaseNeto = items
-      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => {
-        const precioNeto = item.precioNeto || (item.precioUnitario / 1.13);
-        return sum + (precioNeto * item.cantidad);
-      }, 0);
-    
-    const exentasBaseNeto = items
-      .filter(item => item.tipo === "noAfecto")
-      .reduce((sum, item) => {
-        const precioNeto = item.precioNeto || item.precioUnitario;
-        return sum + (precioNeto * item.cantidad);
-      }, 0);
-    
-    const noSujetasBaseNeto = items
-      .filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
-      .reduce((sum, item) => {
-        const precioNeto = item.precioNeto || item.precioUnitario;
-        return sum + (precioNeto * item.cantidad);
-      }, 0);
-
-    const gravadasConDescuentoNeto = gravadasBaseNeto - 
-      (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-        .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
-      descuentoGrabadasMonto;
-    
-    const exentasConDescuentoNeto = exentasBaseNeto - 
-      (items.filter(item => item.tipo === "noAfecto")
-        .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
-      descuentoExentasMonto;
-
-    const noSujetasConDescuentoNeto = noSujetasBaseNeto - 
-      (items.filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
-        .reduce((sum, item) => sum + (item.descuento || 0), 0));
-
-    const tasaIVA = 0.13;
-    const ivaIncluido = gravadasConDescuentoNeto * tasaIVA;
-
-    const montototaloperacion = subtotal - totaldescuento;
+    const montototaloperacion = subtotalBruto - descuentoTotal;
 
     return {
       idcliente: idReceptor,
@@ -700,28 +682,28 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       formapago: formapagoValue,
       estado: "",
 
-      sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
-      totaldescuento: parseFloat(totaldescuento.toFixed(2)),
-      valoriva: parseFloat(ivaIncluido.toFixed(2)), 
-      subtotal: parseFloat((subtotal - totaldescuento).toFixed(2)),
-      ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
-      montototalope: parseFloat(totalPagar.toFixed(2)),
-      totalotrosmnoafectos: parseFloat(exentasConDescuentoNeto.toFixed(2)),
-      totalapagar: parseFloat(totalPagar.toFixed(2)),
-      valorletras: convertirNumeroALetras(totalPagar),
+      sumaopesinimpues: parseFloat(subtotalBruto.toFixed(2)),
+      totaldescuento: parseFloat(descuentoTotal.toFixed(2)),
+      valoriva: parseFloat(ivaCalculado.toFixed(2)),
+      subtotal: parseFloat(subtotalNeto.toFixed(2)), // CORREGIDO: Subtotal neto (sin IVA)
+      ivapercibido: parseFloat(ivaCalculado.toFixed(2)),
+      montototalope: parseFloat(montototaloperacion.toFixed(2)),
+      totalotrosmnoafectos: parseFloat(baseExentaFinal.toFixed(2)),
+      totalapagar: parseFloat(totalFinal.toFixed(2)),
+      valorletras: convertirNumeroALetras(totalFinal),
       tipocontingencia: "",
       motivocontin: "",
 
-      totalnosuj: parseFloat(noSujetasConDescuentoNeto.toFixed(2)),
-      totalexenta: parseFloat(exentasConDescuentoNeto.toFixed(2)),
-      totalgravada: parseFloat(gravadasConDescuentoNeto.toFixed(2)),
-      subtotalventas: parseFloat((subtotal - totaldescuento).toFixed(2)),
+      totalnosuj: parseFloat(baseNoSujetaNeto.toFixed(2)),
+      totalexenta: parseFloat(baseExentaFinal.toFixed(2)),
+      totalgravada: parseFloat(baseGravadaFinal.toFixed(2)),
+      subtotalventas: parseFloat(subtotalNeto.toFixed(2)), // CORREGIDO: Subtotal neto
 
       descunosuj: 0.00,
       descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
       descugravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
-      porcentajedescuento: totaldescuento > 0 ? parseFloat(((totaldescuento / sumaopesinimpues) * 100).toFixed(2)) : 0.00,
-      totaldescu: parseFloat(totaldescuento.toFixed(2)),
+      porcentajedescuento: descuentoTotal > 0 ? parseFloat(((descuentoTotal / subtotalBruto) * 100).toFixed(2)) : 0.00,
+      totaldescu: parseFloat(descuentoTotal.toFixed(2)),
       tributosf: null,
       codigot: "",
       descripciont: "",
@@ -732,18 +714,19 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       reterenta: 0.00,
 
       montototaloperacion: parseFloat(montototaloperacion.toFixed(2)),
-      totalpagar: parseFloat(totalPagar.toFixed(2)),
-      totalletras: convertirNumeroALetras(totalPagar),
-      totaliva: parseFloat(ivaIncluido.toFixed(2)),
+      totalpagar: parseFloat(totalFinal.toFixed(2)),
+      totalletras: convertirNumeroALetras(totalFinal),
+      totaliva: parseFloat(ivaCalculado.toFixed(2)),
       saldofavor: 0.00,
 
       condicionoperacion: 1,
       codigo: "01",
-      montopago: parseFloat(totalPagar.toFixed(2)),
+      montopago: parseFloat(totalFinal.toFixed(2)),
       referencia: "",
       plazo: null,
       periodo: null,
       numpagoelectronico: "",
+
       nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
       docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
 
@@ -861,101 +844,41 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   ) : [];
 
   useEffect(() => {
-    const sumaNeto = items.reduce((sum, item) => {
-      const precioNeto = item.precioNeto || (item.tipo === "producto" || item.tipo === "impuestos" ? (item.precioUnitario / 1.13) : item.precioUnitario);
-      return sum + (precioNeto * item.cantidad);
+    const subtotalBruto = items.reduce((sum, item) => {
+      return sum + (item.precioUnitario * item.cantidad);
     }, 0);
-    
+
     const descuentoItems = items.reduce((sum, item) => 
       sum + (item.descuento || 0), 0);
 
-    const gravadasBaseNeto = items
-      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => {
-        const precioNeto = item.precioNeto || (item.precioUnitario / 1.13);
-        return sum + (precioNeto * item.cantidad);
-      }, 0);
+    const baseGravadaNeto = items.reduce((sum, item) => 
+      sum + (item.ventaGravada || 0), 0);
     
-    const exentasBaseNeto = items
-      .filter(item => item.tipo === "noAfecto")
-      .reduce((sum, item) => {
-        const precioNeto = item.precioNeto || item.precioUnitario;
-        return sum + (precioNeto * item.cantidad);
-      }, 0);
+    const baseExentaNeto = items.reduce((sum, item) => 
+      sum + (item.ventaExenta || 0), 0);
 
-    const noSujetasBaseNeto = items
-      .filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
-      .reduce((sum, item) => {
-        const precioNeto = item.precioNeto || item.precioUnitario;
-        return sum + (precioNeto * item.cantidad);
-      }, 0);
+    const baseNoSujetaNeto = items.reduce((sum, item) => 
+      sum + (item.ventaNoSujeta || 0), 0);
 
-    const descuentoGrabadas = descuentoGrabadasMonto;
-    const descuentoExentas = descuentoExentasMonto;
-    
-    const descuentoTotal = descuentoItems + descuentoGrabadas + descuentoExentas;
-    
-    const gravadasConDescuentoNeto = gravadasBaseNeto - 
-      (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-        .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
-      descuentoGrabadas;
-    
-    const exentasConDescuentoNeto = exentasBaseNeto - 
-      (items.filter(item => item.tipo === "noAfecto")
-        .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
-      descuentoExentas;
-
-    const noSujetasConDescuentoNeto = noSujetasBaseNeto - 
-      (items.filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
-        .reduce((sum, item) => sum + (item.descuento || 0), 0));
-
-    const nuevosTributos = {};
-    
-    items.forEach(item => {
-      if (item.tributos && Array.isArray(item.tributos)) {
-        item.tributos.forEach(tributo => {
-          const precioNeto = item.precioNeto || (item.tipo === "producto" || item.tipo === "impuestos" ? (item.precioUnitario / 1.13) : item.precioUnitario);
-          const subtotalNeto = item.cantidad * precioNeto;
-          const descuentoItem = item.descuento || 0;
-          const baseImponibleNeto = subtotalNeto - descuentoItem;
-          
-          let valorTributo = 0;
-          
-          if (tributo.codigo === "20") {
-            valorTributo = baseImponibleNeto * 0.13;
-          } else {
-            valorTributo = tributo.valor || 0;
-          }
-          
-          if (nuevosTributos[tributo.codigo]) {
-            nuevosTributos[tributo.codigo].valor += valorTributo;
-          } else {
-            nuevosTributos[tributo.codigo] = {
-              codigo: tributo.codigo,
-              descripcion: tributo.descripcion || obtenerDescripcionTributo(tributo.codigo),
-              valor: valorTributo
-            };
-          }
-        });
-      }
-    });
-    
-    setTributosDetallados(nuevosTributos);
+    let baseGravadaFinal = Math.max(0, baseGravadaNeto - descuentoGrabadasMonto);
+    let baseExentaFinal = Math.max(0, baseExentaNeto - descuentoExentasMonto);
 
     const tasaIVA = 0.13;
-    const ivaIncluido = gravadasConDescuentoNeto * tasaIVA;
+    const ivaCalculado = baseGravadaFinal * tasaIVA;
 
-    const totalFinal = gravadasConDescuentoNeto + exentasConDescuentoNeto + noSujetasConDescuentoNeto + ivaIncluido;
+    const descuentoTotal = descuentoItems + descuentoGrabadasMonto + descuentoExentasMonto;
+    const totalFinal = baseGravadaFinal + baseExentaFinal + baseNoSujetaNeto + ivaCalculado;
 
-    setSumaopesinimpues(parseFloat(sumaNeto.toFixed(2)));
+    setSumaopesinimpues(parseFloat(subtotalBruto.toFixed(2)));
     setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
-    setVentasgrabadas(parseFloat(gravadasConDescuentoNeto.toFixed(2)));
-    setValoriva(parseFloat(ivaIncluido.toFixed(2))); 
+    setVentasgrabadas(parseFloat(baseGravadaFinal.toFixed(2)));
+    setValoriva(parseFloat(ivaCalculado.toFixed(2)));
     setTotal(parseFloat(totalFinal.toFixed(2)));
     
-    setGravadasSinDescuentoState(parseFloat(gravadasBaseNeto.toFixed(2)));
-    setExentasSinDescuentoState(parseFloat(exentasBaseNeto.toFixed(2)));
-    setExentasConDescuentoState(parseFloat(exentasConDescuentoNeto.toFixed(2)));
+    setGravadasSinDescuentoState(parseFloat(baseGravadaNeto.toFixed(2)));
+    setExentasSinDescuentoState(parseFloat(baseExentaNeto.toFixed(2)));
+    setExentasConDescuentoState(parseFloat(baseExentaFinal.toFixed(2)));
+
   }, [items, descuentoGrabadasMonto, descuentoExentasMonto]);
 
   const obtenerDescripcionTributo = (codigo) => {
@@ -1042,12 +965,32 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     const updatedItems = items.map((item) => {
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value };
-        if (field === "cantidad" || field === "precioUnitario" || field === "descuento" || 
-            field === "descuentoGravado" || field === "descuentoExento" || field === "descuentoNoSujeto") {
-          const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
-          const descuentoMonto = updatedItem.descuento || 0;
-          updatedItem.total = Math.max(0, subtotalItem - descuentoMonto);
+        
+        if (field === "cantidad" || field === "precioUnitario") {
+          const subtotal = updatedItem.cantidad * updatedItem.precioUnitario;
+          
+          if (updatedItem.tipo === "producto" || updatedItem.tipo === "impuestos") {
+            const precioBrutoConDescuento = Math.max(0, updatedItem.precioUnitario - (updatedItem.valorDescuento || 0));
+            const precioNeto = precioBrutoConDescuento / 1.13;
+            updatedItem.ventaGravada = parseFloat((precioNeto * updatedItem.cantidad).toFixed(2));
+            updatedItem.descuentoGravado = parseFloat(((updatedItem.valorDescuento || 0) * updatedItem.cantidad).toFixed(2));
+          } 
+          else if (updatedItem.tipo === "noAfecto") {
+            const precioConDescuento = Math.max(0, updatedItem.precioUnitario - (updatedItem.valorDescuento || 0));
+            updatedItem.ventaExenta = parseFloat((precioConDescuento * updatedItem.cantidad).toFixed(2));
+            updatedItem.descuentoExento = parseFloat(((updatedItem.valorDescuento || 0) * updatedItem.cantidad).toFixed(2));
+          }
+
+          else {
+            const precioConDescuento = Math.max(0, updatedItem.precioUnitario - (updatedItem.valorDescuento || 0));
+            updatedItem.ventaNoSujeta = parseFloat((precioConDescuento * updatedItem.cantidad).toFixed(2));
+            updatedItem.descuentoNoSujeto = parseFloat(((updatedItem.valorDescuento || 0) * updatedItem.cantidad).toFixed(2));
+          }
+          
+          updatedItem.descuento = parseFloat(((updatedItem.valorDescuento || 0) * updatedItem.cantidad).toFixed(2));
+          updatedItem.total = parseFloat((subtotal - (updatedItem.descuento || 0)).toFixed(2));
         }
+        
         return updatedItem;
       }
       return item;
@@ -1110,38 +1053,58 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   };
 
   const agregarItemDesdeModal = (tipo, datos) => {
-    console.log("=== DEBUG dteCredito: Item recibido ===");
+    console.log("=== DEBUG: Item recibido desde modal ===");
     console.log("Tipo:", tipo);
-    console.log("Datos descuento distribuido:", {
+    console.log("Datos recibidos:", {
+      precioUnitario: datos.precioUnitario,
+      precioUnitarioConDescuento: datos.precioUnitarioConDescuento,
+      precioNeto: datos.precioNeto,
+      descuento: datos.descuento,
+      cantidad: datos.cantidad,
+      ventaGravada: datos.ventaGravada,
+      ventaExenta: datos.ventaExenta,
+      ventaNoSujeta: datos.ventaNoSujeta,
       descuentoGravado: datos.descuentoGravado,
       descuentoExento: datos.descuentoExento,
       descuentoNoSujeto: datos.descuentoNoSujeto,
-      descuento: datos.descuento,
-      valorDescuento: datos.valorDescuento,
-      precioUnitario: datos.precioUnitario,
-      precioNeto: datos.precioNeto,
-      cantidad: datos.cantidad,
-      subtotal: datos.precioUnitario * datos.cantidad
+      total: datos.total
     });
     console.log("======================================");
-    
+
     const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
 
     const newItem = {
       id: newId,
       tipo: tipo,
-      ...datos,
-      total: (datos.cantidad * datos.precioUnitario) - (datos.descuento || 0),
+      descripcion: datos.descripcion,
+      cantidad: datos.cantidad,
+      codigo: datos.codigo,
+      precioUnitario: datos.precioUnitario, 
+      precioUnitarioConDescuento: datos.precioUnitarioConDescuento, 
+      precioNeto: datos.precioNeto, 
+      descuento: datos.descuento, 
+      valorDescuento: datos.valorDescuento,
+      unidadMedida: datos.unidadMedida,
+      tributos: datos.tributos,
+      productoId: datos.productoId,
+      actualizarStock: datos.actualizarStock,
+      stockAnterior: datos.stockAnterior,
+      esServicio: datos.esServicio,
+      
+      ventaGravada: datos.ventaGravada || 0,
+      ventaExenta: datos.ventaExenta || 0,
+      ventaNoSujeta: datos.ventaNoSujeta || 0,
       descuentoGravado: datos.descuentoGravado || 0,
       descuentoExento: datos.descuentoExento || 0,
-      descuentoNoSujeto: datos.descuentoNoSujeto || 0
+      descuentoNoSujeto: datos.descuentoNoSujeto || 0,
+      total: datos.total 
     };
     
     setItems([...items, newItem]);
     setShowModal(false);
     setModalType("");
     setProductoSeleccionado(null);
-    setTotalModal(0); 
+    setTotalModal(0);
   };
 
   const obtenerNombreUnidad = (codigoUnidad) => {
@@ -1281,19 +1244,12 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         </tr>
                       ) : (
                         items.map((item) => {
+                          // USAR LOS VALORES DIRECTOS QUE YA VIENEN CALCULADOS DEL MODAL
                           const subtotal = item.precioUnitario * item.cantidad;
-                      
-                          const totalGravado = (item.tipo === "producto" || item.tipo === "impuestos") 
-                            ? subtotal - (item.descuentoGravado || 0) 
-                            : 0;
-                            
-                          const totalExento = (item.tipo === "noAfecto") 
-                            ? subtotal - (item.descuentoExento || 0) 
-                            : 0;
-                            
-                          const totalNoSujeto = subtotal - (item.descuentoNoSujeto || 0);
-
-                          const totalItem = ((item.precioUnitario * item.cantidad) - item.descuentoGravado -  item.descuentoExento - item.descuentoNoSujeto);
+                          const totalGravado = item.ventaGravada || 0;
+                          const totalExento = item.ventaExenta || 0;
+                          const totalNoSujeto = item.ventaNoSujeta || 0;
+                          const totalItem = item.total || 0;
 
                           return (
                             <tr key={item.id}>

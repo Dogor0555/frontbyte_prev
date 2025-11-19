@@ -421,7 +421,7 @@ const calcularTotal = () => {
     const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
     
     const precioBrutoOriginal = parseFloat(productoSeleccionado.precio);
-    const precioBrutoConDescuento = calcularPrecioConDescuento(precioBrutoOriginal, valorDescuento);
+    const precioBrutoConDescuento = calcularPreciso(precioBrutoOriginal - valorDescuento, 10);
 
     const total = calcularTotal();
     
@@ -436,9 +436,8 @@ const calcularTotal = () => {
     const subtotalBrutoOriginal = calcularPreciso(cantidad * precioBrutoOriginal, 10);
     const descuentoTotal = calcularPreciso(cantidad * valorDescuento, 10);
     
-    // Calcular bases netas para cada tipo
     if (tipoVenta === "1") {
-      const { neto: precioNeto } = calcularPrecioNetoEIVA(precioBrutoConDescuento);
+      const precioNeto = calcularPreciso(precioBrutoConDescuento / 1.13, 10);
       ventaGravada = calcularPreciso(cantidad * precioNeto, 10);
       descuentoGravado = descuentoTotal;
     } else if (tipoVenta === "2") {
@@ -453,9 +452,9 @@ const calcularTotal = () => {
       descripcion: productoSeleccionado.nombre,
       cantidad: cantidad,
       codigo: productoSeleccionado.codigo,
-      precioUnitario: precioBrutoOriginal, // Precio original sin descuento
-      precioUnitarioConDescuento: precioBrutoConDescuento, // Precio con descuento aplicado
-      precioNeto: tipoVenta === "1" ? calcularPrecioNetoEIVA(precioBrutoConDescuento).neto : precioBrutoConDescuento,
+      precioUnitario: precioBrutoOriginal, 
+      precioUnitarioConDescuento: precioBrutoConDescuento, 
+      precioNeto: tipoVenta === "1" ? calcularPreciso(precioBrutoConDescuento / 1.13, 10) : precioBrutoConDescuento,
       descuento: descuentoTotal,
       valorDescuento: valorDescuento,
       unidadMedida: productoSeleccionado.unidad || "59",
@@ -471,7 +470,7 @@ const calcularTotal = () => {
       descuentoGravado: descuentoGravado,
       descuentoExento: descuentoExento,
       descuentoNoSujeto: descuentoNoSujeto,
-      total: total // Agregar el total calculado correctamente
+      total: total
     });
     
     limpiarFormulario();
