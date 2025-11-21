@@ -44,10 +44,15 @@ const DatosEmisorReceptor = ({
   setCorreoVendedor,
   telefonoEmisor,
   setTelefonoEmisor,
-  // Nuevo estado para idReceptor
+  
+  // Nuevos estados para actividades económicas del cliente
+  actividadEconomicaCliente,
+  setActividadEconomicaCliente,
+  actividadesEconomicasCliente,
+  setActividadesEconomicasCliente,
+  
   idReceptor,
   setIdReceptor,
-
   idEmisor
 
 }) => {
@@ -322,6 +327,37 @@ const DatosEmisorReceptor = ({
     setSearchTerm("");
     setShowClientList(false);
     setIdReceptor(clienteSeleccionado.id || clienteSeleccionado.idcliente || null);
+
+    const actividadesCliente = [];
+    
+    if (clienteSeleccionado.codactividad && clienteSeleccionado.descactividad) {
+      actividadesCliente.push({
+        codigo: clienteSeleccionado.codactividad.toString(),
+        descripcion: clienteSeleccionado.descactividad
+      });
+    }
+    
+    if (clienteSeleccionado.codactividad2 && clienteSeleccionado.descactividad2) {
+      actividadesCliente.push({
+        codigo: clienteSeleccionado.codactividad2.toString(),
+        descripcion: clienteSeleccionado.descactividad2
+      });
+    }
+    
+    if (clienteSeleccionado.codactividad3 && clienteSeleccionado.descactividad3) {
+      actividadesCliente.push({
+        codigo: clienteSeleccionado.codactividad3.toString(),
+        descripcion: clienteSeleccionado.descactividad3
+      });
+    }
+
+    setActividadesEconomicasCliente(actividadesCliente);
+    
+    if (actividadesCliente.length > 0) {
+      setActividadEconomicaCliente(actividadesCliente[0].codigo);
+    } else {
+      setActividadEconomicaCliente("");
+    }
   };
 
   return (
@@ -512,6 +548,38 @@ const DatosEmisorReceptor = ({
               </div>
             )}
           </div>
+          
+          {actividadesEconomicasCliente.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Actividad Económica del Cliente
+              </label>
+              <select
+                value={actividadEconomicaCliente}
+                onChange={(e) => setActividadEconomicaCliente(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">-- Seleccione actividad económica --</option>
+                {actividadesEconomicasCliente.map((actividad) => (
+                  <option key={actividad.codigo} value={actividad.codigo}>
+                    {actividad.codigo} - {actividad.descripcion}
+                  </option>
+                ))}
+              </select>
+              <p className="text-gray-500 text-xs mt-1">
+                Actividad económica registrada del cliente
+              </p>
+            </div>
+          )}
+
+          {/* Mostrar mensaje si el cliente no tiene actividades económicas registradas */}
+          {actividadesEconomicasCliente.length === 0 && nombreReceptor && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+              <p className="text-yellow-800 text-sm">
+                <strong>Nota:</strong> El cliente seleccionado no tiene actividades económicas registradas.
+              </p>
+            </div>
+          )}
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Tipo de Documento */}

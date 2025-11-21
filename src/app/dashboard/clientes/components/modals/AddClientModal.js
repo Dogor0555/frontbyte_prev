@@ -127,7 +127,11 @@ export default function AddClientModal({
             giro: "",
             carnetresidente: "",
             codactividad: "",
-            descactividad: "" 
+            descactividad: "",
+            codactividad2: "",
+            descactividad2: "",
+            codactividad3: "",
+            descactividad3: ""
           }
         : { 
             dui: "",
@@ -536,42 +540,113 @@ export default function AddClientModal({
 
           {/* Actividad solo para Persona Jurídica */}
           {!formData.personanatural && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Código de Actividad / Nombre
-              </label>
-              <Select
-                options={codactividad.map((act) => ({
-                  value: act.codigo,
-                  label: act.codigo + " - " + act.nombre,
-                  nombre: act.nombre,
-                }))}
-                value={
-                  formData.codactividad
-                    ? {
-                        value: formData.codactividad,
-                        label:
-                          formData.codactividad +
-                          " - " +
-                          formData.descactividad,
-                      }
-                    : null
-                }
-                onChange={(selected) => {
-                  setFormData({
-                    ...formData,
-                    codactividad: selected.value,
-                    descactividad: selected.nombre,
-                  });
-                  setErrors({ ...errors, codactividad: undefined });
-                }}
-                className={`w-full text-gray-700 ${
-                  errors.codactividad ? "border border-red-500 rounded-md" : ""
-                }`}
-                placeholder="Seleccione una actividad económica"
-                required
-              />
-              {errors.codactividad && <p className="text-red-500 text-xs mt-1">{errors.codactividad}</p>}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Código de Actividad / Nombre (Principal)
+                </label>
+                <Select
+                  options={codactividad.map((act) => ({
+                    value: act.codigo,
+                    label: act.codigo + " - " + act.nombre,
+                    nombre: act.nombre,
+                  }))}
+                  value={
+                    formData.codactividad
+                      ? {
+                          value: formData.codactividad,
+                          label:
+                            formData.codactividad +
+                            " - " +
+                            formData.descactividad,
+                        }
+                      : null
+                  }
+                  onChange={(selected) => {
+                    setFormData({
+                      ...formData,
+                      codactividad: selected ? selected.value : "",
+                      descactividad: selected ? selected.nombre : "",
+                    });
+                    setErrors({ ...errors, codactividad: undefined });
+                  }}
+                  className={`w-full text-gray-700 ${
+                    errors.codactividad ? "border border-red-500 rounded-md" : ""
+                  }`}
+                  placeholder="Seleccione una actividad económica"
+                  isClearable
+                  required
+                />
+                {errors.codactividad && <p className="text-red-500 text-xs mt-1">{errors.codactividad}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Código de Actividad / Nombre (Secundaria)
+                </label>
+                <Select
+                  options={codactividad.map((act) => ({
+                    value: act.codigo,
+                    label: act.codigo + " - " + act.nombre,
+                    nombre: act.nombre,
+                  }))}
+                  value={
+                    formData.codactividad2
+                      ? {
+                          value: formData.codactividad2,
+                          label:
+                            formData.codactividad2 +
+                            " - " +
+                            formData.descactividad2,
+                        }
+                      : null
+                  }
+                  onChange={(selected) => {
+                    setFormData({
+                      ...formData,
+                      codactividad2: selected ? selected.value : "",
+                      descactividad2: selected ? selected.nombre : "",
+                    });
+                  }}
+                  className="w-full text-gray-700"
+                  placeholder="Seleccione una actividad económica (opcional)"
+                  isClearable
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Código de Actividad / Nombre (Terciaria)
+                </label>
+                <Select
+                  options={codactividad.map((act) => ({
+                    value: act.codigo,
+                    label: act.codigo + " - " + act.nombre,
+                    nombre: act.nombre,
+                  }))}
+                  value={
+                    formData.codactividad3
+                      ? {
+                          value: formData.codactividad3,
+                          label:
+                            formData.codactividad3 +
+                            " - " +
+                            formData.descactividad3,
+                        }
+                      : null
+                  }
+                  onChange={(selected) => {
+                    setFormData({
+                      ...formData,
+                      codactividad3: selected ? selected.value : "",
+                      descactividad3: selected ? selected.nombre : "",
+                    });
+                  }}
+                  className="w-full text-gray-700"
+                  placeholder="Seleccione una actividad económica (opcional)"
+                  isClearable
+                />
+              </div>
             </div>
           )}
 

@@ -91,6 +91,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     idFactura: null
   });
   const [descargandoTicket, setDescargandoTicket] = useState(false);
+  const [actividadEconomicaCliente, setActividadEconomicaCliente] = useState("");
+  const [actividadesEconomicasCliente, setActividadesEconomicasCliente] = useState([]);
 
   const [unidades, setUnidades] = useState([
     { codigo: "1", nombre: "metro" },
@@ -424,7 +426,12 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setShowClientDetails(false);
     setSearchTerm("");
     setTributosDetallados({});
+    
+    // LIMPIAR ACTIVIDADES ECONÓMICAS DEL CLIENTE
+    setActividadEconomicaCliente("");
+    setActividadesEconomicasCliente([]);
   };
+
 
   const verDatosFactura = () => {
     if (items.length === 0) {
@@ -668,6 +675,12 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
     const montototaloperacion = subtotalBruto - descuentoTotal;
 
+    const actividadSeleccionada = actividadesEconomicasCliente.find(
+      act => act.codigo === actividadEconomicaCliente
+    );
+
+    const descripcionActividad = actividadSeleccionada ? actividadSeleccionada.descripcion : "";
+
     return {
       idcliente: idReceptor,
       tipo_dte: "03",
@@ -729,6 +742,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
       nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
       docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
+
+      actividad_economica_cliente: actividadEconomicaCliente || null,
+      desc_actividad_economica_cliente: descripcionActividad || null,
 
       documentofirmado: null
     };
@@ -1200,6 +1216,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 telefonoEmisor={telefonoEmisor}
                 setTelefonoEmisor={setTelefonoEmisor}
                 idEmisor={idEmisor}
+
+                actividadEconomicaCliente={actividadEconomicaCliente}
+                setActividadEconomicaCliente={setActividadEconomicaCliente}
+                actividadesEconomicasCliente={actividadesEconomicasCliente}
+                setActividadesEconomicasCliente={setActividadesEconomicasCliente}
 
                 actividadesEconomicas={codactividad}
               />
