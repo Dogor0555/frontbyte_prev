@@ -549,28 +549,24 @@ const DatosEmisorReceptor = ({
             )}
           </div>
           
-          {actividadesEconomicasCliente.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Actividad Económica del Cliente
-              </label>
-              <select
-                value={actividadEconomicaCliente}
-                onChange={(e) => setActividadEconomicaCliente(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">-- Seleccione actividad económica --</option>
-                {actividadesEconomicasCliente.map((actividad) => (
-                  <option key={actividad.codigo} value={actividad.codigo}>
-                    {actividad.codigo} - {actividad.descripcion}
-                  </option>
-                ))}
-              </select>
-              <p className="text-gray-500 text-xs mt-1">
-                Actividad económica registrada del cliente
-              </p>
-            </div>
-          )}
+          {/* Campo de Actividad Económica del Cliente - SIEMPRE VISIBLE */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Actividad Económica del Cliente
+            </label>
+            <select
+              value={actividadEconomicaCliente}
+              onChange={(e) => setActividadEconomicaCliente(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">-- Seleccione actividad económica --</option>
+              {actividadesEconomicasCliente.map((actividad) => (
+                <option key={actividad.codigo} value={actividad.codigo}>
+                  {actividad.codigo} - {actividad.descripcion}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Mostrar mensaje si el cliente no tiene actividades económicas registradas */}
           {actividadesEconomicasCliente.length === 0 && nombreReceptor && (
