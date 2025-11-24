@@ -23,6 +23,7 @@ export default function EditClientModal({
   if (!show) return null;
 
   const validateEmail = (email) => {
+    if (!email) return true; // Correos opcionales pueden estar vacíos
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
@@ -80,13 +81,31 @@ export default function EditClientModal({
       }
     }
 
-    // Validación de correo
-    if (!formData.correo.trim()) {
-      newErrors.correo = "El correo es obligatorio.";
-    } else if (!validateEmail(formData.correo)) {
-      newErrors.correo = "El formato del correo no es válido.";
-    } else if (formData.correo.length > LIMITES.CORREO) {
-      newErrors.correo = `El correo no puede exceder los ${LIMITES.CORREO} caracteres.`;
+    // Validación de correos
+    const correos = [formData.correo, formData.correo2, formData.correo3].filter(Boolean);
+    
+    // Validar que al menos un correo esté presente
+    if (correos.length === 0) {
+      newErrors.correo = "Al menos un correo electrónico es requerido.";
+    }
+
+    // Validar formato de cada correo
+    if (formData.correo && !validateEmail(formData.correo)) {
+      newErrors.correo = "El formato del correo principal no es válido.";
+    } else if (formData.correo && formData.correo.length > LIMITES.CORREO) {
+      newErrors.correo = `El correo principal no puede exceder los ${LIMITES.CORREO} caracteres.`;
+    }
+
+    if (formData.correo2 && !validateEmail(formData.correo2)) {
+      newErrors.correo2 = "El formato del correo secundario no es válido.";
+    } else if (formData.correo2 && formData.correo2.length > LIMITES.CORREO) {
+      newErrors.correo2 = `El correo secundario no puede exceder los ${LIMITES.CORREO} caracteres.`;
+    }
+
+    if (formData.correo3 && !validateEmail(formData.correo3)) {
+      newErrors.correo3 = "El formato del tercer correo no es válido.";
+    } else if (formData.correo3 && formData.correo3.length > LIMITES.CORREO) {
+      newErrors.correo3 = `El tercer correo no puede exceder los ${LIMITES.CORREO} caracteres.`;
     }
 
     // Validación de teléfono
@@ -130,7 +149,6 @@ export default function EditClientModal({
       onUpdate(e, formDataToSend); 
     }
   };
-
 
   const handleTipoPersonaChange = (isNatural) => {
     setFormData({
@@ -421,7 +439,7 @@ export default function EditClientModal({
             </>
           )}
 
-          {/* Teléfono y Correo */}
+          {/* Teléfono y Correos */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -447,11 +465,11 @@ export default function EditClientModal({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Correo
+                Correo Principal *
               </label>
               <input
                 type="email"
-                value={formData.correo}
+                value={formData.correo || ""}
                 onChange={(e) => {
                   setFormData({ ...formData, correo: e.target.value });
                   setErrors({ ...errors, correo: undefined });
@@ -461,10 +479,54 @@ export default function EditClientModal({
                 }`}
                 maxLength={LIMITES.CORREO}
                 placeholder="ejemplo@correo.com"
-                required
               />
               {errors.correo && <p className="text-red-500 text-xs mt-1">{errors.correo}</p>}
             </div>
+          </div>
+
+          {/* Correos secundarios */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Correo Secundario
+              </label>
+              <input
+                type="email"
+                value={formData.correo2 || ""}
+                onChange={(e) => {
+                  setFormData({ ...formData, correo2: e.target.value });
+                  setErrors({ ...errors, correo2: undefined });
+                }}
+                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                  errors.correo2 ? "border-red-500" : "border-gray-300"
+                }`}
+                maxLength={LIMITES.CORREO}
+              />
+              {errors.correo2 && <p className="text-red-500 text-xs mt-1">{errors.correo2}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tercer Correo
+              </label>
+              <input
+                type="email"
+                value={formData.correo3 || ""}
+                onChange={(e) => {
+                  setFormData({ ...formData, correo3: e.target.value });
+                  setErrors({ ...errors, correo3: undefined });
+                }}
+                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                  errors.correo3 ? "border-red-500" : "border-gray-300"
+                }`}
+                maxLength={LIMITES.CORREO}
+              />
+              {errors.correo3 && <p className="text-red-500 text-xs mt-1">{errors.correo3}</p>}
+            </div>
+          </div>
+
+          <div className="text-xs text-gray-500 mb-4">
+            * Al menos un correo electrónico es requerido
           </div>
 
           {/* Dirección */}
