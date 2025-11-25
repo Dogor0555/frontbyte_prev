@@ -1252,6 +1252,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total Gravado</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total Exento</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total No Sujeto</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">IVA Item</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Acciones</th>
                       </tr>
@@ -1260,7 +1261,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       {items.length === 0 ? (
                         <tr>
                           <td colSpan="13" className="px-4 py-4 text-center text-gray-500 border-b">
-                            No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.
+                            No hay items agregados. Haga clic en "Agregar Detalle" para comenzar. 
                           </td>
                         </tr>
                       ) : (
@@ -1271,6 +1272,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                           const totalExento = item.ventaExenta || 0;
                           const totalNoSujeto = item.ventaNoSujeta || 0;
                           const totalItem = item.total || 0;
+                          const ivaItem = totalGravado * 0.13;
 
                           return (
                             <tr key={item.id}>
@@ -1332,6 +1334,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                               </td>
                               <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
                                 {formatMoney(totalNoSujeto)}
+                              </td>
+                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
+                                {formatMoney(ivaItem)}
                               </td>
                               <td className="px-4 py-2 border-b text-center font-bold text-blue-700">
                                 {formatMoney(totalItem)}

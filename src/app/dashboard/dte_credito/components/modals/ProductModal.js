@@ -936,7 +936,7 @@ const calcularTotal = () => {
                   
                   {tributos.map((tributo, index) => (
                     <div key={index} className="flex justify-between py-1">
-                      <span className="text-sm text-gray-600">{tributo.codigo}:</span>
+                      <span className="text-sm text-gray-600">{tributo.descripcion}:</span>
                       <span className="text-sm font-medium">${mostrarDecimales(tributo.valor)}</span>
                     </div>
                   ))}
