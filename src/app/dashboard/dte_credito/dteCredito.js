@@ -1259,11 +1259,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {items.length === 0 ? (
-                        <tr>
-                          <td colSpan="13" className="px-4 py-4 text-center text-gray-500 border-b">
-                            No hay items agregados. Haga clic en "Agregar Detalle" para comenzar. 
-                          </td>
-                        </tr>
+                        <tr><td colSpan="14" className="px-4 py-4 text-center text-gray-500 border-b">No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.</td></tr>
                       ) : (
                         items.map((item) => {
                           // USAR LOS VALORES DIRECTOS QUE YA VIENEN CALCULADOS DEL MODAL

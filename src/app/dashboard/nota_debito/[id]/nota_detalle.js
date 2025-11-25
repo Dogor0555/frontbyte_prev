@@ -35,15 +35,15 @@ export default function NotaDetallePage() {
       significado: "Aumenta la deuda del cliente"
     },
     credito: {
-      color: "green",
+      color: "blue",
       icon: FaMinusCircle,
       titulo: "CRÉDITO",
       textoCompleto: "NOTA DE CRÉDITO",
-      bgColor: "bg-green-600",
-      borderColor: "border-green-400",
-      bgLight: "bg-green-50",
-      textColor: "text-green-600",
-      borderLight: "border-green-200",
+      bgColor: "bg-blue-600",
+      borderColor: "border-blue-400",
+      bgLight: "bg-blue-50",
+      textColor: "text-blue-600",
+      borderLight: "border-blue-200",
       prefijo: "NC",
       descripcion: "Documento que reduce el monto de una factura",
       significado: "Reduce la deuda del cliente"
@@ -130,20 +130,16 @@ export default function NotaDetallePage() {
 
   const getProductos = (data, docFirmado) => {
     if (docFirmado?.ventaTercero && docFirmado.ventaTercero.length > 0) {
-      return docFirmado.ventaTercero.map(item => ({
+      const ivaTotal = docFirmado.resumen?.tributos?.find(t => t.codigo === '20')?.valor || 0;
+      return docFirmado.ventaTercero.map((item, index) => ({
         descripcion: item.descripcion,
-        cantidad: item.cantidad,
-        precioUnitario: item.precioUni,
-        total: item.ventaGravada || item.precioUni * item.cantidad
+        iva: index === 0 ? ivaTotal : 0,
+        total: item.montoItem || item.total || 0,
       }));
     }
     
-    return [{
-      descripcion: `Nota de ${data.tipo_dte === '05' ? 'crédito' : 'débito'} - Ajuste`,
-      cantidad: 1,
-      precioUnitario: data.subtotal || data.montototaloperacion || 0,
-      total: data.totalapagar || data.montototaloperacion || 0
-    }];
+    const ivaDelResumen = docFirmado?.resumen?.tributos?.find(t => t.codigo === '20')?.valor || data.valoriva || 0;
+    return [{ descripcion: "Ajuste a factura", iva: ivaDelResumen, total: data.totalapagar || 0 }];
   };
 
   useEffect(() => {
@@ -490,7 +486,7 @@ export default function NotaDetallePage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden border">
+            <div className="bg-white rounded-lg shadow-sm">
               <div className={`${config.bgColor} text-white p-6`}>
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center">
                   <div className="flex items-center mb-4 lg:mb-0">
@@ -517,9 +513,9 @@ export default function NotaDetallePage() {
                 </div>
               </div>
 
-              <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className={`p-4 rounded-lg border-2 ${config.borderLight}`}>
-                  <h2 className={`font-bold text-lg mb-3 ${config.textColor}`}>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <h2 className="font-semibold text-lg mb-3 text-gray-800 border-b pb-2">
                     <FaUser className="inline mr-2" />
                     Emisor
                   </h2>
@@ -535,8 +531,8 @@ export default function NotaDetallePage() {
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-lg border-2 ${config.borderLight}`}>
-                  <h2 className={`font-bold text-lg mb-3 ${config.textColor}`}>
+                <div>
+                  <h2 className="font-semibold text-lg mb-3 text-gray-800 border-b pb-2">
                     <FaUser className="inline mr-2" />
                     Cliente
                   </h2>
@@ -553,7 +549,7 @@ export default function NotaDetallePage() {
                 </div>
               </div>
 
-              <div className="p-6 border-t">
+              <div className="p-6 border-t border-gray-200">
                 <div className={`flex items-center mb-6 p-4 rounded-lg ${config.bgLight}`}>
                   <FaCalendarAlt className={`mr-3 text-xl ${config.textColor}`} />
                   <div>
@@ -569,7 +565,7 @@ export default function NotaDetallePage() {
                 </div>
 
                 <div className="mb-8">
-                  <h3 className={`font-bold text-xl mb-4 ${config.textColor}`}>
+                  <h3 className="font-semibold text-xl mb-4 text-gray-800">
                     <FaFileAlt className="inline mr-2" />
                     Conceptos de la {config.textoCompleto.toLowerCase()}
                   </h3>
@@ -577,43 +573,43 @@ export default function NotaDetallePage() {
                     <table className="min-w-full bg-white">
                       <thead className={config.bgLight}>
                         <tr>
-                          <th className="py-3 px-4 border text-left font-semibold">Descripción</th>
-                          <th className="py-3 px-4 border text-center font-semibold">Cantidad</th>
-                          <th className="py-3 px-4 border text-right font-semibold">P. Unitario</th>
-                          <th className="py-3 px-4 border text-right font-semibold">Total</th>
+                          <th className="py-3 px-4 border text-left font-semibold text-sm">Concepto</th>
+                          <th className="py-3 px-4 border text-right font-semibold text-sm">IVA</th>
+                          <th className="py-3 px-4 border text-right font-semibold text-sm">Total</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {productos.map((producto, index) => (
+                        {productos.length > 0 ? productos.map((producto, index) => (
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="py-3 px-4 border border-gray-200">
+                            <td className="py-3 px-4 border border-gray-200 w-2/3">
                               {producto.descripcion}
                             </td>
-                            <td className="py-3 px-4 border border-gray-200 text-center">
-                              {Number(producto.cantidad).toFixed(0)}
-                            </td>
-                            <td className="py-3 px-4 border border-gray-200 text-right">
-                              {formatCurrency(producto.precioUnitario)}
+                            <td className="py-3 px-4 border border-gray-200 text-right text-blue-600">
+                              {formatCurrency(producto.iva)}
                             </td>
                             <td className="py-3 px-4 border border-gray-200 text-right font-semibold">
                               {formatCurrency(producto.total)}
                             </td>
                           </tr>
-                        ))}
+                        )) : (
+                          <tr>
+                            <td colSpan="3" className="text-center py-4 text-gray-500">No hay conceptos detallados en esta nota.</td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
                 </div>
 
                 <div className="flex justify-end mb-6">
-                  <div className={`w-full lg:w-1/3 p-6 rounded-lg border-2 ${config.borderLight} bg-white`}>
+                  <div className="w-full lg:w-2/5 p-6 rounded-lg bg-gray-50">
                     <div className="flex justify-between items-center py-3 border-b">
                       <span className="font-semibold text-gray-700">Subtotal:</span>
                       <span className="font-semibold">{formatCurrency(notaData.subtotal || 0)}</span>
                     </div>
                     <div className="flex justify-between items-center py-3 border-b">
                       <span className="font-semibold text-gray-700">IVA:</span>
-                      <span className="font-semibold">{formatCurrency(notaData.valoriva || 0)}</span>
+                      <span className="font-semibold">{formatCurrency(documentoFirmadoData?.resumen?.tributos?.find(t => t.codigo === '20')?.valor || notaData.valoriva || 0)}</span>
                     </div>
                     <div className="flex justify-between items-center py-3">
                       <span className="font-bold text-lg text-gray-800">Total:</span>
@@ -625,15 +621,15 @@ export default function NotaDetallePage() {
                 </div>
 
                 {notaData.valorletras && (
-                  <div className={`mb-6 p-4 rounded-lg border ${config.borderLight}`}>
-                    <p className={`font-semibold mb-2 ${config.textColor}`}>Total en letras:</p>
+                  <div className="mb-6 p-4 rounded-lg bg-gray-50">
+                    <p className="font-semibold mb-2 text-gray-700">Total en letras:</p>
                     <p className="italic text-gray-700 text-lg">"{notaData.valorletras}"</p>
                   </div>
                 )}
 
-                <div className={`mb-6 p-4 rounded-lg border ${config.borderLight}`}>
-                  <h4 className={`font-bold text-lg mb-3 ${config.textColor}`}>Información Adicional</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                <div className="mb-6">
+                  <h4 className="font-semibold text-lg mb-3 text-gray-800">Información Adicional</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700 bg-gray-50 p-4 rounded-lg">
                     <div className="space-y-2">
                       <p><strong>Forma de pago:</strong> {notaData.formapago || "No especificado"}</p>
                       <p><strong>Tipo de venta:</strong> {notaData.tipoventa || "No especificado"}</p>
