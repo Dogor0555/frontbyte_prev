@@ -211,13 +211,12 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
     
     try {
       // Determinar el endpoint según el tipo de nota
-      const endpoint = tipoNota === "debito" 
-        ? `http://localhost:3000/facturas/${idNota}/descargar-compacto`
-        : `http://localhost:3000/facturas/${idNota}/descargar-compacto`;
+      const endpoint = `http://localhost:3000/facturas/${idNota}/ver-compacto`;
 
       const response = await fetch(endpoint, {
         method: 'GET',
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'Accept': 'application/pdf' }
       });
 
       if (response.ok) {
@@ -225,12 +224,15 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
+        const newTab = window.open(url, '_blank');
+
+        if (!newTab) {
+          throw new Error('El navegador bloqueó la nueva pestaña. Por favor, permite ventanas emergentes.');
+        }
         
         // Obtener el nombre del archivo del header Content-Disposition o usar uno por defecto
         const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = `nota_${tipoNota}_${idNota}.pdf`;
+        let filename = `nota_${idNota}.pdf`;
         
         if (contentDisposition) {
           const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
@@ -238,19 +240,18 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
             filename = filenameMatch[1];
           }
         }
-        
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
+
         mostrarModalMensaje(
           "exito", 
-          "Descarga Exitosa", 
-          `El ticket de la nota de ${tipoNota === "debito" ? "débito" : "crédito"} se ha descargado correctamente.`,
+          "Ticket Abierto", 
+          `El ticket de la nota de ${tipoNota === "debito" ? "débito" : "crédito"} se ha abierto en una nueva pestaña.`,
           `Archivo: ${filename}`
         );
+
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 5000);
+
       } else {
         throw new Error('Error al descargar el ticket');
       }
@@ -302,9 +303,9 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
 
     setEnviando(true);
     try {
-      const monto = parseFloat(montoNota);
-      const iva = monto * 0.13;
-      const total = monto + iva;
+      const total = parseFloat(montoNota);
+      const monto = total / 1.13;
+      const iva = total - monto;
 
       const idCliente = factura.idcliente || factura.idcliente_factura || factura.cliente_id;
       
@@ -332,7 +333,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
           
           horaemision: new Date().toTimeString().split(' ')[0].substring(0, 8),
           subtotal: monto.toFixed(2),
-          totalapagar: total.toFixed(2),
+          totalapagar: total.toFixed(2), // El total a pagar es el monto ingresado
           totalgravada: monto.toFixed(2),
           valorletras: convertirNumeroALetras(total),
           tipoventa: "contado",
@@ -344,7 +345,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
               {
                   codigo: "20",
                   descripcion: "IVA Débito Fiscal",
-                  valor: iva
+                  valor: iva.toFixed(2)
               }
           ]
       };
@@ -376,11 +377,11 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
           {
             descripcion: `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} - ${motivoNota.trim()}`,
             cantidad: 1,
-            precio: monto.toFixed(2),
-            preciouni: monto.toFixed(2),
+            precio: total.toFixed(2), // El precio unitario es el total
+            preciouni: total.toFixed(2),
             subtotal: monto.toFixed(2),
             ventagravada: monto.toFixed(2),
-            iva: iva.toFixed(2),
+            iva: iva.toFixed(2), // El IVA calculado
             total: total.toFixed(2),
             unidadmedida: "UNI",
             tributo: "20",
@@ -634,9 +635,9 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Número</label>
-                      <p className="text-gray-800 font-semibold">
-                        #{factura.numerofacturausuario || factura.iddtefactura}
+                      <label className="text-sm font-medium text-gray-500">Número de Control</label>
+                      <p className="text-gray-800 font-semibold break-all">
+                        {factura.ncontrol || 'No disponible'}
                       </p>
                     </div>
                     
@@ -782,21 +783,21 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Monto base:</span>
+                        <span className="text-gray-600">Monto (Neto):</span>
                         <span className="font-medium">
-                          {montoNota ? formatCurrency(parseFloat(montoNota)) : '$0.00'}
+                          {montoNota ? formatCurrency(parseFloat(montoNota) / 1.13) : '$0.00'}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">IVA (13%):</span>
                         <span className="font-medium">
-                          {montoNota ? formatCurrency(parseFloat(montoNota) * 0.13) : '$0.00'}
+                          {montoNota ? formatCurrency(parseFloat(montoNota) - (parseFloat(montoNota) / 1.13)) : '$0.00'}
                         </span>
                       </div>
                       <div className="flex justify-between border-t pt-2">
                         <span className="text-gray-800 font-semibold">Total nota:</span>
                         <span className="font-bold text-blue-600">
-                          {montoNota ? formatCurrency(parseFloat(montoNota) * 1.13) : '$0.00'}
+                          {montoNota ? formatCurrency(parseFloat(montoNota)) : '$0.00'}
                         </span>
                       </div>
                     </div>

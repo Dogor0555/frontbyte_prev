@@ -349,7 +349,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   const FacturaCard = ({ factura, esNotaDebito = false, esNotaCredito = false }) => {
       const esNota = esNotaDebito || esNotaCredito;
       const tipoNota = esNotaDebito ? 'debito' : esNotaCredito ? 'credito' : 'factura';
-      const colorNota = esNotaDebito ? 'purple' : esNotaCredito ? 'green' : 'green';
+      const colorNota = esNotaDebito ? 'purple' : esNotaCredito ? 'blue' : 'green';
       
       const [cliente, setCliente] = useState(null);
       const [loadingCliente, setLoadingCliente] = useState(false);
