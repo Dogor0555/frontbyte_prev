@@ -237,7 +237,7 @@ export default function NotaDetallePage() {
       const pdfUrl = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = `nota-${tipoNota}-${numeroNota}.pdf`;
+      link.download = `${notaData?.ncontrol || `nota-${tipoNota}-${numeroNota}`}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

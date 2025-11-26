@@ -220,7 +220,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         throw new Error("No se pudo obtener la factura");
       }
       const factura = await facturaResponse.json();
-      const numeroControl = factura.numero_control || `nota-${notaId}`;
+      const numeroControl = factura.ncontrol || `nota-${notaId}`;
 
       const response = await fetch(`http://localhost:3000/facturas/${notaId}/descargar-pdf`, {
         credentials: "include"
@@ -266,7 +266,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         throw new Error("No se pudo obtener la factura");
       }
       const factura = await facturaResponse.json();
-      const numeroControl = factura.numero_control || `nota-${iddtefactura}`;
+      const numeroControl = factura.ncontrol || `nota-${iddtefactura}`;
 
       const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
         method: 'GET',
