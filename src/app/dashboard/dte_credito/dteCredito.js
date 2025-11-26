@@ -751,6 +751,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   };
 
   const convertirNumeroALetras = (numero) => {
+    numero = parseFloat(numero.toFixed(2));
+
     const unidades = ["", "UNO", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE"];
     const especiales = ["DIEZ", "ONCE", "DOCE", "TRECE", "CATORCE", "QUINCE", "DIECISÉIS", "DIECISIETE", "DIECIOCHO", "DIECINUEVE"];
     const decenas = ["", "", "VEINTE", "TREINTA", "CUARENTA", "CINCUENTA", "SESENTA", "SETENTA", "OCHENTA", "NOVENTA"];
@@ -1263,12 +1265,12 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       ) : (
                         items.map((item) => {
                           // USAR LOS VALORES DIRECTOS QUE YA VIENEN CALCULADOS DEL MODAL
-                          const subtotal = item.precioUnitario * item.cantidad;
+                          const subtotal = item.precioNeto * item.cantidad;
                           const totalGravado = item.ventaGravada || 0;
                           const totalExento = item.ventaExenta || 0;
                           const totalNoSujeto = item.ventaNoSujeta || 0;
-                          const totalItem = item.total || 0;
-                          const ivaItem = totalGravado * 0.13;
+                          const ivaItem = item.ventaGravada ? item.ventaGravada * 0.13 : 0;
+                          const totalItem = totalGravado + totalExento + totalNoSujeto;
 
                           return (
                             <tr key={item.id}>
