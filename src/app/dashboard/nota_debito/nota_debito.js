@@ -109,9 +109,12 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
     if (!['TRANSMITIDO', 'RE-TRANSMITIDO', 'ACEPTADO'].includes(factura.estado)) return false;
     
     if (factura.fechaemision) {
-      const fechaEmision = new Date(factura.fechaemision);
       const ahora = new Date();
-      const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
+      const offset = -6;
+      const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+      
+      const fechaEmision = new Date(factura.fechaemision);
+      const horasTranscurridas = (salvadorTime - fechaEmision) / (1000 * 60 * 60);
       return horasTranscurridas <= 24;
     }
     
