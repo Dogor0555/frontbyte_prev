@@ -34,7 +34,8 @@ import {
   FaUserCheck,         // Para Contribuyentes
   FaFileExport,        // Para Anexos
   FaTicketAlt,         // Nuevo ícono para Configurar Tickets
-  FaFilePdf           // Nuevo ícono para Detalles de Documentos
+  FaFilePdf,           // Nuevo ícono para Detalles de Documentos
+  FaWrench             // Para Configurar PDF
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -359,6 +360,16 @@ export default function Sidebar({ onOpenPerfil }) {
         icon: <FaHistory />,
         href: "/dashboard/registro-eventos",
         permiso: "Registro de eventos"
+      });
+    }
+
+    // Nuevo: Configurar PDF
+    if (tienePermiso("Configurar PDF")) {
+      adminSubMenu.push({
+        name: "Configurar PDF",
+        icon: <FaWrench />,
+        href: "/dashboard/configurar-pdf",
+        permiso: "Configurar PDF"
       });
     }
 
