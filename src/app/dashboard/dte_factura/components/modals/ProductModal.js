@@ -78,8 +78,8 @@ export default function ProductModal({
       
       if (!ivaExiste && productoSeleccionado) {
         const precio = parseFloat(productoSeleccionado.precio) || 0;
-        const subtotalSinDescuento = cantidad * precio;
-        const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
+        const subtotal = cantidad * precio;
+        const subtotalConDescuento = Math.max(0, subtotal - descuentoAplicado);
         const valorImpuesto = calcularValorImpuesto("20", subtotalConDescuento);
         
         const ivaTributo = {
@@ -103,7 +103,7 @@ export default function ProductModal({
     }
 
     const precio = parseFloat(productoSeleccionado.precio) || 0;
-    const subtotalSinDescuento = cantidad * precio;
+    const subtotalSinDescuento = (cantidad * precio);
     const descuento = parseFloat(valorDescuento) || 0;
 
     if (descuento > subtotalSinDescuento) {
@@ -122,7 +122,7 @@ export default function ProductModal({
     }
 
     const precio = parseFloat(productoSeleccionado.precio) || 0;
-    const subtotalSinDescuento = cantidad * precio;
+    const subtotalSinDescuento = (cantidad * precio);
     const descuento = parseFloat(valorDescuento) || 0;
     
     // Validar que el descuento no sea mayor al subtotal
@@ -266,8 +266,8 @@ export default function ProductModal({
     }
     
     const precio = parseFloat(productoSeleccionado.precio) || 0;
-    const subtotalSinDescuento = cantidad * precio;
-    const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
+    const subtotal = cantidad * precio;
+    const subtotalConDescuento = Math.max(0, subtotal - descuentoAplicado);
     const valorImpuesto = calcularValorImpuesto(impuestoSeleccionado, subtotalConDescuento);
     
     const nuevoTributo = {
@@ -299,23 +299,23 @@ export default function ProductModal({
     if (!productoSeleccionado) return 0;
     
     const precio = parseFloat(productoSeleccionado.precio) || 0;
-    const subtotalSinDescuento = cantidad * precio;
-    const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
+    const subtotal = cantidad * precio;
+    const subtotalConDescuento = Math.max(0, subtotal - descuentoAplicado);
     
     // CORRECCIÓN: Para No Sujeto, solo retornar el subtotal con descuento
     if (tipoVenta === "3") {
-      return Math.max(0, subtotalConDescuento);
+      return subtotalConDescuento;
     }
     
     if (tipoVenta === "2") {
       // Exento - sin impuestos
-      return Math.max(0, subtotalConDescuento);
+      return subtotalConDescuento;
     }
     
     // Gravado - sumar tributos (incluye IVA automático)
     const totalImpuestos = tributos.reduce((sum, tributo) => sum + tributo.valor, 0);
     
-    return Math.max(0, subtotalConDescuento + totalImpuestos);
+    return subtotalConDescuento + totalImpuestos;
   };
 
   const handleAgregarItem = () => {
@@ -363,8 +363,6 @@ export default function ProductModal({
     const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
     
-    let precioUnitario = parseFloat(productoSeleccionado.precio);
-
     const total = calcularTotal();
     
     // Calcular montos por tipo de venta
@@ -377,6 +375,7 @@ export default function ProductModal({
     let descuentoExento = 0;
     let descuentoNoSujeto = 0;
     
+    const precioUnitario = parseFloat(productoSeleccionado.precio) || 0;
     const subtotalSinDescuento = cantidad * precioUnitario;
     
     switch (tipoVenta) {
@@ -407,7 +406,7 @@ export default function ProductModal({
       productoId: !esServicio ? productoSeleccionado.id : null,
       actualizarStock: necesitaActualizarStock,
       stockAnterior: !esServicio ? productoSeleccionado.stock : null,
-      esServicio: esServicio,
+      esServicio: esServicio, // Este campo ya existía
       // Nuevos campos para tipos de venta
       ventaGravada: (ventaGravada - descuentoGravado),
       ventaExenta: (ventaExenta - descuentoExento),
@@ -433,7 +432,7 @@ export default function ProductModal({
   if (!isOpen) return null;
 
   const subtotalSinDescuento = productoSeleccionado ? 
-    cantidad * parseFloat(productoSeleccionado.precio) || 0 : 0;
+    (cantidad * (parseFloat(productoSeleccionado.precio) || 0)) : 0;
 
   const subtotalConDescuento = Math.max(0, subtotalSinDescuento - descuentoAplicado);
   const total = calcularTotal();

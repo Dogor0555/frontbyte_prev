@@ -611,8 +611,7 @@ export default function ConfigurarTickets({
                 <button
                   type="submit"
                   disabled={!canSubmit}
-                  className={`inline-flex items-center gap-2 rounded px-6 py-2 text-sm font-medium ${
-                    canSubmit ? "bg-gray-800 text-white hover:bg-gray-900" : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  className={`inline-flex items-center gap-2 rounded px-6 py-2 text-sm font-medium ${canSubmit ? "bg-gray-800 text-white hover:bg-gray-900" : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
                 >
                   <FaSave /> {saving ? "Guardando..." : (configuracionTickets ? "Actualizar Configuración" : "Guardar Configuración")}
