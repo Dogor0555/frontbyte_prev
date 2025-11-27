@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documento Tributario Electrónico</title>
+  <style>
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+    }
+    
+    @page { 
+      size: A4; 
+      margin: 8mm 6mm 10mm; 
+    }
+    
+    html, body { 
+      height: 100%; 
+      font-family: Helvetica, Arial, sans-serif; /* Prioriza Helvetica */
+    }
+    
+    body { 
+      font-size: 12px; 
+      color: #111; 
+      line-height: 1.23; 
+      background-color: #ffffff;
+      padding: 5mm;
+    }
+    
+    /* Tipografía */
+    h1, h2, h3 { 
+      margin: 0; 
+    }
+    
+    h1 { 
+      font-size: 17px; 
+      letter-spacing: 0.2px; 
+      text-transform: uppercase; 
+    }
+    
+    h2 { 
+      font-size: 14px; 
+      margin-bottom: 4px; 
+      text-transform: uppercase; 
+    }
+    
+    .muted { 
+      color: #555; 
+    }
+    
+    .small { 
+      font-size: 10px; 
+      color: #444; 
+    }
+    
+    .mono { 
+      font-family: "Courier New", Courier, monospace; /* Usa Courier, una fuente estándar */
+    }
+    
+    .uppercase { 
+      text-transform: uppercase; 
+    }
+    
+    .nowrap { 
+      white-space: nowrap; 
+    }
+    
+    .right { 
+      text-align: right; 
+    }
+    
+    .center { 
+      text-align: center; 
+    }
+    
+    .break { 
+      word-break: break-all; 
+    }
+    
+    .bold {
+      font-weight: bold;
+    }
+    
+    /* Layout */
+    .container {
+      max-width: 100%;
+      background: #ffffff;
+    }
+    
+    .title-wrap { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: flex-start; 
+      gap: 8px; 
+      margin-bottom: 8px; 
+    }
+    
+    .title-left {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+    }
+    
+    .logo-container {
+      flex-shrink: 0;
+    }
+    
+    .logo {
+      max-height: 70px;
+      max-width: 150px;
+    }
+    
+    .title-text {
+      flex: 1;
+    }
+    
+    .title-right { 
+      text-align: right; 
+      font-size: 11px; 
+      color: #444; 
+    }
+    
+    .content {
+      padding: 0;
+    }
+    
+    .row { 
+      display: flex; 
+      gap: 8px; 
+      align-items: stretch; 
+      margin-bottom: 9px;
+    }
+    
+    .col { 
+      flex: 1 1 0; 
+    }
+    
+    .block { 
+      border: 1px solid #000; 
+      padding: 7px; 
+      border-radius: 0; 
+      position: relative; /* Necesario para posicionar el QR */
+    }
+    
+    .kv { 
+      display: grid; 
+      grid-template-columns: 160px 1fr; 
+      gap: 2px 6px; 
+    }
+    
+    .kv > div:nth-child(odd) { 
+      color: #333; 
+    }
+    
+    .kv-compact {
+      grid-template-columns: 1fr 1fr;
+    }
+    
+    /* Tablas */
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+    }
+    
+    thead { 
+      display: table-header-group; 
+    }
+    
+    tfoot { 
+      display: table-footer-group; 
+    }
+    
+    th, td { 
+      border: 1px solid #000; 
+      padding: 3px 5px; 
+      vertical-align: top; 
+    }
+    
+    th { 
+      background: #f3f3f3; 
+      text-align: left; 
+    }
+    
+    /* Elementos específicos */
+    .no-break { 
+      break-inside: avoid; 
+      page-break-inside: avoid; 
+    }
+    
+    tr { 
+      break-inside: avoid; 
+      page-break-inside: avoid; 
+    }
+    
+    img { 
+      break-inside: avoid; 
+    }
+    
+    .mb8 { 
+      margin-bottom: 8px; 
+    }
+    
+    .mb12 { 
+      margin-bottom: 9px; 
+    }
+    
+    .cg-code {
+      word-break: break-all;
+    }
+    
+    .qr { 
+      position: absolute;
+      top: 7px; /* Coincide con el padding del .block */
+      right: 7px; /* Coincide con el padding del .block */
+      height: 75px; 
+      width: 75px; 
+      flex: 0 0 auto; 
+      border: 1px solid #ddd;
+    }
+    
+    @media print {
+      body {
+        padding: 0;
+        background: white;
+      }
+      
+      .qr { 
+        height: 70px; 
+        width: 70px;
+      }
+      
+      .logo {
+        max-height: 65px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Encabezado compacto con logo -->
+    <div class="title-wrap">
+      <div class="title-left">
+        {{#if emisor.logo}}
+        <div class="logo-container">
+          <img class="logo" src="{{emisor.logo}}" alt="Logo Emisor"/>
+        </div>
+        {{/if}}
+        <div class="title-text">
+          <div class="small">Ver. {{identificacion.version}}</div>
+          <h1>Documento Tributario Electrónico</h1>
+          <div class="uppercase">{{identificacion.tipoDteLabel}}</div>
+        </div>
+      </div>
+
+      <div class="title-right">
+        <div>Moneda: {{identificacion.tipoMoneda}}</div>
+        <div>Modelo: {{identificacion.tipoModelo}} · Operación: {{identificacion.tipoOperacion}}</div>
+      </div>
+    </div>
+
+    <!-- Identificación del documento -->
+    <div class="block mb12 no-break">
+      <div class="kv">
+        <div>Código de Generación:</div>
+        <div class="mono cg-code">{{identificacion.codigoGeneracion}}</div>
+
+        <div>Número de Control:</div>
+        <div class="mono break">{{identificacion.numeroControl}}</div>
+
+        {{#unless selloRecepcionOculto}}
+        <div>Sello de Recepción:</div>
+        <div class="mono break">{{#if selloRecibido}}{{selloRecibido}}{{else}}{{#if sellorec}}{{sellorec}}{{else}}-{{/if}}{{/if}}</div>
+        {{/unless}}
+
+        {{#unless modeloFacturacionOculto}}
+        <div>Modelo de Facturación:</div>
+        <div>Modelo {{identificacion.tipoModelo}}</div>
+        {{/unless}}
+
+        {{#unless tipoTransmisionOculto}}
+        <div>Tipo de Transmisión:</div>
+        <div>{{#if tipoTransmision}}{{tipoTransmision}}{{else}}Normal{{/if}}</div>
+        {{/unless}}
+
+        <div>Fecha y Hora de Generación:</div>
+        <div class="mono">{{identificacion.fecEmi}} {{identificacion.horEmi}}</div>
+      </div>
+      
+      {{#if barcodeDataUri}}
+        <img class="qr" src="{{barcodeDataUri}}" alt="QR"/>
+      {{/if}}
+    </div>
+
+    <!-- Emisor / Receptor -->
+    <div class="row mb12 no-break">
+      <div class="col block">
+        <h2>Emisor</h2>
+        <div class="kv">
+          <div>Nombre o razón social:</div><div>{{emisor.nombre}}</div>
+          <div>NIT:</div><div class="mono">{{emisor.nit}}</div>
+          <div>NRC:</div><div class="mono">{{#if emisor.nrc}}{{emisor.nrc}}{{else}}-{{/if}}</div>
+          <div>Actividad económica:</div><div>{{emisor.descActividad}}</div>
+          <div>Dirección:</div><div>{{emisor.direccion.complemento}}, {{emisor.direccion.municipio}}, {{emisor.direccion.departamento}}</div>
+          
+          {{#if emisor.telefono}}
+          <div>Teléfono:</div><div>{{emisor.telefono}}</div>
+          {{/if}}
+          
+          {{#if emisor.correo}}
+          <div>Correo:</div><div>{{emisor.correo}}</div>
+          {{/if}}
+          
+          {{#if emisor.nombreComercial}}
+          <div>Nombre Comercial:</div><div>{{emisor.nombreComercial}}</div>
+          {{/if}}
+          
+          {{#if emisor.tipoEstablecimiento}}
+          <div>Tipo de establecimiento:</div><div>{{emisor.tipoEstablecimiento}}</div>
+          {{/if}}
+        </div>
+      </div>
+
+      <div class="col block">
+        <h2>Receptor</h2>
+        <div class="kv">
+          <div>Nombre o razón social:</div><div>{{receptor.nombre}}</div>
+          <div>Tipo Doc.:</div><div>{{receptor.tipoDocumento}}</div>
+          <div>N° Documento:</div><div class="mono">{{receptor.numDocumento}}</div>
+          
+          {{#if receptor.descActividad}}
+          <div>Actividad económica:</div><div>{{receptor.descActividad}}</div>
+          {{/if}}
+          
+          <div>Dirección:</div><div>{{receptor.direccion.complemento}}, {{receptor.direccion.municipio}}, {{receptor.direccion.departamento}}</div>
+          
+          {{#if receptor.telefono}}
+          <div>Teléfono:</div><div>{{receptor.telefono}}</div>
+          {{/if}}
+          
+          {{#if receptor.correo}}
+          <div>Correo:</div><div>{{receptor.correo}}</div>
+          {{/if}}
+          
+          {{#if receptor.nombreComercial}}
+          <div>Nombre Comercial:</div><div>{{receptor.nombreComercial}}</div>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+
+    <!-- Venta a terceros + Otros documentos asociados -->
+    {{#unless ventaTerceroOculto}}
+    <div class="row mb12">
+      <div class="col block">
+        <h2>Venta a cuenta de terceros</h2>
+        <div class="kv">
+          <div>NIT:</div><div class="mono">{{#if ventaTercero.nit}}{{ventaTercero.nit}}{{else}}-{{/if}}</div>
+          <div>Nombre / razón social:</div><div>{{#if ventaTercero.nombre}}{{ventaTercero.nombre}}{{else}}-{{/if}}</div>
+        </div>
+      </div>
+
+      {{#unless otrosDocumentosOcultos}}
+      <div class="col block">
+        <h2>Otros documentos asociados</h2>
+        <table>
+          <thead><tr><th>Identificación</th><th>Descripción</th></tr></thead>
+          <tbody>
+            {{#if otrosDocumentos}}
+              {{#each otrosDocumentos}}
+                <tr><td>{{this.identificacion}}</td><td>{{this.descripcion}}</td></tr>
+              {{/each}}
+            {{else}}
+              <tr><td class="center" colspan="2">-</td></tr>
+            {{/if}}
+          </tbody>
+        </table>
+      </div>
+      {{/unless}}
+    </div>
+    {{/unless}}
+
+    <!-- Detalle de productos/servicios -->
+    <div class="block mb12">
+      <h2>Detalle</h2>
+      <table>
+        <thead>
+          <tr>
+            <th class="center">N°</th>
+            <th class="right">Cantidad</th>
+            <th>Unidad</th>
+            <th>Descripción</th>
+            <th class="right">Precio Unit.</th>
+            <th class="right">Desc.</th>
+            <th class="right">No Suj.</th>
+            <th class="right">Exentas</th>
+            <th class="right">Gravadas</th>
+            <th class="right">IVA Ítem</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each cuerpoDocumento}}
+            <tr>
+              <td class="center">{{numItem}}</td>
+              <td class="right mono">{{two cantidad}}</td>
+              <td>{{unitName uniMedida}}</td>
+              <td>{{descripcion}}</td>
+              <td class="right mono">{{two precioUni}}</td>
+              <td class="right mono">{{two montoDescu}}</td>
+              <td class="right mono">{{two ventaNoSuj}}</td>
+              <td class="right mono">{{two ventaExenta}}</td>
+              <td class="right mono">{{two ventaGravada}}</td>
+              <td class="right mono">{{two ivaItem}}</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Totales -->
+    <div class="block mb12">
+      <table>
+        <tbody>
+          <tr>
+            <td style="width:50%; border-right:0; vertical-align:top;">
+              <div class="mb8"><b>Valor en Letras:</b> {{resumen.totalLetras}}</div>
+              <div class="mb8"><b>Condición de la Operación:</b>
+                {{#if (isContado resumen.condicionOperacion)}}CONTADO{{else}}CRÉDITO{{/if}}
+              </div>
+              
+              {{#unless observacionesOcultas}}
+              <div><b>Observaciones:</b> {{#if extension.observaciones}}{{extension.observaciones}}{{else}}-{{/if}}</div>
+              {{/unless}}
+            </td>
+            <td style="width:50%; border-left:0; padding:0;">
+              <table style="border:none; width:100%;">
+                <tbody>
+                  <tr><td>Suma Ventas No Sujetas</td><td class="right mono">{{money resumen.totalNoSuj}}</td></tr>
+                  <tr><td>Suma Ventas Exentas</td><td class="right mono">{{money resumen.totalExenta}}</td></tr>
+                  <tr><td>Descuentos Gravadas</td><td class="right mono">{{money resumen.descuGravada}}</td></tr>
+                  <tr><td>Total Gravada</td><td class="right mono">{{money resumen.totalGravada}}</td></tr>
+                  <tr><td>Impuesto IVA 13%</td><td class="right mono">{{money resumen.totalIva}}</td></tr>
+                  <tr><td>Sub-Total</td><td class="right mono">{{money resumen.subTotal}}</td></tr>
+                  <tr><td>IVA Percibido</td><td class="right mono">{{money resumen.ivaPercibido}}</td></tr>
+                  <tr><td>Retención Renta</td><td class="right mono">{{money resumen.reteRenta}}</td></tr>
+                  <tr><td>Monto Total Operación</td><td class="right mono">{{money resumen.montoTotalOperacion}}</td></tr>
+                  <tr><td>Otros montos no afectos</td><td class="right mono">{{money resumen.totalNoGravado}}</td></tr>
+                  <tr><td><b>Total a Pagar</b></td><td class="right mono"><b>{{money resumen.totalPagar}}</b></td></tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Documentos Relacionados + Responsables -->
+    <div class="row mb12">
+      {{#unless documentosRelacionadosOcultos}}
+      <div class="col block">
+        <h2>Documentos Relacionados</h2>
+        <table>
+          <thead><tr><th>Tipo</th><th>N°</th><th>Fecha</th></tr></thead>
+          <tbody>
+            {{#if documentosRelacionados}}
+              {{#each documentosRelacionados}}
+                <tr>
+                  <td>{{this.tipo}}</td>
+                  <td class="mono">{{this.numero}}</td>
+                  <td class="mono">{{this.fecha}}</td>
+                </tr>
+              {{/each}}
+            {{else}}
+              <tr><td class="center" colspan="3">-</td></tr>
+            {{/if}}
+          </tbody>
+        </table>
+      </div>
+      {{/unless}}
+
+      {{#unless responsablesOcultos}}
+      <div class="col block">
+        <h2>Responsables</h2>
+        <div class="kv">
+          <div>Emisor:</div><div>-</div>
+          <div>N° Documento:</div><div>-</div>
+          <div>Receptor:</div><div>-</div>
+          <div>N° Documento:</div><div>-</div>
+        </div>
+      </div>
+      {{/unless}}
+    </div>
+  </div>
+</body>
+</html>

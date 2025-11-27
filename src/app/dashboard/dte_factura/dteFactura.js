@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner } from "react-icons/fa";
+import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner, FaEye } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
@@ -16,7 +16,9 @@ import DatosEntrega from "./components/DatosAdicionalesEntrega";
 import FechaHoraEmision from "./components/FechaHoraEmision";
 import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaModal";
 import MensajeModal from "./components/MensajeModal";
+import VistaPreviaModal from "./components/modals/VistaPreviaModal"; // Reutilizaremos el contenedor del modal
 import { useReactToPrint } from 'react-to-print';
+import Handlebars from 'handlebars';
 
 export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
   // Estados para la factura
@@ -96,6 +98,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     idFactura: null
   });
   const [descargandoTicket, setDescargandoTicket] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [template, setTemplate] = useState(null);
 
   const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
     if (!tipoDocumento || !numeroDocumento.trim()) {
@@ -381,6 +386,53 @@ const descargarTicketFactura = async (idFactura) => {
     }
   };
 
+  useEffect(() => {
+    fetch('/templates/plantilla_factura.hbs')
+      .then(response => response.text())
+      .then(text => {
+        Handlebars.registerHelper('two', (value) => {
+          if (value === undefined || value === null || isNaN(value)) return "0.00";
+          const numValue = typeof value === 'number' ? value : parseFloat(value);
+          return numValue.toFixed(2);
+        });
+
+        Handlebars.registerHelper('money', (value) => {
+          if (value === undefined || value === null || isNaN(value)) return "$0.00";
+          const numValue = typeof value === 'number' ? value : parseFloat(value);
+          return `$${numValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        });
+
+        Handlebars.registerHelper('isContado', (value) => {
+          return value === 1;
+        });
+
+        Handlebars.registerHelper('unitName', (codigoUnidad) => {
+          if (!codigoUnidad) return '';
+          const unidad = unidades.find(u => u.codigo === codigoUnidad.toString());
+          return unidad ? unidad.nombre : '';
+        });
+        setTemplate(() => Handlebars.compile(text));
+      })
+      .catch(error => console.error("Error al cargar la plantilla de vista previa:", error));
+  }, []);
+
+  const handleVistaPrevia = () => {
+    if (!validarDatosFactura()) {
+      return;
+    }
+    if (!template) {
+      mostrarModalMensaje("error", "Plantilla no cargada", "La plantilla para la vista previa aún no está lista. Intente de nuevo en unos segundos.");
+      return;
+    }
+
+    const datosParaPlantilla = prepararDatosFactura(true);
+    const html = template(datosParaPlantilla);
+    if (html) {
+      setPreviewHtml(html);
+      setShowPreviewModal(true);
+    }
+  };
+
   const reiniciarFormulario = () => {
     setItems([]);
     setCliente(null);
@@ -454,10 +506,10 @@ const descargarTicketFactura = async (idFactura) => {
     const datosFactura = prepararDatosFactura();
     
     console.log("====== DATOS COMPLETOS DE FACTURA (SOLO VISUALIZACIÓN) ======");
-    console.log("ENCABEZADO:");
-    console.log(JSON.stringify(datosFactura, null, 2));
-    console.log("========== Items ==================")
-    console.log(items)
+    console.log("========== ENCABEZADO ==========");
+    console.log(JSON.stringify(datosFactura, null, 2)); // Formateado para legibilidad
+    console.log("========== ITEMS (RAW) ==========");
+    console.log(items);
     
     const detalles = items.map((item, index) => {
       const subtotalItem = item.precioUnitario * item.cantidad;
@@ -496,7 +548,7 @@ const descargarTicketFactura = async (idFactura) => {
       detalles: detalles,
     };
     
-    console.log("DETALLES:");
+    console.log("========== DETALLES (PARA ENVÍO) ==========");
     console.log(JSON.stringify(datosDetalles, null, 2));
     console.log("=============================================================");
     
@@ -647,7 +699,7 @@ const descargarTicketFactura = async (idFactura) => {
     }
   };
 
-  const prepararDatosFactura = () => {
+  const prepararDatosFactura = (paraVistaPrevia = false) => {
     const subtotal = sumaopesinimpues;
     const totalPagar = total;
     
@@ -700,6 +752,91 @@ const descargarTicketFactura = async (idFactura) => {
     const tasaIVA = 13;
     const ivaIncluido = gravadasConDescuento > 0 ? 
       (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
+
+    if (paraVistaPrevia) { 
+      const cuerpoDocumento = items.map((item, index) => {
+        const subtotalItem = item.precioUnitario * item.cantidad;
+        const descuentoItem = item.descuento || 0;
+        const baseImponible = subtotalItem - descuentoItem;
+
+        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+        const esExento = item.tipo === "noAfecto";
+        const esNoSujeto = !esGravado && !esExento;
+
+        const ivaItem = esGravado ? (baseImponible * tasaIVA) / (100 + tasaIVA) : 0;
+
+        return {
+          numItem: index + 1,
+          cantidad: item.cantidad,
+          uniMedida: item.unidadMedida || "59",
+          descripcion: item.descripcion,
+          precioUni: item.precioUnitario,
+          montoDescu: descuentoItem,
+          ventaNoSuj: esNoSujeto ? baseImponible : 0,
+          ventaExenta: esExento ? baseImponible : 0,
+          ventaGravada: esGravado ? baseImponible : 0,
+          ivaItem: ivaItem,
+        };
+      });
+
+      return {
+        identificacion: {
+          version: "1.0",
+          tipoDteLabel: "FACTURA",
+          tipoMoneda: "USD",
+          tipoModelo: "1",
+          tipoOperacion: "1",
+          codigoGeneracion: `(Aún no generado)`,
+          numeroControl: `TRX-${numeroFactura}`,
+          fecEmi: fechaEmision,
+          horEmi: horaEmision,
+        },
+        selloRecibido: "(Sello de recepción pendiente)",
+        barcodeDataUri: "", // Dejar vacío, el QR se genera en el backend
+        emisor: {
+          nombre: sucursalUsuario?.usuario?.nombre || "Nombre Emisor",
+          nit: sucursalUsuario?.usuario?.nit || "0000-000000-000-0",
+          nrc: sucursalUsuario?.nrc || "-",
+          descActividad: codactividad.find(c => c.codigo === actividadEconomica)?.nombre || "Actividad no especificada",
+          direccion: {
+            complemento: direccionEmisor,
+            municipio: sucursalUsuario?.municipio?.nombre || "",
+            departamento: sucursalUsuario?.departamento?.nombre || "",
+          },
+          telefono: telefonoEmisor,
+          correo: correoVendedor,
+          nombreComercial: sucursalUsuario?.nombre || "Nombre Comercial",
+          tipoEstablecimiento: "Sucursal", // O el valor que corresponda
+        },
+        receptor: {
+          nombre: nombreReceptor,
+          tipoDocumento: tipoDocumentoLabel,
+          numDocumento: numeroDocumentoReceptor,
+          direccion: {
+            complemento: direccionReceptor,
+            municipio: cliente?.municipio?.nombre || "",
+            departamento: cliente?.departamento?.nombre || "",
+          },
+          telefono: telefonoReceptor,
+          correo: correoReceptor,
+        },
+        cuerpoDocumento: cuerpoDocumento,
+        resumen: {
+          totalLetras: convertirNumeroALetras(totalPagar),
+          condicionOperacion: condicionPago.toLowerCase() === "contado" ? 1 : 2,
+          totalNoSuj: 0.00,
+          totalExenta: parseFloat(exentasConDescuento.toFixed(2)),
+          totalGravada: parseFloat(gravadasBase.toFixed(2)),
+          totalIva: parseFloat(ivaIncluido.toFixed(2)),
+          subTotal: parseFloat(subtotal - totaldescuento).toFixed(2),
+          totalPagar: parseFloat(totalPagar.toFixed(2)),
+          montoTotalOperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
+        },
+        extension: {
+          observaciones: "Vista previa del documento.",
+        }
+      };
+    }
 
     return {
       idcliente: idReceptor,
@@ -1558,6 +1695,15 @@ const descargarTicketFactura = async (idFactura) => {
 
               {/* Botones de acción */}
               <div className="flex justify-end space-x-4">
+                <button
+                  onClick={handleVistaPrevia}
+                  disabled={guardandoFactura || !template}
+                  className="flex items-center px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
+                >
+                  <FaEye className="mr-2" />
+                  Vista Previa
+                </button>
+
                 <button 
                   onClick={guardarFactura}
                   disabled={guardandoFactura}
@@ -1669,6 +1815,12 @@ const descargarTicketFactura = async (idFactura) => {
         idFactura={mensajeConfig.idFactura}
         onDescargarTicket={descargarTicketFactura}
         descargando={descargandoTicket}
+      />
+
+      <VistaPreviaModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        htmlContent={previewHtml}
       />
 
       {/* Pop-up de detalles del cliente */}

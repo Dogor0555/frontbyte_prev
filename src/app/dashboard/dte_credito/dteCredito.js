@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner } from "react-icons/fa";
+import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner, FaEye } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
@@ -15,8 +15,10 @@ import FormaPago from "./components/FormaPago";
 import DatosEntrega from "./components/DatosAdicionalesEntrega";
 import FechaHoraEmision from "./components/FechaHoraEmision";
 import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaModal";
+import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal"; // Reutilizamos el modal de factura
 import MensajeModal from "./components/MensajeModal";
 import { useReactToPrint } from 'react-to-print';
+import Handlebars from 'handlebars';
 
 export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
   const [cliente, setCliente] = useState(null);
@@ -93,6 +95,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [descargandoTicket, setDescargandoTicket] = useState(false);
   const [actividadEconomicaCliente, setActividadEconomicaCliente] = useState("");
   const [actividadesEconomicasCliente, setActividadesEconomicasCliente] = useState([]);
+
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [template, setTemplate] = useState(null);
 
   const [unidades, setUnidades] = useState([
     { codigo: "1", nombre: "metro" },
@@ -363,6 +369,50 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     }
   };
 
+  useEffect(() => {
+    fetch('/templates/plantilla_factura.hbs')
+      .then(response => response.text())
+      .then(text => {
+        Handlebars.registerHelper('two', (value) => {
+          if (value === undefined || value === null || isNaN(value)) return "0.00";
+          const numValue = typeof value === 'number' ? value : parseFloat(value);
+          return numValue.toFixed(2);
+        });
+
+        Handlebars.registerHelper('money', (value) => {
+          if (value === undefined || value === null || isNaN(value)) return "$0.00";
+          const numValue = typeof value === 'number' ? value : parseFloat(value);
+          return `$${numValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        });
+
+        Handlebars.registerHelper('isContado', (value) => {
+          return value === 1;
+        });
+
+        Handlebars.registerHelper('unitName', (codigoUnidad) => {
+          if (!codigoUnidad) return '';
+          const unidad = unidades.find(u => u.codigo === codigoUnidad.toString());
+          return unidad ? unidad.nombre : '';
+        });
+        
+        setTemplate(() => Handlebars.compile(text));
+      })
+      .catch(error => console.error("Error al cargar la plantilla de vista previa:", error));
+  }, []);
+
+  const handleVistaPrevia = () => {
+    if (!validarDatosFactura()) return;
+    if (!template) {
+      mostrarModalMensaje("error", "Plantilla no cargada", "La plantilla para la vista previa aún no está lista. Intente de nuevo.");
+      return;
+    }
+
+    const datosParaPlantilla = prepararDatosFactura(true); // true para formato de plantilla
+    const html = template(datosParaPlantilla);
+    setPreviewHtml(html);
+    setShowPreviewModal(true);
+  };
+
   const reiniciarFormulario = () => {
     setItems([]);
     setCliente(null);
@@ -627,7 +677,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     }
   };
 
-  const prepararDatosFactura = () => {
+  const prepararDatosFactura = (paraVistaPrevia = false) => {
     const subtotalBruto = items.reduce((sum, item) => {
       return sum + (item.precioUnitario * item.cantidad);
     }, 0);
@@ -680,6 +730,93 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     );
 
     const descripcionActividad = actividadSeleccionada ? actividadSeleccionada.descripcion : "";
+
+    if (paraVistaPrevia) { // paraVistaPrevia
+      const cuerpoDocumento = items.map((item, index) => {
+        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+        const esExento = item.tipo === "noAfecto";
+        const esNoSujeto = item.tipo === "noSuj";
+
+        const baseGravada = esGravado ? item.ventaGravada : 0;
+        const ivaItem = baseGravada * tasaIVA;
+
+        return {
+          numItem: index + 1,
+          cantidad: item.cantidad,
+          uniMedida: item.unidadMedida || "59",
+          descripcion: item.descripcion,
+          precioUni: item.precioUnitario,
+          montoDescu: item.descuento || 0,
+          ventaNoSuj: esNoSujeto ? item.ventaNoSujeta : 0,
+          ventaExenta: esExento ? item.ventaExenta : 0,
+          ventaGravada: esGravado ? item.ventaGravada : 0,
+          ivaItem: ivaItem,
+        };
+      });
+
+      return {
+        identificacion: {
+          version: "1.0",
+          tipoDteLabel: "COMPROBANTE DE CRÉDITO FISCAL",
+          tipoMoneda: "USD",
+          tipoModelo: "1",
+          tipoOperacion: "1",
+          codigoGeneracion: `(Aún no generado)`,
+          numeroControl: `TRX-${numeroFactura}`,
+          fecEmi: fechaEmision,
+          horEmi: horaEmision,
+        },
+        selloRecibido: "(Sello de recepción pendiente)",
+        barcodeDataUri: "", // El QR se genera en el backend
+        emisor: {
+          nombre: sucursalUsuario?.usuario?.nombre || "Nombre Emisor",
+          nit: sucursalUsuario?.usuario?.nit || "0000-000000-000-0",
+          nrc: sucursalUsuario?.nrc || "-",
+          descActividad: codactividad.find(c => c.codigo === actividadEconomica)?.nombre || "Actividad no especificada",
+          direccion: {
+            complemento: direccionEmisor,
+            municipio: sucursalUsuario?.municipio?.nombre || "",
+            departamento: sucursalUsuario?.departamento?.nombre || "",
+          },
+          telefono: telefonoEmisor,
+          correo: correoVendedor,
+          nombreComercial: sucursalUsuario?.nombre || "Nombre Comercial",
+          tipoEstablecimiento: "Sucursal",
+        },
+        receptor: {
+          nombre: nombreReceptor,
+          tipoDocumento: tipoDocumentoLabel,
+          numDocumento: numeroDocumentoReceptor,
+          descActividad: descripcionActividad,
+          direccion: {
+            complemento: direccionReceptor,
+            municipio: cliente?.municipio?.nombre || "",
+            departamento: cliente?.departamento?.nombre || "",
+          },
+          telefono: telefonoReceptor,
+          correo: correoReceptor,
+        },
+        cuerpoDocumento: cuerpoDocumento,
+        resumen: {
+          totalLetras: convertirNumeroALetras(totalFinal),
+          condicionOperacion: condicionPago.toLowerCase() === "contado" ? 1 : 2,
+          totalNoSuj: parseFloat(baseNoSujetaNeto.toFixed(2)),
+          totalExenta: parseFloat(baseExentaFinal.toFixed(2)),
+          totalGravada: parseFloat(baseGravadaFinal.toFixed(2)),
+          totalIva: parseFloat(ivaCalculado.toFixed(2)),
+          subTotal: parseFloat(subtotalNeto.toFixed(2)),
+          totalPagar: parseFloat(totalFinal.toFixed(2)),
+          montoTotalOperacion: parseFloat(montototaloperacion.toFixed(2)),
+          descuGravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
+          ivaPercibido: 0,
+          reteRenta: 0,
+          totalNoGravado: 0,
+        },
+        extension: {
+          observaciones: "Vista previa del documento.",
+        }
+      };
+    }
 
     return {
       idcliente: idReceptor,
@@ -1476,6 +1613,15 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
               />
 
               <div className="flex justify-end space-x-4">
+                <button
+                  onClick={handleVistaPrevia}
+                  disabled={guardandoFactura || !template}
+                  className="flex items-center px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
+                >
+                  <FaEye className="mr-2" />
+                  Vista Previa
+                </button>
+
                 <button 
                   onClick={guardarFactura}
                   disabled={guardandoFactura}
@@ -1579,6 +1725,12 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         idFactura={mensajeConfig.idFactura}
         onDescargarTicket={descargarTicketFactura}
         descargando={descargandoTicket}
+      />
+
+      <VistaPreviaModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        htmlContent={previewHtml}
       />
 
       {showClientDetails && selectedClient && (
