@@ -351,6 +351,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           );
           
           reiniciarEstados();
+          setShowPreviewModal(false);
         }
       } else {
         const errorText = await responseEncabezado.text();
@@ -400,16 +401,17 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       .catch(error => console.error("Error al cargar la plantilla de vista previa:", error));
   }, []);
 
-  const handleVistaPrevia = () => {
+  const handleConfirmarYGuardar = () => {
+    if (guardandoFactura) return;
+
     if (!validarDatosFactura()) return;
     if (!template) {
       mostrarModalMensaje("error", "Plantilla no cargada", "La plantilla para la vista previa aún no está lista. Intente de nuevo.");
       return;
     }
 
-    const datosParaPlantilla = prepararDatosFactura(true); // true para formato de plantilla
-    const html = template(datosParaPlantilla);
-    setPreviewHtml(html);
+    const datosParaPlantilla = prepararDatosFactura(true);
+    setPreviewHtml(template(datosParaPlantilla));
     setShowPreviewModal(true);
   };
 
@@ -1614,16 +1616,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
               <div className="flex justify-end space-x-4">
                 <button
-                  onClick={handleVistaPrevia}
-                  disabled={guardandoFactura || !template}
-                  className="flex items-center px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
-                >
-                  <FaEye className="mr-2" />
-                  Vista Previa
-                </button>
-
-                <button 
-                  onClick={guardarFactura}
+                  onClick={handleConfirmarYGuardar}
                   disabled={guardandoFactura}
                   className={`flex items-center px-4 py-2 rounded-md ${
                     guardandoFactura 
@@ -1638,7 +1631,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     </>
                   ) : (
                     <>
-                      <FaSave className="mr-2" />
+                      <FaEye className="mr-2" />
                       Guardar Crédito
                     </>
                   )}
@@ -1731,6 +1724,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         isOpen={showPreviewModal}
         onClose={() => setShowPreviewModal(false)}
         htmlContent={previewHtml}
+        onConfirm={guardarFactura}
+        isSaving={guardandoFactura}
       />
 
       {showClientDetails && selectedClient && (

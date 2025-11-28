@@ -368,6 +368,7 @@ const descargarTicketFactura = async (idFactura) => {
           );
           
           reiniciarEstados();
+          setShowPreviewModal(false); // Cierra el modal de vista previa al terminar
         }
       } else {
         const errorText = await responseEncabezado.text();
@@ -416,21 +417,21 @@ const descargarTicketFactura = async (idFactura) => {
       .catch(error => console.error("Error al cargar la plantilla de vista previa:", error));
   }, []);
 
-  const handleVistaPrevia = () => {
+  const handleConfirmarYGuardar = () => {
+    if (guardandoFactura) return;
+
     if (!validarDatosFactura()) {
       return;
     }
+
     if (!template) {
       mostrarModalMensaje("error", "Plantilla no cargada", "La plantilla para la vista previa aún no está lista. Intente de nuevo en unos segundos.");
       return;
     }
 
     const datosParaPlantilla = prepararDatosFactura(true);
-    const html = template(datosParaPlantilla);
-    if (html) {
-      setPreviewHtml(html);
-      setShowPreviewModal(true);
-    }
+    setPreviewHtml(template(datosParaPlantilla));
+    setShowPreviewModal(true);
   };
 
   const reiniciarFormulario = () => {
@@ -763,7 +764,7 @@ const descargarTicketFactura = async (idFactura) => {
         const esExento = item.tipo === "noAfecto";
         const esNoSujeto = !esGravado && !esExento;
 
-        const ivaItem = esGravado ? (baseImponible * tasaIVA) / (100 + tasaIVA) : 0;
+        const ivaItem = 0;
 
         return {
           numItem: index + 1,
@@ -775,7 +776,7 @@ const descargarTicketFactura = async (idFactura) => {
           ventaNoSuj: esNoSujeto ? baseImponible : 0,
           ventaExenta: esExento ? baseImponible : 0,
           ventaGravada: esGravado ? baseImponible : 0,
-          ivaItem: ivaItem,
+          ivaItem: ivaItem, 
         };
       });
 
@@ -827,7 +828,7 @@ const descargarTicketFactura = async (idFactura) => {
           totalNoSuj: 0.00,
           totalExenta: parseFloat(exentasConDescuento.toFixed(2)),
           totalGravada: parseFloat(gravadasBase.toFixed(2)),
-          totalIva: parseFloat(ivaIncluido.toFixed(2)),
+          totalIva: 0.00, // Para la vista previa, el total de IVA se mostrará como 0
           subTotal: parseFloat(subtotal - totaldescuento).toFixed(2),
           totalPagar: parseFloat(totalPagar.toFixed(2)),
           montoTotalOperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
@@ -1695,17 +1696,8 @@ const descargarTicketFactura = async (idFactura) => {
 
               {/* Botones de acción */}
               <div className="flex justify-end space-x-4">
-                <button
-                  onClick={handleVistaPrevia}
-                  disabled={guardandoFactura || !template}
-                  className="flex items-center px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
-                >
-                  <FaEye className="mr-2" />
-                  Vista Previa
-                </button>
-
                 <button 
-                  onClick={guardarFactura}
+                  onClick={handleConfirmarYGuardar}
                   disabled={guardandoFactura}
                   className={`flex items-center px-4 py-2 rounded-md ${
                     guardandoFactura 
@@ -1720,7 +1712,7 @@ const descargarTicketFactura = async (idFactura) => {
                     </>
                   ) : (
                     <>
-                      <FaSave className="mr-2" />
+                      <FaEye className="mr-2" />
                       Guardar Factura
                     </>
                   )}
@@ -1821,6 +1813,8 @@ const descargarTicketFactura = async (idFactura) => {
         isOpen={showPreviewModal}
         onClose={() => setShowPreviewModal(false)}
         htmlContent={previewHtml}
+        onConfirm={guardarFactura}
+        isSaving={guardandoFactura}
       />
 
       {/* Pop-up de detalles del cliente */}
