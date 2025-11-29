@@ -154,7 +154,7 @@ const DatosEmisorReceptor = ({
             const data = await response.json();
             if (data.success) {
               const clientesFiltrados = data.data.filter(cliente => 
-                cliente.personanatural === false
+                cliente.personanatural === true
               );
               setClientes(clientesFiltrados);
             }
