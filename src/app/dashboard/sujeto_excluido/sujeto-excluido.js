@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner } from "react-icons/fa";
+import { FaPlus, FaTrash, FaSpinner, FaEye } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
@@ -14,12 +14,11 @@ import DiscountModal from "./components/modals/DiscountModal";
 import FormaPago from "./components/FormaPago";
 import DatosEntrega from "./components/DatosAdicionalesEntrega";
 import FechaHoraEmision from "./components/FechaHoraEmision";
-import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaModal";
-import MensajeModal from "../components/MensajeModal";
-import { useReactToPrint } from 'react-to-print';
+import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal";
+import MensajeModal from "./components/MensajeModal";
+import Handlebars from 'handlebars';
 
 export default function SujetoExcluidoViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
-  // Estados para el documento de sujeto excluido
   const [cliente, setCliente] = useState(null);
   const [nombreCliente, setNombreCliente] = useState("");
   const [documentoCliente, setDocumentoCliente] = useState("");
@@ -46,12 +45,10 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [cargandoProductos, setCargandoProductos] = useState(false);
   const [errorCargaProductos, setErrorCargaProductos] = useState(null);
-  // --- Emisor (vendedor logueado) ---
   const [actividadEconomica, setActividadEconomica] = useState("");
   const [direccionEmisor, setDireccionEmisor] = useState("");
   const [correoVendedor, setCorreoVendedor] = useState("");
   const [telefonoEmisor, setTelefonoEmisor] = useState("");
-  // --- Receptor (cliente del documento) ---
   const [tipoDocumentoReceptor, setTipoDocumentoReceptor] = useState("");
   const [numeroDocumentoReceptor, setNumeroDocumentoReceptor] = useState("");
   const [nombreReceptor, setNombreReceptor] = useState("");
@@ -68,7 +65,6 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   const [exentasSinDescuentoState, setExentasSinDescuentoState] = useState(0);
   const [noSujetasConDescuentoState, setNoSujetasConDescuentoState] = useState(0);
   const [noSujetasSinDescuentoState, setNoSujetasSinDescuentoState] = useState(0);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [formasPago, setFormasPago] = useState([]);
   const [guardandoDocumento, setGuardandoDocumento] = useState(false);
   const [datosEntrega, setDatosEntrega] = useState({
@@ -95,29 +91,11 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   });
   const [descargandoTicket, setDescargandoTicket] = useState(false);
   const [tributosDetallados, setTributosDetallados] = useState({});
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [template, setTemplate] = useState(null);
 
-  // Inicializar correo desde user o, si no hay, desde localStorage
-  useEffect(() => {
-    const fromUser =
-      (user && (user.correoEmpleado || user.emailemp || user.email)) || "";
-
-    if (fromUser) {
-      setCorreoVendedor(fromUser);
-      return;
-    }
-
-    try {
-      const emp = JSON.parse(localStorage.getItem("empleado"));
-      if (emp?.correo) setCorreoVendedor(emp.correo);
-    } catch {
-      /* ignore */
-    }
-  }, [user]);
-
-  const ticketRef = useRef();
-
-  // Catálogo de unidades
-  const [unidades, setUnidades] = useState([
+  const unidades = [
     { codigo: "1", nombre: "metro" },
     { codigo: "2", nombre: "Yarda" },
     { codigo: "6", nombre: "milímetro" },
@@ -157,9 +135,23 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     { codigo: "58", nombre: "Docena" },
     { codigo: "59", nombre: "Unidad" },
     { codigo: "99", nombre: "Otra" },
-  ]);
+  ];
 
-  // Función para mostrar mensajes
+  useEffect(() => {
+    const fromUser = (user && (user.correoEmpleado || user.emailemp || user.email)) || "";
+
+    if (fromUser) {
+      setCorreoVendedor(fromUser);
+      return;
+    }
+
+    try {
+      const emp = JSON.parse(localStorage.getItem("empleado"));
+      if (emp?.correo) setCorreoVendedor(emp.correo);
+    } catch {
+    }
+  }, [user]);
+
   const mostrarModalMensaje = (tipo, titulo, mensaje, detalles = "", idFactura = null) => {
     setMensajeConfig({
       tipo,
@@ -170,6 +162,40 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     });
     setMostrarMensaje(true);
   };
+
+  useEffect(() => {
+    fetch('/templates/plantilla_factura.hbs')
+      .then(response => response.text())
+      .then(text => {
+        Handlebars.registerHelper('two', (value) => {
+          if (value === undefined || value === null || isNaN(value)) return "0.00";
+          const numValue = typeof value === 'number' ? value : parseFloat(value);
+          return numValue.toFixed(2);
+        });
+
+        Handlebars.registerHelper('money', (value) => {
+          if (value === undefined || value === null || isNaN(value)) return "$0.00";
+          const numValue = typeof value === 'number' ? value : parseFloat(value);
+          return `$${numValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        });
+
+        Handlebars.registerHelper('isContado', (value) => {
+          return value === 1;
+        });
+
+        Handlebars.registerHelper('unitName', (codigoUnidad) => {
+          if (!codigoUnidad) return '';
+          const unidad = unidades.find(u => u.codigo === codigoUnidad.toString());
+          return unidad ? unidad.nombre : '';
+        });
+        
+        setTemplate(() => Handlebars.compile(text));
+      })
+      .catch(error => {
+        console.error("Error al cargar la plantilla de vista previa:", error);
+        mostrarModalMensaje("error", "Error de plantilla", "No se pudo cargar la plantilla para la vista previa.");
+      });
+  }, []);
 
   const validarDatosDocumento = () => {
     if (!nombreReceptor.trim()) {
@@ -204,6 +230,145 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     return true;
   };
 
+  const prepararDatosParaVistaPrevia = () => {
+    const datosDocumento = prepararDatosDocumento();
+    
+    const cuerpoDocumento = items.map((item, index) => {
+      const subtotalItem = item.precioUnitario * item.cantidad;
+      const descuentoItem = item.descuento || 0;
+      const baseImponible = subtotalItem - descuentoItem;
+
+      const esExento = item.tipo === "noAfecto";
+      const esNoSujeto = item.tipo === "noSuj";
+
+      return {
+        numItem: index + 1,
+        cantidad: item.cantidad,
+        uniMedida: item.unidadMedida || "59",
+        descripcion: item.descripcion,
+        precioUni: item.precioUnitario,
+        montoDescu: descuentoItem,
+        ventaNoSuj: esNoSujeto ? baseImponible : 0,
+        ventaExenta: esExento ? baseImponible : 0,
+        ventaGravada: 0,
+        ivaItem: 0,
+      };
+    });
+
+    const totalNoSuj = items
+      .filter(item => item.tipo === "noSuj")
+      .reduce((sum, item) => {
+        const subtotalItem = item.precioUnitario * item.cantidad;
+        const descuentoItem = item.descuento || 0;
+        return sum + (subtotalItem - descuentoItem);
+      }, 0);
+
+    const totalExenta = items
+      .filter(item => item.tipo === "noAfecto")
+      .reduce((sum, item) => {
+        const subtotalItem = item.precioUnitario * item.cantidad;
+        const descuentoItem = item.descuento || 0;
+        return sum + (subtotalItem - descuentoItem);
+      }, 0);
+
+    const subTotal = totalNoSuj + totalExenta;
+    const totalPagar = subTotal;
+
+    return {
+      identificacion: {
+        version: "1.0",
+        tipoDteLabel: "DOCUMENTO SUJETO EXCLUIDO",
+        tipoMoneda: "USD",
+        tipoModelo: "1",
+        tipoOperacion: "1",
+        codigoGeneracion: `(Aún no generado)`,
+        numeroControl: `TRX-${numeroDocumento}`,
+        fecEmi: datosDocumento.fechaemision,
+        horEmi: datosDocumento.horaemision,
+      },
+      selloRecibido: "(Sello de recepción pendiente)",
+      barcodeDataUri: "",
+      emisor: {
+        nombre: emisorNombre || "Nombre Emisor",
+        nit: emisorDocumento || "0000-000000-000-0",
+        nrc: sucursalUsuario?.nrc || "-",
+        descActividad: codactividad.find(c => c.codigo === actividadEconomica)?.nombre || "Actividad no especificada",
+        direccion: {
+          complemento: direccionEmisor,
+          municipio: sucursalUsuario?.municipio?.nombre || "",
+          departamento: sucursalUsuario?.departamento?.nombre || "",
+        },
+        telefono: telefonoEmisor,
+        correo: correoVendedor,
+        nombreComercial: sucursalUsuario?.nombre || "Nombre Comercial",
+        tipoEstablecimiento: "Sucursal",
+      },
+      receptor: {
+        nombre: nombreReceptor,
+        tipoDocumento: tipoDocumentoLabel,
+        numDocumento: numeroDocumentoReceptor,
+        descActividad: "",
+        direccion: {
+          complemento: direccionReceptor,
+          municipio: cliente?.municipio?.nombre || "",
+          departamento: cliente?.departamento?.nombre || "",
+        },
+        telefono: telefonoReceptor,
+        correo: correoReceptor,
+      },
+      cuerpoDocumento: cuerpoDocumento,
+      resumen: {
+        totalLetras: convertirNumeroALetras(totalPagar),
+        condicionOperacion: condicionPago.toLowerCase() === "contado" ? 1 : 2,
+        totalNoSuj: parseFloat(totalNoSuj.toFixed(2)),
+        totalExenta: parseFloat(totalExenta.toFixed(2)),
+        totalGravada: 0.00,
+        totalIva: 0.00,
+        subTotal: parseFloat(subTotal.toFixed(2)),
+        totalPagar: parseFloat(totalPagar.toFixed(2)),
+        montoTotalOperacion: parseFloat(datosDocumento.montototaloperacion),
+        descuGravada: 0.00,
+        ivaPercibido: 0,
+        reteRenta: 0,
+        totalNoGravado: 0,
+      },
+      extension: {
+        observaciones: "Documento para sujeto excluido del IVA.",
+        responsables: {
+          emisor: {
+            nombre: datosEntrega.emisorNombre || emisorNombre,
+            documento: datosEntrega.emisorDocumento || emisorDocumento
+          },
+          receptor: {
+            nombre: datosEntrega.receptorNombre || nombreReceptor,
+            documento: datosEntrega.receptorDocumento || numeroDocumentoReceptor
+          }
+        }
+      }
+    };
+  };
+
+  const handleConfirmarYGuardar = () => {
+    if (guardandoDocumento) return;
+
+    if (!validarDatosDocumento()) return;
+    
+    if (!template) {
+      mostrarModalMensaje("error", "Plantilla no cargada", "La plantilla para la vista previa aún no está lista. Intente de nuevo.");
+      return;
+    }
+
+    try {
+      const datosParaPlantilla = prepararDatosParaVistaPrevia();
+      const html = template(datosParaPlantilla);
+      setPreviewHtml(html);
+      setShowPreviewModal(true);
+    } catch (error) {
+      console.error("Error al generar vista previa:", error);
+      mostrarModalMensaje("error", "Error al generar vista previa", "No se pudo generar la vista previa del documento.");
+    }
+  };
+
   const guardarDocumento = async () => {
     if (guardandoDocumento) return;
     
@@ -226,8 +391,6 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
         return;
       }
       
-      console.log("Enviando encabezado:", datosDocumento);
-      
       const responseEncabezado = await fetch("http://localhost:3000/sujeto-excluido/", {
         method: "POST",
         headers: {
@@ -239,18 +402,14 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
 
       if (responseEncabezado.ok) {
         const result = await responseEncabezado.json();
-        console.log("Encabezado de sujeto excluido guardado:", result);
         
         const detallesResult = await guardarDetallesDocumento(result.iddtefactura);
         
         if (detallesResult) {
-          setShowConfirmModal(false);
-          
           let mensajeTitulo = "Documento Guardado";
           let mensajeDetalles = "";
           let idDocumentoParaDescarga = result.iddtefactura;
 
-          // MOSTRAR AVISO SI SE ENVIÓ EN CONTINGENCIA
           if (detallesResult.contingencia && detallesResult.aviso) {
             mensajeTitulo = "Documento en Contingencia";
             mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message}`;
@@ -270,6 +429,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
           );
           
           reiniciarEstados();
+          setShowPreviewModal(false);
         }
       } else {
         const errorText = await responseEncabezado.text();
@@ -288,15 +448,19 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     }
   };
 
-  const reiniciarFormulario = () => {
-    setItems([]);
+  const reiniciarEstados = () => {
     setCliente(null);
     setNombreCliente("");
     setDocumentoCliente("");
-    setCondicionPago("Contado");
-    const nextMonth = new Date();
-    nextMonth.setDate(nextMonth.getDate() + 30);
-    setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
+    setTipoDocumentoReceptor("");
+    setNumeroDocumentoReceptor("");
+    setNombreReceptor("");
+    setDireccionReceptor("");
+    setCorreoReceptor("");
+    setTelefonoReceptor("");
+    setComplementoReceptor("");
+    setTipoDocumentoLabel("Documento");
+    setItems([]);
     setSumaopesinimpues(0);
     setTotaldescuento(0);
     setVentasexentas(0);
@@ -304,159 +468,32 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     setTotal(0);
     setDescuentoExentasMonto(0);
     setDescuentoNoSujetasMonto(0);
+    setExentasConDescuentoState(0);
+    setExentasSinDescuentoState(0);
+    setNoSujetasConDescuentoState(0);
+    setNoSujetasSinDescuentoState(0);
+    setCondicionPago("Contado");
     setFormasPago([]);
+    setDatosEntrega({
+      emisorDocumento: "",
+      emisorNombre: "",
+      receptorDocumento: "",
+      receptorNombre: ""
+    });
+    
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 30);
+    setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
     obtenerUltimoNumeroDocumento();
+    setShowModal(false);
+    setShowDiscountModal(false);
+    setShowClientList(false);
+    setShowClientDetails(false);
+    setSearchTerm("");
+    setShowPreviewModal(false);
   };
 
-const reiniciarEstados = () => {
-  setCliente(null);
-  setNombreCliente("");
-  setDocumentoCliente("");
-  setTipoDocumentoReceptor("");
-  setNumeroDocumentoReceptor("");
-  setNombreReceptor("");
-  setDireccionReceptor("");
-  setCorreoReceptor("");
-  setTelefonoReceptor("");
-  setComplementoReceptor("");
-  setTipoDocumentoLabel("Documento");
-  setItems([]);
-  setSumaopesinimpues(0);
-  setTotaldescuento(0);
-  setVentasexentas(0);
-  setVentanosujetas(0);
-  setTotal(0);
-  setDescuentoExentasMonto(0);
-  setDescuentoNoSujetasMonto(0);
-  setExentasConDescuentoState(0);
-  setExentasSinDescuentoState(0);
-  setNoSujetasConDescuentoState(0);
-  setNoSujetasSinDescuentoState(0);
-  setCondicionPago("Contado");
-  setFormasPago([]);
-  setDatosEntrega({
-    emisorDocumento: "",
-    emisorNombre: "",
-    receptorDocumento: "",
-    receptorNombre: ""
-  });
-  
-  const nextMonth = new Date();
-  nextMonth.setDate(nextMonth.getDate() + 30);
-  setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
-  obtenerUltimoNumeroDocumento();
-  setShowModal(false);
-  setShowDiscountModal(false);
-  setShowConfirmModal(false);
-  setShowClientList(false);
-  setShowClientDetails(false);
-  setSearchTerm("");
-};
-
-const verDatosDocumento = () => {
-  if (items.length === 0) {
-    mostrarModalMensaje("error", "Documento Vacío", "El documento debe tener al menos un item");
-    return;
-  }
-
-  const datosDocumento = prepararDatosDocumento();
-  
-  console.log("====== DATOS COMPLETOS DE SUJETO EXCLUIDO (SOLO VISUALIZACIÓN) ======");
-  console.log("ENCABEZADO:");
-  console.log(JSON.stringify(datosDocumento, null, 2));
-  console.log("========== Items ==================")
-  console.log(items)
-  
-  const detalles = items.map((item, index) => {
-    const subtotalItem = item.precioUnitario * item.cantidad;
-    // CORRECCIÓN: Usar descuento como monto fijo, no como porcentaje
-    const descuentoItem = item.descuento || 0; // ← MONTO FIJO, no porcentaje
-    const baseImponible = subtotalItem - descuentoItem;
-
-    const esExento = item.tipo === "noAfecto";
-    const esNoSujeto = item.tipo === "noSuj";
-
-    const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
-
-    return {
-      numitem: index + 1,
-      tipoitem: "1",
-      numerodocumento: null,
-      cantidad: parseFloat(item.cantidad.toFixed(2)),
-      codigo: codigoItem,
-      codtributo: null,
-      unimedida: item.unidadMedida || "59",
-      descripcion: item.descripcion,
-      preciouni: parseFloat(item.precioUnitario.toFixed(2)),
-      montodescu: parseFloat(descuentoItem.toFixed(2)), // ← MONTO FIJO del descuento
-      ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-      ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-      ventagravada: 0.00, // Sujeto excluido no tiene ventas gravadas
-      tributos: null,
-      psv: 0,
-      nogravado: 0.00,
-      ivaitem: 0.00
-    };
-  });
-  
-  const datosDetalles = {
-    transmitir: true,
-    idEnvio: Math.floor(1000 + Math.random() * 9000),
-    detalles: detalles,
-  };
-  
-  console.log("DETALLES:");
-  console.log(JSON.stringify(datosDetalles, null, 2));
-  console.log("=============================================================");
-  
-  mostrarModalMensaje(
-    "exito",
-    "Datos en Consola",
-    "Datos de sujeto excluido mostrados en consola.",
-    "Revisa la consola del navegador (F12) para ver los detalles completos."
-  );
-};
-
-const actualizarStockProductos = async (itemsDocumento) => {
-  try {
-    // Filtrar solo items que son productos, necesitan actualización de stock y NO son servicios
-    const productosParaActualizar = itemsDocumento.filter(item => 
-      item.actualizarStock && item.productoId && item.tipo === "producto"
-    );
-
-    console.log("Productos a actualizar stock:", productosParaActualizar);
-
-    // Actualizar stock para cada producto
-    for (const producto of productosParaActualizar) {
-      try {
-        const response = await fetch(`http://localhost:3000/productos/decrementStock/${producto.productoId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ cantidad: producto.cantidad })
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          console.log(`Stock actualizado para producto ${producto.productoId}:`, result);
-        } else {
-          console.error(`Error al actualizar stock para producto ${producto.productoId}:`, response.statusText);
-        }
-      } catch (error) {
-        console.error(`Error al actualizar stock para producto ${producto.productoId}:`, error);
-      }
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Error general en actualización de stock:", error);
-    throw error;
-  }
-};
-
-const guardarDetallesDocumento = async (iddtefactura) => {
+  const guardarDetallesDocumento = async (iddtefactura) => {
     try {
       const detalles = items.map((item, index) => {
         const subtotalItem = item.precioUnitario * item.cantidad;
@@ -495,8 +532,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
       detalles: detalles,
     };
 
-    console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
-
     const responseDetalles = await fetch(`http://localhost:3000/sujeto-excluido/${iddtefactura}/detalles`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -506,14 +541,12 @@ const guardarDetallesDocumento = async (iddtefactura) => {
 
     if (responseDetalles.ok) {
       const resultDetalles = await responseDetalles.json();
-      console.log("Detalles de sujeto excluido guardados:", resultDetalles);
       
       await actualizarStockProductos(items);
       
       return resultDetalles;
     } else {
       const errorText = await responseDetalles.text();
-      console.error("Error response from server:", errorText);
       throw new Error(`Error al guardar los detalles: ${errorText}`);
     }
   } catch (error) {
@@ -521,6 +554,34 @@ const guardarDetallesDocumento = async (iddtefactura) => {
     throw error;
   }
 };
+
+  const actualizarStockProductos = async (itemsDocumento) => {
+    try {
+      const productosParaActualizar = itemsDocumento.filter(item => 
+        item.actualizarStock && item.productoId && item.tipo === "producto"
+      );
+
+      for (const producto of productosParaActualizar) {
+        try {
+          await fetch(`http://localhost:3000/productos/decrementStock/${producto.productoId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ cantidad: producto.cantidad })
+          });
+        } catch (error) {
+          console.error(`Error al actualizar stock para producto ${producto.productoId}:`, error);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error general en actualización de stock:", error);
+      throw error;
+    }
+  };
 
   const obtenerUltimoNumeroDocumento = async () => {
     try {
@@ -537,7 +598,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
         const ultimoNumero = typeof data.ultimaFactura === 'number' ? data.ultimaFactura + 1 : 1;
         setNumeroDocumento(ultimoNumero);
       } else {
-        console.warn("No se pudo obtener el último número, usando 1 por defecto");
         setNumeroDocumento(1);
       }
     } catch (error) {
@@ -565,12 +625,8 @@ const guardarDetallesDocumento = async (iddtefactura) => {
     let formapagoValue = "Efectivo";
     
     if (formasPago && formasPago.length > 0) {
-      const metodoPago = formasPago[0]?.metodo?.toLowerCase() || "";
-      
-    if (formasPago && formasPago.length > 0) {
-        const metodoPago = formasPago[0]?.metodo || "";
-        formapagoValue = metodoPago || "Efectivo";
-      }
+      const metodoPago = formasPago[0]?.metodo || "";
+      formapagoValue = metodoPago || "Efectivo";
     }
 
     const exentasBase = items
@@ -609,9 +665,9 @@ const guardarDetallesDocumento = async (iddtefactura) => {
       sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
       totaldescuento: parseFloat(totaldescuento.toFixed(2)),
       valoriva: 0.00,
-      subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
+      subtotal: parseFloat((subtotal - totaldescuento).toFixed(2)),
       ivapercibido: 0.00,
-      montototalope: parseFloat(subtotal - totaldescuento).toFixed(2),
+      montototalope: parseFloat((subtotal - totaldescuento).toFixed(2)),
       totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
       totalapagar: parseFloat(totalPagar.toFixed(2)),
       valorletras: convertirNumeroALetras(totalPagar),
@@ -637,15 +693,14 @@ const guardarDetallesDocumento = async (iddtefactura) => {
       ivarete1: 0.00,
       reterenta: 0.00,
 
-      montototaloperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
+      montototaloperacion: parseFloat((subtotal - totaldescuento).toFixed(2)),
       totalpagar: parseFloat(totalPagar.toFixed(2)), 
-      totalpagar: parseFloat(totalPagar.toFixed(2)),
       totalletras: convertirNumeroALetras(totalPagar),
       totaliva: 0.00,
       saldofavor: 0.00,
 
       condicionoperacion: 1,
-      codigo: "11", // Código específico para sujeto excluido
+      codigo: "11",
       montopago: parseFloat(totalPagar.toFixed(2)),
       referencia: "",
       plazo: null,
@@ -745,12 +800,10 @@ const guardarDetallesDocumento = async (iddtefactura) => {
           } else {
             const errorMsg = `Error ${response.status}: ${response.statusText}`;
             setErrorCargaProductos(errorMsg);
-            console.error(errorMsg);
           }
         } catch (error) {
           const errorMsg = `Error de conexión: ${error.message}`;
           setErrorCargaProductos(errorMsg);
-          console.error(errorMsg);
         } finally {
           setCargandoProductos(false);
         }
@@ -767,80 +820,80 @@ const guardarDetallesDocumento = async (iddtefactura) => {
       (cliente?.dui?.toString() || "").includes(searchTerm.toLowerCase())
   ) : [];
 
-      useEffect(() => {
-        const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
-        
-        const descuentoItems = items.reduce((sum, item) => 
-          sum + (item.descuento || 0), 0); // ← MONTO FIJO
+  useEffect(() => {
+    const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const descuentoItems = items.reduce((sum, item) => 
+      sum + (item.descuento || 0), 0);
 
-        const exentasBase = items
-          .filter(item => item.tipo === "noAfecto")
-          .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
-        
-        const noSujetasBase = items
-          .filter(item => item.tipo === "noSuj") 
-          .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    const exentasBase = items
+      .filter(item => item.tipo === "noAfecto")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const noSujetasBase = items
+      .filter(item => item.tipo === "noSuj") 
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
 
-        const descuentoExentas = descuentoExentasMonto;
-        const descuentoNoSujetas = descuentoNoSujetasMonto;
-        
-        const descuentoTotal = descuentoItems + descuentoExentas + descuentoNoSujetas;
-        
-        const exentasConDescuento = exentasBase - 
-          (items.filter(item => item.tipo === "noAfecto")
-            .reduce((sum, item) => sum + (item.descuento || 0), 0)) - 
-          descuentoExentas;
+    const descuentoExentas = descuentoExentasMonto;
+    const descuentoNoSujetas = descuentoNoSujetasMonto;
+    
+    const descuentoTotal = descuentoItems + descuentoExentas + descuentoNoSujetas;
+    
+    const exentasConDescuento = exentasBase - 
+      (items.filter(item => item.tipo === "noAfecto")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) - 
+      descuentoExentas;
 
-        const noSujetasConDescuento = noSujetasBase - 
-          (items.filter(item => item.tipo === "noSuj") 
-            .reduce((sum, item) => sum + (item.descuento || 0), 0)) - 
-          descuentoNoSujetas;
+    const noSujetasConDescuento = noSujetasBase - 
+      (items.filter(item => item.tipo === "noSuj") 
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) - 
+      descuentoNoSujetas;
 
-        const nuevosTributos = {};
-        
-        items.forEach(item => {
-          if (item.tributos && Array.isArray(item.tributos)) {
-            item.tributos.forEach(tributo => {
-              const subtotalItem = item.precioUnitario * item.cantidad;
-              const descuentoItem = item.descuento || 0;
-              const baseImponible = subtotalItem - descuentoItem;
-              
-              let valorTributo = 0;
-              
-              if (tributo.codigo === "20") {
-                valorTributo = 0;
-              } else {
-                valorTributo = tributo.valor || 0;
-              }
-              
-              if (nuevosTributos[tributo.codigo]) {
-                nuevosTributos[tributo.codigo].valor += valorTributo;
-              } else {
-                nuevosTributos[tributo.codigo] = {
-                  codigo: tributo.codigo,
-                  descripcion: tributo.descripcion || obtenerDescripcionTributo(tributo.codigo),
-                  valor: valorTributo
-                };
-              }
-            });
+    const nuevosTributos = {};
+    
+    items.forEach(item => {
+      if (item.tributos && Array.isArray(item.tributos)) {
+        item.tributos.forEach(tributo => {
+          const subtotalItem = item.precioUnitario * item.cantidad;
+          const descuentoItem = item.descuento || 0;
+          const baseImponible = subtotalItem - descuentoItem;
+          
+          let valorTributo = 0;
+          
+          if (tributo.codigo === "20") {
+            valorTributo = 0;
+          } else {
+            valorTributo = tributo.valor || 0;
+          }
+          
+          if (nuevosTributos[tributo.codigo]) {
+            nuevosTributos[tributo.codigo].valor += valorTributo;
+          } else {
+            nuevosTributos[tributo.codigo] = {
+              codigo: tributo.codigo,
+              descripcion: tributo.descripcion || obtenerDescripcionTributo(tributo.codigo),
+              valor: valorTributo
+            };
           }
         });
-        
-        setTributosDetallados(nuevosTributos);
+      }
+    });
+    
+    setTributosDetallados(nuevosTributos);
 
-        const total = exentasConDescuento + noSujetasConDescuento;
+    const total = exentasConDescuento + noSujetasConDescuento;
 
-        setSumaopesinimpues(parseFloat(suma.toFixed(2)));
-        setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
-        setVentasexentas(parseFloat(exentasConDescuento.toFixed(2)));
-        setVentanosujetas(parseFloat(noSujetasConDescuento.toFixed(2)));
-        setTotal(parseFloat(total.toFixed(2)));
-        
-        setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
-        setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
-        setNoSujetasSinDescuentoState(parseFloat(noSujetasBase.toFixed(2)));
-        setNoSujetasConDescuentoState(parseFloat(noSujetasConDescuento.toFixed(2)));
-      }, [items, descuentoExentasMonto, descuentoNoSujetasMonto]);
+    setSumaopesinimpues(parseFloat(suma.toFixed(2)));
+    setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
+    setVentasexentas(parseFloat(exentasConDescuento.toFixed(2)));
+    setVentanosujetas(parseFloat(noSujetasConDescuento.toFixed(2)));
+    setTotal(parseFloat(total.toFixed(2)));
+    
+    setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
+    setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
+    setNoSujetasSinDescuentoState(parseFloat(noSujetasBase.toFixed(2)));
+    setNoSujetasConDescuentoState(parseFloat(noSujetasConDescuento.toFixed(2)));
+  }, [items, descuentoExentasMonto, descuentoNoSujetasMonto]);
 
   const obtenerDescripcionTributo = (codigo) => {
     const tributosMap = {
@@ -929,7 +982,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
         if (field === "cantidad" || field === "precioUnitario" || field === "descuento" || 
             field === "descuentoExento" || field === "descuentoNoSujeto") {
           const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
-          // CORRECCIÓN: Tratar descuento como monto fijo, no porcentaje
           const descuentoMonto = updatedItem.descuento || 0;
           updatedItem.total = Math.max(0, subtotalItem - descuentoMonto);
         }
@@ -995,19 +1047,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
   };
 
   const agregarItemDesdeModal = (tipo, datos) => {
-    console.log("=== DEBUG SujetoExcluido: Item recibido ===");
-    console.log("Tipo:", tipo);
-    console.log("Datos descuento distribuido:", {
-      descuentoExento: datos.descuentoExento,
-      descuentoNoSujeto: datos.descuentoNoSujeto,
-      descuento: datos.descuento,
-      valorDescuento: datos.valorDescuento,
-      precioUnitario: datos.precioUnitario,
-      cantidad: datos.cantidad,
-      subtotal: datos.precioUnitario * datos.cantidad
-    });
-    console.log("======================================");
-    
     const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
 
     const newItem = {
@@ -1015,7 +1054,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
       tipo: tipo,
       ...datos,
       total: (datos.cantidad * datos.precioUnitario) - (datos.descuento || 0),
-      // Asegurar que los campos de descuento distribuido estén presentes
       descuentoExento: datos.descuentoExento || 0,
       descuentoNoSujeto: datos.descuentoNoSujeto || 0
     };
@@ -1032,7 +1070,7 @@ const guardarDetallesDocumento = async (iddtefactura) => {
     return unidad ? unidad.nombre : "Unidad";
   };
 
-   const descargarTicketFactura = async (idFactura) => {
+  const descargarTicketFactura = async (idFactura) => {
     setDescargandoTicket(true);
     
     try {
@@ -1090,14 +1128,11 @@ const guardarDetallesDocumento = async (iddtefactura) => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
       <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}>
         <Sidebar />
       </div>
 
-      {/* Contenido principal */}
       <div className="text-black flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
         <header className="bg-white shadow-sm">
           <div className="flex items-center justify-between p-4">
             <div>
@@ -1113,23 +1148,18 @@ const guardarDetallesDocumento = async (iddtefactura) => {
           </div>
         </header>
 
-        {/* Contenido principal con scroll */}
         <main className="flex-1 overflow-y-auto p-4">
           <div className="max-w-6xl mx-auto">
-            {/* Tarjeta principal */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
 
-              {/* Mostrar mensaje de error si existe */}
               {errorValidacion && (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                   <div className="flex items-center">
-                    <FaExclamationTriangle className="mr-2" />
                     <span>{errorValidacion}</span>
                   </div>
                 </div>
               )}
 
-              {/* Datos del cliente */}
               <DatosEmisorReceptor
                 tipoDocumentoReceptor={tipoDocumentoReceptor}
                 setTipoDocumentoReceptor={setTipoDocumentoReceptor}
@@ -1161,7 +1191,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                 actividadesEconomicas={codactividad}
               />
 
-              {/* Detalle del Documento */}
               <div className="text-black mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-800">Detalle del Documento</h2>
@@ -1174,7 +1203,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                   </button>
                 </div>
 
-                {/* Tabla de items */}
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead className="bg-gray-50">
@@ -1202,18 +1230,14 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                       ) : (
                         items.map((item) => {
                           const subtotal = item.precioUnitario * item.cantidad;
-                      
-                          // En la tabla, para cada item:
                           const totalExento = (item.tipo === "noAfecto") 
                             ? Math.max(0, subtotal - (item.descuentoExento || 0))
                             : 0;
-                            
                           const totalNoSujeto = (item.tipo === "noSuj") 
                             ? Math.max(0, subtotal - (item.descuentoNoSujeto || 0))
                             : 0;
-
-                          // CORRECCIÓN: Calcular el total del item correctamente
                           const totalItem = Math.max(0, subtotal - (item.descuentoExento || 0) - (item.descuentoNoSujeto || 0));
+                          
                           return (
                             <tr key={item.id}>
                               <td className="px-4 py-2 border-b">
@@ -1251,7 +1275,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                               <td className="px-4 py-2 font-medium border-b">
                                 {formatMoney(subtotal)}
                               </td>
-                              {/* CELDAS DE DESCUENTOS */}
                               <td className="px-4 py-2 border-b text-center">
                                 <span className="text-sm text-red-600 font-medium">
                                   {formatMoney(item.descuentoExento || 0)}
@@ -1262,14 +1285,12 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                                   {formatMoney(item.descuentoNoSujeto || 0)}
                                 </span>
                               </td>
-                              {/* CELDAS DE TOTALES POR TIPO DESPUÉS DE DESCUENTOS */}
                               <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
                                 {formatMoney(totalExento)}
                               </td>
                               <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
                                 {formatMoney(totalNoSujeto)}
                               </td>
-                              {/* NUEVA COLUMNA PARA EL TOTAL */}
                               <td className="px-4 py-2 border-b text-center font-bold text-blue-700">
                                 {formatMoney(totalItem)}
                               </td>
@@ -1290,7 +1311,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                 </div>
               </div>
 
-              {/* Totales */}
               <div className="bg-gray-50 p-4 rounded-lg mb-6 text-black">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -1299,9 +1319,7 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                       <span className="font-medium">{formatMoney(sumaopesinimpues)}</span>
                     </div>
                     
-                    {/* Descuentos desglosados de los items */}
                     {(() => {
-                      // Calcular totales de descuentos por tipo desde los items
                       const totalDescuentoExento = items.reduce((sum, item) => sum + (item.descuentoExento || 0), 0);
                       const totalDescuentoNoSujeto = items.reduce((sum, item) => sum + (item.descuentoNoSujeto || 0), 0);
                       
@@ -1354,7 +1372,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                       </div>
                     </div>
                     
-                    {/* Mostrar tributos desglosados */}
                     {Object.values(tributosDetallados)
                       .filter(tributo => tributo.valor > 0)
                       .map((tributo) => (
@@ -1393,26 +1410,25 @@ const guardarDetallesDocumento = async (iddtefactura) => {
                 emisorNombre={emisorNombre}
               />
 
-              {/* Botones de acción */}
               <div className="flex justify-end space-x-4">
-                <button 
-                  onClick={guardarDocumento}
+                <button
+                  onClick={handleConfirmarYGuardar}
                   disabled={guardandoDocumento}
                   className={`flex items-center px-4 py-2 rounded-md ${
                     guardandoDocumento 
                       ? "bg-gray-400 cursor-not-allowed" 
-                      : "bg-green-600 hover:bg-green-700" 
+                      : "bg-blue-600 hover:bg-blue-700" 
                   } text-white`}
                 >
                   {guardandoDocumento ? (
                     <>
                       <FaSpinner className="mr-2 animate-spin" />
-                      Guardando...
+                      Procesando...
                     </>
                   ) : (
                     <>
-                      <FaSave className="mr-2" />
-                      Guardar Documento
+                      <FaEye className="mr-2" />
+                      Vista Previa y Guardar
                     </>
                   )}
                 </button>
@@ -1421,18 +1437,15 @@ const guardarDetallesDocumento = async (iddtefactura) => {
           </div>
         </main>
 
-        {/* Footer */}
         <Footer />
       </div>
 
-      {/* Modal Selector de Tipo de Detalle */}
       <SelectorModal
         isOpen={showModal && modalType === "selector"}
         onClose={() => setShowModal(false)}
         onSelectTipoDetalle={selectTipoDetalle}
       />
 
-      {/* Modal para Producto o Servicio */}
       <ProductModal
         isOpen={showModal && modalType === "producto"}
         onClose={() => {
@@ -1451,7 +1464,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
         onTotalChange={setTotalModal}
       />
 
-      {/* Modal para Monto No Afecto */}
       <NonTaxableModal
         isOpen={showModal && modalType === "noAfecto"}
         onClose={() => {
@@ -1461,7 +1473,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
         onAddItem={(itemData) => agregarItemDesdeModal("noAfecto", itemData)}
       />
 
-      {/* Modal para Impuestos/Tasas */}
       <TaxModal
         isOpen={showModal && modalType === "impuestos"}
         onClose={() => {
@@ -1471,7 +1482,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
         onAddItem={(itemData) => agregarItemDesdeModal("impuestos", itemData)}
       />
 
-      {/* Pop-up de lista de clientes */}
       <ClientListModal
         isOpen={showClientList && searchTerm}
         onClose={() => setShowClientList(false)}
@@ -1479,7 +1489,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
         onSelectClient={showClientDetailsPopup}
       />
 
-      {/* Modal para Descuentos */}
       <DiscountModal
         isOpen={showDiscountModal}
         onClose={() => setShowDiscountModal(false)}
@@ -1488,14 +1497,6 @@ const guardarDetallesDocumento = async (iddtefactura) => {
         currentNoSujetasDiscount={descuentoNoSujetasMonto}
       />
 
-      <ConfirmacionFacturaModal
-        isOpen={showConfirmModal}
-        onClose={() => setShowConfirmModal(false)}
-        onConfirm={guardarDocumento}
-        datosFactura={prepararDatosDocumento()}
-      />
-
-      {/* Pop-up de detalles del cliente */}
       {showClientDetails && selectedClient && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-11/12 max-w-md">
@@ -1539,6 +1540,14 @@ const guardarDetallesDocumento = async (iddtefactura) => {
         idFactura={mensajeConfig.idFactura}
         onDescargarTicket={descargarTicketFactura}
         descargando={descargandoTicket}
+      />
+
+      <VistaPreviaModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        htmlContent={previewHtml}
+        onConfirm={guardarDocumento}
+        isSaving={guardandoDocumento}
       />
     </div>
   );

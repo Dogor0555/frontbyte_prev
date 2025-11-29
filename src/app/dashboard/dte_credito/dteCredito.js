@@ -816,6 +816,16 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         },
         extension: {
           observaciones: "Vista previa del documento.",
+          responsables: {
+            emisor: {
+              nombre: datosEntrega.emisorNombre || emisorNombre,
+              documento: datosEntrega.emisorDocumento || emisorDocumento
+            },
+            receptor: {
+              nombre: datosEntrega.receptorNombre || nombreReceptor,
+              documento: datosEntrega.receptorDocumento || numeroDocumentoReceptor
+            }
+          }
         }
       };
     }

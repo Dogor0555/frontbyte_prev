@@ -483,10 +483,10 @@
       <div class="col block">
         <h2>Responsables</h2>
         <div class="kv">
-          <div>Emisor:</div><div>-</div>
-          <div>N° Documento:</div><div>-</div>
-          <div>Receptor:</div><div>-</div>
-          <div>N° Documento:</div><div>-</div>
+          <div>Emisor:</div><div>{{#if extension.responsables.emisor.nombre}}{{extension.responsables.emisor.nombre}}{{else}}-{{/if}}</div>
+          <div>N° Documento:</div><div>{{#if extension.responsables.emisor.documento}}{{extension.responsables.emisor.documento}}{{else}}-{{/if}}</div>
+          <div>Receptor:</div><div>{{#if extension.responsables.receptor.nombre}}{{extension.responsables.receptor.nombre}}{{else}}-{{/if}}</div>
+          <div>N° Documento:</div><div>{{#if extension.responsables.receptor.documento}}{{extension.responsables.receptor.documento}}{{else}}-{{/if}}</div>
         </div>
       </div>
       {{/unless}}
