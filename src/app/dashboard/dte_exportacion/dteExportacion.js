@@ -15,12 +15,12 @@ import FormaPago from "./components/FormaPago";
 import DatosEntrega from "./components/DatosAdicionalesEntrega";
 import FechaHoraEmision from "./components/FechaHoraEmision";
 import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaModal";
-import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal"; // Reutilizamos el modal de factura
+import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal";
 import MensajeModal from "./components/MensajeModal";
 import { useReactToPrint } from 'react-to-print';
 import Handlebars from 'handlebars';
 
-export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
+export default function ExportacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
   const [cliente, setCliente] = useState(null);
   const [nombreCliente, setNombreCliente] = useState("");
   const [documentoCliente, setDocumentoCliente] = useState("");
@@ -85,13 +85,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [emisorNombre, setEmisorNombre] = useState("");
   const [tributosDetallados, setTributosDetallados] = useState({});
   
-  // Nuevo estado para retención de IVA
-  const [retencionIVA, setRetencionIVA] = useState({
-    aplicar: false,
-    porcentaje: 1, // 1% o 13%
-    monto: 0
-  });
-  
   const [mostrarMensaje, setMostrarMensaje] = useState(false);
   const [mensajeConfig, setMensajeConfig] = useState({
     tipo: "exito",
@@ -150,34 +143,14 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     { codigo: "99", nombre: "Otra" },
   ]);
 
-  const calcularPrecioNetoEIVA = (precioBruto) => {
-    const precioNeto = precioBruto / 1.13;
+  const calcularPrecioBrutoDesdeNeto = (precioNeto) => {
+    const precioBruto = precioNeto * 1.13;
     const iva = precioBruto - precioNeto;
     return {
       neto: parseFloat(precioNeto.toFixed(2)),
       iva: parseFloat(iva.toFixed(2)),
       bruto: parseFloat(precioBruto.toFixed(2))
     };
-  };
-
-  // Función para calcular la retención de IVA
-  const calcularRetencionIVA = (porcentaje = null) => {
-    const porc = porcentaje !== null ? porcentaje : retencionIVA.porcentaje;
-    
-    // Calcular base gravada después de descuentos
-    const gravadasBase = items
-      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
-    
-    const descuentoGravadasItems = items
-      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => sum + (item.descuento || 0), 0);
-    
-    const gravadasConDescuento = gravadasBase - descuentoGravadasItems - descuentoGrabadasMonto;
-    
-    // Calcular retención
-    const montoRetencion = (gravadasConDescuento * porc) / 100;
-    return parseFloat(montoRetencion.toFixed(2));
   };
 
   const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
@@ -219,7 +192,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setDescargandoTicket(true);
     
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${idFactura}/ver-compacto`, {
+      const response = await fetch(`http://localhost:3000/exportacion/${idFactura}/ver-compacto`, {
         method: 'GET',
         credentials: 'include'
       });
@@ -235,7 +208,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         }
         
         const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = `credito_${idFactura}.pdf`;
+        let filename = `exportacion_${idFactura}.pdf`;
         
         if (contentDisposition) {
           const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
@@ -247,7 +220,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         mostrarModalMensaje(
           "exito", 
           "Ticket Abierto", 
-          "El ticket del crédito se ha abierto en una nueva pestaña.",
+          "El ticket de la exportación se ha abierto en una nueva pestaña.",
           `Archivo: ${filename}`
         );
         
@@ -263,7 +236,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       mostrarModalMensaje(
         "error",
         "Error al Abrir Ticket",
-        "No se pudo abrir el ticket del crédito.",
+        "No se pudo abrir el ticket de la exportación.",
         error.message
       );
     } finally {
@@ -297,9 +270,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     }
     
     if (items.length === 0) {
-      const mensaje = "Debe agregar al menos un item al crédito";
+      const mensaje = "Debe agregar al menos un item a la exportación";
       setErrorValidacion(mensaje);
-      mostrarModalMensaje("error", "Crédito Vacío", mensaje);
+      mostrarModalMensaje("error", "Exportación Vacía", mensaje);
       return false;
     }
     
@@ -338,7 +311,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       
       console.log("Enviando encabezado:", datosFactura);
       
-      const responseEncabezado = await fetch("http://localhost:3000/creditos/encabezado", {
+      const responseEncabezado = await fetch("http://localhost:3000/exportacion/encabezado", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -349,31 +322,31 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
       if (responseEncabezado.ok) {
         const result = await responseEncabezado.json();
-        console.log("Encabezado de crédito guardado:", result);
+        console.log("Encabezado de exportación guardado:", result);
         
         const detallesResult = await guardarDetallesFactura(result.iddtefactura);
         
         if (detallesResult) {
           setShowConfirmModal(false);
           
-          let mensajeTitulo = "Crédito Guardado";
+          let mensajeTitulo = "Exportación Guardada";
           let mensajeDetalles = "";
           let idFacturaParaDescarga = result.iddtefactura;
 
           if (detallesResult.contingencia && detallesResult.aviso) {
-            mensajeTitulo = "Crédito en Contingencia";
+            mensajeTitulo = "Exportación en Contingencia";
             mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message}`;
           } else if (detallesResult.transmitido) {
-            mensajeTitulo = "Crédito Transmitido";
-            mensajeDetalles = `Crédito ${result.ncontrol} guardado y transmitido exitosamente`;
+            mensajeTitulo = "Exportación Transmitida";
+            mensajeDetalles = `Exportación ${result.ncontrol} guardada y transmitida exitosamente`;
           } else {
-            mensajeDetalles = `Crédito ${result.ncontrol} guardado exitosamente`;
+            mensajeDetalles = `Exportación ${result.ncontrol} guardada exitosamente`;
           }
           
           mostrarModalMensaje(
             "exito",
             mensajeTitulo,
-            "El crédito se ha procesado correctamente.",
+            "La exportación se ha procesado correctamente.",
             mensajeDetalles,
             idFacturaParaDescarga
           );
@@ -390,7 +363,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       mostrarModalMensaje(
         "error",
         "Error al Guardar",
-        "No se pudo guardar el crédito.",
+        "No se pudo guardar la exportación.",
         error.message
       );
     } finally {
@@ -460,11 +433,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setDescuentoGrabadasMonto(0);
     setDescuentoExentasMonto(0);
     setFormasPago([]);
-    setRetencionIVA({
-      aplicar: false,
-      porcentaje: 1,
-      monto: 0
-    });
     obtenerUltimoNumeroFactura();
   };
 
@@ -493,11 +461,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setExentasSinDescuentoState(0);
     setCondicionPago("Contado");
     setFormasPago([]);
-    setRetencionIVA({
-      aplicar: false,
-      porcentaje: 1,
-      monto: 0
-    });
     setDatosEntrega({
       emisorDocumento: "",
       emisorNombre: "",
@@ -517,21 +480,19 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setSearchTerm("");
     setTributosDetallados({});
     
-    // LIMPIAR ACTIVIDADES ECONÓMICAS DEL CLIENTE
     setActividadEconomicaCliente("");
     setActividadesEconomicasCliente([]);
   };
 
-
   const verDatosFactura = () => {
     if (items.length === 0) {
-      mostrarModalMensaje("error", "Crédito Vacío", "El crédito debe tener al menos un item");
+      mostrarModalMensaje("error", "Exportación Vacía", "La exportación debe tener al menos un item");
       return;
     }
 
     const datosFactura = prepararDatosFactura();
     
-    console.log("====== DATOS COMPLETOS DE CRÉDITO (SOLO VISUALIZACIÓN) ======");
+    console.log("====== DATOS COMPLETOS DE EXPORTACIÓN (SOLO VISUALIZACIÓN) ======");
     console.log("ENCABEZADO:");
     console.log(JSON.stringify(datosFactura, null, 2));
     console.log("========== Items ==================")
@@ -581,7 +542,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     mostrarModalMensaje(
       "exito",
       "Datos en Consola",
-      "Datos de crédito mostrados en consola.",
+      "Datos de exportación mostrados en consola.",
       "Revisa la consola del navegador (F12) para ver los detalles completos."
     );
   };
@@ -648,8 +609,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           codtributo: null,
           unimedida: item.unidadMedida || "59",
           descripcion: item.descripcion,
-          preciouni: parseFloat(item.precioUnitario.toFixed(2)), // Precio original
-          montodescu: parseFloat(item.descuento.toFixed(2)), // Descuento total
+          preciouni: parseFloat(item.precioUnitario.toFixed(2)),
+          montodescu: parseFloat(item.descuento.toFixed(2)),
           ventanosuj: parseFloat(baseNoSujeta.toFixed(2)),
           ventaexenta: parseFloat(baseExenta.toFixed(2)),
           ventagravada: parseFloat(baseGravada.toFixed(2)),
@@ -668,7 +629,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
       console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
 
-      const responseDetalles = await fetch(`http://localhost:3000/creditos/${iddtefactura}/detalles`, {
+      const responseDetalles = await fetch(`http://localhost:3000/exportacion/${iddtefactura}/detalles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -677,7 +638,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
       if (responseDetalles.ok) {
         const resultDetalles = await responseDetalles.json();
-        console.log("Detalles de crédito guardados:", resultDetalles);
+        console.log("Detalles de exportación guardados:", resultDetalles);
         
         await actualizarStockProductos(items);
         
@@ -695,7 +656,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
   const obtenerUltimoNumeroFactura = async () => {
     try {
-      const response = await fetch("http://localhost:3000/facturas/ultima", {
+      const response = await fetch("http://localhost:3000/exportacion/ultima", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -725,29 +686,28 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     const descuentoItems = items.reduce((sum, item) => 
       sum + (item.descuento || 0), 0);
 
-    const baseGravadaNeto = items.reduce((sum, item) => 
-      sum + (item.ventaGravada || 0), 0);
-    
-    const baseExentaNeto = items.reduce((sum, item) => 
-      sum + (item.ventaExenta || 0), 0);
+    const baseGravadaBruto = items.reduce((sum, item) => 
+      sum + (item.tipo === "producto" || item.tipo === "impuestos" ? item.precioUnitario * item.cantidad : 0), 0);
 
-    const baseNoSujetaNeto = items.reduce((sum, item) => 
-      sum + (item.ventaNoSujeta || 0), 0);
+    const baseExentaBruto = items.reduce((sum, item) => 
+      sum + (item.tipo === "noAfecto" ? item.precioUnitario * item.cantidad : 0), 0);
 
-    let baseGravadaFinal = Math.max(0, baseGravadaNeto - descuentoGrabadasMonto);
-    let baseExentaFinal = Math.max(0, baseExentaNeto - descuentoExentasMonto);
+    const baseNoSujetaBruto = items.reduce((sum, item) => 
+      sum + (item.tipo === "noSuj" ? item.precioUnitario * item.cantidad : 0), 0);
+
+    const baseGravadaConDescuento = Math.max(0, baseGravadaBruto - descuentoGrabadasMonto);
+    const baseExentaConDescuento = Math.max(0, baseExentaBruto - descuentoExentasMonto);
 
     const tasaIVA = 0.13;
-    const ivaCalculado = baseGravadaFinal * tasaIVA;
+    const baseGravadaNeto = baseGravadaConDescuento / 1.13;
+    const ivaCalculado = baseGravadaNeto * tasaIVA;
+    const baseGravadaTotal = baseGravadaNeto + ivaCalculado;
 
     const descuentoTotal = descuentoItems + descuentoGrabadasMonto + descuentoExentasMonto;
     
-    const subtotalNeto = baseGravadaFinal + baseExentaFinal + baseNoSujetaNeto;
+    const subtotalNeto = baseGravadaNeto + baseExentaConDescuento + baseNoSujetaBruto;
     
-    // Aplicar retención de IVA si está activa
-    const montoRetencionIVA = retencionIVA.aplicar ? retencionIVA.monto : 0;
-    
-    const totalFinal = subtotalNeto + ivaCalculado - montoRetencionIVA;
+    const totalFinal = subtotalNeto + ivaCalculado;
 
     const ahora = new Date();
     const offset = -6;
@@ -760,10 +720,22 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     
     const horaEmision = ahora.toTimeString().split(' ')[0];
 
-    let formapagoValue = "Efectivo";
+    const getCodigoFormaPago = (metodo) => {
+      const mapaFormasPago = {
+        "Efectivo": "01",
+        "Tarjeta de Débito": "02",
+        "Tarjeta de Crédito": "03",
+        "Cheque": "04",
+        "Transferencia": "05",
+        "Depósito a Cuenta": "06",
+        "Otro": "99"
+      };
+      return mapaFormasPago[metodo] || "01";
+    };
+
+    let formapagoValue = getCodigoFormaPago("Efectivo");
     if (formasPago && formasPago.length > 0) {
-      const metodoPago = formasPago[0]?.metodo || "";
-      formapagoValue = metodoPago || "Efectivo";
+      formapagoValue = getCodigoFormaPago(formasPago[0]?.metodo);
     }
 
     const montototaloperacion = subtotalBruto - descuentoTotal;
@@ -774,14 +746,17 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
     const descripcionActividad = actividadSeleccionada ? actividadSeleccionada.descripcion : "";
 
-    if (paraVistaPrevia) { // paraVistaPrevia
+    if (paraVistaPrevia) {
       const cuerpoDocumento = items.map((item, index) => {
         const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
         const esExento = item.tipo === "noAfecto";
         const esNoSujeto = item.tipo === "noSuj";
 
-        const baseGravada = esGravado ? item.ventaGravada : 0;
-        const ivaItem = baseGravada * tasaIVA;
+        const baseGravadaBrutoItem = esGravado ? item.precioUnitario * item.cantidad : 0;
+        const descuentoItem = item.descuento || 0;
+        const baseGravadaConDescuentoItem = Math.max(0, baseGravadaBrutoItem - (esGravado ? descuentoItem : 0));
+        const baseGravadaNetoItem = baseGravadaConDescuentoItem / 1.13;
+        const ivaItem = baseGravadaNetoItem * tasaIVA;
 
         return {
           numItem: index + 1,
@@ -790,9 +765,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           descripcion: item.descripcion,
           precioUni: item.precioUnitario,
           montoDescu: item.descuento || 0,
-          ventaNoSuj: esNoSujeto ? item.ventaNoSujeta : 0,
-          ventaExenta: esExento ? item.ventaExenta : 0,
-          ventaGravada: esGravado ? item.ventaGravada : 0,
+          ventaNoSuj: esNoSujeto ? item.precioUnitario * item.cantidad : 0,
+          ventaExenta: esExento ? item.precioUnitario * item.cantidad : 0,
+          ventaGravada: esGravado ? baseGravadaNetoItem : 0,
           ivaItem: ivaItem,
         };
       });
@@ -800,7 +775,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       return {
         identificacion: {
           version: "1.0",
-          tipoDteLabel: "COMPROBANTE DE CRÉDITO FISCAL",
+          tipoDteLabel: "FACTURA DE EXPORTACIÓN",
           tipoMoneda: "USD",
           tipoModelo: "1",
           tipoOperacion: "1",
@@ -810,7 +785,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           horEmi: horaEmision,
         },
         selloRecibido: "(Sello de recepción pendiente)",
-        barcodeDataUri: "", // El QR se genera en el backend
+        barcodeDataUri: "",
         emisor: {
           nombre: sucursalUsuario?.usuario?.nombre || "Nombre Emisor",
           nit: sucursalUsuario?.usuario?.nit || "0000-000000-000-0",
@@ -843,11 +818,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         resumen: {
           totalLetras: convertirNumeroALetras(totalFinal),
           condicionOperacion: condicionPago.toLowerCase() === "contado" ? 1 : 2,
-          totalNoSuj: parseFloat(baseNoSujetaNeto.toFixed(2)),
-          totalExenta: parseFloat(baseExentaFinal.toFixed(2)),
-          totalGravada: parseFloat(baseGravadaFinal.toFixed(2)),
+          totalNoSuj: parseFloat(baseNoSujetaBruto.toFixed(2)),
+          totalExenta: parseFloat(baseExentaConDescuento.toFixed(2)),
+          totalGravada: parseFloat(baseGravadaNeto.toFixed(2)),
           totalIva: parseFloat(ivaCalculado.toFixed(2)),
-          ivarete1: parseFloat(montoRetencionIVA.toFixed(2)), // RETENCIÓN IVA
+          ivarete1: 0,
           subTotal: parseFloat(subtotalNeto.toFixed(2)),
           totalPagar: parseFloat(totalFinal.toFixed(2)),
           montoTotalOperacion: parseFloat(montototaloperacion.toFixed(2)),
@@ -874,7 +849,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
     return {
       idcliente: idReceptor,
-      tipo_dte: "03",
+      pais_cliente: cliente?.pais?.codigo || "US",
+      tipo_dte: "11",
       sellorec: "", 
       modelofac: "01",
       verjson: "1.0",
@@ -889,20 +865,20 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       sumaopesinimpues: parseFloat(subtotalBruto.toFixed(2)),
       totaldescuento: parseFloat(descuentoTotal.toFixed(2)),
       valoriva: parseFloat(ivaCalculado.toFixed(2)),
-      subtotal: parseFloat(subtotalNeto.toFixed(2)), // CORREGIDO: Subtotal neto (sin IVA)
+      subtotal: parseFloat(subtotalNeto.toFixed(2)),
       ivapercibido: parseFloat(ivaCalculado.toFixed(2)),
-      ivarete1: retencionIVA.aplicar ? parseFloat(retencionIVA.monto.toFixed(2)) : 0.00, // RETENCIÓN IVA
+      ivarete1: 0.00,
       montototalope: parseFloat(montototaloperacion.toFixed(2)),
-      totalotrosmnoafectos: parseFloat(baseExentaFinal.toFixed(2)),
+      totalotrosmnoafectos: parseFloat(baseExentaConDescuento.toFixed(2)),
       totalapagar: parseFloat(totalFinal.toFixed(2)),
       valorletras: convertirNumeroALetras(totalFinal),
       tipocontingencia: "",
       motivocontin: "",
 
-      totalnosuj: parseFloat(baseNoSujetaNeto.toFixed(2)),
-      totalexenta: parseFloat(baseExentaFinal.toFixed(2)),
-      totalgravada: parseFloat(baseGravadaFinal.toFixed(2)),
-      subtotalventas: parseFloat(subtotalNeto.toFixed(2)), // CORREGIDO: Subtotal neto
+      totalnosuj: parseFloat(baseNoSujetaBruto.toFixed(2)),
+      totalexenta: parseFloat(baseExentaConDescuento.toFixed(2)),
+      totalgravada: parseFloat(baseGravadaNeto.toFixed(2)),
+      subtotalventas: parseFloat(subtotalNeto.toFixed(2)),
 
       descunosuj: 0.00,
       descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
@@ -1009,17 +985,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     obtenerUltimoNumeroFactura();
   }, []);
 
-  // Efecto para actualizar el monto de retención cuando cambien los items o descuentos
-  useEffect(() => {
-    if (retencionIVA.aplicar) {
-      const nuevoMonto = calcularRetencionIVA();
-      setRetencionIVA(prev => ({
-        ...prev,
-        monto: nuevoMonto
-      }));
-    }
-  }, [items, descuentoGrabadasMonto, retencionIVA.porcentaje]);
-
   useEffect(() => {
     if (showModal && modalType === "producto") {
       const fetchProductos = async () => {
@@ -1071,49 +1036,38 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     const descuentoItems = items.reduce((sum, item) => 
       sum + (item.descuento || 0), 0);
 
-    const baseGravadaNeto = items.reduce((sum, item) => 
-      sum + (item.ventaGravada || 0), 0);
-    
-    const baseExentaNeto = items.reduce((sum, item) => 
-      sum + (item.ventaExenta || 0), 0);
+    const baseGravadaBruto = items.reduce((sum, item) => 
+      sum + (item.tipo === "producto" || item.tipo === "impuestos" ? item.precioUnitario * item.cantidad : 0), 0);
 
-    const baseNoSujetaNeto = items.reduce((sum, item) => 
-      sum + (item.ventaNoSujeta || 0), 0);
+    const baseExentaBruto = items.reduce((sum, item) => 
+      sum + (item.tipo === "noAfecto" ? item.precioUnitario * item.cantidad : 0), 0);
 
-    let baseGravadaFinal = Math.max(0, baseGravadaNeto - descuentoGrabadasMonto);
-    let baseExentaFinal = Math.max(0, baseExentaNeto - descuentoExentasMonto);
+    const baseNoSujetaBruto = items.reduce((sum, item) => 
+      sum + (item.tipo === "noSuj" ? item.precioUnitario * item.cantidad : 0), 0);
+
+    const baseGravadaConDescuento = Math.max(0, baseGravadaBruto - descuentoGrabadasMonto);
+    const baseExentaConDescuento = Math.max(0, baseExentaBruto - descuentoExentasMonto);
 
     const tasaIVA = 0.13;
-    const ivaCalculado = baseGravadaFinal * tasaIVA;
-
-    // Calcular retención de IVA si aplica
-    const montoRetencionIVA = retencionIVA.aplicar ? calcularRetencionIVA() : 0;
+    const baseGravadaNeto = baseGravadaConDescuento / 1.13;
+    const ivaCalculado = baseGravadaNeto * tasaIVA;
 
     const descuentoTotal = descuentoItems + descuentoGrabadasMonto + descuentoExentasMonto;
-    const subtotalNeto = baseGravadaFinal + baseExentaFinal + baseNoSujetaNeto;
+    const subtotalNeto = baseGravadaNeto + baseExentaConDescuento + baseNoSujetaBruto;
     
-    // Restar la retención del total
-    const totalFinal = subtotalNeto + ivaCalculado - montoRetencionIVA;
-
-    // Actualizar estado de retención
-    if (retencionIVA.aplicar) {
-      setRetencionIVA(prev => ({
-        ...prev,
-        monto: montoRetencionIVA
-      }));
-    }
+    const totalFinal = subtotalNeto + ivaCalculado;
 
     setSumaopesinimpues(parseFloat(subtotalBruto.toFixed(2)));
     setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
-    setVentasgrabadas(parseFloat(baseGravadaFinal.toFixed(2)));
+    setVentasgrabadas(parseFloat(baseGravadaNeto.toFixed(2)));
     setValoriva(parseFloat(ivaCalculado.toFixed(2)));
     setTotal(parseFloat(totalFinal.toFixed(2)));
     
-    setGravadasSinDescuentoState(parseFloat(baseGravadaNeto.toFixed(2)));
-    setExentasSinDescuentoState(parseFloat(baseExentaNeto.toFixed(2)));
-    setExentasConDescuentoState(parseFloat(baseExentaFinal.toFixed(2)));
+    setGravadasSinDescuentoState(parseFloat(baseGravadaBruto.toFixed(2)));
+    setExentasSinDescuentoState(parseFloat(baseExentaBruto.toFixed(2)));
+    setExentasConDescuentoState(parseFloat(baseExentaConDescuento.toFixed(2)));
 
-  }, [items, descuentoGrabadasMonto, descuentoExentasMonto, retencionIVA.aplicar, retencionIVA.porcentaje]);
+  }, [items, descuentoGrabadasMonto, descuentoExentasMonto]);
 
   const obtenerDescripcionTributo = (codigo) => {
     const tributosMap = {
@@ -1201,28 +1155,28 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         const updatedItem = { ...item, [field]: value };
         
         if (field === "cantidad" || field === "precioUnitario") {
-          const subtotal = updatedItem.cantidad * updatedItem.precioUnitario;
+          const subtotalBruto = updatedItem.cantidad * updatedItem.precioUnitario;
           
           if (updatedItem.tipo === "producto" || updatedItem.tipo === "impuestos") {
-            const precioBrutoConDescuento = Math.max(0, updatedItem.precioUnitario - (updatedItem.valorDescuento || 0));
-            const precioNeto = precioBrutoConDescuento / 1.13;
-            updatedItem.ventaGravada = parseFloat((precioNeto * updatedItem.cantidad).toFixed(2));
-            updatedItem.descuentoGravado = parseFloat(((updatedItem.valorDescuento || 0) * updatedItem.cantidad).toFixed(2));
+            const baseGravadaConDescuento = Math.max(0, subtotalBruto - (updatedItem.descuento || 0));
+            const baseGravadaNeto = baseGravadaConDescuento / 1.13;
+            const ivaItem = baseGravadaNeto * 0.13;
+            
+            updatedItem.ventaGravada = parseFloat(baseGravadaNeto.toFixed(2));
+            updatedItem.total = parseFloat((baseGravadaNeto + ivaItem).toFixed(2));
           } 
           else if (updatedItem.tipo === "noAfecto") {
-            const precioConDescuento = Math.max(0, updatedItem.precioUnitario - (updatedItem.valorDescuento || 0));
-            updatedItem.ventaExenta = parseFloat((precioConDescuento * updatedItem.cantidad).toFixed(2));
-            updatedItem.descuentoExento = parseFloat(((updatedItem.valorDescuento || 0) * updatedItem.cantidad).toFixed(2));
+            const baseExentaConDescuento = Math.max(0, subtotalBruto - (updatedItem.descuento || 0));
+            updatedItem.ventaExenta = parseFloat(baseExentaConDescuento.toFixed(2));
+            updatedItem.total = parseFloat(baseExentaConDescuento.toFixed(2));
           }
-
           else {
-            const precioConDescuento = Math.max(0, updatedItem.precioUnitario - (updatedItem.valorDescuento || 0));
-            updatedItem.ventaNoSujeta = parseFloat((precioConDescuento * updatedItem.cantidad).toFixed(2));
-            updatedItem.descuentoNoSujeto = parseFloat(((updatedItem.valorDescuento || 0) * updatedItem.cantidad).toFixed(2));
+            const baseNoSujetaConDescuento = Math.max(0, subtotalBruto - (updatedItem.descuento || 0));
+            updatedItem.ventaNoSujeta = parseFloat(baseNoSujetaConDescuento.toFixed(2));
+            updatedItem.total = parseFloat(baseNoSujetaConDescuento.toFixed(2));
           }
           
           updatedItem.descuento = parseFloat(((updatedItem.valorDescuento || 0) * updatedItem.cantidad).toFixed(2));
-          updatedItem.total = parseFloat((subtotal - (updatedItem.descuento || 0)).toFixed(2));
         }
         
         return updatedItem;
@@ -1291,19 +1245,13 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     console.log("Tipo:", tipo);
     console.log("Datos recibidos:", {
       precioUnitario: datos.precioUnitario,
-      precioUnitarioConDescuento: datos.precioUnitarioConDescuento,
-      precioNeto: datos.precioNeto,
       descuento: datos.descuento,
       cantidad: datos.cantidad,
       ventaGravada: datos.ventaGravada,
       ventaExenta: datos.ventaExenta,
       ventaNoSujeta: datos.ventaNoSujeta,
-      descuentoGravado: datos.descuentoGravado,
-      descuentoExento: datos.descuentoExento,
-      descuentoNoSujeto: datos.descuentoNoSujeto,
       total: datos.total
     });
-    console.log("======================================");
 
     const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
 
@@ -1313,10 +1261,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       descripcion: datos.descripcion,
       cantidad: datos.cantidad,
       codigo: datos.codigo,
-      precioUnitario: datos.precioUnitario, 
-      precioUnitarioConDescuento: datos.precioUnitarioConDescuento, 
-      precioNeto: datos.precioNeto, 
-      descuento: datos.descuento, 
+      precioUnitario: datos.precioUnitario,
+      descuento: datos.descuento,
       valorDescuento: datos.valorDescuento,
       unidadMedida: datos.unidadMedida,
       tributos: datos.tributos,
@@ -1382,7 +1328,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         <header className="bg-white shadow-sm">
           <div className="flex items-center justify-between p-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Crédito Fiscal</h1>
+              <h1 className="text-2xl font-bold text-gray-800">Factura de Exportación</h1>
               <p className="text-gray-600">Sistema de facturación electrónica</p>
             </div>
             <div className="flex items-center space-x-4">
@@ -1445,7 +1391,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
               <div className="text-black mb-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-800">Detalle de Crédito</h2>
+                  <h2 className="text-xl font-semibold text-gray-800">Detalle de Exportación</h2>
                   <button
                     onClick={openModalSelector}
                     className="flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md"
@@ -1462,8 +1408,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Unidad de Medida</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Descripción</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Cantidad</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Precio</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Sub Total</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Precio Bruto</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Sub Total Bruto</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Gravado</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Exento</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Sujeto</th>
@@ -1480,13 +1426,30 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         <tr><td colSpan="14" className="px-4 py-4 text-center text-gray-500 border-b">No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.</td></tr>
                       ) : (
                         items.map((item) => {
-                          // USAR LOS VALORES DIRECTOS QUE YA VIENEN CALCULADOS DEL MODAL
-                          const subtotal = item.precioNeto * item.cantidad;
-                          const totalGravado = item.ventaGravada || 0;
-                          const totalExento = item.ventaExenta || 0;
-                          const totalNoSujeto = item.ventaNoSujeta || 0;
-                          const ivaItem = item.ventaGravada ? item.ventaGravada * 0.13 : 0;
-                          const totalItem = totalGravado + totalExento + totalNoSujeto;
+                          const subtotalBruto = item.precioUnitario * item.cantidad;
+                          
+                          const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+                          const esExento = item.tipo === "noAfecto";
+                          const esNoSujeto = item.tipo === "noSuj";
+
+                          let baseGravadaNeto = 0;
+                          let baseExenta = 0;
+                          let baseNoSujeta = 0;
+                          let ivaItem = 0;
+                          let totalItem = 0;
+
+                          if (esGravado) {
+                            const baseGravadaConDescuento = Math.max(0, subtotalBruto - (item.descuento || 0));
+                            baseGravadaNeto = baseGravadaConDescuento / 1.13;
+                            ivaItem = baseGravadaNeto * 0.13;
+                            totalItem = baseGravadaNeto + ivaItem;
+                          } else if (esExento) {
+                            baseExenta = Math.max(0, subtotalBruto - (item.descuento || 0));
+                            totalItem = baseExenta;
+                          } else if (esNoSujeto) {
+                            baseNoSujeta = Math.max(0, subtotalBruto - (item.descuento || 0));
+                            totalItem = baseNoSujeta;
+                          }
 
                           return (
                             <tr key={item.id}>
@@ -1523,7 +1486,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                                 />
                               </td>
                               <td className="px-4 py-2 font-medium border-b">
-                                {formatMoney(subtotal)}
+                                {formatMoney(subtotalBruto)}
                               </td>
                               <td className="px-4 py-2 border-b text-center">
                                 <span className="text-sm text-red-600 font-medium">
@@ -1541,13 +1504,13 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                                 </span>
                               </td>
                               <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
-                                {formatMoney(totalGravado)}
+                                {formatMoney(baseGravadaNeto)}
                               </td>
                               <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
-                                {formatMoney(totalExento)}
+                                {formatMoney(baseExenta)}
                               </td>
                               <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
-                                {formatMoney(totalNoSujeto)}
+                                {formatMoney(baseNoSujeta)}
                               </td>
                               <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
                                 {formatMoney(ivaItem)}
@@ -1576,7 +1539,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-700">Subtotal sin impuestos:</span>
+                      <span className="text-gray-700">Subtotal bruto:</span>
                       <span className="font-medium">{formatMoney(sumaopesinimpues)}</span>
                     </div>
                     
@@ -1622,47 +1585,31 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   <div className="space-y-2">
                     <div className="space-y-1 pl-4 border-l-2 border-gray-300">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Gravado:</span>
+                        <span className="text-gray-600">Gravado (neto):</span>
                         <span className="font-medium">
-                          {formatMoney(
-                            items.reduce((sum, item) => sum + (item.ventaGravada || 0), 0)
-                          )}
+                          {formatMoney(ventasgrabadas)}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Exento:</span>
+                        <span className="text-gray-600">Exento (bruto):</span>
                         <span className="font-medium">
-                          {formatMoney(
-                            items.reduce((sum, item) => sum + (item.ventaExenta || 0), 0)
-                          )}
+                          {formatMoney(exentasConDescuentoState)}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">No Sujeto:</span>
+                        <span className="text-gray-600">No Sujeto (bruto):</span>
                         <span className="font-medium">
                           {formatMoney(
-                            items.reduce((sum, item) => sum + (item.ventaNoSujeta || 0), 0)
+                            items.reduce((sum, item) => sum + (item.tipo === "noSuj" ? item.precioUnitario * item.cantidad : 0), 0)
                           )}
                         </span>
                       </div>
                     </div>
                     
                     <div className="flex justify-between">
-                      <span className="text-gray-700">IVA (13% sobre ventas gravadas):</span>
+                      <span className="text-gray-700">IVA (13% sobre ventas gravadas netas):</span>
                       <span className="font-medium text-green-600">+{formatMoney(valoriva)}</span>
                     </div>
-                    
-                    {/* Mostrar retención de IVA si aplica */}
-                    {retencionIVA.aplicar && (
-                      <div className="flex justify-between text-sm text-red-600">
-                        <span className="text-gray-600">
-                          Retención IVA ({retencionIVA.porcentaje}%):
-                        </span>
-                        <span className="font-medium">
-                          -{formatMoney(retencionIVA.monto)}
-                        </span>
-                      </div>
-                    )}
                     
                     {Object.values(tributosDetallados)
                       .filter(tributo => tributo.codigo !== "20")
@@ -1684,100 +1631,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Retención de IVA */}
-              <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-gray-50">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">Retención de IVA</h3>
-                
-                <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-6">
-                  {/* Checkbox para aplicar retención */}
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="aplicarRetencionIVA"
-                      checked={retencionIVA.aplicar}
-                      onChange={(e) => {
-                        const aplicar = e.target.checked;
-                        setRetencionIVA({
-                          aplicar,
-                          porcentaje: aplicar ? retencionIVA.porcentaje : 1,
-                          monto: aplicar ? calcularRetencionIVA() : 0
-                        });
-                      }}
-                      className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
-                    />
-                    <label htmlFor="aplicarRetencionIVA" className="ml-2 text-gray-700 font-medium">
-                      Aplicar Retención de IVA
-                    </label>
-                  </div>
-
-                  {/* Selector de porcentaje */}
-                  {retencionIVA.aplicar && (
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          id="retencion1porciento"
-                          name="porcentajeRetencion"
-                          value="1"
-                          checked={retencionIVA.porcentaje === 1}
-                          onChange={(e) => {
-                            const nuevoPorcentaje = parseInt(e.target.value);
-                            setRetencionIVA(prev => ({
-                              ...prev,
-                              porcentaje: nuevoPorcentaje,
-                              monto: calcularRetencionIVA(nuevoPorcentaje)
-                            }));
-                          }}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label htmlFor="retencion1porciento" className="ml-2 text-gray-700">
-                          1% 
-                        </label>
-                      </div>
-
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          id="retencion13porciento"
-                          name="porcentajeRetencion"
-                          value="13"
-                          checked={retencionIVA.porcentaje === 13}
-                          onChange={(e) => {
-                            const nuevoPorcentaje = parseInt(e.target.value);
-                            setRetencionIVA(prev => ({
-                              ...prev,
-                              porcentaje: nuevoPorcentaje,
-                              monto: calcularRetencionIVA(nuevoPorcentaje)
-                            }));
-                          }}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label htmlFor="retencion13porciento" className="ml-2 text-gray-700">
-                          13% 
-                        </label>
-                      </div>
-
-                      {/* Mostrar monto calculado */}
-                      <div className="ml-4">
-                        <span className="text-sm text-gray-600">Monto a retener:</span>
-                        <span className="ml-2 font-semibold text-red-600">
-                          {formatMoney(retencionIVA.monto)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {retencionIVA.aplicar && (
-                  <div className="mt-3 text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
-                    <p>
-                      <FaInfoCircle className="inline mr-1 text-blue-500" />
-                      Se aplicará retención del {retencionIVA.porcentaje}% sobre el total gravado del crédito.
-                    </p>
-                  </div>
-                )}
               </div>
 
               <FormaPago 
@@ -1814,7 +1667,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   ) : (
                     <>
                       <FaEye className="mr-2" />
-                      Guardar Crédito
+                      Guardar Exportación
                     </>
                   )}
                 </button>

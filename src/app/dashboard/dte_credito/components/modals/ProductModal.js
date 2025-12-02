@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaPlus, FaSearch, FaExclamationTriangle, FaTrash, FaPercent } from "react-icons/fa";
 
-export default function ProductModalCredito({
+export default function ProductModal({
   isOpen,
   onClose,
   onAddItem,
@@ -25,9 +25,9 @@ export default function ProductModalCredito({
   const [productosFiltrados, setProductosFiltrados] = useState([]);
   const [valorDescuento, setValorDescuento] = useState(0);
   const [descuentoAplicado, setDescuentoAplicado] = useState(0);
+  const [precioEditable, setPrecioEditable] = useState(0);
   const [errorDescuento, setErrorDescuento] = useState("");
 
-  // Función para alta precisión en cálculos
   const calcularPreciso = (operacion, decimales = 10) => {
     return parseFloat(operacion.toFixed(decimales));
   };
@@ -75,19 +75,18 @@ export default function ProductModalCredito({
   useEffect(() => {
     if (productoSeleccionado) {
       setStockDisponible(productoSeleccionado.stock || 0);
+      setPrecioEditable(parseFloat(productoSeleccionado.precio) || 0);
     } else {
       setStockDisponible(0);
     }
   }, [productoSeleccionado]);
 
-  // FUNCIÓN MODIFICADA: Ahora calcula el descuento por unidad a partir del descuento total
   const calcularPrecioConDescuento = (precioBruto, descuentoTotal, cantidad) => {
     const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(descuentoTotal / cantidad, 10) : 0;
     const precioConDescuento = Math.max(0, calcularPreciso(precioBruto - descuentoPorUnidad, 10));
     return precioConDescuento;
   };
 
-  // MODIFICADA: Ahora recibe el precio bruto con descuento aplicado
   const calcularPrecioNetoEIVA = (precioBrutoConDescuento) => {
     const precioNeto = calcularPreciso(precioBrutoConDescuento / 1.13, 10);
     const iva = calcularPreciso(precioBrutoConDescuento - precioNeto, 10);
@@ -116,7 +115,7 @@ export default function ProductModalCredito({
       const ivaExiste = tributos.some(t => t.codigo === "20");
       
       if (!ivaExiste && productoSeleccionado) {
-        const precioBruto = parseFloat(productoSeleccionado.precio) || 0;
+        const precioBruto = precioEditable;
         const precioBrutoConDescuento = calcularPrecioConDescuento(precioBruto, valorDescuento, cantidad);
         const { neto: precioNeto } = calcularPrecioNetoEIVA(precioBrutoConDescuento);
         const subtotalNeto = calcularPreciso(cantidad * precioNeto, 10);
@@ -133,11 +132,11 @@ export default function ProductModalCredito({
     } else {
       setTributos(tributos.filter(t => t.codigo !== "20"));
     }
-  }, [tipoVenta, productoSeleccionado, cantidad, valorDescuento]);
+  }, [tipoVenta, productoSeleccionado, cantidad, valorDescuento, precioEditable]);
 
   useEffect(() => {
     if (productoSeleccionado && tributos.length > 0) {
-      const precioBruto = parseFloat(productoSeleccionado.precio) || 0;
+      const precioBruto = precioEditable;
       const precioBrutoConDescuento = calcularPrecioConDescuento(precioBruto, valorDescuento, cantidad);
       const { neto: precioNeto } = calcularPrecioNetoEIVA(precioBrutoConDescuento);
       const subtotalNeto = calcularPreciso(cantidad * precioNeto, 10);
@@ -149,7 +148,7 @@ export default function ProductModalCredito({
       
       setTributos(tributosActualizados);
     }
-  }, [valorDescuento, cantidad, productoSeleccionado]);
+  }, [valorDescuento, cantidad, productoSeleccionado, precioEditable]);
   
   const validarDescuento = (valorDescuento, productoSeleccionado, cantidad) => {
     if (!productoSeleccionado) {
@@ -157,7 +156,7 @@ export default function ProductModalCredito({
       return true;
     }
   
-    const subtotalBruto = calcularPreciso((parseFloat(productoSeleccionado.precio) || 0) * cantidad, 10);
+    const subtotalBruto = calcularPreciso(precioEditable * cantidad, 10);
     const descuento = parseFloat(valorDescuento) || 0;
   
     if (descuento > subtotalBruto) {
@@ -175,7 +174,7 @@ export default function ProductModalCredito({
       return;
     }
   
-    const subtotalBruto = calcularPreciso((parseFloat(producto.precio) || 0) * cant, 10);
+    const subtotalBruto = calcularPreciso(precioEditable * cant, 10);
     const descuento = parseFloat(valor) || 0;
     
     if (descuento > subtotalBruto) {
@@ -204,7 +203,7 @@ export default function ProductModalCredito({
       setDescuentoAplicado(0);
       setErrorDescuento("");
     }
-  }, [valorDescuento, productoSeleccionado, cantidad]);
+  }, [valorDescuento, productoSeleccionado, cantidad, precioEditable]);
 
   const limpiarFormulario = () => {
     setProductoSeleccionado(null);
@@ -217,6 +216,7 @@ export default function ProductModalCredito({
     setTributos([]);
     setValorDescuento(0);
     setDescuentoAplicado(0);
+    setPrecioEditable(0);
     setErrorDescuento("");
   };
 
@@ -301,7 +301,7 @@ export default function ProductModalCredito({
       return;
     }
     
-    const precioBruto = parseFloat(productoSeleccionado.precio) || 0;
+    const precioBruto = precioEditable;
     const precioBrutoConDescuento = calcularPrecioConDescuento(precioBruto, valorDescuento, cantidad);
     const { neto: precioNeto } = calcularPrecioNetoEIVA(precioBrutoConDescuento);
     const subtotalNeto = calcularPreciso(cantidad * precioNeto, 10);
@@ -334,7 +334,7 @@ export default function ProductModalCredito({
 const calcularTotal = () => {
   if (!productoSeleccionado) return 0;
   
-  const precioBruto = parseFloat(productoSeleccionado.precio) || 0;
+  const precioBruto = precioEditable;
   const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(valorDescuento / cantidad, 10) : 0;
   const precioBrutoConDescuento = calcularPreciso(precioBruto - descuentoPorUnidad, 10);
   
@@ -353,7 +353,7 @@ const calcularTotal = () => {
       return {
         unitario: { neto: 0, iva: 0, bruto: 0, brutoOriginal: 0, descuento: 0, descuentoTotal: 0 },
         subtotal: { neto: 0, iva: 0, bruto: 0, brutoOriginal: 0, descuento: 0 }
-      };
+      }; 
     }
     
     const precioBrutoOriginal = parseFloat(productoSeleccionado.precio) || 0;
@@ -386,7 +386,7 @@ const calcularTotal = () => {
       return;
     }
 
-    if (!validarDescuento(valorDescuento, productoSeleccionado, cantidad)) {
+    if (!validarDescuento(valorDescuento, productoSeleccionado, cantidad, precioEditable)) {
       alert("El descuento no puede ser mayor al precio del item");
       return;
     }
@@ -424,7 +424,7 @@ const calcularTotal = () => {
     const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
     
-    const precioBrutoOriginal = parseFloat(productoSeleccionado.precio);
+    const precioBrutoOriginal = precioEditable;
     const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(valorDescuento / cantidad, 10) : 0;
     const precioBrutoConDescuento = calcularPreciso(precioBrutoOriginal - descuentoPorUnidad, 10);
 
@@ -614,13 +614,24 @@ const calcularTotal = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Precio Original</label>
-                <input
-                  type="text"
-                  readOnly
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={productoSeleccionado ? `$${mostrarDecimales(productoSeleccionado.precio)}` : "$0.00"}
-                />
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Precio</label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-100 text-gray-500">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="flex-1 min-w-0 rounded-r-lg border border-gray-300 p-3 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                    value={precioEditable}
+                    onChange={(e) => setPrecioEditable(parseFloat(e.target.value) || 0)}
+                    disabled={!productoSeleccionado}
+                  />
+                </div>
+                {productoSeleccionado && (
+                  <p className="text-xs text-gray-500 mt-1">Precio original: {formatMoney(productoSeleccionado.precio)}</p>
+                )}
               </div>
 
               <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">

@@ -25,6 +25,7 @@ export default function ProductModal({
   const [productosFiltrados, setProductosFiltrados] = useState([]);
   const [valorDescuento, setValorDescuento] = useState(0);
   const [descuentoAplicado, setDescuentoAplicado] = useState(0);
+  const [precioEditable, setPrecioEditable] = useState(0);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -64,15 +65,15 @@ export default function ProductModal({
   useEffect(() => {
     if (productoSeleccionado) {
       setStockDisponible(productoSeleccionado.stock || 0);
+      setPrecioEditable(parseFloat(productoSeleccionado.precio) || 0);
     } else {
       setStockDisponible(0);
     }
   }, [productoSeleccionado]);
 
   useEffect(() => {
-    // CORRECCIÓN: Para sujeto excluido, eliminar cualquier tributo IVA si existe
     setTributos(tributos.filter(t => t.codigo !== "20"));
-  }, [tipoVenta, productoSeleccionado, cantidad, descuentoAplicado]);
+  }, [tipoVenta, productoSeleccionado, cantidad, descuentoAplicado, precioEditable]);
 
   useEffect(() => {
     if (productoSeleccionado) {
@@ -80,7 +81,7 @@ export default function ProductModal({
     } else {
       setDescuentoAplicado(0);
     }
-  }, [valorDescuento, productoSeleccionado, cantidad]);
+  }, [valorDescuento, productoSeleccionado, cantidad, precioEditable]);
 
   const limpiarFormulario = () => {
     setProductoSeleccionado(null);
@@ -93,6 +94,7 @@ export default function ProductModal({
     setTributos([]);
     setValorDescuento(0);
     setDescuentoAplicado(0);
+    setPrecioEditable(0);
   };
 
   useEffect(() => {
@@ -171,7 +173,7 @@ export default function ProductModal({
       return;
     }
 
-    const precio = parseFloat(productoSeleccionado.precio) || 0;
+    const precio = precioEditable;
     const subtotalSinDescuento = cantidad * precio;
     const descuento = parseFloat(valorDescuento) || 0;
     const descuentoFinal = Math.min(descuento, subtotalSinDescuento);
@@ -182,13 +184,12 @@ export default function ProductModal({
   const agregarTributo = () => {
     if (!productoSeleccionado) return;
     
-    // CORRECCIÓN: Para sujeto excluido, no permitir IVA en ningún caso
     if (impuestoSeleccionado === "20") {
       alert("No puede agregar IVA en documentos de sujeto excluido");
       return;
     }
     
-    const precio = parseFloat(productoSeleccionado.precio) || 0;
+    const precio = precioEditable;
     const subtotalSinDescuento = cantidad * precio;
     const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
     const valorImpuesto = calcularValorImpuesto(impuestoSeleccionado, subtotalConDescuento);
@@ -209,19 +210,16 @@ export default function ProductModal({
   };
 
   const eliminarTributo = (codigo) => {
-    // CORRECCIÓN: Para sujeto excluido, permitir eliminar cualquier tributo
     setTributos(tributos.filter(t => t.codigo !== codigo));
   };
 
   const calcularTotal = () => {
     if (!productoSeleccionado) return 0;
     
-    const precio = parseFloat(productoSeleccionado.precio) || 0;
+    const precio = precioEditable;
     const subtotalSinDescuento = cantidad * precio;
     const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
     
-    // CORRECCIÓN: Para sujeto excluido, no hay IVA en ningún caso
-    // Solo se aplican otros tributos específicos si existen
     const totalImpuestos = tributos.reduce((sum, tributo) => sum + tributo.valor, 0);
     
     return Math.max(0, subtotalConDescuento + totalImpuestos);
@@ -263,16 +261,10 @@ export default function ProductModal({
     const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
     
-    let precioUnitario;
-    if (tipoVenta === "2") {
-      precioUnitario = parseFloat(productoSeleccionado.precio);
-    } else {
-      precioUnitario = parseFloat(productoSeleccionado.precio);
-    }
+    const precioUnitario = precioEditable;
 
     const total = calcularTotal();
     
-    // CORRECCIÓN: Distribuir correctamente los descuentos según el tipo
     let descuentoExento = 0;
     let descuentoNoSujeto = 0;
     
@@ -288,7 +280,6 @@ export default function ProductModal({
       precioUnitario: precioUnitario,
       descuento: descuentoAplicado,
       valorDescuento: valorDescuento,
-      // CORRECCIÓN: Agregar campos de descuento distribuido
       descuentoExento: descuentoExento,
       descuentoNoSujeto: descuentoNoSujeto,
       unidadMedida: productoSeleccionado.unidad || "59",
@@ -315,10 +306,7 @@ export default function ProductModal({
   if (!isOpen) return null;
 
   const subtotalSinDescuento = productoSeleccionado ? 
-    (tipoVenta === "2" 
-      ? cantidad * (parseFloat(productoSeleccionado.precio))
-      : cantidad * parseFloat(productoSeleccionado.precio)
-    ) || 0 : 0;
+    (cantidad * precioEditable) : 0;
 
   const subtotalConDescuento = Math.max(0, subtotalSinDescuento - descuentoAplicado);
   const total = calcularTotal();
@@ -443,20 +431,25 @@ export default function ProductModal({
 
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Precio</label>
-                <input
-                  type="text"
-                  readOnly
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={productoSeleccionado ? `$${parseFloat(productoSeleccionado.precio).toFixed(2)}` : "$0.00"}
-                />
-                {esExento && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    Precio sin IVA: ${productoSeleccionado ? (parseFloat(productoSeleccionado.precio)).toFixed(2) : "0.00"}
-                  </p>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-100 text-gray-500">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="flex-1 min-w-0 rounded-r-lg border border-gray-300 p-3 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                    value={precioEditable}
+                    onChange={(e) => setPrecioEditable(parseFloat(e.target.value) || 0)}
+                    disabled={!productoSeleccionado}
+                  />
+                </div>
+                {productoSeleccionado && (
+                  <p className="text-xs text-gray-500 mt-1">Precio original: ${parseFloat(productoSeleccionado.precio).toFixed(2)}</p>
                 )}
               </div>
 
-              {/* SECCIÓN DE DESCUENTO SIMPLIFICADA */}
               <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <FaPercent className="mr-2 text-gray-600" />
@@ -649,7 +642,6 @@ export default function ProductModal({
             <div className="space-y-5">
               <div className="border-b border-gray-200 pb-2">
                 <h3 className="font-semibold text-gray-900 text-lg">Información de tributos</h3>
-                {/* CORRECCIÓN: Mensaje específico para sujeto excluido */}
                 <p className="text-xs text-red-600 mt-1">
                   Documento de Sujeto Excluido - No se permite IVA
                 </p>
@@ -663,7 +655,6 @@ export default function ProductModal({
                     value={impuestoSeleccionado}
                     onChange={(e) => setImpuestoSeleccionado(e.target.value)}
                   >
-                    {/* CORRECCIÓN: Eliminar la opción de IVA */}
                     <option value="59">59 - Turismo: por alojamiento (5%)</option>
                     <option value="71">71 - Turismo: salida del país por vía aérea $7.00</option>
                     <option value="D1">D1 - FOVIAL ($0.20 Ctvs. por galón)</option>
@@ -735,8 +726,7 @@ export default function ProductModal({
                   <div className="flex justify-between py-3 border-t border-gray-300 mt-2">
                     <span className="text-lg font-semibold text-gray-900">Total:</span>
                     <span className="text-xl font-bold text-blue-700">${total.toFixed(2)}</span>
-                  </div>
-                  {/* CORRECCIÓN: Mensaje específico para sujeto excluido */}
+                  </div>                  
                   <div className="text-xs text-blue-600 mt-2 text-center">
                     * Documento de Sujeto Excluido - Sin IVA
                   </div>

@@ -20,6 +20,15 @@ export default function EditClientModal({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [errors, setErrors] = useState({});
 
+  const paises = [
+    { codigo: "SV", nombre: "El Salvador" },
+    { codigo: "US", nombre: "Estados Unidos" },
+    { codigo: "GT", nombre: "Guatemala" },
+    { codigo: "HN", nombre: "Honduras" },
+    { codigo: "NI", nombre: "Nicaragua" },
+    { codigo: "CR", nombre: "Costa Rica" },
+  ];
+
   if (!show) return null;
 
   const validateEmail = (email) => {
@@ -116,16 +125,22 @@ export default function EditClientModal({
     }
 
     // Validación de dirección
-    if (!formData.departamento.trim()) {
-      newErrors.departamento = "El departamento es obligatorio.";
-    }
-    if (!formData.municipio.trim()) {
-      newErrors.municipio = "El municipio es obligatorio.";
+    if (formData.pais === "SV") {
+      if (!formData.departamento.trim()) {
+        newErrors.departamento = "El departamento es obligatorio.";
+      }
+      if (!formData.municipio.trim()) {
+        newErrors.municipio = "El municipio es obligatorio.";
+      }
     }
     if (!formData.complemento.trim()) {
       newErrors.complemento = "La dirección es obligatoria.";
     } else if (formData.complemento.length > LIMITES.COMPLEMENTO) {
       newErrors.complemento = `La dirección no puede exceder los ${LIMITES.COMPLEMENTO} caracteres.`;
+    }
+
+    if (!formData.pais) {
+      newErrors.pais = "El país es obligatorio.";
     }
 
     // Validación de actividad económica solo para jurídicas
@@ -142,7 +157,10 @@ export default function EditClientModal({
     
     const formDataToSend = {
       ...formData,
-      nit: formData.nit ? formData.nit.replace(/-/g, '') : formData.nit
+      nit: formData.nit ? formData.nit.replace(/-/g, '') : formData.nit,
+      correo: formData.correo || null,
+      correo2: formData.correo2 || null,
+      correo3: formData.correo3 || null,
     };
     
     if (validateForm()) {
@@ -530,10 +548,45 @@ export default function EditClientModal({
           </div>
 
           {/* Dirección */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              País
+            </label>
+            <select
+              value={formData.pais}
+              onChange={(e) => {
+                const selectedPais = paises.find(p => p.codigo === e.target.value);
+                const newState = {
+                  ...formData,
+                  pais: selectedPais ? selectedPais.codigo : "",
+                  nombre_pais: selectedPais ? selectedPais.nombre : "",
+                };
+                // Si el país no es El Salvador, limpiar depto y municipio
+                if (selectedPais?.codigo !== "SV") {
+                  newState.departamento = "";
+                  newState.municipio = "";
+                }
+                setFormData(newState);
+                setErrors({ ...errors, pais: undefined });
+              }}
+              className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                errors.pais ? "border-red-500" : "border-gray-300"
+              }`}
+              required
+            >
+              <option value="">Seleccione un País</option>
+              {paises.map((pais) => (
+                <option key={pais.codigo} value={pais.codigo}>
+                  {pais.nombre}
+                </option>
+              ))}
+            </select>
+            {errors.pais && <p className="text-red-500 text-xs mt-1">{errors.pais}</p>}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Departamento
+                Departamento {formData.pais !== "SV" && "(Solo para El Salvador)"}
               </label>
               <select
                 value={formData.departamento}
@@ -548,7 +601,8 @@ export default function EditClientModal({
                 className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
                   errors.departamento ? "border-red-500" : "border-gray-300"
                 }`}
-                required
+                required={formData.pais === "SV"}
+                disabled={formData.pais !== "SV"}
               >
                 <option value="">Seleccione un Departamento</option>
                 {departamentos.map((dep) => (
@@ -562,7 +616,7 @@ export default function EditClientModal({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Municipio
+                Municipio {formData.pais !== "SV" && "(Solo para El Salvador)"}
               </label>
               <select
                 value={formData.municipio}
@@ -573,8 +627,8 @@ export default function EditClientModal({
                 className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
                   errors.municipio ? "border-red-500" : "border-gray-300"
                 }`}
-                required
-                disabled={!formData.departamento}
+                required={formData.pais === "SV"}
+                disabled={!formData.departamento || formData.pais !== "SV"}
               >
                 <option value="">Seleccione un Municipio</option>
                 {municipios

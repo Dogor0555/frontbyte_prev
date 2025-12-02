@@ -88,6 +88,13 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [emisorNombre, setEmisorNombre] = useState("");
   const [tributosDetallados, setTributosDetallados] = useState({});
 
+  // Nuevo estado para retención de IVA
+  const [retencionIVA, setRetencionIVA] = useState({
+    aplicar: false,
+    porcentaje: 1, // 1% o 13%
+    monto: 0
+  });
+
   // Nuevos estados para el MensajeModal
   const [mostrarMensaje, setMostrarMensaje] = useState(false);
   const [mensajeConfig, setMensajeConfig] = useState({
@@ -451,6 +458,11 @@ const descargarTicketFactura = async (idFactura) => {
     setDescuentoGrabadasMonto(0);
     setDescuentoExentasMonto(0);
     setFormasPago([]);
+    setRetencionIVA({
+      aplicar: false,
+      porcentaje: 1,
+      monto: 0
+    });
     obtenerUltimoNumeroFactura();
   };
 
@@ -479,6 +491,11 @@ const descargarTicketFactura = async (idFactura) => {
     setExentasSinDescuentoState(0);
     setCondicionPago("Contado");
     setFormasPago([]);
+    setRetencionIVA({
+      aplicar: false,
+      porcentaje: 1,
+      monto: 0
+    });
     setDatosEntrega({
       emisorDocumento: "",
       emisorNombre: "",
@@ -857,6 +874,7 @@ const descargarTicketFactura = async (idFactura) => {
       valoriva: parseFloat(ivaIncluido.toFixed(2)), 
       subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
       ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
+      ivarete1: retencionIVA.aplicar ? parseFloat(retencionIVA.monto.toFixed(2)) : 0.00, // RETENCIÓN IVA
       montototalope: parseFloat(subtotal - totaldescuento).toFixed(2),
       totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
       totalapagar: parseFloat(totalPagar.toFixed(2)),
@@ -880,7 +898,6 @@ const descargarTicketFactura = async (idFactura) => {
       valort: 0.00,
 
       ivaperci1: parseFloat(ivaIncluido.toFixed(2)),
-      ivarete1: 0.00,
       reterenta: 0.00,
 
       montototaloperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
@@ -954,6 +971,26 @@ const descargarTicketFactura = async (idFactura) => {
     const textoDecimales = `${decimales.toString().padStart(2, "0")}/100`;
 
     return `${textoEntero} CON ${textoDecimales} DÓLARES`;
+  };
+
+  // Función para calcular la retención de IVA
+  const calcularRetencionIVA = (porcentaje = null) => {
+    const porc = porcentaje !== null ? porcentaje : retencionIVA.porcentaje;
+    
+    // Calcular base gravada después de descuentos
+    const gravadasBase = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const descuentoGravadasItems = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.descuento || 0), 0);
+    
+    const gravadasConDescuento = gravadasBase - descuentoGravadasItems - descuentoGrabadasMonto;
+    
+    // Calcular retención
+    const montoRetencion = (gravadasConDescuento * porc) / 100;
+    return parseFloat(montoRetencion.toFixed(2));
   };
 
   useEffect(() => {
@@ -1092,20 +1129,44 @@ const descargarTicketFactura = async (idFactura) => {
     const ivaIncluido = gravadasConDescuento > 0 ? 
       (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
 
-    // CORRECCIÓN: Incluir los no sujetos en el total
-    const total = gravadasConDescuento + exentasConDescuento + noSujetasConDescuento;
+    // Calcular retención de IVA si aplica
+    const montoRetencionIVA = retencionIVA.aplicar ? calcularRetencionIVA() : 0;
+
+    // CORRECCIÓN: Incluir los no sujetos en el total y restar la retención si aplica
+    const totalBase = gravadasConDescuento + exentasConDescuento + noSujetasConDescuento;
+    const totalConRetencion = retencionIVA.aplicar 
+      ? totalBase - montoRetencionIVA 
+      : totalBase;
+
+    // Actualizar estado de retención
+    if (retencionIVA.aplicar) {
+      setRetencionIVA(prev => ({
+        ...prev,
+        monto: montoRetencionIVA
+      }));
+    }
 
     setSumaopesinimpues(parseFloat(suma.toFixed(2)));
     setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
     setVentasgrabadas(parseFloat(gravadasConDescuento.toFixed(2)));
     setValoriva(parseFloat(ivaIncluido.toFixed(2))); 
-    setTotal(parseFloat(total.toFixed(2)));
+    setTotal(parseFloat(totalConRetencion.toFixed(2)));
     
     setGravadasSinDescuentoState(parseFloat(gravadasBase.toFixed(2)));
     setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
     setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
-  }, [items, descuentoGrabadasMonto, descuentoExentasMonto]);
+  }, [items, descuentoGrabadasMonto, descuentoExentasMonto, retencionIVA.aplicar, retencionIVA.porcentaje]);
 
+  // Efecto para actualizar el monto de retención cuando cambien los items o descuentos
+  useEffect(() => {
+    if (retencionIVA.aplicar) {
+      const nuevoMonto = calcularRetencionIVA();
+      setRetencionIVA(prev => ({
+        ...prev,
+        monto: nuevoMonto
+      }));
+    }
+  }, [items, descuentoGrabadasMonto, retencionIVA.porcentaje]);
 
   const obtenerDescripcionTributo = (codigo) => {
     const tributosMap = {
@@ -1636,6 +1697,18 @@ const descargarTicketFactura = async (idFactura) => {
                       ))
                     }
                     
+                    {/* Mostrar retención de IVA si aplica */}
+                    {retencionIVA.aplicar && (
+                      <div className="flex justify-between text-sm text-red-600">
+                        <span className="text-gray-600">
+                          Retención IVA ({retencionIVA.porcentaje}%):
+                        </span>
+                        <span className="font-medium">
+                          -{formatMoney(retencionIVA.monto)}
+                        </span>
+                      </div>
+                    )}
+                    
                     <div className="flex justify-between pt-2 border-t border-gray-300">
                       <span className="text-gray-900 font-bold text-lg">Total a pagar:</span>
                       <span className="text-blue-800 font-bold text-lg">{formatMoney(total)}</span>
@@ -1644,39 +1717,99 @@ const descargarTicketFactura = async (idFactura) => {
                 </div>
               </div>
 
-              {/* Botón Agregar Descuentos */}
-              {/* <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Descuentos</h3>
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={() => setShowDiscountModal(true)}
-                    className="flex items-center bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
-                  >
-                    <FaTags className="mr-2" />
-                    Agregar Descuentos
-                  </button>
-                  
-                  {(descuentoGrabadasMonto > 0 || descuentoExentasMonto > 0) && (
-                    <button 
-                      onClick={() => {
-                        setDescuentoGrabadasMonto(0);
-                        setDescuentoExentasMonto(0);
-                      }}
-                      className="flex items-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
-                    >
-                      <FaTimes className="mr-2" />
-                      Eliminar Descuentos
-                    </button>
-                  )}
-                </div> 
+              {/* Retención de IVA */}
+              <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-gray-50">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Retención de IVA</h3>
                 
-                {(descuentoGrabadasMonto > 0 || descuentoExentasMonto > 0) && (
-                  <div className="mt-2 text-sm text-gray-600">
-                    {descuentoGrabadasMonto > 0 && <p>Descuento ventas gravadas: {formatMoney(descuentoGrabadasMonto)}</p>}
-                    {descuentoExentasMonto > 0 && <p>Descuento ventas exentas: {formatMoney(descuentoExentasMonto)}</p>}
+                <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-6">
+                  {/* Checkbox para aplicar retención */}
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="aplicarRetencionIVA"
+                      checked={retencionIVA.aplicar}
+                      onChange={(e) => {
+                        const aplicar = e.target.checked;
+                        setRetencionIVA({
+                          aplicar,
+                          porcentaje: aplicar ? retencionIVA.porcentaje : 1,
+                          monto: aplicar ? calcularRetencionIVA() : 0
+                        });
+                      }}
+                      className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="aplicarRetencionIVA" className="ml-2 text-gray-700 font-medium">
+                      Aplicar Retención de IVA
+                    </label>
+                  </div>
+
+                  {/* Selector de porcentaje */}
+                  {retencionIVA.aplicar && (
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          id="retencion1porciento"
+                          name="porcentajeRetencion"
+                          value="1"
+                          checked={retencionIVA.porcentaje === 1}
+                          onChange={(e) => {
+                            const nuevoPorcentaje = parseInt(e.target.value);
+                            setRetencionIVA(prev => ({
+                              ...prev,
+                              porcentaje: nuevoPorcentaje,
+                              monto: calcularRetencionIVA(nuevoPorcentaje)
+                            }));
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="retencion1porciento" className="ml-2 text-gray-700">
+                          1%
+                        </label>
+                      </div>
+
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          id="retencion13porciento"
+                          name="porcentajeRetencion"
+                          value="13"
+                          checked={retencionIVA.porcentaje === 13}
+                          onChange={(e) => {
+                            const nuevoPorcentaje = parseInt(e.target.value);
+                            setRetencionIVA(prev => ({
+                              ...prev,
+                              porcentaje: nuevoPorcentaje,
+                              monto: calcularRetencionIVA(nuevoPorcentaje)
+                            }));
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="retencion13porciento" className="ml-2 text-gray-700">
+                          13% 
+                        </label>
+                      </div>
+
+                      {/* Mostrar monto calculado */}
+                      <div className="ml-4">
+                        <span className="text-sm text-gray-600">Monto a retener:</span>
+                        <span className="ml-2 font-semibold text-red-600">
+                          {formatMoney(retencionIVA.monto)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {retencionIVA.aplicar && (
+                  <div className="mt-3 text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+                    <p>
+                      <FaInfoCircle className="inline mr-1 text-blue-500" />
+                      Se aplicará retención del {retencionIVA.porcentaje}% sobre el total gravado de la factura.
+                    </p>
                   </div>
                 )}
-              </div> */}
+              </div>
 
               <FormaPago 
                 condicionPago={condicionPago}

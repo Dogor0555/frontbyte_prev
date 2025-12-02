@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Select from "react-select";
 import { FaTimes } from "react-icons/fa";
 import CancelConfirmModal from "./CancelConfirmModal";
@@ -19,6 +19,27 @@ export default function AddClientModal({
 }) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [errors, setErrors] = useState({});
+
+  const paises = [
+    { codigo: "SV", nombre: "El Salvador" },
+    { codigo: "US", nombre: "Estados Unidos" },
+    { codigo: "GT", nombre: "Guatemala" },
+    { codigo: "HN", nombre: "Honduras" },
+    { codigo: "NI", nombre: "Nicaragua" },
+    { codigo: "CR", nombre: "Costa Rica" },
+  ];
+
+  useEffect(() => {
+    // Establecer "El Salvador" como país por defecto si no hay uno seleccionado
+    if (show && !formData.pais) {
+      setFormData((prev) => ({
+        ...prev,
+        pais: "SV",
+        nombre_pais: "El Salvador",
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show]);
 
   if (!show) return null;
 
@@ -119,6 +140,10 @@ export default function AddClientModal({
       newErrors.complemento = `La dirección no puede exceder los ${LIMITES.COMPLEMENTO} caracteres.`;
     }
 
+    if (!formData.pais) {
+      newErrors.pais = "El país es obligatorio.";
+    }
+
     if (!formData.personanatural && !formData.codactividad) {
       newErrors.codactividad = "El código de actividad es obligatorio para personas jurídicas.";
     }
@@ -130,8 +155,15 @@ export default function AddClientModal({
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    const formDataToSend = {
+      ...formData,
+      correo: formData.correo || null,
+      correo2: formData.correo2 || null,
+      correo3: formData.correo3 || null,
+    };
+
     if (validateForm()) {
-      onSave(e);
+      onSave(e, formDataToSend);
     }
   };
 
@@ -510,6 +542,41 @@ export default function AddClientModal({
           </div>
 
           {/* Dirección */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              País
+            </label>
+            <select
+              value={formData.pais}
+              onChange={(e) => {
+                const selectedPais = paises.find(p => p.codigo === e.target.value);
+                const newState = {
+                  ...formData,
+                  pais: selectedPais ? selectedPais.codigo : "",
+                  nombre_pais: selectedPais ? selectedPais.nombre : "",
+                };
+                // Si el país no es El Salvador, limpiar depto y municipio
+                if (selectedPais?.codigo !== "SV") {
+                  newState.departamento = "";
+                  newState.municipio = "";
+                }
+                setFormData(newState);
+                setErrors({ ...errors, pais: undefined });
+              }}
+              className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                errors.pais ? "border-red-500" : "border-gray-300"
+              }`}
+              required
+            >
+              <option value="">Seleccione un País</option>
+              {paises.map((pais) => (
+                <option key={pais.codigo} value={pais.codigo}>
+                  {pais.nombre}
+                </option>
+              ))}
+            </select>
+            {errors.pais && <p className="text-red-500 text-xs mt-1">{errors.pais}</p>}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -529,6 +596,7 @@ export default function AddClientModal({
                   errors.departamento ? "border-red-500" : "border-gray-300"
                 }`}
                 required
+                disabled={formData.pais !== "SV"}
               >
                 <option value="">Seleccione un Departamento</option>
                 {departamentos.map((dep) => (
@@ -554,7 +622,7 @@ export default function AddClientModal({
                   errors.municipio ? "border-red-500" : "border-gray-300"
                 }`}
                 required
-                disabled={!formData.departamento}
+                disabled={!formData.departamento || formData.pais !== "SV"}
               >
                 <option value="">Seleccione un Municipio</option>
                 {municipios

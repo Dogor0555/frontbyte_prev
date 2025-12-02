@@ -78,18 +78,11 @@ export default function CreditoDetallePage() {
         throw new Error("El crédito no tiene documento firmado");
       }
 
-      const pdfResponse = await fetch("http://localhost:3000/api/generar-pdf/credito", {
-        method: "POST",
+      const pdfResponse = await fetch(`http://localhost:3000/facturas/${numeroCredito}/descargar-pdf?code=VERIFICATION_CODE`, {
+        credentials: "include",
         headers: {
-          "Content-Type": "application/json",
           'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          token: creditoData.factura.documentofirmado,
-          tipo: "credito",
-          creditoId: creditoData.factura.iddtefactura
-        }),
-        credentials: "include"
+        }
       });
 
       if (!pdfResponse.ok) throw new Error("Error al generar PDF");
@@ -99,7 +92,7 @@ export default function CreditoDetallePage() {
       
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = `CRD-${creditoData.factura.numerofacturausuario || '0000'}.pdf`;
+      link.download = `${creditoData.factura.ncontrol || `credito-${numeroCredito}`}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

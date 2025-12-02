@@ -150,6 +150,12 @@ export default function Sidebar({ onOpenPerfil }) {
           href: "/dashboard/sujeto_excluido",
           permiso: "DTE Sujeto Excluido" 
         },
+        { 
+          name: "DTE Exportación", 
+          icon: <FaFileExport />, 
+          href: "/dashboard/dte_exportacion",
+          permiso: "DTE Exportación" 
+        },
       ],
       menuKey: "dtes",
       permiso: "DTES"
