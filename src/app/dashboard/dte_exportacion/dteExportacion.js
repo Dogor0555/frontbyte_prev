@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner, FaEye } from "react-icons/fa";
+import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner, FaEye, FaGlobe } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
@@ -19,6 +19,20 @@ import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal"
 import MensajeModal from "./components/MensajeModal";
 import { useReactToPrint } from 'react-to-print';
 import Handlebars from 'handlebars';
+
+const INCOTERMS_OPTIONS = [
+  { codigo: "01", descripcion: "EXW - En fábrica" },
+  { codigo: "02", descripcion: "FCA - Libre transportista" },
+  { codigo: "03", descripcion: "CPT - Transporte pagado hasta" },
+  { codigo: "04", descripcion: "CIP - Transporte y seguro pagado hasta" },
+  { codigo: "05", descripcion: "DAP - Entrega en el lugar" },
+  { codigo: "06", descripcion: "DPU - Entregado en el lugar descargado" },
+  { codigo: "07", descripcion: "DDP - Entrega con impuestos pagados" },
+  { codigo: "08", descripcion: "FAS - Libre al costado del buque" },
+  { codigo: "09", descripcion: "FOB - Libre a bordo" },
+  { codigo: "10", descripcion: "CFR - Costo y flete" },
+  { codigo: "11", descripcion: "CIF - Costo, seguro y flete" }
+];
 
 export default function ExportacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
   const [cliente, setCliente] = useState(null);
@@ -83,7 +97,6 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
   const [errorValidacion, setErrorValidacion] = useState("");
   const [emisorDocumento, setEmisorDocumento] = useState("");
   const [emisorNombre, setEmisorNombre] = useState("");
-  const [tributosDetallados, setTributosDetallados] = useState({});
   
   const [mostrarMensaje, setMostrarMensaje] = useState(false);
   const [mensajeConfig, setMensajeConfig] = useState({
@@ -100,6 +113,10 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [template, setTemplate] = useState(null);
+
+  const [codIncoterms, setCodIncoterms] = useState("");
+  const [descIncoterms, setDescIncoterms] = useState("");
+  const [flete, setFlete] = useState(0);
 
   const [unidades, setUnidades] = useState([
     { codigo: "1", nombre: "metro" },
@@ -144,12 +161,10 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
   ]);
 
   const calcularPrecioBrutoDesdeNeto = (precioNeto) => {
-    const precioBruto = precioNeto * 1.13;
-    const iva = precioBruto - precioNeto;
     return {
       neto: parseFloat(precioNeto.toFixed(2)),
-      iva: parseFloat(iva.toFixed(2)),
-      bruto: parseFloat(precioBruto.toFixed(2))
+      iva: 0,
+      bruto: parseFloat(precioNeto.toFixed(2))
     };
   };
 
@@ -310,6 +325,8 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
       }
       
       console.log("Enviando encabezado:", datosFactura);
+      console.log("====== INICIO REQUEST GUARDAR EXPORTACIÓN (JSON) ======");
+      console.log(JSON.stringify(datosFactura, null, 2));
       
       const responseEncabezado = await fetch("http://localhost:3000/exportacion/encabezado", {
         method: "POST",
@@ -433,6 +450,10 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
     setDescuentoGrabadasMonto(0);
     setDescuentoExentasMonto(0);
     setFormasPago([]);
+    // Resetear Incoterms
+    setCodIncoterms("");
+    setFlete(0);
+    setDescIncoterms("");
     obtenerUltimoNumeroFactura();
   };
 
@@ -468,6 +489,10 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
       receptorNombre: ""
     });
     
+    setCodIncoterms("");
+    setFlete(0);
+    setDescIncoterms("");
+    
     const nextMonth = new Date();
     nextMonth.setDate(nextMonth.getDate() + 30);
     setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
@@ -478,7 +503,6 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
     setShowClientList(false);
     setShowClientDetails(false);
     setSearchTerm("");
-    setTributosDetallados({});
     
     setActividadEconomicaCliente("");
     setActividadesEconomicasCliente([]);
@@ -587,37 +611,30 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
   const guardarDetallesFactura = async (iddtefactura) => {
     try {
       const detalles = items.map((item, index) => {
-        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
-        const esExento = item.tipo === "noAfecto";
-        const esNoSujeto = item.tipo === "noSuj";
-
-        const baseGravada = esGravado ? item.ventaGravada : 0;
-        const baseExenta = esExento ? item.ventaExenta : 0;
-        const baseNoSujeta = esNoSujeto ? item.ventaNoSujeta : 0;
-
-        const tasaIVA = 0.13;
-        const ivaItem = baseGravada * tasaIVA;
+        const subtotalBruto = item.precioUnitario * item.cantidad;
+        const descuentoItem = item.descuento || 0;
+        const baseImponible = subtotalBruto - descuentoItem;
 
         const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
 
         return {
           numitem: index + 1,
           tipoitem: "1",
-          numerodocumento: null,
+          numerodocumento: null, 
           cantidad: parseFloat(item.cantidad.toFixed(2)),
           codigo: codigoItem,
           codtributo: null,
           unimedida: item.unidadMedida || "59",
           descripcion: item.descripcion,
           preciouni: parseFloat(item.precioUnitario.toFixed(2)),
-          montodescu: parseFloat(item.descuento.toFixed(2)),
-          ventanosuj: parseFloat(baseNoSujeta.toFixed(2)),
-          ventaexenta: parseFloat(baseExenta.toFixed(2)),
-          ventagravada: parseFloat(baseGravada.toFixed(2)),
-          tributos: item.tributos,
+          montodescu: parseFloat(descuentoItem.toFixed(2)),
+          ventanosuj: 0.00,
+          ventaexenta: 0.00,
+          ventagravada: parseFloat(baseImponible.toFixed(2)),
+          tributos: null,
           psv: 0,
           nogravado: 0.00,
-          ivaitem: parseFloat(ivaItem.toFixed(2)) 
+          ivaitem: 0.00
         };
       });
 
@@ -686,28 +703,10 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
     const descuentoItems = items.reduce((sum, item) => 
       sum + (item.descuento || 0), 0);
 
-    const baseGravadaBruto = items.reduce((sum, item) => 
-      sum + (item.tipo === "producto" || item.tipo === "impuestos" ? item.precioUnitario * item.cantidad : 0), 0);
-
-    const baseExentaBruto = items.reduce((sum, item) => 
-      sum + (item.tipo === "noAfecto" ? item.precioUnitario * item.cantidad : 0), 0);
-
-    const baseNoSujetaBruto = items.reduce((sum, item) => 
-      sum + (item.tipo === "noSuj" ? item.precioUnitario * item.cantidad : 0), 0);
-
-    const baseGravadaConDescuento = Math.max(0, baseGravadaBruto - descuentoGrabadasMonto);
-    const baseExentaConDescuento = Math.max(0, baseExentaBruto - descuentoExentasMonto);
-
-    const tasaIVA = 0.13;
-    const baseGravadaNeto = baseGravadaConDescuento / 1.13;
-    const ivaCalculado = baseGravadaNeto * tasaIVA;
-    const baseGravadaTotal = baseGravadaNeto + ivaCalculado;
-
     const descuentoTotal = descuentoItems + descuentoGrabadasMonto + descuentoExentasMonto;
     
-    const subtotalNeto = baseGravadaNeto + baseExentaConDescuento + baseNoSujetaBruto;
-    
-    const totalFinal = subtotalNeto + ivaCalculado;
+    const ivaCalculado = 0;
+    const totalFinal = subtotalBruto - descuentoTotal + flete;
 
     const ahora = new Date();
     const offset = -6;
@@ -748,16 +747,6 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
 
     if (paraVistaPrevia) {
       const cuerpoDocumento = items.map((item, index) => {
-        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
-        const esExento = item.tipo === "noAfecto";
-        const esNoSujeto = item.tipo === "noSuj";
-
-        const baseGravadaBrutoItem = esGravado ? item.precioUnitario * item.cantidad : 0;
-        const descuentoItem = item.descuento || 0;
-        const baseGravadaConDescuentoItem = Math.max(0, baseGravadaBrutoItem - (esGravado ? descuentoItem : 0));
-        const baseGravadaNetoItem = baseGravadaConDescuentoItem / 1.13;
-        const ivaItem = baseGravadaNetoItem * tasaIVA;
-
         return {
           numItem: index + 1,
           cantidad: item.cantidad,
@@ -765,12 +754,17 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
           descripcion: item.descripcion,
           precioUni: item.precioUnitario,
           montoDescu: item.descuento || 0,
-          ventaNoSuj: esNoSujeto ? item.precioUnitario * item.cantidad : 0,
-          ventaExenta: esExento ? item.precioUnitario * item.cantidad : 0,
-          ventaGravada: esGravado ? baseGravadaNetoItem : 0,
-          ivaItem: ivaItem,
+          ventaNoSuj: 0,
+          ventaExenta: 0,
+          ventaGravada: item.precioUnitario * item.cantidad - (item.descuento || 0),
+          ivaItem: 0,
         };
       });
+
+      const incotermsSeleccionado = INCOTERMS_OPTIONS.find(inc => inc.codigo === codIncoterms);
+      const incotermsDisplay = incotermsSeleccionado 
+        ? `${incotermsSeleccionado.descripcion}` 
+        : "No especificado";
 
       return {
         identificacion: {
@@ -783,6 +777,7 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
           numeroControl: `TRX-${numeroFactura}`,
           fecEmi: fechaEmision,
           horEmi: horaEmision,
+          incoterms: incotermsDisplay
         },
         selloRecibido: "(Sello de recepción pendiente)",
         barcodeDataUri: "",
@@ -818,15 +813,16 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
         resumen: {
           totalLetras: convertirNumeroALetras(totalFinal),
           condicionOperacion: condicionPago.toLowerCase() === "contado" ? 1 : 2,
-          totalNoSuj: parseFloat(baseNoSujetaBruto.toFixed(2)),
-          totalExenta: parseFloat(baseExentaConDescuento.toFixed(2)),
-          totalGravada: parseFloat(baseGravadaNeto.toFixed(2)),
-          totalIva: parseFloat(ivaCalculado.toFixed(2)),
+          totalNoSuj: 0,
+          totalExenta: 0,
+          totalGravada: parseFloat((subtotalBruto - descuentoTotal).toFixed(2)),
+          totalIva: 0,
           ivarete1: 0,
-          subTotal: parseFloat(subtotalNeto.toFixed(2)),
+          subTotal: parseFloat((subtotalBruto - descuentoTotal).toFixed(2)),
+          flete: parseFloat(flete.toFixed(2)),
           totalPagar: parseFloat(totalFinal.toFixed(2)),
           montoTotalOperacion: parseFloat(montototaloperacion.toFixed(2)),
-          descuGravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
+          descuGravada: parseFloat(descuentoTotal.toFixed(2)),
           ivaPercibido: 0,
           reteRenta: 0,
           totalNoGravado: 0,
@@ -847,6 +843,11 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
       };
     }
 
+    const incotermsSeleccionado = INCOTERMS_OPTIONS.find(inc => inc.codigo === codIncoterms);
+    const descripcionIncoterms = incotermsSeleccionado 
+      ? incotermsSeleccionado.descripcion 
+      : (descIncoterms || null);
+
     return {
       idcliente: idReceptor,
       pais_cliente: cliente?.pais?.codigo || "US",
@@ -864,25 +865,25 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
 
       sumaopesinimpues: parseFloat(subtotalBruto.toFixed(2)),
       totaldescuento: parseFloat(descuentoTotal.toFixed(2)),
-      valoriva: parseFloat(ivaCalculado.toFixed(2)),
-      subtotal: parseFloat(subtotalNeto.toFixed(2)),
-      ivapercibido: parseFloat(ivaCalculado.toFixed(2)),
+      valoriva: 0,
+      subtotal: parseFloat((subtotalBruto - descuentoTotal).toFixed(2)),
+      ivapercibido: 0,
       ivarete1: 0.00,
       montototalope: parseFloat(montototaloperacion.toFixed(2)),
-      totalotrosmnoafectos: parseFloat(baseExentaConDescuento.toFixed(2)),
+      totalotrosmnoafectos: 0,
       totalapagar: parseFloat(totalFinal.toFixed(2)),
       valorletras: convertirNumeroALetras(totalFinal),
       tipocontingencia: "",
       motivocontin: "",
 
-      totalnosuj: parseFloat(baseNoSujetaBruto.toFixed(2)),
-      totalexenta: parseFloat(baseExentaConDescuento.toFixed(2)),
-      totalgravada: parseFloat(baseGravadaNeto.toFixed(2)),
-      subtotalventas: parseFloat(subtotalNeto.toFixed(2)),
+      totalnosuj: 0.00,
+      totalexenta: 0.00,
+      totalgravada: parseFloat((subtotalBruto - descuentoTotal).toFixed(2)),
+      subtotalventas: parseFloat(subtotalBruto.toFixed(2)),
 
       descunosuj: 0.00,
-      descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
-      descugravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
+      descuexenta: 0.00,
+      descugravada: parseFloat(descuentoTotal.toFixed(2)),
       porcentajedescuento: descuentoTotal > 0 ? parseFloat(((descuentoTotal / subtotalBruto) * 100).toFixed(2)) : 0.00,
       totaldescu: parseFloat(descuentoTotal.toFixed(2)),
       tributosf: null,
@@ -896,7 +897,7 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
       montototaloperacion: parseFloat(montototaloperacion.toFixed(2)),
       totalpagar: parseFloat(totalFinal.toFixed(2)),
       totalletras: convertirNumeroALetras(totalFinal),
-      totaliva: parseFloat(ivaCalculado.toFixed(2)),
+      totaliva: 0,
       saldofavor: 0.00,
 
       condicionoperacion: 1,
@@ -912,6 +913,10 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
 
       actividad_economica_cliente: actividadEconomicaCliente || null,
       desc_actividad_economica_cliente: descripcionActividad || null,
+
+      cod_incoterms: codIncoterms || null,
+      desc_incoterms: descripcionIncoterms,
+      flete: flete || 0,
 
       documentofirmado: null
     };
@@ -1037,37 +1042,25 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
       sum + (item.descuento || 0), 0);
 
     const baseGravadaBruto = items.reduce((sum, item) => 
-      sum + (item.tipo === "producto" || item.tipo === "impuestos" ? item.precioUnitario * item.cantidad : 0), 0);
-
-    const baseExentaBruto = items.reduce((sum, item) => 
-      sum + (item.tipo === "noAfecto" ? item.precioUnitario * item.cantidad : 0), 0);
-
-    const baseNoSujetaBruto = items.reduce((sum, item) => 
-      sum + (item.tipo === "noSuj" ? item.precioUnitario * item.cantidad : 0), 0);
-
-    const baseGravadaConDescuento = Math.max(0, baseGravadaBruto - descuentoGrabadasMonto);
-    const baseExentaConDescuento = Math.max(0, baseExentaBruto - descuentoExentasMonto);
-
-    const tasaIVA = 0.13;
-    const baseGravadaNeto = baseGravadaConDescuento / 1.13;
-    const ivaCalculado = baseGravadaNeto * tasaIVA;
+      sum + (item.precioUnitario * item.cantidad), 0);
 
     const descuentoTotal = descuentoItems + descuentoGrabadasMonto + descuentoExentasMonto;
-    const subtotalNeto = baseGravadaNeto + baseExentaConDescuento + baseNoSujetaBruto;
     
-    const totalFinal = subtotalNeto + ivaCalculado;
+    const ivaCalculado = 0;
+    
+    const totalFinal = subtotalBruto - descuentoTotal + flete;
 
     setSumaopesinimpues(parseFloat(subtotalBruto.toFixed(2)));
     setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
-    setVentasgrabadas(parseFloat(baseGravadaNeto.toFixed(2)));
+    setVentasgrabadas(parseFloat(baseGravadaBruto.toFixed(2)));
     setValoriva(parseFloat(ivaCalculado.toFixed(2)));
     setTotal(parseFloat(totalFinal.toFixed(2)));
     
-    setGravadasSinDescuentoState(parseFloat(baseGravadaBruto.toFixed(2)));
-    setExentasSinDescuentoState(parseFloat(baseExentaBruto.toFixed(2)));
-    setExentasConDescuentoState(parseFloat(baseExentaConDescuento.toFixed(2)));
+    setGravadasSinDescuentoState(parseFloat(subtotalBruto.toFixed(2)));
+    setExentasSinDescuentoState(0);
+    setExentasConDescuentoState(0);
 
-  }, [items, descuentoGrabadasMonto, descuentoExentasMonto]);
+  }, [items, descuentoGrabadasMonto, descuentoExentasMonto, flete]);
 
   const obtenerDescripcionTributo = (codigo) => {
     const tributosMap = {
@@ -1156,27 +1149,9 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
         
         if (field === "cantidad" || field === "precioUnitario") {
           const subtotalBruto = updatedItem.cantidad * updatedItem.precioUnitario;
-          
-          if (updatedItem.tipo === "producto" || updatedItem.tipo === "impuestos") {
-            const baseGravadaConDescuento = Math.max(0, subtotalBruto - (updatedItem.descuento || 0));
-            const baseGravadaNeto = baseGravadaConDescuento / 1.13;
-            const ivaItem = baseGravadaNeto * 0.13;
-            
-            updatedItem.ventaGravada = parseFloat(baseGravadaNeto.toFixed(2));
-            updatedItem.total = parseFloat((baseGravadaNeto + ivaItem).toFixed(2));
-          } 
-          else if (updatedItem.tipo === "noAfecto") {
-            const baseExentaConDescuento = Math.max(0, subtotalBruto - (updatedItem.descuento || 0));
-            updatedItem.ventaExenta = parseFloat(baseExentaConDescuento.toFixed(2));
-            updatedItem.total = parseFloat(baseExentaConDescuento.toFixed(2));
-          }
-          else {
-            const baseNoSujetaConDescuento = Math.max(0, subtotalBruto - (updatedItem.descuento || 0));
-            updatedItem.ventaNoSujeta = parseFloat(baseNoSujetaConDescuento.toFixed(2));
-            updatedItem.total = parseFloat(baseNoSujetaConDescuento.toFixed(2));
-          }
-          
-          updatedItem.descuento = parseFloat(((updatedItem.valorDescuento || 0) * updatedItem.cantidad).toFixed(2));
+          const descuento = (updatedItem.valorDescuento || 0) * updatedItem.cantidad;
+          updatedItem.descuento = parseFloat(descuento.toFixed(2));
+          updatedItem.total = parseFloat((subtotalBruto - descuento).toFixed(2));
         }
         
         return updatedItem;
@@ -1318,6 +1293,22 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
     }
   };
 
+  const handleIncotermsChange = (e) => {
+    const selectedCode = e.target.value;
+    setCodIncoterms(selectedCode);
+    
+    const selectedIncoterm = INCOTERMS_OPTIONS.find(inc => inc.codigo === selectedCode);
+    if (selectedIncoterm) {
+      setDescIncoterms(selectedIncoterm.descripcion);
+    } else {
+      setDescIncoterms("");
+    }
+  };
+
+  const handleDescIncotermsChange = (e) => {
+    setDescIncoterms(e.target.value);
+  };
+
   return (
     <div className="flex h-screen bg-gray-100">
       <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}>
@@ -1332,8 +1323,8 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
               <p className="text-gray-600">Sistema de facturación electrónica</p>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="bg-green-100 p-3 rounded-lg">
-                <p className="text-lg font-semibold text-green-600">N° {String(numeroFactura).padStart(4, '0')}</p>
+              <div className="bg-orange-100 p-3 rounded-lg">
+                <p className="text-lg font-semibold text-orange-600">N° {String(numeroFactura).padStart(4, '0')}</p>
               </div>
               <FechaHoraEmision onFechaHoraChange={handleFechaHoraChange} />
             </div>
@@ -1389,12 +1380,69 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
                 actividadesEconomicas={codactividad}
               />
 
+              <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200">
+                <h2 className="text-md font-medium text-gray-700 mb-3">Términos Internacionales (Incoterms)</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Código Incoterms
+                    </label>
+                    <select
+                      value={codIncoterms}
+                      onChange={handleIncotermsChange}
+                      className="w-full p-2 border border-gray-300 rounded"
+                    >
+                      <option value="">-- Seleccionar --</option>
+                      {INCOTERMS_OPTIONS.map((incoterm) => (
+                        <option key={incoterm.codigo} value={incoterm.codigo}>
+                          {incoterm.codigo} — {incoterm.descripcion}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Descripción
+                    </label>
+                    <input
+                      type="text"
+                      value={descIncoterms}
+                      onChange={handleDescIncotermsChange}
+                      readOnly={!!codIncoterms}
+                      className={`w-full p-2 border border-gray-300 rounded ${
+                        codIncoterms ? 'bg-gray-50' : ''
+                      }`}
+                      placeholder="Se autocompletará"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200">
+                <h2 className="text-md font-medium text-gray-700 mb-3">Costos Adicionales</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="flete" className="block text-sm text-gray-600 mb-1">Flete</label>
+                    <input
+                      id="flete"
+                      type="number"
+                      value={flete}
+                      onChange={(e) => setFlete(parseFloat(e.target.value) || 0)}
+                      className="w-full p-2 border border-gray-300 rounded text-right font-medium bg-white"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="text-black mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-800">Detalle de Exportación</h2>
                   <button
                     onClick={openModalSelector}
-                    className="flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md"
+                    className="flex items-center bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md"
                   >
                     <FaPlus className="mr-2" />
                     Agregar Detalle
@@ -1408,48 +1456,21 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Unidad de Medida</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Descripción</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Cantidad</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Precio Bruto</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Precio Unitario</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Sub Total Bruto</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Gravado</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Exento</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Sujeto</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total Gravado</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total Exento</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total No Sujeto</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">IVA Item</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Descuento</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {items.length === 0 ? (
-                        <tr><td colSpan="14" className="px-4 py-4 text-center text-gray-500 border-b">No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.</td></tr>
+                        <tr><td colSpan="8" className="px-4 py-4 text-center text-gray-500 border-b">No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.</td></tr>
                       ) : (
                         items.map((item) => {
                           const subtotalBruto = item.precioUnitario * item.cantidad;
-                          
-                          const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
-                          const esExento = item.tipo === "noAfecto";
-                          const esNoSujeto = item.tipo === "noSuj";
-
-                          let baseGravadaNeto = 0;
-                          let baseExenta = 0;
-                          let baseNoSujeta = 0;
-                          let ivaItem = 0;
-                          let totalItem = 0;
-
-                          if (esGravado) {
-                            const baseGravadaConDescuento = Math.max(0, subtotalBruto - (item.descuento || 0));
-                            baseGravadaNeto = baseGravadaConDescuento / 1.13;
-                            ivaItem = baseGravadaNeto * 0.13;
-                            totalItem = baseGravadaNeto + ivaItem;
-                          } else if (esExento) {
-                            baseExenta = Math.max(0, subtotalBruto - (item.descuento || 0));
-                            totalItem = baseExenta;
-                          } else if (esNoSujeto) {
-                            baseNoSujeta = Math.max(0, subtotalBruto - (item.descuento || 0));
-                            totalItem = baseNoSujeta;
-                          }
+                          const descuentoItem = item.descuento || 0;
+                          const totalBruto = subtotalBruto - descuentoItem;
 
                           return (
                             <tr key={item.id}>
@@ -1490,33 +1511,11 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
                               </td>
                               <td className="px-4 py-2 border-b text-center">
                                 <span className="text-sm text-red-600 font-medium">
-                                  {formatMoney(item.descuentoGravado || 0)}
+                                  {formatMoney(descuentoItem)}
                                 </span>
-                              </td>
-                              <td className="px-4 py-2 border-b text-center">
-                                <span className="text-sm text-red-600 font-medium">
-                                  {formatMoney(item.descuentoExento || 0)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2 border-b text-center">
-                                <span className="text-sm text-red-600 font-medium">
-                                  {formatMoney(item.descuentoNoSujeto || 0)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
-                                {formatMoney(baseGravadaNeto)}
-                              </td>
-                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
-                                {formatMoney(baseExenta)}
-                              </td>
-                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
-                                {formatMoney(baseNoSujeta)}
-                              </td>
-                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
-                                {formatMoney(ivaItem)}
                               </td>
                               <td className="px-4 py-2 border-b text-center font-bold text-blue-700">
-                                {formatMoney(totalItem)}
+                                {formatMoney(totalBruto)}
                               </td>
                               <td className="px-4 py-2 border-b">
                                 <button
@@ -1543,91 +1542,38 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
                       <span className="font-medium">{formatMoney(sumaopesinimpues)}</span>
                     </div>
                     
-                    {(() => {
-                      const totalDescuentoGravado = items.reduce((sum, item) => sum + (item.descuentoGravado || 0), 0);
-                      const totalDescuentoExento = items.reduce((sum, item) => sum + (item.descuentoExento || 0), 0);
-                      const totalDescuentoNoSujeto = items.reduce((sum, item) => sum + (item.descuentoNoSujeto || 0), 0);
-                      
-                      return (
-                        <>
-                          {totalDescuentoGravado > 0 && (
-                            <div className="flex justify-between text-blue-600">
-                              <span className="text-sm">Descuento ventas gravadas:</span>
-                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoGravado)}</span>
-                            </div>
-                          )}
-                          {totalDescuentoExento > 0 && (
-                            <div className="flex justify-between text-blue-600">
-                              <span className="text-sm">Descuento ventas exentas:</span>
-                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoExento)}</span>
-                            </div>
-                          )}
-                          {totalDescuentoNoSujeto > 0 && (
-                            <div className="flex justify-between text-blue-600">
-                              <span className="text-sm">Descuento ventas no sujetas:</span>
-                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoNoSujeto)}</span>
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                    
                     <div className="flex justify-between text-red-600">
                       <span className="text-gray-700">Total descuentos:</span>
                       <span className="font-medium">-{formatMoney(totaldescuento)}</span>
                     </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Flete:</span>
+                      <span className="font-medium text-orange-600">+{formatMoney(flete)}</span>
+                    </div>
+
                     <div className="flex justify-between pt-2 border-t border-gray-300">
-                      <span className="text-gray-700 font-semibold">Sub Total después de descuentos:</span>
-                      <span className="font-semibold">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
+                      <span className="text-gray-700 font-semibold">Total exportación:</span>
+                      <span className="font-semibold">{formatMoney(sumaopesinimpues - totaldescuento + flete)}</span>
                     </div>
                   </div>
                   
                   <div className="space-y-2">
-                    <div className="space-y-1 pl-4 border-l-2 border-gray-300">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Gravado (neto):</span>
-                        <span className="font-medium">
-                          {formatMoney(ventasgrabadas)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Exento (bruto):</span>
-                        <span className="font-medium">
-                          {formatMoney(exentasConDescuentoState)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">No Sujeto (bruto):</span>
-                        <span className="font-medium">
-                          {formatMoney(
-                            items.reduce((sum, item) => sum + (item.tipo === "noSuj" ? item.precioUnitario * item.cantidad : 0), 0)
-                          )}
-                        </span>
-                      </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Monto total de la operación:</span>
+                      <span className="font-medium">
+                        {formatMoney(sumaopesinimpues - totaldescuento)}
+                      </span>
                     </div>
                     
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">IVA (13% sobre ventas gravadas netas):</span>
-                      <span className="font-medium text-green-600">+{formatMoney(valoriva)}</span>
+                    <div className="text-sm text-gray-500 italic">
+                      <FaInfoCircle className="inline mr-1" />
+                      Documento de exportación - Sin aplicación de IVA
                     </div>
-                    
-                    {Object.values(tributosDetallados)
-                      .filter(tributo => tributo.codigo !== "20")
-                      .map((tributo) => (
-                        <div key={tributo.codigo} className="flex justify-between text-sm">
-                          <span className="text-gray-600">
-                            {tributo.codigo} - {tributo.descripcion}:
-                          </span>
-                          <span className="font-medium text-green-600">
-                            +{formatMoney(tributo.valor)}
-                          </span>
-                        </div>
-                      ))
-                    }
                     
                     <div className="flex justify-between pt-2 border-t border-gray-300">
                       <span className="text-gray-900 font-bold text-lg">Total a pagar:</span>
-                      <span className="text-green-800 font-bold text-lg">{formatMoney(total)}</span>
+                      <span className="text-orange-800 font-bold text-lg">{formatMoney(total)}</span>
                     </div>
                   </div>
                 </div>
@@ -1656,7 +1602,7 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
                   className={`flex items-center px-4 py-2 rounded-md ${
                     guardandoFactura 
                       ? "bg-gray-400 cursor-not-allowed" 
-                      : "bg-green-600 hover:bg-green-700" 
+                      : "bg-orange-600 hover:bg-orange-700" 
                   } text-white`}
                 >
                   {guardandoFactura ? (

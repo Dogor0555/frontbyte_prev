@@ -56,8 +56,8 @@ export default function FechaHoraEmision({ onFechaHoraChange }) {
   return (
     <div className="flex items-center space-x-4 p-3 rounded-lg">
       <div className="flex items-center">
-        <FaRegCalendarAlt className="text-green-600 mr-2" />
-        <label htmlFor="fechaEmision" className="text-sm font-medium text-green-800 mr-2">
+        <FaRegCalendarAlt className="text-orange-600 mr-2" />
+        <label htmlFor="fechaEmision" className="text-sm font-medium text-orange-800 mr-2">
           Fecha:
         </label>
         <input
@@ -65,13 +65,13 @@ export default function FechaHoraEmision({ onFechaHoraChange }) {
           id="fechaEmision"
           value={fechaEmision}
           onChange={handleFechaChange}
-          className="p-1 border border-green-300 rounded text-sm"
+          className="p-1 border border-orange-300 rounded text-sm"
         />
       </div>
       
       <div className="flex items-center">
-        <FaClock className="text-green-600 mr-2" />
-        <label htmlFor="horaEmision" className="text-sm font-medium text-green-800 mr-2">
+        <FaClock className="text-orange-600 mr-2" />
+        <label htmlFor="horaEmision" className="text-sm font-medium text-orange-800 mr-2">
           Hora:
         </label>
         <input
@@ -80,7 +80,7 @@ export default function FechaHoraEmision({ onFechaHoraChange }) {
           value={horaEmision}
           onChange={handleHoraChange}
           step="1"
-          className="p-1 border border-green-300 rounded text-sm"
+          className="p-1 border border-orange-300 rounded text-sm"
         />
       </div>
     </div>

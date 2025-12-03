@@ -366,7 +366,7 @@ const DatosEmisorReceptor = ({
       <div className="flex border-b border-gray-200 mb-6">
         <button
           className={`py-2 px-4 font-medium ${activeTab === "emisor" 
-            ? "text-green-600 border-b-2 border-green-600" 
+            ? "text-orange-600 border-b-2 border-orange-600" 
             : "text-gray-500 hover:text-gray-700"}`}
           onClick={() => setActiveTab("emisor")}
         >
@@ -374,7 +374,7 @@ const DatosEmisorReceptor = ({
         </button>
         <button
           className={`py-2 px-4 font-medium ${activeTab === "receptor" 
-            ? "text-green-600 border-b-2 border-green-600" 
+            ? "text-orange-600 border-b-2 border-orange-600" 
             : "text-gray-500 hover:text-gray-700"}`}
           onClick={() => setActiveTab("receptor")}
         >
