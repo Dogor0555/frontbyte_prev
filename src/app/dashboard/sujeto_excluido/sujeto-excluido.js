@@ -1428,7 +1428,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
                   ) : (
                     <>
                       <FaEye className="mr-2" />
-                      Vista Previa y Guardar
+                       Guardar sujeto excluido
                     </>
                   )}
                 </button>
