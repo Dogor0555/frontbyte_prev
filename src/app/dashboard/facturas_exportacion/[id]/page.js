@@ -231,7 +231,7 @@ export default function FacturaExportacionDetallePage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-orange-50/50">
+    <div className="flex min-h-screen bg-blue-50">
       <div className="hidden md:block">
         <Sidebar />
       </div>
