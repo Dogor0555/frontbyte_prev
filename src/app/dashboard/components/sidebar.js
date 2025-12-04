@@ -34,6 +34,7 @@ import {
   FaUserCheck,         // Para Contribuyentes
   FaFileExport,        // Para Anexos
   FaTicketAlt,         // Nuevo ícono para Configurar Tickets
+  FaGlobe,             // Para Exportación
   FaFilePdf,           // Nuevo ícono para Detalles de Documentos
   FaWrench             // Para Configurar PDF
 } from "react-icons/fa";
@@ -57,6 +58,7 @@ export default function Sidebar({ onOpenPerfil }) {
     admin: false,
     consumidorfinal: false,
     contribuyentes: false,
+    exportacion: false,
   });
   const [hoveredItem, setHoveredItem] = useState(null);
 
@@ -291,6 +293,28 @@ export default function Sidebar({ onOpenPerfil }) {
       ],
       menuKey: "sujeto_excluido",
       permiso: "Facturas Sujeto Excluido"
+    },
+
+    {
+      name: "Facturas de Exportación",
+      icon: <FaGlobe />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Ver Facturas de Exportación", 
+          icon: <FaEye />, 
+          href: "/dashboard/facturas_exportacion",
+          permiso: "Ver Facturas de Exportación" 
+        },
+        { 
+          name: "Anular Facturas de Exportación", 
+          icon: <FaBan />, 
+          href: "/dashboard/anular_factura_exportacion",
+          permiso: "Anular Facturas de Exportación" 
+        },
+      ],
+      menuKey: "exportacion",
+      permiso: "Facturas de Exportación"
     },
 
     // ⚠️ Contingencia

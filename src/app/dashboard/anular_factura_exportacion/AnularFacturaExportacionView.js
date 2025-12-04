@@ -278,7 +278,7 @@ export default function AnularFacturaExportacionView({ user, hasHaciendaToken, h
   };
 
   const handleViewDetails = (facturaId) => {
-    router.push(`/dashboard/factura_exportacion/${facturaId}`);
+    router.push(`/dashboard/facturas_exportacion/${facturaId}`);
   };
 
   const toggleSidebar = () => {
