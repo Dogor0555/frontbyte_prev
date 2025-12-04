@@ -775,6 +775,7 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
           tipoOperacion: "1",
           codigoGeneracion: `(Aún no generado)`,
           numeroControl: `TRX-${numeroFactura}`,
+          esExportacion: true,
           fecEmi: fechaEmision,
           horEmi: horaEmision,
           incoterms: incotermsDisplay

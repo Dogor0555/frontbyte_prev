@@ -283,6 +283,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
         tipoOperacion: "1",
         codigoGeneracion: `(Aún no generado)`,
         numeroControl: `TRX-${numeroDocumento}`,
+        esExportacion: datosDocumento.modelofac === "04", // Es 'false' para Sujeto Excluido (11)
         fecEmi: datosDocumento.fechaemision,
         horEmi: datosDocumento.horaemision,
       },

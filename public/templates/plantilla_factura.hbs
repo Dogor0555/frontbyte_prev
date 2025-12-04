@@ -22,7 +22,7 @@
     }
     
     body { 
-      font-size: 12px; 
+      font-size: 10.5px; 
       color: #111; 
       line-height: 1.23; 
       background-color: #ffffff;
@@ -35,13 +35,13 @@
     }
     
     h1 { 
-      font-size: 17px; 
+      font-size: 15px; 
       letter-spacing: 0.2px; 
       text-transform: uppercase; 
     }
     
     h2 { 
-      font-size: 14px; 
+      font-size: 12px; 
       margin-bottom: 4px; 
       text-transform: uppercase; 
     }
@@ -51,7 +51,7 @@
     }
     
     .small { 
-      font-size: 10px; 
+      font-size: 9px; 
       color: #444; 
     }
     
@@ -118,7 +118,7 @@
     
     .title-right { 
       text-align: right; 
-      font-size: 11px; 
+      font-size: 9.5px; 
       color: #444; 
     }
     
@@ -440,6 +440,9 @@
                   <tr><td>Suma Ventas Exentas</td><td class="right mono">{{money resumen.totalExenta}}</td></tr>
                   <tr><td>Descuentos Gravadas</td><td class="right mono">{{money resumen.descuGravada}}</td></tr>
                   <tr><td>Total Gravada</td><td class="right mono">{{money resumen.totalGravada}}</td></tr>
+                  {{#if identificacion.esExportacion}}
+                    <tr><td>Flete</td><td class="right mono">{{money resumen.flete}}</td></tr>
+                  {{/if}}
                   <tr><td>Impuesto IVA 13%</td><td class="right mono">{{money resumen.totalIva}}</td></tr>
                   <tr><td>Sub-Total</td><td class="right mono">{{money resumen.subTotal}}</td></tr>
                   <tr><td>IVA Percibido</td><td class="right mono">{{money resumen.ivaPercibido}}</td></tr>
@@ -463,12 +466,12 @@
         <table>
           <thead><tr><th>Tipo</th><th>N°</th><th>Fecha</th></tr></thead>
           <tbody>
-            {{#if documentosRelacionados}}
-              {{#each documentosRelacionados}}
+            {{#if documentoRelacionado}}
+              {{#each documentoRelacionado}}
                 <tr>
-                  <td>{{this.tipo}}</td>
-                  <td class="mono">{{this.numero}}</td>
-                  <td class="mono">{{this.fecha}}</td>
+                  <td>{{this.tipoDocumento}}</td>
+                  <td class="mono">{{this.numeroDocumento}}</td>
+                  <td class="mono">{{this.fechaEmision}}</td>
                 </tr>
               {{/each}}
             {{else}}
@@ -483,10 +486,10 @@
       <div class="col block">
         <h2>Responsables</h2>
         <div class="kv">
-          <div>Emisor:</div><div>{{#if extension.responsables.emisor.nombre}}{{extension.responsables.emisor.nombre}}{{else}}-{{/if}}</div>
-          <div>N° Documento:</div><div>{{#if extension.responsables.emisor.documento}}{{extension.responsables.emisor.documento}}{{else}}-{{/if}}</div>
-          <div>Receptor:</div><div>{{#if extension.responsables.receptor.nombre}}{{extension.responsables.receptor.nombre}}{{else}}-{{/if}}</div>
-          <div>N° Documento:</div><div>{{#if extension.responsables.receptor.documento}}{{extension.responsables.receptor.documento}}{{else}}-{{/if}}</div>
+          <div>Emisor:</div><div>{{#if extension.nombEntrega}}{{extension.nombEntrega}}{{else}}-{{/if}}</div>
+          <div>N° Documento:</div><div>{{#if extension.docuEntrega}}{{extension.docuEntrega}}{{else}}-{{/if}}</div>
+          <div>Receptor:</div><div>{{#if extension.nombRecibe}}{{extension.nombRecibe}}{{else}}-{{/if}}</div>
+          <div>N° Documento:</div><div>{{#if extension.docuRecibe}}{{extension.docuRecibe}}{{else}}-{{/if}}</div>
         </div>
       </div>
       {{/unless}}
