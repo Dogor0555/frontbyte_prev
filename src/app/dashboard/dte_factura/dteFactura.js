@@ -389,6 +389,7 @@ const descargarTicketFactura = async (idFactura) => {
         "No se pudo guardar la factura.",
         error.message
       );
+      setShowPreviewModal(false);
     } finally {
       setGuardandoFactura(false);
     }

@@ -207,7 +207,7 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
     setDescargandoTicket(true);
     
     try {
-      const response = await fetch(`http://localhost:3000/exportacion/${idFactura}/ver-compacto`, {
+      const response = await fetch(`http://localhost:3000/facturas/${idFactura}/ver-compacto`, {
         method: 'GET',
         credentials: 'include'
       });
@@ -383,6 +383,7 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
         "No se pudo guardar la exportación.",
         error.message
       );
+      setShowPreviewModal(false);
     } finally {
       setGuardandoFactura(false);
     }

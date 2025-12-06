@@ -393,6 +393,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         "No se pudo guardar el crédito.",
         error.message
       );
+      setShowPreviewModal(false);
     } finally {
       setGuardandoFactura(false);
     }

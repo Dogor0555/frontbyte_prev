@@ -483,15 +483,17 @@
       {{/unless}}
 
       {{#unless responsablesOcultos}}
-      <div class="col block">
-        <h2>Responsables</h2>
-        <div class="kv">
-          <div>Emisor:</div><div>{{#if extension.nombEntrega}}{{extension.nombEntrega}}{{else}}-{{/if}}</div>
-          <div>N° Documento:</div><div>{{#if extension.docuEntrega}}{{extension.docuEntrega}}{{else}}-{{/if}}</div>
-          <div>Receptor:</div><div>{{#if extension.nombRecibe}}{{extension.nombRecibe}}{{else}}-{{/if}}</div>
-          <div>N° Documento:</div><div>{{#if extension.docuRecibe}}{{extension.docuRecibe}}{{else}}-{{/if}}</div>
-        </div>
-      </div>
+        {{#unless identificacion.esFacturaExportacion}}
+          <div class="col block">
+            <h2>Responsables</h2>
+            <div class="kv">
+              <div>Emisor:</div><div>{{#if extension.nombEntrega}}{{extension.nombEntrega}}{{else}}-{{/if}}</div>
+              <div>N° Documento:</div><div>{{#if extension.docuEntrega}}{{extension.docuEntrega}}{{else}}-{{/if}}</div>
+              <div>Receptor:</div><div>{{#if extension.nombRecibe}}{{extension.nombRecibe}}{{else}}-{{/if}}</div>
+              <div>N° Documento:</div><div>{{#if extension.docuRecibe}}{{extension.docuRecibe}}{{else}}-{{/if}}</div>
+            </div>
+          </div>
+        {{/unless}}
       {{/unless}}
     </div>
   </div>

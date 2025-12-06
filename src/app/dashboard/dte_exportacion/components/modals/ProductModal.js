@@ -505,25 +505,12 @@ export default function ProductModal({
 
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo:</label>
-                <select
-                  value={tipoProducto}
-                  onChange={(e) => {
-                    setTipoProducto(e.target.value);
-                    setProductoSeleccionado(null);
-                  }}
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="1">1 - Bien</option>
-                  <option value="2">2 - Servicio</option>
-                  <option value="3">3 - Bien y Servicio</option>
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  {tipoProducto === "1" 
-                    ? "Mostrando solo productos (bienes)" 
-                    : tipoProducto === "2" 
-                    ? "Mostrando solo servicios" 
-                    : "Mostrando productos y servicios"}
-                </p>
+                <input
+                  type="text"
+                  readOnly
+                  value="1 - Bien"
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
