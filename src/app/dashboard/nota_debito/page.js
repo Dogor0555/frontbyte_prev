@@ -3,8 +3,13 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth.js";
+import { checkPermissionAndRedirect } from "../components/authorization.js";
+import { checkAuth } from "../../../lib/auth.js";
 
 export default async function NotaDebitoPage() {
+    // Verificación de permisos
+    await checkPermissionAndRedirect("Enviar Nota de Crédito/Débito");
+
     const cookieStore = await cookies();
     const cookie = cookieStore
         .getAll()
@@ -12,6 +17,12 @@ export default async function NotaDebitoPage() {
         .join("; ");
 
     const authStatus = await checkAuthStatus(cookie);
+
+    // Autenticación SSR (Asegurando consistencia)
+    const user = await checkAuth(cookie);
+    if (!user) {
+        redirect("/auth/login");
+    }
     
     console.log("Usuario completo desde checkAuthStatus:", authStatus.user);
     console.log("AuthStatus completo:", authStatus);

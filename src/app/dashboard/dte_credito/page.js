@@ -5,8 +5,12 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuth } from "../../../lib/auth";
 import { checkAuthStatus } from "../../services/auth"; // 👈 mismo patrón que factura
+import { checkPermissionAndRedirect } from "../components/authorization.js";
 
 export default async function CreditoFiscalPage() {
+  // Verificación de permisos
+  await checkPermissionAndRedirect("DTE Crédito");
+
   // Obtener cookies
   const cookieStore = cookies();
   const cookie = cookieStore

@@ -3,10 +3,14 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
+import { checkPermissionAndRedirect } from "../components/authorization.js";
 
 const API_BASE = "http://localhost:3000";
 
 export default async function ConfigurarPdfPage() {
+  // Verificación de permisos
+  await checkPermissionAndRedirect("Configurar PDF");
+
   const cookieStore = await cookies();
   const cookie = cookieStore
     .getAll()
@@ -19,8 +23,7 @@ export default async function ConfigurarPdfPage() {
     redirect("/auth/login");
   }
 
-  // Verificar permisos - solo admin y manager pueden configurar
-  if (authStatus.user.rol !== "admin" && authStatus.user.rol !== "manager") {
+  if (authStatus.user.rol !== "admin") {
     console.log(
       "Redirigiendo - Usuario no tiene permisos para configurar PDF. Rol:",
       authStatus.user.rol

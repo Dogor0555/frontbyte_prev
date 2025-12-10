@@ -3,8 +3,12 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
+import { checkPermissionAndRedirect } from "../components/authorization.js";
 
 export default async function AnexoContribuyentePage() {
+    // Verificación de permisos
+    await checkPermissionAndRedirect("Anexo de Contribuyentes");
+
     const cookieStore = await cookies();
     const cookie = cookieStore
         .getAll()

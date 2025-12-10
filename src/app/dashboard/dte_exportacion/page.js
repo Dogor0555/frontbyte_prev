@@ -5,10 +5,14 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuth } from "../../../lib/auth";
 import { checkAuthStatus } from "../../services/auth";
+import { checkPermissionAndRedirect } from "../components/authorization.js";
 
 export default async function ExportacionPage() {
+    // Verificación de permisos
+    await checkPermissionAndRedirect("DTE Exportación");
+
     // Obtener cookies
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const cookie = cookieStore
         .getAll()
         .map((c) => `${c.name}=${c.value}`)
@@ -86,4 +90,3 @@ export default async function ExportacionPage() {
         </Suspense>
     );
 }
-

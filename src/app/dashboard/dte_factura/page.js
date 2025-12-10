@@ -3,9 +3,13 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuth } from "../../../lib/auth"; // <-- ajusta la ruta si la tienes en otro lado
-import { checkAuthStatus } from "../../services/auth";
+import { checkAuthStatus } from "../../services/auth.js";
+import { checkPermissionAndRedirect } from "../components/authorization.js";
 
 export default async function FacturacionPage() {
+  // Verificación de permisos
+  await checkPermissionAndRedirect("DTE Factura");
+
   // Leer cookies del request (SSR)
   const cookieStore = cookies(); // no es necesario 'await'
   const cookie = cookieStore
