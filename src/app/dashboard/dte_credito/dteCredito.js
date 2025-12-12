@@ -92,6 +92,13 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     monto: 0
   });
   
+  // Nuevo estado para percepción de IVA
+  const [percepcionIVA, setPercepcionIVA] = useState({
+    aplicar: false,
+    porcentaje: 1, // 1%
+    monto: 0
+  });
+  
   const [mostrarMensaje, setMostrarMensaje] = useState(false);
   const [mensajeConfig, setMensajeConfig] = useState({
     tipo: "exito",
@@ -178,6 +185,23 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     // Calcular retención
     const montoRetencion = (gravadasConDescuento * porc) / 100;
     return parseFloat(montoRetencion.toFixed(2));
+  };
+
+  const calcularPercepcionIVA = (porcentaje = null) => {
+    const porc = porcentaje !== null ? porcentaje : percepcionIVA.porcentaje;
+    
+    const gravadasBase = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const descuentoGravadasItems = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.descuento || 0), 0);
+    
+    const gravadasConDescuento = gravadasBase - descuentoGravadasItems - descuentoGrabadasMonto;
+
+    const montoPercepcion = (gravadasConDescuento * porc) / 100;
+    return parseFloat(montoPercepcion.toFixed(2));
   };
 
   const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
@@ -466,6 +490,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       porcentaje: 1,
       monto: 0
     });
+    setPercepcionIVA({
+      aplicar: false,
+      porcentaje: 1,
+      monto: 0
+    });
     obtenerUltimoNumeroFactura();
   };
 
@@ -495,6 +524,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setCondicionPago("Contado");
     setFormasPago([]);
     setRetencionIVA({
+      aplicar: false,
+      porcentaje: 1,
+      monto: 0
+    });
+    setPercepcionIVA({
       aplicar: false,
       porcentaje: 1,
       monto: 0
@@ -747,8 +781,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     
     // Aplicar retención de IVA si está activa
     const montoRetencionIVA = retencionIVA.aplicar ? retencionIVA.monto : 0;
+
+    // Aplicar percepción de IVA si está activa
+    const montoPercepcionIVA = percepcionIVA.aplicar ? percepcionIVA.monto : 0;
     
-    const totalFinal = subtotalNeto + ivaCalculado - montoRetencionIVA;
+    const totalFinal = subtotalNeto + ivaCalculado - montoRetencionIVA + montoPercepcionIVA;
 
     const ahora = new Date();
     const offset = -6;
@@ -849,11 +886,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           totalGravada: parseFloat(baseGravadaFinal.toFixed(2)),
           totalIva: parseFloat(ivaCalculado.toFixed(2)),
           ivarete1: parseFloat(montoRetencionIVA.toFixed(2)), // RETENCIÓN IVA
-          subTotal: parseFloat(subtotalNeto.toFixed(2)),
+          ivaPercibido: parseFloat(montoPercepcionIVA.toFixed(2)), // PERCEPCIÓN IVA
           totalPagar: parseFloat(totalFinal.toFixed(2)),
           montoTotalOperacion: parseFloat(montototaloperacion.toFixed(2)),
           descuGravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
-          ivaPercibido: 0,
           reteRenta: 0,
           totalNoGravado: 0,
         },
@@ -915,7 +951,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       descripciont: "",
       valort: 0.00,
 
-      ivaperci1: 0.00,
+      ivaperci1: percepcionIVA.aplicar ? parseFloat(percepcionIVA.monto.toFixed(2)) : 0.00, // PERCEPCIÓN IVA
       reterenta: 0.00,
 
       montototaloperacion: parseFloat(montototaloperacion.toFixed(2)),
@@ -1021,6 +1057,17 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     }
   }, [items, descuentoGrabadasMonto, retencionIVA.porcentaje]);
 
+  // Efecto para actualizar el monto de percepción cuando cambien los items o descuentos
+  useEffect(() => {
+    if (percepcionIVA.aplicar) {
+      const nuevoMonto = calcularPercepcionIVA();
+      setPercepcionIVA(prev => ({
+        ...prev,
+        monto: nuevoMonto
+      }));
+    }
+  }, [items, descuentoGrabadasMonto, percepcionIVA.porcentaje]);
+
   useEffect(() => {
     if (showModal && modalType === "producto") {
       const fetchProductos = async () => {
@@ -1089,18 +1136,28 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
     // Calcular retención de IVA si aplica
     const montoRetencionIVA = retencionIVA.aplicar ? calcularRetencionIVA() : 0;
+    
+    // Calcular percepción de IVA si aplica
+    const montoPercepcionIVA = percepcionIVA.aplicar ? calcularPercepcionIVA() : 0;
 
     const descuentoTotal = descuentoItems + descuentoGrabadasMonto + descuentoExentasMonto;
     const subtotalNeto = baseGravadaFinal + baseExentaFinal + baseNoSujetaNeto;
     
-    // Restar la retención del total
-    const totalFinal = subtotalNeto + ivaCalculado - montoRetencionIVA;
+    // Calcular total final (Restar retención, Sumar percepción)
+    const totalFinal = subtotalNeto + ivaCalculado - montoRetencionIVA + montoPercepcionIVA;
 
     // Actualizar estado de retención
     if (retencionIVA.aplicar) {
       setRetencionIVA(prev => ({
         ...prev,
         monto: montoRetencionIVA
+      }));
+    }
+    // Actualizar estado de percepción
+    if (percepcionIVA.aplicar) {
+      setPercepcionIVA(prev => ({
+        ...prev,
+        monto: montoPercepcionIVA
       }));
     }
 
@@ -1113,8 +1170,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setGravadasSinDescuentoState(parseFloat(baseGravadaNeto.toFixed(2)));
     setExentasSinDescuentoState(parseFloat(baseExentaNeto.toFixed(2)));
     setExentasConDescuentoState(parseFloat(baseExentaFinal.toFixed(2)));
-
-  }, [items, descuentoGrabadasMonto, descuentoExentasMonto, retencionIVA.aplicar, retencionIVA.porcentaje]);
+  }, [items, descuentoGrabadasMonto, descuentoExentasMonto, retencionIVA.aplicar, retencionIVA.porcentaje, percepcionIVA.aplicar, percepcionIVA.porcentaje]);
 
   const obtenerDescripcionTributo = (codigo) => {
     const tributosMap = {
@@ -1665,6 +1721,18 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       </div>
                     )}
                     
+                    {/* Mostrar percepción de IVA si aplica */}
+                    {percepcionIVA.aplicar && (
+                      <div className="flex justify-between text-sm text-blue-600">
+                        <span className="text-gray-600">
+                          Percepción IVA ({percepcionIVA.porcentaje}%):
+                        </span>
+                        <span className="font-medium">
+                          +{formatMoney(percepcionIVA.monto)}
+                        </span>
+                      </div>
+                    )}
+
                     {Object.values(tributosDetallados)
                       .filter(tributo => tributo.codigo !== "20")
                       .map((tributo) => (
@@ -1776,6 +1844,78 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     <p>
                       <FaInfoCircle className="inline mr-1 text-blue-500" />
                       Se aplicará retención del {retencionIVA.porcentaje}% sobre el total gravado del crédito.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Percepción de IVA */}
+              <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-gray-50">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Percepción de IVA</h3>
+                
+                <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-6">
+                  {/* Checkbox para aplicar percepción */}
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="aplicarPercepcionIVA"
+                      checked={percepcionIVA.aplicar}
+                      onChange={(e) => {
+                        const aplicar = e.target.checked;
+                        setPercepcionIVA({
+                          aplicar,
+                          porcentaje: aplicar ? percepcionIVA.porcentaje : 1,
+                          monto: aplicar ? calcularPercepcionIVA() : 0
+                        });
+                      }}
+                      className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="aplicarPercepcionIVA" className="ml-2 text-gray-700 font-medium">
+                      Aplicar Percepción de IVA
+                    </label>
+                  </div>
+
+                  {/* Selector de porcentaje */}
+                  {percepcionIVA.aplicar && (
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          id="percepcion1porciento"
+                          name="porcentajePercepcion"
+                          value="1"
+                          checked={percepcionIVA.porcentaje === 1}
+                          onChange={(e) => {
+                            const nuevoPorcentaje = parseInt(e.target.value);
+                            setPercepcionIVA(prev => ({
+                              ...prev,
+                              porcentaje: nuevoPorcentaje,
+                              monto: calcularPercepcionIVA(nuevoPorcentaje)
+                            }));
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="percepcion1porciento" className="ml-2 text-gray-700">
+                          1% 
+                        </label>
+                      </div>
+
+                      {/* Mostrar monto calculado */}
+                      <div className="ml-4">
+                        <span className="text-sm text-gray-600">Monto a percibir:</span>
+                        <span className="ml-2 font-semibold text-blue-600">
+                          {formatMoney(percepcionIVA.monto)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {percepcionIVA.aplicar && (
+                  <div className="mt-3 text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+                    <p>
+                      <FaInfoCircle className="inline mr-1 text-blue-500" />
+                      Se aplicará percepción del {percepcionIVA.porcentaje}% sobre el total gravado del crédito.
                     </p>
                   </div>
                 )}

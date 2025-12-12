@@ -36,7 +36,8 @@ import {
   FaTicketAlt,         // Nuevo ícono para Configurar Tickets
   FaGlobe,             // Para Exportación
   FaFilePdf,           // Nuevo ícono para Detalles de Documentos
-  FaWrench             // Para Configurar PDF
+  FaWrench,            // Para Configurar PDF
+  FaShoppingCart       // Para Compras
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -59,6 +60,7 @@ export default function Sidebar({ onOpenPerfil }) {
     consumidorfinal: false,
     contribuyentes: false,
     exportacion: false,
+    compras: false,
   });
   const [hoveredItem, setHoveredItem] = useState(null);
 
@@ -270,6 +272,21 @@ export default function Sidebar({ onOpenPerfil }) {
       ],
       menuKey: "consumidorfinal",
       permiso: "Ventas a Consumidor Final"
+    },
+    {
+      name: "Compras",
+      icon: <FaShoppingCart />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Libro de Compras", 
+          icon: <FaBook />, 
+          href: "/dashboard/libro_compras",
+          permiso: "Libro de Compras" 
+        },
+      ],
+      menuKey: "compras",
+      permiso: "Compras"
     },
 
     // 📜 Comprobante de Liquidación Electrónico (Sujeto Excluido)

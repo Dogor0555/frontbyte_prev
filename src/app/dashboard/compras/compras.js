@@ -22,7 +22,6 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const [fechaError, setFechaError] = useState("");
-    const [montoError, setMontoError] = useState("");
     
     const [showDetallesModal, setShowDetallesModal] = useState(false);
     const [productos, setProductos] = useState([]);
@@ -38,7 +37,15 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
         fecha: "",
         proveedor_id: "",
         descripcion: "",
-        monto: ""
+        numero_documento: "",
+        monto_exento: "",
+        iva: "",
+        retencion: "",
+        percepcion: "",
+        locales: "",
+        importaciones: "",
+        monto: "",
+        tipo_compra: "local"
     });
 
     const [searchTerm, setSearchTerm] = useState("");
@@ -81,9 +88,24 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
         setDetallesCompra(nuevosDetalles);
         
         const montoTotal = nuevosDetalles.reduce((total, detalle) => total + detalle.subtotal, 0);
+        const totalFixed = montoTotal.toFixed(2);
+        
         setFormData(prev => ({
             ...prev,
-            monto: montoTotal.toFixed(2)
+            monto: totalFixed,
+            locales: prev.tipo_compra === 'local' ? totalFixed : "0.00",
+            importaciones: prev.tipo_compra === 'importacion' ? totalFixed : "0.00"
+        }));
+    };
+
+    const handleTipoCompraChange = (e) => {
+        const tipo = e.target.value;
+        const montoTotal = detallesCompra.reduce((total, detalle) => total + detalle.subtotal, 0).toFixed(2);
+        setFormData(prev => ({
+            ...prev,
+            tipo_compra: tipo,
+            locales: tipo === 'local' ? montoTotal : "0.00",
+            importaciones: tipo === 'importacion' ? montoTotal : "0.00"
         }));
     };
 
@@ -92,7 +114,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
         if (!searchTerm.trim()) return compras;
 
         const term = searchTerm.toLowerCase();
-        return compras.filter(compra =>
+        return compras.filter(compra => // The total amount is now calculated
             compra.id.toString().includes(searchTerm) ||
             compra.proveedor?.nombre.toLowerCase().includes(term) ||
             compra.descripcion?.toLowerCase().includes(term) ||
@@ -117,15 +139,15 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
     };
 
     const validateMonto = (monto) => {
-        const numMonto = parseFloat(monto);
-        return !isNaN(numMonto) && numMonto > 0;
+        if (!monto) return true; // Allow empty/0 values
+        const numMonto = parseFloat(monto); // Check if it's a valid number
+        return !isNaN(numMonto) && numMonto >= 0;
     };
 
     const validateDescripcion = (descripcion) => !descripcion || descripcion.length <= LIMITES.DESCRIPCION;
 
     const validateForm = () => {
         setFechaError("");
-        setMontoError("");
         setErrorMessage("");
 
         if (!validateFecha(formData.fecha)) {
@@ -133,8 +155,21 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
             return false;
         }
 
-        if (!validateMonto(formData.monto)) {
-            setMontoError("El monto debe ser un número mayor a 0.");
+        if (!formData.numero_documento || formData.numero_documento.trim() === "") {
+            setErrorMessage("El número de documento es obligatorio.");
+            return false;
+        }
+
+        const numericFields = ['monto_exento', 'iva', 'retencion', 'percepcion', 'locales', 'importaciones'];
+        for (const field of numericFields) {
+            if (formData[field] && !validateMonto(formData[field])) {
+                setErrorMessage(`El campo '${field}' debe ser un número válido mayor o igual a 0.`);
+                return false;
+            }
+        }
+
+        if (!validateDescripcion(formData.descripcion)) {
+            setErrorMessage(`La descripción no puede exceder los ${LIMITES.DESCRIPCION} caracteres.`);
             return false;
         }
 
@@ -153,16 +188,6 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
             setFechaError("La fecha no puede ser futura.");
         } else {
             setFechaError("");
-        }
-    };
-
-    const handleMontoChange = (e) => {
-        const value = e.target.value;
-        setFormData(prev => ({ ...prev, monto: value }));
-        if (!validateMonto(value)) {
-            setMontoError("El monto debe ser un número mayor a 0.");
-        } else {
-            setMontoError("");
         }
     };
 
@@ -241,7 +266,14 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                 fecha: formData.fecha,
                 proveedor_id: parseInt(formData.proveedor_id),
                 descripcion: formData.descripcion,
-                monto: parseFloat(formData.monto),
+                numero_documento: formData.numero_documento,
+                monto: parseFloat(formData.monto || 0),
+                monto_exento: parseFloat(formData.monto_exento || 0),
+                iva: parseFloat(formData.iva || 0),
+                retencion: parseFloat(formData.retencion || 0),
+                percepcion: parseFloat(formData.percepcion || 0),
+                locales: parseFloat(formData.locales || 0),
+                importaciones: parseFloat(formData.importaciones || 0),
                 detalles: detallesCompra.map(detalle => ({
                     producto_id: detalle.producto_id,
                     cantidad: parseFloat(detalle.cantidad),
@@ -305,7 +337,20 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
 
             console.log("Compra completada exitosamente");
             setShowAddModal(false);
-            setFormData({ fecha: "", proveedor_id: "", descripcion: "", monto: "" });
+            setFormData({
+                fecha: "",
+                proveedor_id: "",
+                descripcion: "",
+                numero_documento: "",
+                monto_exento: "",
+                iva: "",
+                retencion: "",
+                percepcion: "",
+                locales: "",
+                importaciones: "",
+                monto: "",
+                tipo_compra: "local"
+            });
             setDetallesCompra([]);
             fetchCompras();
             
@@ -335,8 +380,17 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                 },
                 credentials: "include",
                 body: JSON.stringify({
-                    ...formData,
-                    monto: parseFloat(formData.monto)
+                    fecha: formData.fecha,
+                    proveedor_id: parseInt(formData.proveedor_id),
+                    descripcion: formData.descripcion,
+                    numero_documento: formData.numero_documento,
+                    monto: parseFloat(formData.monto || 0),
+                    monto_exento: parseFloat(formData.monto_exento || 0),
+                    iva: parseFloat(formData.iva || 0),
+                    retencion: parseFloat(formData.retencion || 0),
+                    percepcion: parseFloat(formData.percepcion || 0),
+                    locales: parseFloat(formData.locales || 0),
+                    importaciones: parseFloat(formData.importaciones || 0)
                 }),
             });
 
@@ -346,7 +400,20 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
             }
 
             setShowEditModal(false);
-            setFormData({ fecha: "", proveedor_id: "", descripcion: "", monto: "" });
+            setFormData({
+                fecha: "",
+                proveedor_id: "",
+                descripcion: "",
+                numero_documento: "",
+                monto_exento: "",
+                iva: "",
+                retencion: "",
+                percepcion: "",
+                locales: "",
+                importaciones: "",
+                monto: "",
+                tipo_compra: "local"
+            });
             fetchCompras();
         } catch (error) {
             console.error("Error al actualizar la compra:", error);
@@ -377,9 +444,21 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
     };
 
     const handleEditClick = (compra) => {
+        const isImportacion = parseFloat(compra.importaciones) > 0;
         setFormData({
-            ...compra,
-            fecha: compra.fecha.split('T')[0]
+            id: compra.id,
+            fecha: compra.fecha.split('T')[0],
+            proveedor_id: compra.proveedor_id,
+            descripcion: compra.descripcion || "",
+            numero_documento: compra.numero_documento || "",
+            monto_exento: compra.monto_exento || "",
+            iva: compra.iva || "",
+            retencion: compra.retencion || "",
+            percepcion: compra.percepcion || "",
+            locales: compra.locales || "",
+            importaciones: compra.importaciones || "",
+            monto: compra.monto || (parseFloat(compra.locales || 0) + parseFloat(compra.importaciones || 0)).toFixed(2),
+            tipo_compra: isImportacion ? 'importacion' : 'local'
         });
         setShowEditModal(true);
     };
@@ -393,7 +472,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
 
     const hasChanges = () => {
         return Object.values(formData).some(val => 
-            typeof val === 'string' && val.trim() !== ''
+            (typeof val === 'string' && val.trim() !== '') || (typeof val === 'number' && val !== 0)
         ) || detallesCompra.length > 0;
     };
 
@@ -529,7 +608,14 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                                                     {compra.descripcion || "Sin descripción"}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
-                                                    {formatearMoneda(compra.monto)}
+                                                    {formatearMoneda(
+                                                        (parseFloat(compra.locales) || 0) +
+                                                        (parseFloat(compra.importaciones) || 0) +
+                                                        (parseFloat(compra.monto_exento) || 0) +
+                                                        (parseFloat(compra.iva) || 0) +
+                                                        (parseFloat(compra.retencion) || 0) +
+                                                        (parseFloat(compra.percepcion) || 0)
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                                                     <div className="flex justify-center items-center space-x-2">
@@ -626,7 +712,14 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                                                 {compra.descripcion || "Sin descripción"}
                                             </p>
                                             <p className="text-lg font-bold text-green-600 mt-2">
-                                                {formatearMoneda(compra.monto)}
+                                                {formatearMoneda(
+                                                    (parseFloat(compra.locales) || 0) +
+                                                    (parseFloat(compra.importaciones) || 0) +
+                                                    (parseFloat(compra.monto_exento) || 0) +
+                                                    (parseFloat(compra.iva) || 0) +
+                                                    (parseFloat(compra.retencion) || 0) +
+                                                    (parseFloat(compra.percepcion) || 0)
+                                                )}
                                             </p>
                                         </div>
                                     </div>
@@ -661,7 +754,14 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                             <div className="bg-white rounded-lg shadow p-4">
                                 <h3 className="text-lg font-semibold text-gray-900">Monto Total</h3>
                                 <p className="text-2xl font-bold text-green-600">
-                                    {formatearMoneda(compras.reduce((total, compra) => total + parseFloat(compra.monto || 0), 0))}
+                                    {formatearMoneda(compras.reduce((total, compra) => total +
+                                        (parseFloat(compra.locales) || 0) +
+                                        (parseFloat(compra.importaciones) || 0) +
+                                        (parseFloat(compra.monto_exento) || 0) +
+                                        (parseFloat(compra.iva) || 0) +
+                                        (parseFloat(compra.retencion) || 0) +
+                                        (parseFloat(compra.percepcion) || 0)
+                                    , 0))}
                                 </p>
                             </div>
                             <div className="bg-white rounded-lg shadow p-4">
@@ -816,28 +916,102 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                                 </div>
 
                                 <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="monto">
-                                        Monto Total *
+                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="numero_documento">
+                                        Número de Documento *
                                     </label>
                                     <input
-                                        type="number"
-                                        id="monto"
-                                        name="monto"
-                                        value={formData.monto}
-                                        onChange={handleMontoChange}
+                                        type="text"
+                                        id="numero_documento"
+                                        name="numero_documento"
+                                        value={formData.numero_documento}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, numero_documento: e.target.value }))}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
-                                        min="0.01"
-                                        step="0.01"
-                                        placeholder="0.00"
-                                        readOnly={detallesCompra.length > 0}
+                                        placeholder="Ej: Factura #123"
                                     />
-                                    {detallesCompra.length > 0 && (
-                                        <p className="text-xs text-blue-600 mt-1">
-                                            El monto se calcula automáticamente desde los detalles
-                                        </p>
-                                    )}
-                                    {montoError && <p className="text-red-500 text-sm mt-1">{montoError}</p>}
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Compra</label>
+                                    <div className="flex space-x-4">
+                                        <label className="inline-flex items-center">
+                                            <input
+                                                type="radio"
+                                                className="form-radio text-blue-600"
+                                                name="tipo_compra"
+                                                value="local"
+                                                checked={formData.tipo_compra === 'local'}
+                                                onChange={handleTipoCompraChange}
+                                            />
+                                            <span className="ml-2">Local</span>
+                                        </label>
+                                        <label className="inline-flex items-center">
+                                            <input
+                                                type="radio"
+                                                className="form-radio text-blue-600"
+                                                name="tipo_compra"
+                                                value="importacion"
+                                                checked={formData.tipo_compra === 'importacion'}
+                                                onChange={handleTipoCompraChange}
+                                            />
+                                            <span className="ml-2">Importación</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="locales">
+                                            Compras Locales
+                                        </label>
+                                        <input
+                                            type="number"
+                                            id="locales"
+                                            name="locales"
+                                            value={formData.locales}
+                                            readOnly
+                                            className="text-black w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="importaciones">
+                                            Importaciones
+                                        </label>
+                                        <input
+                                            type="number"
+                                            id="importaciones"
+                                            name="importaciones"
+                                            value={formData.importaciones}
+                                            readOnly
+                                            className="text-black w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                                            placeholder="0.00" min="0" step="0.01"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="monto_exento">
+                                            Monto Exento
+                                        </label>
+                                        <input type="number" id="monto_exento" name="monto_exento" value={formData.monto_exento} onChange={(e) => setFormData(prev => ({ ...prev, monto_exento: e.target.value }))} className="text-black w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="0.00" min="0" step="0.01" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="iva">
+                                            IVA
+                                        </label>
+                                        <input type="number" id="iva" name="iva" value={formData.iva} onChange={(e) => setFormData(prev => ({ ...prev, iva: e.target.value }))} className="text-black w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="0.00" min="0" step="0.01" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="retencion">
+                                            Retención
+                                        </label>
+                                        <input type="number" id="retencion" name="retencion" value={formData.retencion} onChange={(e) => setFormData(prev => ({ ...prev, retencion: e.target.value }))} className="text-black w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="0.00" min="0" step="0.01" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="percepcion">
+                                            Percepción
+                                        </label>
+                                        <input type="number" id="percepcion" name="percepcion" value={formData.percepcion} onChange={(e) => setFormData(prev => ({ ...prev, percepcion: e.target.value }))} className="text-black w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="0.00" min="0" step="0.01" />
+                                    </div>
                                 </div>
 
                                 <div className="mb-4">
@@ -944,21 +1118,85 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                                 </div>
 
                                 <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="monto">
-                                        Monto *
+                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="numero_documento">
+                                        Número de Documento *
                                     </label>
                                     <input
-                                        type="number"
-                                        id="monto"
-                                        name="monto"
-                                        value={formData.monto}
-                                        onChange={handleMontoChange}
+                                        type="text"
+                                        id="numero_documento"
+                                        name="numero_documento"
+                                        value={formData.numero_documento}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, numero_documento: e.target.value }))}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
-                                        min="0.01"
-                                        step="0.01"
                                     />
-                                    {montoError && <p className="text-red-500 text-sm mt-1">{montoError}</p>}
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Compra</label>
+                                    <div className="flex space-x-4">
+                                        <label className="inline-flex items-center">
+                                            <input
+                                                type="radio"
+                                                className="form-radio text-blue-600"
+                                                name="tipo_compra_edit"
+                                                value="local"
+                                                checked={formData.tipo_compra === 'local'}
+                                                onChange={handleTipoCompraChange}
+                                            />
+                                            <span className="ml-2">Local</span>
+                                        </label>
+                                        <label className="inline-flex items-center">
+                                            <input
+                                                type="radio"
+                                                className="form-radio text-blue-600"
+                                                name="tipo_compra_edit"
+                                                value="importacion"
+                                                checked={formData.tipo_compra === 'importacion'}
+                                                onChange={handleTipoCompraChange}
+                                            />
+                                            <span className="ml-2">Importación</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="locales">
+                                            Compras Locales
+                                        </label>
+                                        <input type="number" id="locales" name="locales" value={formData.locales} readOnly className="text-black w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100" placeholder="0.00" min="0" step="0.01" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="importaciones">
+                                            Importaciones
+                                        </label>
+                                        <input type="number" id="importaciones" name="importaciones" value={formData.importaciones} readOnly className="text-black w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100" placeholder="0.00" min="0" step="0.01" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="monto_exento">
+                                            Monto Exento
+                                        </label>
+                                        <input type="number" id="monto_exento" name="monto_exento" value={formData.monto_exento} onChange={(e) => setFormData(prev => ({ ...prev, monto_exento: e.target.value }))} className="text-black w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="0.00" min="0" step="0.01" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="iva">
+                                            IVA
+                                        </label>
+                                        <input type="number" id="iva" name="iva" value={formData.iva} onChange={(e) => setFormData(prev => ({ ...prev, iva: e.target.value }))} className="text-black w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="0.00" min="0" step="0.01" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="retencion">
+                                            Retención
+                                        </label>
+                                        <input type="number" id="retencion" name="retencion" value={formData.retencion} onChange={(e) => setFormData(prev => ({ ...prev, retencion: e.target.value }))} className="text-black w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="0.00" min="0" step="0.01" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="percepcion">
+                                            Percepción
+                                        </label>
+                                        <input type="number" id="percepcion" name="percepcion" value={formData.percepcion} onChange={(e) => setFormData(prev => ({ ...prev, percepcion: e.target.value }))} className="text-black w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="0.00" min="0" step="0.01" />
+                                    </div>
                                 </div>
 
                                 <div className="mb-4">
@@ -1078,7 +1316,15 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                                             fecha: "",
                                             proveedor_id: "",
                                             descripcion: "",
-                                            monto: ""
+                                            numero_documento: "",
+                                            monto_exento: "",
+                                            iva: "",
+                                            retencion: "",
+                                            percepcion: "",
+                                            locales: "",
+                                            importaciones: "",
+                                            monto: "",
+                                            tipo_compra: "local"
                                         });
                                         setDetallesCompra([]);
                                     }}
