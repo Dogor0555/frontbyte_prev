@@ -154,7 +154,8 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
       '03': 'CREDITO FISCAL',
       '04': 'NOTA DEBITO',
       '05': 'NOTA CREDITO',
-      '11': 'COMPROBANTE RETENCION'
+      '11': 'FACTURA DE EXPORTACION',
+      '14': 'SUJETO EXCLUIDO'
     };
     return tipos[tipodte] || `DTE ${tipodte}`;
   };
