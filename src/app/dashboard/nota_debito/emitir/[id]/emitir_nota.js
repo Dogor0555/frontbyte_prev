@@ -85,10 +85,6 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
         }
 
         const data = await response.json();
-        
-        if (!puedeGenerarNota(data)) {
-          throw new Error("Esta factura no puede generar notas de débito/crédito");
-        }
 
         setFactura(data);
       } catch (err) {
@@ -113,13 +109,6 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
     if (facturaData.tipodocumento === 'NOTA_DEBITO' || facturaData.esnotadebito) return false;
     if (facturaData.tipodocumento === 'NOTA_CREDITO' || facturaData.esnotacredito) return false;
     if (!['TRANSMITIDO', 'RE-TRANSMITIDO', 'ACEPTADO'].includes(facturaData.estado)) return false;
-    
-    if (facturaData.fechaemision) {
-      const fechaEmision = new Date(facturaData.fechaemision);
-      const ahora = new Date();
-      const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
-      return horasTranscurridas <= 24;
-    }
     
     return false;
   };
