@@ -15,9 +15,9 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   const [searchTerm, setSearchTerm] = useState("");
   const [searchTermNotas, setSearchTermNotas] = useState("");
   const [searchTermNotasCredito, setSearchTermNotasCredito] = useState("");
-  const [ordenFecha, setOrdenFecha] = useState("reciente");
-  const [ordenFechaNotas, setOrdenFechaNotas] = useState("reciente");
-  const [ordenFechaNotasCredito, setOrdenFechaNotasCredito] = useState("reciente");
+  const [ordenFecha, setOrdenFecha] = useState("numero");
+  const [ordenFechaNotas, setOrdenFechaNotas] = useState("numero");
+  const [ordenFechaNotasCredito, setOrdenFechaNotasCredito] = useState("numero");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -123,6 +123,12 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
 
   const ordenarFacturasPorFecha = (facturas, orden) => {
     return [...facturas].sort((a, b) => {
+      if (orden === "numero") {
+        const numA = parseInt(a.numerofacturausuario) || 0;
+        const numB = parseInt(b.numerofacturausuario) || 0;
+        return numB - numA;
+      }
+
       const fechaA = new Date(a.fechaemision || a.fechacreacion || 0);
       const fechaB = new Date(b.fechaemision || b.fechacreacion || 0);
       
@@ -793,6 +799,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                       }}
                       className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-purple-500 focus:border-purple-500 text-gray-700"
                     >
+                      <option value="numero">Nº Factura (desc)</option>
                       <option value="reciente">Más reciente</option>
                       <option value="antigua">Más antigua</option>
                     </select>
@@ -875,6 +882,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                       }}
                       className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-purple-500 focus:border-purple-500 text-gray-700"
                     >
+                      <option value="numero">Nº Factura (desc)</option>
                       <option value="reciente">Más reciente</option>
                       <option value="antigua">Más antigua</option>
                     </select>
@@ -942,6 +950,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                       }}
                       className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-purple-500 focus:border-purple-500 text-gray-700"
                     >
+                      <option value="numero">Nº Factura (desc)</option>
                       <option value="reciente">Más reciente</option>
                       <option value="antigua">Más antigua</option>
                     </select>
