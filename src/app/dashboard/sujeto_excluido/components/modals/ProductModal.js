@@ -450,47 +450,6 @@ export default function ProductModal({
                 )}
               </div>
 
-              <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                  <FaPercent className="mr-2 text-gray-600" />
-                  Descuento (Monto Fijo)
-                </h4>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Monto de descuento:
-                  </label>
-                  <div className="flex">
-                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-100 text-gray-500">
-                      $
-                    </span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={valorDescuento === 0 ? "" : valorDescuento}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setValorDescuento(value === "" ? "" : parseFloat(value));
-                      }}
-                      className="flex-1 min-w-0 rounded-r-lg border border-gray-300 p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-
-                {descuentoAplicado > 0 && (
-                  <div className="mt-3 p-2 bg-white rounded border border-gray-200">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Descuento aplicado:</span>
-                      <span className="font-semibold text-gray-900">
-                        -${descuentoAplicado.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo Venta</label>
                 <select 
