@@ -1,31 +1,26 @@
 import { useState, useEffect } from "react";
-import { FaTimes, FaPlus, FaSearch, FaExclamationTriangle, FaTrash, FaPercent } from "react-icons/fa";
+import { FaTimes, FaPlus, FaTrash, FaPercent } from "react-icons/fa";
 
 export default function ProductModal({
   isOpen,
   onClose,
   onAddItem,
   onBackToSelector,
-  productosCargados,
-  cargandoProductos,
-  errorCargaProductos,
   unidades,
   obtenerNombreUnidad
 }) {
-  const [productoSeleccionado, setProductoSeleccionado] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [cantidad, setCantidad] = useState(1);
   const [impuestoSeleccionado, setImpuestoSeleccionado] = useState("59");
   const [tipoVenta, setTipoVenta] = useState("1");
   const [tipoProducto, setTipoProducto] = useState("1");
   const [isMobile, setIsMobile] = useState(false);
-  const [mostrarAlertaStock, setMostrarAlertaStock] = useState(false);
-  const [stockDisponible, setStockDisponible] = useState(0);
   const [tributos, setTributos] = useState([]);
-  const [productosFiltrados, setProductosFiltrados] = useState([]);
   const [valorDescuento, setValorDescuento] = useState(0);
-  const [descuentoAplicado, setDescuentoAplicado] = useState(0);
+  const [descuentoAplicado, setDescuentoAplicado] = useState(0); 
   const [precioEditable, setPrecioEditable] = useState(0);
+  const [errorDescuento, setErrorDescuento] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [unidad, setUnidad] = useState("59");
 
   useEffect(() => {
     const checkMobile = () => {
@@ -41,60 +36,55 @@ export default function ProductModal({
   }, []);
 
   useEffect(() => {
-    if (!productosCargados || !Array.isArray(productosCargados)) return;
-    
-    let productosFiltrados = [];
-    
-    switch (tipoProducto) {
-      case "1":
-        productosFiltrados = productosCargados.filter(p => !p.es_servicio);
-        break;
-      case "2":
-        productosFiltrados = productosCargados.filter(p => p.es_servicio);
-        break;
-      case "3": 
-        productosFiltrados = productosCargados;
-        break;
-      default:
-        productosFiltrados = productosCargados;
-    }
-    
-    setProductosFiltrados(productosFiltrados);
-  }, [tipoProducto, productosCargados]);
-
-  useEffect(() => {
-    if (productoSeleccionado) {
-      setStockDisponible(productoSeleccionado.stock || 0);
-      setPrecioEditable(parseFloat(productoSeleccionado.precio) || 0);
-    } else {
-      setStockDisponible(0);
-    }
-  }, [productoSeleccionado]);
-
-  useEffect(() => {
     setTributos(tributos.filter(t => t.codigo !== "20"));
-  }, [tipoVenta, productoSeleccionado, cantidad, descuentoAplicado, precioEditable]);
+  }, [tipoVenta, cantidad, descuentoAplicado, precioEditable]);
+
+  const formatMoney = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(amount);
+  };
+
+  const validarDescuento = (valorDescuento, cantidad) => {
+    const precio = precioEditable;
+    const subtotalSinDescuento = (cantidad * precio);
+    const descuento = parseFloat(valorDescuento) || 0;
+
+    if (descuento > subtotalSinDescuento) {
+      setErrorDescuento(`El descuento no puede ser mayor al subtotal (${formatMoney(subtotalSinDescuento)})`);
+      return false;
+    } else {
+      setErrorDescuento("");
+      return true;
+    }
+  };
+
+  const handleValorDescuentoChange = (value) => {
+    const numericValue = value === "" ? "" : parseFloat(value);
+    setValorDescuento(numericValue);
+    
+    // Validar en tiempo real
+    validarDescuento(numericValue, cantidad);
+  };
 
   useEffect(() => {
-    if (productoSeleccionado) {
-      calcularDescuento();
-    } else {
-      setDescuentoAplicado(0);
-    }
-  }, [valorDescuento, productoSeleccionado, cantidad, precioEditable]);
+    calcularDescuento();
+    validarDescuento(valorDescuento, cantidad);
+  }, [valorDescuento, cantidad, precioEditable]);
 
   const limpiarFormulario = () => {
-    setProductoSeleccionado(null);
-    setSearchTerm("");
     setCantidad(1);
     setImpuestoSeleccionado("59");
     setTipoVenta("1");
-    setMostrarAlertaStock(false);
-    setStockDisponible(0);
     setTributos([]);
     setValorDescuento(0);
     setDescuentoAplicado(0);
     setPrecioEditable(0);
+    setErrorDescuento("");
+    setDescripcion("");
+    setUnidad("59");
   };
 
   useEffect(() => {
@@ -168,22 +158,21 @@ export default function ProductModal({
   };
 
   const calcularDescuento = () => {
-    if (!productoSeleccionado) {
+    const precio = precioEditable;
+    const subtotalSinDescuento = cantidad * precio;
+    const descuento = parseFloat(valorDescuento) || 0;
+    
+    // Validar que el descuento no sea mayor al subtotal
+    if (descuento > subtotalSinDescuento) {
       setDescuentoAplicado(0);
       return;
     }
 
-    const precio = precioEditable;
-    const subtotalSinDescuento = cantidad * precio;
-    const descuento = parseFloat(valorDescuento) || 0;
     const descuentoFinal = Math.min(descuento, subtotalSinDescuento);
-    
     setDescuentoAplicado(descuentoFinal);
   };
 
   const agregarTributo = () => {
-    if (!productoSeleccionado) return;
-    
     if (impuestoSeleccionado === "20") {
       alert("No puede agregar IVA en documentos de sujeto excluido");
       return;
@@ -214,8 +203,6 @@ export default function ProductModal({
   };
 
   const calcularTotal = () => {
-    if (!productoSeleccionado) return 0;
-    
     const precio = precioEditable;
     const subtotalSinDescuento = cantidad * precio;
     const subtotalConDescuento = subtotalSinDescuento - descuentoAplicado;
@@ -226,21 +213,18 @@ export default function ProductModal({
   };
 
   const handleAgregarItem = () => {
-    if (!productoSeleccionado) {
-      alert("Por favor seleccione un producto");
+    if (!descripcion.trim()) {
+      alert("Por favor ingrese una descripción para el item");
       return;
     }
 
-    const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
-    
-    if (!esServicio && productoSeleccionado.stock !== undefined && productoSeleccionado.stock !== null) {
-      const stockSuficiente = cantidad <= productoSeleccionado.stock;
-      
-      if (!stockSuficiente) {
-        setMostrarAlertaStock(true);
-        return;
-      }
+    // Validar descuento antes de agregar
+    if (!validarDescuento(valorDescuento, cantidad)) {
+      alert("El descuento no puede ser mayor al precio del item");
+      return;
     }
+
+    // Removed stock check logic as it depends on selected product
 
     agregarItemConfirmado();
   };
@@ -258,8 +242,8 @@ export default function ProductModal({
         tipoItem = "noAfecto";
     }
 
-    const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
-    const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
+    const esServicio = tipoProducto === "2" || tipoProducto === "3";
+    const necesitaActualizarStock = false;
     
     const precioUnitario = precioEditable;
 
@@ -275,86 +259,37 @@ export default function ProductModal({
     }
     
     onAddItem({
-      descripcion: productoSeleccionado.nombre,
+      descripcion: descripcion,
       cantidad: cantidad,
       precioUnitario: precioUnitario,
       descuento: descuentoAplicado,
       valorDescuento: valorDescuento,
       descuentoExento: descuentoExento,
       descuentoNoSujeto: descuentoNoSujeto,
-      unidadMedida: productoSeleccionado.unidad || "59",
+      unidadMedida: unidad,
       tipo: tipoItem,
       tributos: tributos,
-      productoId: !esServicio ? productoSeleccionado.id : null,
+      productoId: null,
       actualizarStock: necesitaActualizarStock,
-      stockAnterior: !esServicio ? productoSeleccionado.stock : null,
+      stockAnterior: null,
       esServicio: esServicio
     });
     
     limpiarFormulario();
   };
 
-  const continuarSinStock = () => {
-    setMostrarAlertaStock(false);
-    agregarItemConfirmado();
-  };
-
-  const cancelarVentaSinStock = () => {
-    setMostrarAlertaStock(false);
-  };
-
   if (!isOpen) return null;
 
-  const subtotalSinDescuento = productoSeleccionado ? 
-    (cantidad * precioEditable) : 0;
+  const subtotalSinDescuento = 
+    cantidad && precioEditable ? (cantidad * precioEditable) : 0;
 
   const subtotalConDescuento = Math.max(0, subtotalSinDescuento - descuentoAplicado);
   const total = calcularTotal();
-  const esServicio = tipoProducto === "2" || tipoProducto === "3" || (productoSeleccionado && productoSeleccionado.es_servicio);
-  const stockInsuficiente = !esServicio && productoSeleccionado && 
-                           productoSeleccionado.stock !== undefined && 
-                           productoSeleccionado.stock !== null && 
-                           cantidad > productoSeleccionado.stock;
 
   const esExento = tipoVenta === "2";
 
   return (
     <div className="text-black fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      {mostrarAlertaStock && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-60 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center mb-4">
-              <FaExclamationTriangle className="text-yellow-500 text-2xl mr-3" />
-              <h3 className="text-lg font-semibold">Stock Insuficiente</h3>
-            </div>
-            
-            <p className="text-gray-700 mb-4">
-              El stock disponible es <span className="font-bold">{productoSeleccionado.stock}</span> unidades, 
-              pero está intentando vender <span className="font-bold">{cantidad}</span> unidades.
-            </p>
-            
-            <p className="text-gray-700 mb-6">
-              ¿Desea continuar con la venta? El stock se actualizará al procesar la factura.
-            </p>
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={cancelarVentaSinStock}
-                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={continuarSinStock}
-                className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
-              >
-                Continuar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="bg-gray-800 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
           <h2 className="text-xl font-bold">Agregar Producto o Servicio - Sujeto Excluido</h2>
@@ -367,7 +302,7 @@ export default function ProductModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-5">
               <div className="border-b border-gray-200 pb-2">
                 <h3 className="font-semibold text-gray-900 text-lg">Item DTE</h3>
@@ -377,10 +312,7 @@ export default function ProductModal({
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo:</label>
                 <select
                   value={tipoProducto}
-                  onChange={(e) => {
-                    setTipoProducto(e.target.value);
-                    setProductoSeleccionado(null);
-                  }}
+                  onChange={(e) => setTipoProducto(e.target.value)}
                   className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="1">1 - Bien</option>
@@ -409,12 +341,15 @@ export default function ProductModal({
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Unidad</label>
-                  <input
-                    type="text"
-                    readOnly
-                    className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={productoSeleccionado ? obtenerNombreUnidad(productoSeleccionado.unidad) : "Unidad"}
-                  />
+                  <select
+                    value={unidad}
+                    onChange={(e) => setUnidad(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {unidades.map((u) => (
+                      <option key={u.codigo} value={u.codigo}>{u.codigo} - {u.nombre}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -422,10 +357,10 @@ export default function ProductModal({
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Nombre Producto</label>
                 <input
                   type="text"
-                  readOnly
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={productoSeleccionado ? productoSeleccionado.nombre : ""}
-                  placeholder="Seleccione un producto"
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                  placeholder="Ingrese descripción o seleccione un producto"
                 />
               </div>
 
@@ -442,11 +377,57 @@ export default function ProductModal({
                     className="flex-1 min-w-0 rounded-r-lg border border-gray-300 p-3 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                     value={precioEditable}
                     onChange={(e) => setPrecioEditable(parseFloat(e.target.value) || 0)}
-                    disabled={!productoSeleccionado}
                   />
                 </div>
-                {productoSeleccionado && (
-                  <p className="text-xs text-gray-500 mt-1">Precio original: ${parseFloat(productoSeleccionado.precio).toFixed(2)}</p>
+              </div>
+
+              {/* SECCIÓN DE DESCUENTO CON VALIDACIÓN */}
+              <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <FaPercent className="mr-2 text-gray-600" />
+                  Descuento (Monto Fijo)
+                </h4>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Monto de descuento:
+                  </label>
+                  <div className="flex">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-100 text-gray-500">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={valorDescuento === 0 ? "" : valorDescuento}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        handleValorDescuentoChange(value);
+                      }}
+                      className={`flex-1 min-w-0 rounded-r-lg border p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        errorDescuento ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  {errorDescuento && (
+                    <p className="text-red-500 text-xs mt-1">{errorDescuento}</p>
+                  )}
+                  <p className="text-gray-500 text-xs mt-1">
+                    Subtotal: {formatMoney(cantidad * precioEditable)}
+                  </p>
+                </div>
+
+                {descuentoAplicado > 0 && (
+                  <div className="mt-3 p-2 bg-white rounded border border-gray-200">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Descuento aplicado:</span>
+                      <span className="font-semibold text-gray-900">
+                        -${descuentoAplicado.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -460,141 +441,6 @@ export default function ProductModal({
                   <option value="2">Exento</option>
                   <option value="3">No sujeto</option>
                 </select>
-              </div>
-
-              {!esServicio && productoSeleccionado && productoSeleccionado.stock !== undefined && (
-                <div className={`p-3 rounded-lg border ${
-                  stockInsuficiente ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Stock disponible:</span>
-                    <span className={`font-bold ${stockInsuficiente ? 'text-red-600' : 'text-blue-600'}`}>
-                      {productoSeleccionado.stock}
-                    </span>
-                  </div>
-                  {stockInsuficiente && (
-                    <div className="flex items-center mt-2 text-red-600 text-sm">
-                      <FaExclamationTriangle className="mr-1" />
-                      <span>Stock insuficiente - Se venderá en negativo</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-5">
-              <div className="border-b border-gray-200 pb-2">
-                <h3 className="font-semibold text-gray-900 text-lg">Buscar Producto</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  {tipoProducto === "1" 
-                    ? "Mostrando solo productos (bienes)" 
-                    : tipoProducto === "2" 
-                    ? "Mostrando solo servicios" 
-                    : "Mostrando productos y servicios"}
-                </p>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-semibold text-gray-900">
-                    Seleccionar Producto
-                  </label>
-                  <span className="text-xs text-red-600">Requerido</span>
-                </div>
-
-                <div className="relative mb-3">
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Escriba al menos 2 caracteres para buscar..."
-                    className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value.toLowerCase())}
-                  />
-                </div>
-
-                {cargandoProductos && (
-                  <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
-                    <p className="text-sm text-gray-600 mt-2">Cargando productos...</p>
-                  </div>
-                )}
-
-                {errorCargaProductos && (
-                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                    <p className="text-sm">Error: {errorCargaProductos}</p>
-                    <button
-                      onClick={() => window.location.reload()}
-                      className="text-red-600 underline text-xs mt-1"
-                    >
-                      Reintentar
-                    </button>
-                  </div>
-                )}
-
-                {searchTerm.length >= 2 ? (
-                  <div className="border border-gray-300 rounded-lg h-96 overflow-y-auto">
-                    {productosFiltrados
-                      .filter(producto =>
-                        producto.nombre.toLowerCase().includes(searchTerm) ||
-                        producto.codigo.toLowerCase().includes(searchTerm)
-                      )
-                      .map((producto) => (
-                        <div
-                          key={producto.id}
-                          className={`p-3 border-b border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors ${
-                            productoSeleccionado?.id === producto.id ? 'bg-blue-100 border-l-4 border-l-blue-500' : ''
-                          }`}
-                          onClick={() => setProductoSeleccionado(producto)}
-                        >
-                          <div className="font-medium text-gray-900">{producto.nombre}</div>
-                          <div className="text-sm text-gray-600 flex justify-between mt-1">
-                            <span>Código: {producto.codigo}</span>
-                            <span className="font-semibold text-green-600">
-                              ${parseFloat(producto.precio).toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1 flex justify-between">
-                            <span>Tipo: {producto.es_servicio ? "Servicio" : "Producto"}</span>
-                            {!producto.es_servicio && producto.stock !== undefined && (
-                              <span>Stock: {producto.stock}</span>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    }
-
-                    {productosFiltrados.filter(producto =>
-                      producto.nombre.toLowerCase().includes(searchTerm) ||
-                      producto.codigo.toLowerCase().includes(searchTerm)
-                    ).length === 0 && (
-                      <div className="p-6 text-center text-gray-500">
-                        <FaSearch className="mx-auto mb-2 text-2xl text-gray-400" />
-                        <p>No se encontraron {tipoProducto === "1" ? "productos" : tipoProducto === "2" ? "servicios" : "items"}</p>
-                        <p className="text-xs mt-1">con el término "{searchTerm}"</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="border border-gray-200 rounded-lg h-96 bg-gray-50 flex items-center justify-center">
-                    <div className="text-center text-gray-500 px-6">
-                      <FaSearch className="mx-auto mb-4 text-4xl text-gray-300" />
-                      <h4 className="text-lg font-medium text-gray-700 mb-2">
-                        {tipoProducto === "1" 
-                          ? "Buscar Productos" 
-                          : tipoProducto === "2" 
-                          ? "Buscar Servicios" 
-                          : "Buscar Productos y Servicios"}
-                      </h4>
-                      <p className="text-sm mb-2">Escriba al menos 2 caracteres para comenzar la búsqueda</p>
-                      <div className="text-xs text-gray-400 space-y-1">
-                        <p>• Puede buscar por nombre</p>
-                        <p>• O por código</p>
-                        <p>• Los resultados aparecerán automáticamente</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -627,7 +473,6 @@ export default function ProductModal({
                   <button
                     onClick={agregarTributo}
                     className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    disabled={!productoSeleccionado}
                   >
                     <FaPlus />
                   </button>
@@ -713,7 +558,7 @@ export default function ProductModal({
             <button
               onClick={handleAgregarItem}
               className="px-8 py-2.5 bg-blue-700 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-              disabled={!productoSeleccionado}
+              disabled={!!errorDescuento}
             >
               Agregar Item
             </button>

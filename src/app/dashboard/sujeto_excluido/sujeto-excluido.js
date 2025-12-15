@@ -392,6 +392,8 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
         return;
       }
       
+      console.log("Datos a enviar:", datosDocumento);
+      
       const responseEncabezado = await fetch("http://localhost:3000/sujeto-excluido/", {
         method: "POST",
         headers: {
@@ -608,8 +610,11 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   };
 
   const prepararDatosDocumento = () => {
-    const subtotal = sumaopesinimpues;
-    const totalPagar = total;
+    const subtotalBruto = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    const descuentoItems = items.reduce((sum, item) => sum + (item.descuento || 0), 0);
+    const totalDescuento = descuentoItems + descuentoExentasMonto + descuentoNoSujetasMonto;
+    const subtotalNeto = subtotalBruto - totalDescuento;
+    const totalPagar = subtotalNeto;
     
     const ahora = new Date();
     
@@ -663,12 +668,12 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       formapago: formapagoValue,
       estado: "",
 
-      sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
-      totaldescuento: parseFloat(totaldescuento.toFixed(2)),
+      sumaopesinimpues: parseFloat(subtotalBruto.toFixed(2)),
+      totaldescuento: parseFloat(totalDescuento.toFixed(2)),
       valoriva: 0.00,
-      subtotal: parseFloat((subtotal - totaldescuento).toFixed(2)),
+      subtotal: parseFloat(subtotalNeto.toFixed(2)),
       ivapercibido: 0.00,
-      montototalope: parseFloat((subtotal - totaldescuento).toFixed(2)),
+      montototalope: parseFloat(subtotalNeto.toFixed(2)),
       totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
       totalapagar: parseFloat(totalPagar.toFixed(2)),
       valorletras: convertirNumeroALetras(totalPagar),
@@ -678,13 +683,13 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       totalnosuj: parseFloat(noSujetasConDescuento.toFixed(2)),
       totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
       totalgravada: 0.00,
-      subtotalventas: parseFloat(subtotal.toFixed(2)),
+      subtotalventas: parseFloat(subtotalBruto.toFixed(2)),
 
       descunosuj: parseFloat(descuentoNoSujetasMonto.toFixed(2)),
       descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
       descugravada: 0.00,
-      porcentajedescuento: totaldescuento > 0 ? parseFloat(((totaldescuento / sumaopesinimpues) * 100).toFixed(2)) : 0.00,
-      totaldescu: parseFloat(totaldescuento.toFixed(2)),
+      porcentajedescuento: totalDescuento > 0 ? parseFloat(((totalDescuento / subtotalBruto) * 100).toFixed(2)) : 0.00,
+      totaldescu: parseFloat(totalDescuento.toFixed(2)),
       tributosf: null,
       codigot: "",
       descripciont: "",
@@ -694,7 +699,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       ivarete1: 0.00,
       reterenta: 0.00,
 
-      montototaloperacion: parseFloat((subtotal - totaldescuento).toFixed(2)),
+      montototaloperacion: parseFloat(subtotalNeto.toFixed(2)),
       totalpagar: parseFloat(totalPagar.toFixed(2)), 
       totalletras: convertirNumeroALetras(totalPagar),
       totaliva: 0.00,
