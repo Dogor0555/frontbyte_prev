@@ -970,6 +970,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
       nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
       docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
+      correo_seleccionado: correoReceptor,
 
       actividad_economica_cliente: actividadEconomicaCliente || null,
       desc_actividad_economica_cliente: descripcionActividad || null,

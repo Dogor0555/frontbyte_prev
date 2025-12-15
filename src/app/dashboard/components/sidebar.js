@@ -60,7 +60,6 @@ export default function Sidebar({ onOpenPerfil }) {
     consumidorfinal: false,
     contribuyentes: false,
     exportacion: false,
-    compras: false,
   });
   const [hoveredItem, setHoveredItem] = useState(null);
 
@@ -276,16 +275,7 @@ export default function Sidebar({ onOpenPerfil }) {
     {
       name: "Compras",
       icon: <FaShoppingCart />,
-      href: "#",
-      subMenu: [
-        { 
-          name: "Libro de Compras", 
-          icon: <FaBook />, 
-          href: "/dashboard/libro_compras",
-          permiso: "Libro de Compras" 
-        },
-      ],
-      menuKey: "compras",
+      href: "/dashboard/registro_compras",
       permiso: "Compras"
     },
 
