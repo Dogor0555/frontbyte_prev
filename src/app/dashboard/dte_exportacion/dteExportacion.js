@@ -72,6 +72,7 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
   const [correoReceptor, setCorreoReceptor] = useState("");
   const [telefonoReceptor, setTelefonoReceptor] = useState("");
   const [complementoReceptor, setComplementoReceptor] = useState("");
+  const [paisReceptor, setPaisReceptor] = useState("");
   const [idReceptor, setIdReceptor] = useState(null);
   const [tipoDocumentoLabel, setTipoDocumentoLabel] = useState("Documento");
   const [showDiscountModal, setShowDiscountModal] = useState(false);
@@ -470,6 +471,7 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
     setTelefonoReceptor("");
     setComplementoReceptor("");
     setTipoDocumentoLabel("Documento");
+    setPaisReceptor("");
     setItems([]);
     setSumaopesinimpues(0);
     setTotaldescuento(0);
@@ -1137,6 +1139,7 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
 
     setNombreReceptor(selectedClient.nombre ?? "");
     setDireccionReceptor(selectedClient.complemento ?? "");
+    setPaisReceptor(selectedClient.pais?.nombre || selectedClient.pais || "");
     setCorreoReceptor(selectedClient.correo ?? "");
     setTelefonoReceptor(selectedClient.telefono ?? "");
     setComplementoReceptor("");
@@ -1362,6 +1365,8 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
                 setTelefonoReceptor={setTelefonoReceptor}
                 complementoReceptor={complementoReceptor}
                 setComplementoReceptor={setComplementoReceptor}
+                paisReceptor={paisReceptor}
+                setPaisReceptor={setPaisReceptor}
                 idReceptor={idReceptor}
                 setIdReceptor={setIdReceptor}
                 

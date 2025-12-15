@@ -16,6 +16,7 @@ const LIMITES = {
     COMPLEMENTO: 255,
     CODACTIVIDAD: 20,
     DESCACTIVIDAD: 255,
+    PAIS: 100,
 };
 
 const DatosEmisorReceptor = ({ 
@@ -34,6 +35,8 @@ const DatosEmisorReceptor = ({
   setTelefonoReceptor,
   complementoReceptor,
   setComplementoReceptor,
+  paisReceptor,
+  setPaisReceptor,
   
   // Estados del emisor
   actividadEconomica,
@@ -231,6 +234,13 @@ const DatosEmisorReceptor = ({
     }
   };
 
+  const handlePaisReceptorChange = (e) => {
+    const valor = e.target.value;
+    if (validarCampo('paisReceptor', valor, LIMITES.PAIS)) {
+      setPaisReceptor(valor);
+    }
+  };
+
   const handleCorreoReceptorChange = (e) => {
     const valor = e.target.value;
     if (validarCampo('correoReceptor', valor, LIMITES.CORREO)) {
@@ -322,6 +332,7 @@ const DatosEmisorReceptor = ({
     setNumeroDocumentoReceptor(numeroDoc);
     setNombreReceptor(clienteSeleccionado.nombre || "");
     setDireccionReceptor(clienteSeleccionado.complemento || "");
+    setPaisReceptor(clienteSeleccionado.pais?.nombre || clienteSeleccionado.pais || "");
     setCorreoReceptor(clienteSeleccionado.correo || "");
     setTelefonoReceptor(clienteSeleccionado.telefono || "");
     setSearchTerm("");
@@ -671,6 +682,29 @@ const DatosEmisorReceptor = ({
               )}
               <p className="text-gray-500 text-xs mt-1">
                 {direccionReceptor.length}/{LIMITES.COMPLEMENTO} caracteres
+              </p>
+            </div>
+
+            {/* País */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                País
+              </label>
+              <input
+                type="text"
+                value={paisReceptor || ""}
+                onChange={handlePaisReceptorChange}
+                className={`w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                  errores.paisReceptor ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="País del receptor"
+                maxLength={LIMITES.PAIS}
+              />
+              {errores.paisReceptor && (
+                <p className="text-red-500 text-xs mt-1">{errores.paisReceptor}</p>
+              )}
+              <p className="text-gray-500 text-xs mt-1">
+                {(paisReceptor || "").length}/{LIMITES.PAIS} caracteres
               </p>
             </div>
 
