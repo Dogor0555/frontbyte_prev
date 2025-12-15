@@ -916,6 +916,7 @@ const descargarTicketFactura = async (idFactura) => {
       numpagoelectronico: "",
       nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
       docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
+      correo_seleccionado: correoReceptor,
 
       documentofirmado: null
     };
