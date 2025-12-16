@@ -35,8 +35,16 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
   const router = useRouter();
   const tableRef = useRef();
 
+  // Función para obtener la fecha actual en hora de El Salvador (UTC-6)
+  const getCurrentDateElSalvador = () => {
+    const ahora = new Date();
+    const offsetElSalvador = -6;
+    const horaElSalvador = new Date(ahora.getTime() + (offsetElSalvador * 60 * 60 * 1000));
+    return horaElSalvador;
+  };
+
   useEffect(() => {
-    const hoy = new Date();
+    const hoy = getCurrentDateElSalvador();
     const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
     setFechaInicio(primerDiaMes.toISOString().split('T')[0]);
     setFechaFin(hoy.toISOString().split('T')[0]);
@@ -88,7 +96,7 @@ const handleExportExcel = async () => {
     
     if (datosParaExportar.length === 0) {
       const response = await fetch(
-        `http://localhost:3000/anexo-consumidor-final?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `http://localhost:3000/anexo-consumidor-final-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }
@@ -286,7 +294,7 @@ const handleExportExcel = async () => {
     const worksheetResumen = workbook.addWorksheet('Resumen');
 
     // Datos para el resumen
-    const fechaGeneracion = new Date();
+    const fechaGeneracion = getCurrentDateElSalvador();
     const datosResumen = [
       ['ANEXO DE CONSUMIDOR FINAL - RESUMEN', ''],
       ['', ''],
