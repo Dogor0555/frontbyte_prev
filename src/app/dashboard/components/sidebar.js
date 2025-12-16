@@ -37,7 +37,8 @@ import {
   FaGlobe,             // Para Exportación
   FaFilePdf,           // Nuevo ícono para Detalles de Documentos
   FaWrench,            // Para Configurar PDF
-  FaShoppingCart       // Para Compras
+  FaShoppingCart,      // Para Compras
+  FaCartPlus
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -60,6 +61,7 @@ export default function Sidebar({ onOpenPerfil }) {
     consumidorfinal: false,
     contribuyentes: false,
     exportacion: false,
+    compras: false,
   });
   const [hoveredItem, setHoveredItem] = useState(null);
 
@@ -275,7 +277,22 @@ export default function Sidebar({ onOpenPerfil }) {
     {
       name: "Compras",
       icon: <FaShoppingCart />,
-      href: "/dashboard/registro_compras",
+      href: "#",
+      subMenu: [
+        {
+          name: "Realizar Compra",
+          icon: <FaCartPlus />,
+          href: "/dashboard/realizar_compra",
+          permiso: "Realizar Compras"
+        },
+        {
+          name: "Registro de Compras",
+          icon: <FaBook />,
+          href: "/dashboard/registro_compras",
+          permiso: "Compras"
+        },
+      ],
+      menuKey: "compras",
       permiso: "Compras"
     },
 

@@ -332,7 +332,6 @@ const DatosEmisorReceptor = ({
     setNumeroDocumentoReceptor(numeroDoc);
     setNombreReceptor(clienteSeleccionado.nombre || "");
     setDireccionReceptor(clienteSeleccionado.complemento || "");
-    setPaisReceptor(clienteSeleccionado.pais?.nombre || clienteSeleccionado.pais || "");
     setCorreoReceptor(clienteSeleccionado.correo || "");
     setTelefonoReceptor(clienteSeleccionado.telefono || "");
     setSearchTerm("");
