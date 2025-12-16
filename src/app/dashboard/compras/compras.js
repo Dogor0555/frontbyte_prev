@@ -542,7 +542,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                                 <button
-                                    onClick={() => setShowAddModal(true)}
+                                    onClick={() => router.push('/dashboard/realizar_compra')}
                                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors shadow-sm flex items-center justify-center"
                                 >
                                     <FaPlus className="mr-2" /> Agregar
