@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/lib/api";
 
 const LIMITES = {
     NOMBRE: 255,
@@ -73,7 +74,7 @@ const DatosEmisorReceptor = ({
       setLoadingActividades(true);
       setErrorActividades(null);
       try {
-        const response = await fetch(`http://localhost:3000/detalle-usuario/usuario/${idEmisor}`, {
+        const response = await fetch(`${API_BASE_URL}/detalle-usuario/usuario/${idEmisor}`, {
           method: "GET",
           credentials: "include",
           headers: {
@@ -142,7 +143,7 @@ const DatosEmisorReceptor = ({
       const fetchClientes = async () => {
         setLoadingClientes(true);
         try {
-          const response = await fetch("http://localhost:3000/clientes/activos", {
+          const response = await fetch(`${API_BASE_URL}/clientes/activos`, {
             method: "GET",
             credentials: "include", 
             headers: {

@@ -15,6 +15,7 @@ import {
   FaStar,
   FaArrowRight
 } from 'react-icons/fa';
+import { API_BASE_URL } from "@/lib/api";
 
 export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggleSidebar, sidebarOpen }) {
   const [haciendaConnection, setHaciendaConnection] = useState({
@@ -182,7 +183,7 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
     
     setIsRefreshing(true);
     try {
-      const response = await fetch('http://localhost:3000/hacienda/token-check', {
+      const response = await fetch(`${API_BASE_URL}/hacienda/token-check`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -213,7 +214,7 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
   const toggleHaciendaConnection = async () => {
     if (haciendaConnection.connected) {
       try {
-        await fetch('http://localhost:3000/clearTokenhacienda', {
+        await fetch(`${API_BASE_URL}/clearTokenhacienda`, {
           method: 'DELETE',
           credentials: 'include',
         });

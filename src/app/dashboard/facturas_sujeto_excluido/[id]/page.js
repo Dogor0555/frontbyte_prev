@@ -4,6 +4,7 @@ import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, Fa
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function FacturaExcluidaDetallePage() {
   const params = useParams();
@@ -21,7 +22,7 @@ export default function FacturaExcluidaDetallePage() {
     const fetchFacturaExcluida = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/sujeto-excluido/${facturaId}/productos`, {
+        const response = await fetch(`${API_BASE_URL}/sujeto-excluido/${facturaId}/productos`, {
           credentials: "include",
           headers: {
             'Content-Type': 'application/json',
@@ -79,7 +80,7 @@ export default function FacturaExcluidaDetallePage() {
         throw new Error("La factura excluida no tiene documento firmado");
       }
 
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-pdf`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/descargar-pdf`, {
         credentials: "include",
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -123,7 +124,7 @@ export default function FacturaExcluidaDetallePage() {
         throw new Error("La factura excluida no tiene documento firmado");
       }
 
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/ver-compacto`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/ver-compacto`, {
         credentials: "include",
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

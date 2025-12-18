@@ -26,7 +26,7 @@ import { municipios } from "./data/municipios";
 import { departamentos } from "./data/departamentos";
 import { codactividad } from "./data/codactividad";
 
-const API_BASE = "http://localhost:3000";
+import { API_BASE_URL } from "@/lib/api";
 
 // Expresiones regulares para validación
 const NAME_REGEX = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9\s\-\.\,]+$/;
@@ -93,7 +93,7 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
     let cancel = false;
     async function loadDetalleUsuario() {
       try {
-        const res = await fetch(`${API_BASE}/detalle-usuario/getAll`, {
+        const res = await fetch(`${API_BASE_URL}/detalle-usuario/getAll`, {
           method: "GET",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -145,7 +145,7 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
     async function loadDetalleUsuarioEspecifico() {
       try {
         const usuarioId = sucursal?.usuarioid || user.idusuario;
-        const res = await fetch(`${API_BASE}/detalle-usuario/usuario/${usuarioId}`, {
+        const res = await fetch(`${API_BASE_URL}/detalle-usuario/usuario/${usuarioId}`, {
           method: "GET",
           credentials: "include",
           headers: { "Content-Type": "application/json" },

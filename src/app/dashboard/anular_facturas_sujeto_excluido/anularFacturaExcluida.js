@@ -6,6 +6,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -30,7 +31,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
   useEffect(() => {
     const fetchFacturasExcluidas = async () => {
       try {
-        const response = await fetch("http://localhost:3000/sujeto-excluido", {
+        const response = await fetch(`${API_BASE_URL}/sujeto-excluido`, {
           credentials: "include"
         });
         
@@ -157,7 +158,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
   const handleAnularFactura = async (facturaId, motivo) => {
     setAnulando(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/anular`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/anular`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -203,7 +204,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
   const handleGeneratePDF = async (facturaId) => {
     setPdfLoading(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-compacto`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/descargar-compacto`, {
         credentials: "include"
       });
       
@@ -246,7 +247,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
 
   const handleDownloadJSON = async (iddtefactura) => {
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
         method: 'GET',
         credentials: 'include',
       });

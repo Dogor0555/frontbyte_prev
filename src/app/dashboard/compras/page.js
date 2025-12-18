@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
 import { checkPermissionAndRedirect } from "../components/authorization.js";
+import { API_BASE_URL } from "@/lib/api";
 
 export default async function PageCompras() {
     // Verificación de permisos
@@ -30,7 +31,7 @@ export default async function PageCompras() {
     
     try {
         // Obtener compras
-        const comprasResponse = await fetch("http://localhost:3000/compras/getAll", {
+        const comprasResponse = await fetch(`${API_BASE_URL}/compras/getAll`, {
             method: "GET",
             headers: {
                 Cookie: cookie,
@@ -44,7 +45,7 @@ export default async function PageCompras() {
         }
 
         // Obtener proveedores
-        const proveedoresResponse = await fetch("http://localhost:3000/proveedores/getAll", {
+        const proveedoresResponse = await fetch(`${API_BASE_URL}/proveedores/getAll`, {
             method: "GET",
             headers: {
                 Cookie: cookie,

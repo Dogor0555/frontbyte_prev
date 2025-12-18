@@ -7,6 +7,7 @@ import Navbar from "../components/navbar";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from 'exceljs';
+import { API_BASE_URL } from "@/lib/api";
 
 export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatus }) {
     const [isMobile, setIsMobile] = useState(false);
@@ -66,9 +67,8 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     const fetchLibro = async () => {
         try {
             setLoading(true);
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
             const response = await fetch(
-                `${baseUrl}/libro-compras?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+                `${API_BASE_URL}/libro-compras?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
                 {
                     credentials: "include",
                 }

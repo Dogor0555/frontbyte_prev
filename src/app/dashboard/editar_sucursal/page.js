@@ -1,4 +1,5 @@
 import Sucursal from "./sucursal";
+import { API_BASE_URL } from "@/lib/api";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -26,7 +27,7 @@ export default async function SucursalPage() {
 
     let sucursalData = null;
     try {
-        const response = await fetch(`http://localhost:3000/sucursal/${authStatus.user.idsucursal}`, {
+        const response = await fetch(`${API_BASE_URL}/sucursal/${authStatus.user.idsucursal}`, {
             method: "GET",
             headers: {
                 Cookie: cookie,

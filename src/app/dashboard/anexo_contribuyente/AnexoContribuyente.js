@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from 'exceljs';
+import { API_BASE_URL } from "@/lib/api";
 
 export default function AnexoContribuyenteView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -53,7 +54,7 @@ export default function AnexoContribuyenteView({ user, hasHaciendaToken, haciend
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:3000/anexo-contribuyentes?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `${API_BASE_URL}/anexo-contribuyentes?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }
@@ -90,7 +91,7 @@ export default function AnexoContribuyenteView({ user, hasHaciendaToken, haciend
       
       if (datosParaExportar.length === 0) {
         const response = await fetch(
-          `http://localhost:3000/anexo-contribuyente?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+          `${API_BASE_URL}/anexo-contribuyente?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
           {
             credentials: "include"
           }

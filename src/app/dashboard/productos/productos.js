@@ -4,6 +4,7 @@ import { FaSearch, FaBars, FaPlus, FaTimes, FaEdit, FaTrash, FaFilePdf, FaSave, 
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 export default function Productos({ initialProductos = [], user,   hasHaciendaToken = false,  
@@ -230,7 +231,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
     // Fetch proveedores
     const fetchProveedores = async () => {
         try {
-            const response = await fetch("http://localhost:3000/proveedores/getAll", {
+            const response = await fetch(`${API_BASE_URL}/proveedores/getAll`, {
                 method: "GET",
                 headers: {
                     Cookie: document.cookie,
@@ -265,7 +266,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
 
     const fetchProductos = async () => {
         try {
-            const response = await fetch("http://localhost:3000/productos/getAll", {
+            const response = await fetch(`${API_BASE_URL}/productos/getAll`, {
                 method: "GET",
                 headers: {
                     Cookie: document.cookie,
@@ -295,7 +296,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                 return;
             }
 
-            const response = await fetch(`http://localhost:3000/reporte/productos/${userId}`, {
+            const response = await fetch(`${API_BASE_URL}/reporte/productos/${userId}`, {
                 method: "GET",
                 headers: {
                     Cookie: document.cookie,
@@ -345,7 +346,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         };
 
         try {
-            const response = await fetch("http://localhost:3000/productos/addPro", {
+            const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -407,7 +408,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         };
 
         try {
-            const response = await fetch(`http://localhost:3000/productos/updatePro/${formData.id}`, {
+            const response = await fetch(`${API_BASE_URL}/productos/updatePro/${formData.id}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -454,7 +455,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         }
 
         try {
-            const response = await fetch(`http://localhost:3000/productos/incrementStock/${selectedProduct.id}`, {
+            const response = await fetch(`${API_BASE_URL}/productos/incrementStock/${selectedProduct.id}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -494,7 +495,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
 
     const handleDeleteProduct = async (productoId) => {
         try {
-            const response = await fetch(`http://localhost:3000/productos/deletePro/${productoId}`, {
+            const response = await fetch(`${API_BASE_URL}/productos/deletePro/${productoId}`, {
                 method: "DELETE",
                 headers: {
                     Cookie: document.cookie,

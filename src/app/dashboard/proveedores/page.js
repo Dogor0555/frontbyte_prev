@@ -1,5 +1,6 @@
 // src/app/dashboard/proveedores/page.js
 import Proveedores from "./proveedores";
+import { API_BASE_URL } from "@/lib/api";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -28,7 +29,7 @@ export default async function PageProveedores() {
     // Obtener proveedores
     let proveedores = [];
     try {
-        const response = await fetch("http://localhost:3000/proveedores/getAll", {
+        const response = await fetch(`${API_BASE_URL}/proveedores/getAll`, {
             method: "GET",
             headers: {
                 Cookie: cookie,

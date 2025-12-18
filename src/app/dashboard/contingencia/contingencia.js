@@ -6,6 +6,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -24,7 +25,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
   useEffect(() => {
     const fetchFacturasContingencia = async () => {
       try {
-        const response = await fetch("http://localhost:3000/facturas/contingencia", {
+        const response = await fetch(`${API_BASE_URL}/facturas/contingencia`, {
           credentials: "include"
         });
         
@@ -176,7 +177,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
 
   const handleGenerarLote = async () => {
     try {
-      const tokenCheckResponse = await fetch('http://localhost:3000/statusTokenhacienda', {
+      const tokenCheckResponse = await fetch(`${API_BASE_URL}/statusTokenhacienda`, {
         credentials: 'include'
       });
 
@@ -216,7 +217,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
     setGenerandoLote(true);
     
     try {
-      const response = await fetch('http://localhost:3000/contingencia/masiva', {
+      const response = await fetch(`${API_BASE_URL}/contingencia/masiva`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
@@ -241,7 +242,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
   const handleGeneratePDF = async (facturaId) => {
     setPdfLoading(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-pdf`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/descargar-pdf`, {
         credentials: "include"
       });
       
@@ -284,7 +285,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
 
   const handleDownloadJSON = async (iddtefactura) => {
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
         method: 'GET',
         credentials: 'include',
       });

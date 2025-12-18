@@ -3,6 +3,7 @@ import React, { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import PerfilEmpleado from "../../perfil/perfilEmpleado";
+import { API_BASE_URL } from "@/lib/api";
 
 export const revalidate = 0;
 console.log("[INTERCEPT]");
@@ -17,7 +18,7 @@ async function buildCookieHeader() {
 async function fetchPerfil(cookieHeader) {
   const url = process.env.NEXT_PUBLIC_BACKEND_URL
     ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/perfil`
-    : "http://localhost:3000/perfil";
+    : `${API_BASE_URL}/perfil`;
 
   const res = await fetch(url, {
     method: "GET",

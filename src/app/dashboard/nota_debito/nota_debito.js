@@ -6,6 +6,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -39,18 +40,18 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
       try {
         setLoading(true);
 
-        const facturasResponse = await fetch("http://localhost:3000/creditos/getAllDteCreditos", {
+        const facturasResponse = await fetch(`${API_BASE_URL}/creditos/getAllDteCreditos`, {
           credentials: "include"
         });
         
         if (!facturasResponse.ok) throw new Error("Error al cargar facturas");
         const facturasData = await facturasResponse.json();
         
-        const notasDebitoResponse = await fetch("http://localhost:3000/notasdebito/", {
+        const notasDebitoResponse = await fetch(`${API_BASE_URL}/notasdebito/`, {
           credentials: "include"
         });
 
-        const notasCreditoResponse = await fetch("http://localhost:3000/notascredito/", {
+        const notasCreditoResponse = await fetch(`${API_BASE_URL}/notascredito/`, {
           credentials: "include"
         });
 
@@ -222,7 +223,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   const handleGeneratePDF = async (notaId) => {
     setPdfLoading(notaId);
     try {
-      const facturaResponse = await fetch(`http://localhost:3000/facturas/${notaId}`, {
+      const facturaResponse = await fetch(`${API_BASE_URL}/facturas/${notaId}`, {
         credentials: "include"
       });
       if (!facturaResponse.ok) {
@@ -231,7 +232,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
       const factura = await facturaResponse.json();
       const numeroControl = factura.ncontrol || `nota-${notaId}`;
 
-      const response = await fetch(`http://localhost:3000/facturas/${notaId}/descargar-pdf`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${notaId}/descargar-pdf`, {
         credentials: "include"
       });
       
@@ -268,7 +269,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   const handleDownloadJSON = async (iddtefactura) => {
     setPdfLoading(iddtefactura);
     try {
-      const facturaResponse = await fetch(`http://localhost:3000/facturas/${iddtefactura}`, {
+      const facturaResponse = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}`, {
         credentials: "include"
       });
       if (!facturaResponse.ok) {
@@ -277,7 +278,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
       const factura = await facturaResponse.json();
       const numeroControl = factura.ncontrol || `nota-${iddtefactura}`;
 
-      const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -373,7 +374,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
               if (factura.idcliente) {
                   setLoadingCliente(true);
                   try {
-                      const response = await fetch(`http://localhost:3000/clientes/${factura.idcliente}`, {
+                        const response = await fetch(`${API_BASE_URL}/clientes/${factura.idcliente}`, {
                           credentials: "include"
                       });
                       

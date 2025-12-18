@@ -7,6 +7,7 @@ import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function LibroVentasView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -49,7 +50,7 @@ export default function LibroVentasView({ user, hasHaciendaToken, haciendaStatus
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:3000/ventas-por-fecha?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `${API_BASE_URL}/ventas-por-fecha?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }
@@ -81,7 +82,7 @@ export default function LibroVentasView({ user, hasHaciendaToken, haciendaStatus
     setExporting(true);
     try {
       const response = await fetch(
-        `http://localhost:3000/exportar-excel?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `${API_BASE_URL}/exportar-excel?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }

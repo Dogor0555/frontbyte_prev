@@ -17,9 +17,10 @@ import {
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
+import { API_BASE_URL } from "@/lib/api";
 
 // Configuración
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3000";
+const API_BASE = API_BASE_URL;
 const DOC_OPTIONS = [
   { label: "DUI", value: 13 },
   { label: "NIT", value: 36 },

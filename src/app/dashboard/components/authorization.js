@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 /**
  * Verifica los permisos del usuario en el servidor.
@@ -18,7 +19,7 @@ export async function checkPermissionAndRedirect(requiredPermission) {
 
   try {
     const cookieHeader = allCookies.map((c) => `${c.name}=${c.value}`).join("; ");
-    const response = await fetch(`http://localhost:3000/permisos/`, {
+    const response = await fetch(`${API_BASE_URL}/permisos/`, {
       method: "GET",
       headers: {
         Cookie: cookieHeader,

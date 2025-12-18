@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/sidebar";
 import Navbar from "../components/navbar";
@@ -71,8 +72,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         const fetchData = async () => {
             try {
                 const [provRes, prodRes] = await Promise.all([
-                    fetch("http://localhost:3000/proveedores/getAll", { credentials: "include" }),
-                    fetch("http://localhost:3000/productos/getAll", { credentials: "include" })
+                    fetch(`${API_BASE_URL}/proveedores/getAll`, { credentials: "include" }),
+                        fetch(`${API_BASE_URL}/productos/getAll`, { credentials: "include" })
                 ]);
 
                 if (provRes.ok) setProveedores(await provRes.json());
@@ -190,7 +191,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 detalles: detalles
             };
 
-            const response = await fetch("http://localhost:3000/compras/add", {
+            const response = await fetch(`${API_BASE_URL}/compras/add`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -208,7 +209,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             // Actualizar stock (opcional, dependiendo de si el backend lo hace automático o no, 
             // basado en el código anterior se hacía manual)
             for (const detalle of detalles) {
-                await fetch(`http://localhost:3000/productos/incrementStock/${detalle.producto_id}`, {
+                await fetch(`${API_BASE_URL}/productos/incrementStock/${detalle.producto_id}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     credentials: "include",

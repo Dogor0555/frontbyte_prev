@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import PerfilEmpleado from "./perfilEmpleado";
 import { checkAuthStatus } from "../../services/auth";
+import { API_BASE_URL } from "@/lib/api";
 
 export default async function PerfilPage() {
     // Obtener cookies en el servidor
@@ -25,7 +26,7 @@ export default async function PerfilPage() {
     // Obtener perfil desde la API
     let perfil = null;
     try {
-        const response = await fetch("http://localhost:3000/perfil", {
+        const response = await fetch(`${API_BASE_URL}/perfil`, {
             method: "GET",
             headers: {
                 Cookie: cookie,

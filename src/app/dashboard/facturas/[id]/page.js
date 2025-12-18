@@ -4,6 +4,7 @@ import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, Fa
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function FacturaDetallePage() {
   const params = useParams();
@@ -21,7 +22,7 @@ export default function FacturaDetallePage() {
     const fetchFactura = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/facturas/productos/${idFactura}`, {
+        const response = await fetch(`${API_BASE_URL}/facturas/productos/${idFactura}`, {
           credentials: "include",
           headers: {
             'Content-Type': 'application/json',
@@ -52,7 +53,7 @@ export default function FacturaDetallePage() {
   const handleGeneratePDF = async () => {
     setGenerandoPDF(true);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${idFactura}/descargar-pdf?code=VERIFICATION_CODE`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${idFactura}/descargar-pdf?code=VERIFICATION_CODE`, {
         credentials: "include",
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -90,7 +91,7 @@ export default function FacturaDetallePage() {
   const handleGenerateTicket = async () => {
       setGenerandoTicket(true);
       try {
-        const response = await fetch(`http://localhost:3000/facturas/${idFactura}/ver-compacto`, {
+        const response = await fetch(`${API_BASE_URL}/facturas/${idFactura}/ver-compacto`, {
           credentials: "include",
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`

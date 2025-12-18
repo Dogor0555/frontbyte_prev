@@ -21,9 +21,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
-
-// Base de API (igual que en perfilEmpleado.js)
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3000"
+import { API_BASE_URL } from "@/lib/api";
 
 
 export default function Empleados({ 
@@ -220,7 +218,7 @@ export default function Empleados({
     let cancel = false;
     async function loadProfile() {
       try {
-        const res = await fetch(`${API_BASE}/perfil`, {
+        const res = await fetch(`${API_BASE_URL}/perfil`, {
           method: "GET",
           headers: { "Content-Type": "application/json", Cookie: document.cookie },
           credentials: "include",
@@ -273,7 +271,7 @@ export default function Empleados({
 
   const fetchEmpleados = async () => {
     try {
-      const response = await fetch("http://localhost:3000/empleados/getAll", {
+      const response = await fetch(`${API_BASE_URL}/empleados/getAll`, {
         method: "GET",
         headers: {
           Cookie: document.cookie,
@@ -302,7 +300,7 @@ export default function Empleados({
     }
 
     try {
-      const response = await fetch("http://localhost:3000/empleados/add", {
+      const response = await fetch(`${API_BASE_URL}/empleados/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -356,7 +354,7 @@ export default function Empleados({
 
     try {
       const response = await fetch(
-        `http://localhost:3000/empleados/update/${formData.idempleado}`,
+        `${API_BASE_URL}/empleados/update/${formData.idempleado}`,
         {
           method: "PUT",
           headers: {
@@ -463,7 +461,7 @@ export default function Empleados({
   const handleDeleteEmpleado = async (empleadoId) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/empleados/delete/${empleadoId}`,
+        `${API_BASE_URL}/empleados/delete/${empleadoId}`,
         {
           method: "DELETE",
           headers: {
@@ -497,7 +495,7 @@ export default function Empleados({
 
     try {
       const response = await fetch(
-        `http://localhost:3000/empleados/change-password/${selectedEmpleado.idempleado}`,
+        `${API_BASE_URL}/empleados/change-password/${selectedEmpleado.idempleado}`,
         {
           method: "POST",
           headers: {

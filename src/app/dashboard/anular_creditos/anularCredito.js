@@ -6,6 +6,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -30,7 +31,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
   useEffect(() => {
     const fetchCreditos = async () => {
       try {
-        const response = await fetch("http://localhost:3000/creditos/getAllDteCreditos", {
+        const response = await fetch(`${API_BASE_URL}/creditos/getAllDteCreditos`, {
           credentials: "include"
         });
         if (!response.ok) throw new Error("Error al cargar créditos");
@@ -149,7 +150,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
   const handleAnularCredito = async (creditoId, motivo) => {
     setAnulando(creditoId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${creditoId}/anular`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${creditoId}/anular`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -193,7 +194,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
   const handleGeneratePDF = async (creditoId) => {
     setPdfLoading(creditoId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${creditoId}/descargar-pdf`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${creditoId}/descargar-pdf`, {
         credentials: "include"
       });
       
@@ -236,7 +237,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
 
   const handleDownloadJSON = async (iddtefactura) => {
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
         method: 'GET',
         credentials: 'include',
       });

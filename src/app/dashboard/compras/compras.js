@@ -6,6 +6,7 @@ import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import ModalDetallesCompra from "./components/ModalDetallesCompra";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function Compras({ initialCompras = [], initialProveedores = [], user, hasHaciendaToken = false, haciendaStatus = {} }) {
     const router = useRouter();
@@ -56,7 +57,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
         setCargandoProductos(true);
         setErrorCargaProductos(null);
         try {
-            const response = await fetch("http://localhost:3000/productos/getAll", {
+            const response = await fetch(`${API_BASE_URL}/productos/getAll`, {
                 method: "GET",
                 headers: { Cookie: document.cookie },
                 credentials: "include",
@@ -220,7 +221,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
 
     const fetchCompras = async () => {
         try {
-            const response = await fetch("http://localhost:3000/compras/getAll", {
+            const response = await fetch(`${API_BASE_URL}/compras/getAll`, {
                 method: "GET",
                 headers: { 
                     "Content-Type": "application/json",
@@ -282,7 +283,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                 }))
             };
 
-            const response = await fetch("http://localhost:3000/compras/add", {
+            const response = await fetch(`${API_BASE_URL}/compras/add`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -312,7 +313,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
             console.log("Actualizando stock...");
             for (const detalle of detallesCompra) {
                 try {
-                    const stockResponse = await fetch(`http://localhost:3000/productos/incrementStock/${detalle.producto_id}`, {
+                    const stockResponse = await fetch(`${API_BASE_URL}/productos/incrementStock/${detalle.producto_id}`, {
                         method: "PUT",
                         headers: {
                             "Content-Type": "application/json",
@@ -372,7 +373,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
         }
 
         try {
-            const response = await fetch(`http://localhost:3000/compras/update/${formData.id}`, {
+            const response = await fetch(`${API_BASE_URL}/compras/update/${formData.id}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -424,7 +425,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
 
     const handleDeleteCompra = async (compraId) => {
         try {
-            const response = await fetch(`http://localhost:3000/compras/delete/${compraId}`, {
+            const response = await fetch(`${API_BASE_URL}/compras/delete/${compraId}`, {
                 method: "DELETE",
                 headers: { Cookie: document.cookie },
                 credentials: "include",

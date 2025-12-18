@@ -43,6 +43,7 @@ import {
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function Sidebar({ onOpenPerfil }) {
   const router = useRouter();
@@ -77,7 +78,7 @@ export default function Sidebar({ onOpenPerfil }) {
   const cargarPermisos = async () => {
     try {
       setLoadingPermisos(true);
-      const response = await fetch(`http://localhost:3000/permisos/`, {
+      const response = await fetch(`${API_BASE_URL}/permisos/`, {
         method: "GET",
         credentials: "include",
         cache: "no-store",

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from 'exceljs';
+import { API_BASE_URL } from "@/lib/api";
 
 export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -59,7 +60,7 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:3000/libro-ventas-consumidores-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `${API_BASE_URL}/libro-ventas-consumidores-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }
@@ -94,12 +95,12 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
           let datosParaExportar = libro;
           
           if (datosParaExportar.length === 0) {
-              const response = await fetch(
-                  `http://localhost:3000/libro-ventas-consumidores-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+                const response = await fetch(
+                  `${API_BASE_URL}/libro-ventas-consumidores-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
                   {
-                      credentials: "include"
+                    credentials: "include"
                   }
-              );
+                );
               
               if (!response.ok) throw new Error("Error al cargar datos para exportar");
               const data = await response.json();

@@ -1,5 +1,6 @@
 // src/app/dashboard/persona_juridica/page.js
 import Productos from "./productos";
+import { API_BASE_URL } from "@/lib/api";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -32,7 +33,7 @@ export default async function Produc() {
     // Obtener las empresas del usuario
     let productos = [];
     try {
-        const response = await fetch("http://localhost:3000/productos/getAll", {
+        const response = await fetch(`${API_BASE_URL}/productos/getAll`, {
             method: "GET",
             headers: {
                 Cookie: cookie,

@@ -7,7 +7,7 @@ import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 
 /* --------------------------------- Utils --------------------------------- */
-const API_BASE = "http://localhost:3000";
+import { API_BASE_URL } from "@/lib/api";
 const fmtMoney = (n = 0) =>
   Number(n || 0).toLocaleString("es-SV", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 
@@ -41,7 +41,7 @@ function normalizeFilters(f = {}) {
 }
 
 async function getJSON(path, { cookie, signal } = {}) {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
   const headers = { "Content-Type": "application/json" };
   const res = await fetch(url, {
     method: "GET",
@@ -216,11 +216,11 @@ console.log("Reporte - User:", user);
   };
 
   const csvHref = useMemo(
-    () => `${API_BASE}/reportes/facturas.csv?${buildQuery(normalizeFilters(filters))}`,
+    () => `${API_BASE_URL}/reportes/facturas.csv?${buildQuery(normalizeFilters(filters))}`,
     [filters]
   );
   const pdfHref = useMemo(
-    () => `${API_BASE}/reportes/facturas.pdf?${buildQuery(normalizeFilters(filters))}&landscape=true&totals=true&compact=true`,
+    () => `${API_BASE_URL}/reportes/facturas.pdf?${buildQuery(normalizeFilters(filters))}&landscape=true&totals=true&compact=true`,
     [filters]
   );
 

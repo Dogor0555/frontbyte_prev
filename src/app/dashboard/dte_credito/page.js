@@ -1,5 +1,6 @@
 // src/app/dashboard/credito-fiscal/page.js
 import CreditoFiscalViewComplete from "./dteCredito.js";
+import { API_BASE_URL } from "@/lib/api";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -34,7 +35,7 @@ export default async function CreditoFiscalPage() {
 
   try {
     // Productos
-    const productosResponse = await fetch("http://localhost:3000/productos/getAll", {
+    const productosResponse = await fetch(`${API_BASE_URL}/productos/getAll`, {
       method: "GET",
       headers: { Cookie: cookie },
       credentials: "include",
@@ -44,7 +45,7 @@ export default async function CreditoFiscalPage() {
     productos = await productosResponse.json();
 
     // Clientes jurídicos
-    const clientesResponse = await fetch("http://localhost:3000/personasJuridicas/getAll", {
+    const clientesResponse = await fetch(`${API_BASE_URL}/personasJuridicas/getAll`, {
       method: "GET",
       headers: { Cookie: cookie },
       credentials: "include",
@@ -55,7 +56,7 @@ export default async function CreditoFiscalPage() {
 
     // Sucursal
     const sucursalResponse = await fetch(
-      `http://localhost:3000/sucursal/${authStatus.user.idsucursal}`,
+      `${API_BASE_URL}/sucursal/${authStatus.user.idsucursal}`,
       {
         method: "GET",
         headers: { Cookie: cookie },

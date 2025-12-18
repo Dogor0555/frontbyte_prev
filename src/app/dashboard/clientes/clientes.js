@@ -9,6 +9,7 @@ import DeleteConfirmModal from "./components/modals/DeleteConfirmModal";
 import CancelConfirmModal from "./components/modals/CancelConfirmModal";
 import ErrorModal from "./components/modals/ErrorModal";
 import Select from "react-select";
+import { API_BASE_URL } from "@/lib/api";
 import {
   FaPlus,
   FaSearch,
@@ -313,7 +314,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
 
   const fetchClientes = async () => {
     try {
-      const response = await fetch("http://localhost:3000/clientes/getAllCli", {
+      const response = await fetch(`${API_BASE_URL}/clientes/getAllCli`, {
         method: "GET",
         headers: {
           Cookie: document.cookie,
@@ -351,7 +352,7 @@ const handleSaveNewCliente = async (e) => {
 
       console.log("Datos enviados al backend:", datosEnviar);
 
-      const response = await fetch("http://localhost:3000/clientes/addCli", {
+      const response = await fetch(`${API_BASE_URL}/clientes/addCli`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -400,7 +401,7 @@ const handleUpdateCliente = async (e) => {
       console.log("Datos enviados al backend:", datosEnviar);
 
       const response = await fetch(
-        `http://localhost:3000/clientes/updateCli/${clienteToEdit.idcliente}`,
+        `${API_BASE_URL}/clientes/updateCli/${clienteToEdit.idcliente}`,
         {
           method: "PUT",
           headers: {
@@ -439,7 +440,7 @@ const handleUpdateCliente = async (e) => {
 const handleToggleEstado = async (clienteId, nuevoEstado) => {
   try {
     const response = await fetch(
-      `http://localhost:3000/clientes/${clienteId}/estado`,
+      `${API_BASE_URL}/clientes/${clienteId}/estado`,
       {
         method: "PUT",
         headers: {
@@ -484,7 +485,7 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
   const handleDeleteCliente = async (clienteId) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/clientes/deleteCli/${clienteId}`,
+        `${API_BASE_URL}/clientes/deleteCli/${clienteId}`,
         {
           method: "DELETE",
           headers: {

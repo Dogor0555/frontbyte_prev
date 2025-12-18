@@ -1,8 +1,10 @@
 // src/lib/auth.js
 // src/lib/auth.js
+import { API_BASE_URL } from "@/lib/api";
+
 export async function checkAuth(cookie = '') {
     try {
-        const response = await fetch('http://localhost:3000/checkAuth', {
+        const response = await fetch(`${API_BASE_URL}/checkAuth`, {
             method: 'GET',
             headers: {
                 Cookie: cookie,
@@ -20,7 +22,7 @@ export async function checkAuth(cookie = '') {
         // necesitamos hacer una consulta adicional
         if (data.user && data.user.emailemp) {
             // Consultar información completa del empleado
-            const empleadoResponse = await fetch(`http://localhost:3000/empleados/by-email/${data.user.emailemp}`, {
+            const empleadoResponse = await fetch(`${API_BASE_URL}/empleados/by-email/${data.user.emailemp}`, {
                 method: 'GET',
                 headers: {
                     Cookie: cookie,

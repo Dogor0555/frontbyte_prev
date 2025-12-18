@@ -17,6 +17,7 @@ import FechaHoraEmision from "./components/FechaHoraEmision";
 import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal";
 import MensajeModal from "./components/MensajeModal";
 import Handlebars from 'handlebars';
+import { API_BASE_URL } from "@/lib/api";
 
 export default function SujetoExcluidoViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
   const [cliente, setCliente] = useState(null);
@@ -402,7 +403,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       
       console.log("Datos a enviar:", datosDocumento);
       
-      const responseEncabezado = await fetch("http://localhost:3000/sujeto-excluido/", {
+      const responseEncabezado = await fetch(`${API_BASE_URL}/sujeto-excluido/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -550,7 +551,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       detalles: detalles,
     };
 
-    const responseDetalles = await fetch(`http://localhost:3000/sujeto-excluido/${iddtefactura}/detalles`, {
+    const responseDetalles = await fetch(`${API_BASE_URL}/sujeto-excluido/${iddtefactura}/detalles`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -581,7 +582,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
 
       for (const producto of productosParaActualizar) {
         try {
-          await fetch(`http://localhost:3000/productos/decrementStock/${producto.productoId}`, {
+          await fetch(`${API_BASE_URL}/productos/decrementStock/${producto.productoId}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -603,7 +604,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
 
   const obtenerUltimoNumeroDocumento = async () => {
     try {
-      const response = await fetch("http://localhost:3000/facturas/ultima", {
+      const response = await fetch(`${API_BASE_URL}/facturas/ultima`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -810,7 +811,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
         setErrorCargaProductos(null);
 
         try {
-          const response = await fetch('http://localhost:3000/productos/getAll', {
+          const response = await fetch(`${API_BASE_URL}/productos/getAll`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -1116,7 +1117,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     setDescargandoTicket(true);
     
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${idFactura}/ver-compacto`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${idFactura}/ver-compacto`, {
         method: 'GET',
         credentials: 'include'
       });

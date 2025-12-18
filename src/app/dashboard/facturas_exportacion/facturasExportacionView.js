@@ -5,6 +5,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function FacturasExportacionView( { user, hasHaciendaToken, haciendaStatus } ) {
   const [isMobile, setIsMobile] = useState(false);
@@ -25,7 +26,7 @@ export default function FacturasExportacionView( { user, hasHaciendaToken, hacie
   useEffect(() => {
     const fetchFacturas = async () => {
       try {
-        const response = await fetch("http://localhost:3000/exportacion", {
+        const response = await fetch(`${API_BASE_URL}/exportacion`, {
           credentials: "include"
         });
         if (!response.ok) throw new Error("Error al cargar las facturas de exportación");
@@ -162,7 +163,7 @@ const ordenarFacturas = (facturas) => {
       }
     setAnulando(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/anular`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/anular`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -201,7 +202,7 @@ const ordenarFacturas = (facturas) => {
   const handleReTransmitir = async (facturaId) => {
     setReTransmitiendo(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/contingencia`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/contingencia`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -229,7 +230,7 @@ const ordenarFacturas = (facturas) => {
 
   const handleDownloadJSON = async (iddtefactura) => {
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -272,7 +273,7 @@ const ordenarFacturas = (facturas) => {
 const handleGeneratePDF = async (facturaId) => {
   setPdfLoading(facturaId);
   try {
-    const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-pdf`, {
+    const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/descargar-pdf`, {
       credentials: "include"
     });
     

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus, isAdmin } from "../../services/auth";
+import { API_BASE_URL } from "@/lib/api";
 
 export default async function PageSucursales() {
 
@@ -25,7 +26,7 @@ export default async function PageSucursales() {
   // carga inicial
   let initial = { ok: true, data: [], meta: { total: 0, page: 1, limit: 10, pages: 1 } };
   try {
-    const resp = await fetch("http://localhost:3000/sucursal/getAll?page=1&limit=10", {
+    const resp = await fetch(`${API_BASE_URL}/sucursal/getAll?page=1&limit=10`, {
       method: "GET",
       headers: { Cookie: cookie },
       credentials: "include",

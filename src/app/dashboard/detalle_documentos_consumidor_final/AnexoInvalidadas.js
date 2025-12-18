@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { FaSearch, FaFileAlt, FaCalendarAlt, FaDownload, FaFilter, FaChartLine, FaFileExcel, FaPrint, FaSync, FaFilePdf, FaFileExport, FaTimesCircle, FaExclamationTriangle } from "react-icons/fa";
+import { API_BASE_URL } from "@/lib/api";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
@@ -59,7 +60,7 @@ export default function AnexoConsumidorInvalidadasView({ user, hasHaciendaToken,
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:3000/anexo-consumidor-invalidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `${API_BASE_URL}/anexo-consumidor-invalidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }
@@ -95,7 +96,7 @@ export default function AnexoConsumidorInvalidadasView({ user, hasHaciendaToken,
       
       if (datosParaExportar.length === 0) {
         const response = await fetch(
-          `http://localhost:3000/anexo-consumidor-invalidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+          `${API_BASE_URL}/anexo-consumidor-invalidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
           {
             credentials: "include"
           }

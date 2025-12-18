@@ -4,6 +4,7 @@ import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, Fa
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function FacturaExportacionDetallePage() {
   const params = useParams();
@@ -21,7 +22,7 @@ export default function FacturaExportacionDetallePage() {
     const fetchDteData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/exportacion/${idDte}/productos`, {
+        const response = await fetch(`${API_BASE_URL}/exportacion/${idDte}/productos`, {
           credentials: "include",
         });
 
@@ -60,7 +61,7 @@ export default function FacturaExportacionDetallePage() {
   const handleGeneratePDF = async () => {
     setGenerandoPDF(true);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${idDte}/descargar-pdf`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${idDte}/descargar-pdf`, {
         credentials: "include",
       });
       
@@ -95,7 +96,7 @@ export default function FacturaExportacionDetallePage() {
   const handleGenerateTicket = async () => {
       setGenerandoTicket(true);
       try {
-        const response = await fetch(`http://localhost:3000/facturas/${idDte}/ver-compacto`, {
+        const response = await fetch(`${API_BASE_URL}/facturas/${idDte}/ver-compacto`, {
           credentials: "include",
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`

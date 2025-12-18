@@ -4,6 +4,7 @@ import { FaSearch, FaBars, FaUser, FaPlus, FaTimes, FaEdit, FaTrash, FaSave, FaT
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function PersonaNatural({ initialPersonas = [], user }) {
     const router = useRouter();
@@ -195,7 +196,7 @@ export default function PersonaNatural({ initialPersonas = [], user }) {
 
     const fetchPersonasNaturales = async () => {
         try {
-            const response = await fetch("http://localhost:3000/personasNaturales/getAll", {
+            const response = await fetch(`${API_BASE_URL}/personasNaturales/getAll`, {
                 method: "GET",
                 headers: {
                     Cookie: document.cookie,
@@ -325,7 +326,7 @@ export default function PersonaNatural({ initialPersonas = [], user }) {
         };
 
         try {
-            const response = await fetch("http://localhost:3000/personasNaturales/addPerNa", {
+            const response = await fetch(`${API_BASE_URL}/personasNaturales/addPerNa`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -433,7 +434,7 @@ export default function PersonaNatural({ initialPersonas = [], user }) {
         };
 
         try {
-            const response = await fetch(`http://localhost:3000/personasNaturales/updatePerNa/${formData.id}`, {
+            const response = await fetch(`${API_BASE_URL}/personasNaturales/updatePerNa/${formData.id}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -476,7 +477,7 @@ export default function PersonaNatural({ initialPersonas = [], user }) {
 
     const handleDeletePersona = async (personaId) => {
         try {
-            const response = await fetch(`http://localhost:3000/personasNaturales/deletePerNa/${personaId}`, {
+            const response = await fetch(`${API_BASE_URL}/personasNaturales/deletePerNa/${personaId}`, {
                 method: "DELETE",
                 headers: {
                     Cookie: document.cookie,

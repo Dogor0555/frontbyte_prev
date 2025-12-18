@@ -6,6 +6,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function AnularFacturaExportacionView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -30,7 +31,7 @@ export default function AnularFacturaExportacionView({ user, hasHaciendaToken, h
   useEffect(() => {
     const fetchFacturas = async () => {
       try {
-        const response = await fetch("http://localhost:3000/exportacion", {
+        const response = await fetch(`${API_BASE_URL}/exportacion`, {
           credentials: "include"
         });
         if (!response.ok) throw new Error("Error al cargar facturas de exportación");
@@ -149,7 +150,7 @@ export default function AnularFacturaExportacionView({ user, hasHaciendaToken, h
   const handleAnularFactura = async (facturaId, motivo) => {
     setAnulando(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/anular`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/anular`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -194,7 +195,7 @@ export default function AnularFacturaExportacionView({ user, hasHaciendaToken, h
   const handleGeneratePDF = async (facturaId) => {
     setPdfLoading(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/exportacion/${facturaId}/descargar-pdf`, {
+      const response = await fetch(`${API_BASE_URL}/exportacion/${facturaId}/descargar-pdf`, {
         credentials: "include"
       });
       
@@ -237,7 +238,7 @@ export default function AnularFacturaExportacionView({ user, hasHaciendaToken, h
 
   const handleDownloadJSON = async (iddtefactura) => {
     try {
-      const response = await fetch(`http://localhost:3000/exportacion/${iddtefactura}/descargar-json`, {
+      const response = await fetch(`${API_BASE_URL}/exportacion/${iddtefactura}/descargar-json`, {
         method: 'GET',
         credentials: 'include',
       });

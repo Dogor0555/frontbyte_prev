@@ -3,11 +3,12 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { FaSearch, FaBars, FaTimes, FaEdit, FaSave } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
+import { API_BASE_URL } from "@/lib/api";
 
 /* =========================================
-   Config / Utils
+  Config / Utils
 ========================================= */
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE = API_BASE_URL;
 
 // fetch JSON con manejo de errores uniforme
 async function jsonFetch(url, options = {}) {

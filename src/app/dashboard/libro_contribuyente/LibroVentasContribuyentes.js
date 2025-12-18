@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { API_BASE_URL } from "@/lib/api";
 import { FaSearch, FaFileAlt, FaCalendarAlt, FaDownload, FaFilter, FaChartLine, FaFileExcel, FaPrint, FaSync, FaFilePdf, FaFileExport } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
@@ -62,7 +63,7 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:3000/libro-contribuyentes?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `${API_BASE_URL}/libro-contribuyentes?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }
@@ -100,7 +101,7 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
       
       if (datosParaExportar.length === 0) {
         const response = await fetch(
-          `http://localhost:3000/libro-contribuyentes"?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+          `${API_BASE_URL}/libro-contribuyentes?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
           {
             credentials: "include"
           }

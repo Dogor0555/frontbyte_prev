@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
+import { API_BASE_URL } from "@/lib/api";
 
 export default async function EmpleadosPage() {
     // Obtener cookies en el servidor
@@ -32,7 +33,7 @@ export default async function EmpleadosPage() {
     // Obtener empleados desde la API
     let empleados = [];
     try {
-        const response = await fetch("http://localhost:3000/empleados/getAll", {
+        const response = await fetch(`${API_BASE_URL}/empleados/getAll`, {
             method: "GET",
             headers: {
                 Cookie: cookie,

@@ -1,4 +1,5 @@
 import RegistroEventos from "./RegistroEventos";
+import { API_BASE_URL } from "@/lib/api";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -24,7 +25,7 @@ export default async function RegistroEventosPage() {
 
     let eventos = [];
     try {
-        const response = await fetch("http://localhost:3000/registro-eventos/getAll", {
+        const response = await fetch(`${API_BASE_URL}/registro-eventos/getAll`, {
             method: "GET",
             headers: {
                 Cookie: cookie,

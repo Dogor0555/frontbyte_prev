@@ -1,5 +1,6 @@
 // src/app/dashboard/persona_juridica/page.js
 import PersonaNatural from "./personaNatural";
+import { API_BASE_URL } from "@/lib/api";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -24,7 +25,7 @@ export default async function PersonaNa() {
     // Obtener las personasNa del usuario
     let personasNa = []; // Inicializar como array vacío
     try {
-        const response = await fetch("http://localhost:3000/personasNaturales/getAll", {
+        const response = await fetch(`${API_BASE_URL}/personasNaturales/getAll`, {
             method: "GET",
             headers: {
                 Cookie: cookie,

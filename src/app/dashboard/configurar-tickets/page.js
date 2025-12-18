@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
 import { checkPermissionAndRedirect } from "../components/authorization.js";
+import { API_BASE_URL } from "@/lib/api";
 
 export default async function ConfigurarTicketsPage() {
     // Verificación de permisos
@@ -32,7 +33,7 @@ export default async function ConfigurarTicketsPage() {
     let configuracionTicketsData = null;
     try {
         // Intentar obtener la configuración existente para esta sucursal
-        const response = await fetch(`http://localhost:3000/configuracion-tickets/sucursal/${authStatus.user.idsucursal}`, {
+        const response = await fetch(`${API_BASE_URL}/configuracion-tickets/sucursal/${authStatus.user.idsucursal}`, {
             method: "GET",
             headers: {
                 Cookie: cookie,
@@ -60,7 +61,7 @@ export default async function ConfigurarTicketsPage() {
     // Obtener información de la sucursal para mostrar en el formulario
     let sucursalData = null;
     try {
-        const response = await fetch(`http://localhost:3000/sucursal/${authStatus.user.idsucursal}`, {
+        const response = await fetch(`${API_BASE_URL}/sucursal/${authStatus.user.idsucursal}`, {
             method: "GET",
             headers: {
                 Cookie: cookie,

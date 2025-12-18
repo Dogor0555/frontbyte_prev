@@ -17,8 +17,9 @@ import {
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
+import { API_BASE_URL } from "@/lib/api";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = `${API_BASE_URL}`;
 
 // Límites de caracteres
 const LIMITES = {

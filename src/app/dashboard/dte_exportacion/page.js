@@ -1,5 +1,6 @@
 // src/app/dashboard/dte_exportacion/page.js
 import ExportacionViewComplete from "./dteExportacion";
+import { API_BASE_URL } from "@/lib/api";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -34,7 +35,7 @@ export default async function ExportacionPage() {
 
     try {
         // Productos
-        const productosResponse = await fetch("http://localhost:3000/productos/getAll", {
+        const productosResponse = await fetch(`${API_BASE_URL}/productos/getAll`, {
             method: "GET",
             headers: { Cookie: cookie },
             credentials: "include",
@@ -44,7 +45,7 @@ export default async function ExportacionPage() {
         productos = await productosResponse.json();
 
         // Clientes (para exportación pueden ser naturales o jurídicos, aquí usamos jurídicos como en crédito)
-        const clientesResponse = await fetch("http://localhost:3000/personasJuridicas/getAll", {
+        const clientesResponse = await fetch(`${API_BASE_URL}/personasJuridicas/getAll`, {
             method: "GET",
             headers: { Cookie: cookie },
             credentials: "include",
@@ -55,7 +56,7 @@ export default async function ExportacionPage() {
 
         // Sucursal
         const sucursalResponse = await fetch(
-            `http://localhost:3000/sucursal/${authStatus.user.idsucursal}`,
+            `${API_BASE_URL}/sucursal/${authStatus.user.idsucursal}`,
             {
                 method: "GET",
                 headers: { Cookie: cookie },

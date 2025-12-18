@@ -17,6 +17,7 @@ import {
 } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function BitacoraView({ user }) {
   const [fechaInicio, setFechaInicio] = useState("");
@@ -76,7 +77,7 @@ export default function BitacoraView({ user }) {
       if (usuarioFiltro) params.append('usuario', usuarioFiltro);
       if (searchTerm) params.append('search', searchTerm);
 
-      const response = await fetch(`http://localhost:3000/bitacora/getAll?${params}`, {
+      const response = await fetch(`${API_BASE_URL}/bitacora/getAll?${params}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -106,7 +107,7 @@ export default function BitacoraView({ user }) {
       if (fechaInicio) params.append('fechaInicio', fechaInicio);
       if (fechaFin) params.append('fechaFin', fechaFin);
 
-      const response = await fetch(`http://localhost:3000/bitacora/estadisticas?${params}`, {
+      const response = await fetch(`${API_BASE_URL}/bitacora/estadisticas?${params}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -4,6 +4,7 @@ import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, Fa
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function CreditoDetallePage() {
   const params = useParams();
@@ -21,7 +22,7 @@ export default function CreditoDetallePage() {
     const fetchCredito = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/creditos/${numeroCredito}/productos`, {
+        const response = await fetch(`${API_BASE_URL}/creditos/${numeroCredito}/productos`, {
           credentials: "include",
           headers: {
             'Content-Type': 'application/json',
@@ -78,7 +79,7 @@ export default function CreditoDetallePage() {
         throw new Error("El crédito no tiene documento firmado");
       }
 
-      const pdfResponse = await fetch(`http://localhost:3000/facturas/${numeroCredito}/descargar-pdf?code=VERIFICATION_CODE`, {
+      const pdfResponse = await fetch(`${API_BASE_URL}/facturas/${numeroCredito}/descargar-pdf?code=VERIFICATION_CODE`, {
         credentials: "include",
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -112,7 +113,7 @@ export default function CreditoDetallePage() {
         throw new Error("El crédito no tiene documento firmado");
       }
 
-      const response = await fetch(`http://localhost:3000/facturas/${numeroCredito}/descargar-compacto`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${numeroCredito}/descargar-compacto`, {
         credentials: "include",
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

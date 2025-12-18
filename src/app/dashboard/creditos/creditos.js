@@ -5,6 +5,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function CreditosView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -26,7 +27,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     const fetchCreditos = async () => {
       try {
         // Cambiar el endpoint para obtener créditos específicos
-        const response = await fetch("http://localhost:3000/creditos/getAllDteCreditos", {
+        const response = await fetch(`${API_BASE_URL}/creditos/getAllDteCreditos`, {
           credentials: "include"
         });
         if (!response.ok) throw new Error("Error al cargar créditos");
@@ -167,7 +168,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     setAnulando(creditoId);
     console.log(creditoId)
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${creditoId}/anular`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${creditoId}/anular`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -205,7 +206,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   const handleReTransmitir = async (creditoId) => {
     setReTransmitiendo(creditoId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${creditoId}/contingencia`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${creditoId}/contingencia`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -233,7 +234,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
 
   const handleDownloadJSON = async (iddtecredito) => {
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${iddtecredito}/descargar-json`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${iddtecredito}/descargar-json`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -275,7 +276,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   const handleGeneratePDF = async (creditoId) => {
     setPdfLoading(creditoId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${creditoId}/descargar-pdf`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${creditoId}/descargar-pdf`, {
         credentials: "include"
       });
       

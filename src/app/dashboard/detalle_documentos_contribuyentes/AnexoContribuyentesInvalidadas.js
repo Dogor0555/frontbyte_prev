@@ -5,6 +5,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from 'exceljs';
@@ -61,7 +62,7 @@ export default function AnexoContribuyentesInvalidadasView({ user, hasHaciendaTo
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:3000/anexo-contribuyentes-invalidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `${API_BASE_URL}/anexo-contribuyentes-invalidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }
@@ -99,7 +100,7 @@ export default function AnexoContribuyentesInvalidadasView({ user, hasHaciendaTo
       
       if (datosParaExportar.length === 0) {
         const response = await fetch(
-          `http://localhost:3000/anexo-contribuyentes-invalidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+          `${API_BASE_URL}/anexo-contribuyentes-invalidadas?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
           {
             credentials: "include"
           }

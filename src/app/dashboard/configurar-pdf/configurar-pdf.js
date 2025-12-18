@@ -20,8 +20,9 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import React from 'react';
+import { API_BASE_URL } from "@/lib/api";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = `${API_BASE_URL}`;
 
 export default function ConfigurarPdf({ 
   configuracionPdf, 

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from 'exceljs';
+import { API_BASE_URL } from "@/lib/api";
 
 export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -60,7 +61,7 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:3000/anexo-consumidor-final?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `${API_BASE_URL}/anexo-consumidor-final?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }
@@ -96,7 +97,7 @@ const handleExportExcel = async () => {
     
     if (datosParaExportar.length === 0) {
       const response = await fetch(
-        `http://localhost:3000/anexo-consumidor-final-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `${API_BASE_URL}/anexo-consumidor-final-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }

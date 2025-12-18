@@ -17,9 +17,7 @@ import {
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
-
-// Configuración
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3000";
+import { API_BASE_URL } from "@/lib/api";
 const DOC_OPTIONS = [
   { label: "DUI", value: 13 },
   { label: "NIT", value: 36 },
@@ -52,7 +50,7 @@ export default function PerfilPage({ user, hasHaciendaToken, haciendaStatus }) {
       try {
         setLoading(true);
         setError("");
-        const res = await fetch(`${API_BASE}/perfil`, {
+        const res = await fetch(`${API_BASE_URL}/perfil`, {
           credentials: "include",
         });
         

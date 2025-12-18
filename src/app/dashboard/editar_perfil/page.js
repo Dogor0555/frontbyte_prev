@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import PerfilEmpleado from "./perfil";
+import { API_BASE_URL } from "@/lib/api";
 import { checkAuthStatus } from "../../services/auth";
 
 export default async function PerfilPage() {
@@ -22,7 +23,7 @@ export default async function PerfilPage() {
 
     let perfil = null;
     try {
-        const response = await fetch("http://localhost:3000/perfil", {
+        const response = await fetch(`${API_BASE_URL}/perfil`, {
             method: "GET",
             headers: {
                 Cookie: cookie,

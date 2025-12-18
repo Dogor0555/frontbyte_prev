@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
 import { checkPermissionAndRedirect } from "../components/authorization.js";
+import { API_BASE_URL } from "@/lib/api";
 
 export default async function ClientesPage() {
     // Verificación de permisos
@@ -27,7 +28,7 @@ export default async function ClientesPage() {
     // Obtener clientes desde la API
     let clientes = [];
     try {
-        const response = await fetch("http://localhost:3000/clientes/getAllCli", {
+        const response = await fetch(`${API_BASE_URL}/clientes/getAllCli`, {
             method: "GET",
             headers: {
                 Cookie: cookie,

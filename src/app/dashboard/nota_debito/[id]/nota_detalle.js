@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/lib/api";
 import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaPlusCircle, FaMinusCircle, FaExchangeAlt, FaInfoCircle, FaTicketAlt } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
@@ -147,7 +148,7 @@ export default function NotaDetallePage() {
       try {
         setLoading(true);
 
-        let response = await fetch(`http://localhost:3000/notascredito/${numeroNota}`, {
+        let response = await fetch(`${API_BASE_URL}/notascredito/${numeroNota}`, {
           credentials: "include",
         });
         
@@ -160,7 +161,7 @@ export default function NotaDetallePage() {
           return;
         }
         
-        response = await fetch(`http://localhost:3000/notasdebito/${numeroNota}`, {
+        response = await fetch(`${API_BASE_URL}/notasdebito/${numeroNota}`, {
           credentials: "include",
         });
         
@@ -173,7 +174,7 @@ export default function NotaDetallePage() {
           return;
         }
         
-        response = await fetch(`http://localhost:3000/facturas/${numeroNota}`, {
+        response = await fetch(`${API_BASE_URL}/facturas/${numeroNota}`, {
           credentials: "include",
         });
         
@@ -225,7 +226,7 @@ export default function NotaDetallePage() {
   const handleGeneratePDF = async () => {
     setGenerandoPDF(true);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${numeroNota}/descargar-pdf`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${numeroNota}/descargar-pdf`, {
         credentials: "include"
       });
       
@@ -254,7 +255,7 @@ export default function NotaDetallePage() {
   const handleGenerateTicket = async () => {
     setGenerandoTicket(true);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${numeroNota}/descargar-compacto`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${numeroNota}/descargar-compacto`, {
         credentials: "include",
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

@@ -6,6 +6,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function AnularFacturaView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -26,11 +27,12 @@ export default function AnularFacturaView({ user, hasHaciendaToken, haciendaStat
   const [pdfLoading, setPdfLoading] = useState(null);
   const itemsPerPage = 6;
   const router = useRouter();
+  
 
   useEffect(() => {
     const fetchFacturas = async () => {
       try {
-        const response = await fetch("http://localhost:3000/facturas/getAllDteFacturas", {
+        const response = await fetch(`${API_BASE_URL}/facturas/getAllDteFacturas`, {
           credentials: "include"
         });
         if (!response.ok) throw new Error("Error al cargar facturas");
@@ -149,7 +151,7 @@ export default function AnularFacturaView({ user, hasHaciendaToken, haciendaStat
   const handleAnularFactura = async (facturaId, motivo) => {
     setAnulando(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/anular`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/anular`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -194,7 +196,7 @@ export default function AnularFacturaView({ user, hasHaciendaToken, haciendaStat
   const handleGeneratePDF = async (facturaId) => {
     setPdfLoading(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-pdf`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/descargar-pdf`, {
         credentials: "include"
       });
       
@@ -237,7 +239,7 @@ export default function AnularFacturaView({ user, hasHaciendaToken, haciendaStat
 
   const handleDownloadJSON = async (iddtefactura) => {
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
         method: 'GET',
         credentials: 'include',
       });

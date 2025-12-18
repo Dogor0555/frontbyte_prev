@@ -19,6 +19,7 @@ import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal"
 import MensajeModal from "./components/MensajeModal";
 import { useReactToPrint } from 'react-to-print';
 import Handlebars from 'handlebars';
+import { API_BASE_URL } from "@/lib/api";
 
 export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
   const [cliente, setCliente] = useState(null);
@@ -239,7 +240,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setDescargandoTicket(true);
     
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${idFactura}/ver-compacto`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${idFactura}/ver-compacto`, {
         method: 'GET',
         credentials: 'include'
       });
@@ -358,7 +359,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       
       console.log("Enviando encabezado:", datosFactura);
       
-      const responseEncabezado = await fetch("http://localhost:3000/creditos/encabezado", {
+      const responseEncabezado = await fetch(`${API_BASE_URL}/creditos/encabezado`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -627,7 +628,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
       for (const producto of productosParaActualizar) {
         try {
-          const response = await fetch(`http://localhost:3000/productos/decrementStock/${producto.productoId}`, {
+          const response = await fetch(`${API_BASE_URL}/productos/decrementStock/${producto.productoId}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -699,7 +700,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
       console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
 
-      const responseDetalles = await fetch(`http://localhost:3000/creditos/${iddtefactura}/detalles`, {
+      const responseDetalles = await fetch(`${API_BASE_URL}/creditos/${iddtefactura}/detalles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -726,7 +727,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
   const obtenerUltimoNumeroFactura = async () => {
     try {
-      const response = await fetch("http://localhost:3000/facturas/ultima", {
+      const response = await fetch(`${API_BASE_URL}/facturas/ultima`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -1072,7 +1073,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         setErrorCargaProductos(null);
 
         try {
-          const response = await fetch('http://localhost:3000/productos/getAll', {
+          const response = await fetch(`${API_BASE_URL}/productos/getAll`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',

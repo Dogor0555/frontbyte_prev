@@ -1,8 +1,9 @@
 // src/app/services/auth.js
+import { API_BASE_URL } from "@/lib/api";
 
 export const login = async (email, password) => {
   // Login al sistema nuestro
-  const response = await fetch('http://localhost:3000/login', {
+  const response = await fetch(`${API_BASE_URL}/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -19,7 +20,7 @@ export const login = async (email, password) => {
 
   let hasHaciendaToken = false;
   try {
-    const haciendaCheck = await fetch('http://localhost:3000/hacienda/token-check', {
+    const haciendaCheck = await fetch(`${API_BASE_URL}/hacienda/token-check`, {
       method: 'GET',
       credentials: 'include',
     });
@@ -38,7 +39,7 @@ export const login = async (email, password) => {
 };
 
 export const logout = async () => {
-  const response = await fetch('http://localhost:3000/logout', {
+  const response = await fetch(`${API_BASE_URL}/logout`, {
     method: 'POST',
     credentials: 'include',
   });
@@ -52,7 +53,7 @@ export const logout = async () => {
 
 export const checkAuthStatus = async (cookie = '') => {
   try {
-    const authResponse = await fetch('http://localhost:3000/checkAuth', {
+    const authResponse = await fetch(`${API_BASE_URL}/checkAuth`, {
       method: 'GET',
       headers: {
         Cookie: cookie,
@@ -71,7 +72,7 @@ export const checkAuthStatus = async (cookie = '') => {
     
     if (userData.user && userData.user.emailemp) {
       try {
-        const empleadosResponse = await fetch('http://localhost:3000/empleados/getAll', {
+        const empleadosResponse = await fetch(`${API_BASE_URL}/empleados/getAll`, {
           method: 'GET',
           headers: {
             Cookie: cookie,
@@ -104,7 +105,7 @@ export const checkAuthStatus = async (cookie = '') => {
     let hasHaciendaToken = false;
     let haciendaData = { valid: false };
     try {
-      const haciendaStatus = await fetch('http://localhost:3000/statusTokenhacienda', {
+      const haciendaStatus = await fetch(`${API_BASE_URL}/statusTokenhacienda`, {
         method: 'GET',
         headers: {
           Cookie: cookie,

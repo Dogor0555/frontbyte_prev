@@ -5,6 +5,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function Proveedores({ initialProveedores = [], user, hasHaciendaToken = false, haciendaStatus = {} }) {
     const router = useRouter();
@@ -143,7 +144,7 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
     // ✅ Funciones simplificadas
     const fetchProveedores = async () => {
         try {
-            const response = await fetch("http://localhost:3000/proveedores/getAll", {
+            const response = await fetch(`${API_BASE_URL}/proveedores/getAll`, {
                 method: "GET",
                 headers: { Cookie: document.cookie },
                 credentials: "include",
@@ -181,7 +182,7 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
         }
 
         try {
-            const response = await fetch("http://localhost:3000/proveedores/add", {
+            const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -224,7 +225,7 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
         }
 
         try {
-            const response = await fetch(`http://localhost:3000/proveedores/update/${formData.id}`, {
+            const response = await fetch(`${API_BASE_URL}/proveedores/update/${formData.id}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -254,7 +255,7 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
 
     const handleDeleteProveedor = async (proveedorId) => {
         try {
-            const response = await fetch(`http://localhost:3000/proveedores/delete/${proveedorId}`, {
+            const response = await fetch(`${API_BASE_URL}/proveedores/delete/${proveedorId}`, {
                 method: "DELETE",
                 headers: { Cookie: document.cookie },
                 credentials: "include",

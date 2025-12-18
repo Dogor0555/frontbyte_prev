@@ -1,4 +1,5 @@
 import FacturacionViewComplete from "./dteFactura.js";
+import { API_BASE_URL } from "@/lib/api";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -32,7 +33,7 @@ export default async function FacturacionPage() {
 
   try {
     // Productos
-    const productosResponse = await fetch("http://localhost:3000/productos/getAll", {
+    const productosResponse = await fetch(`${API_BASE_URL}/productos/getAll`, {
       method: "GET",
       headers: { Cookie: cookie },
       credentials: "include",
@@ -47,7 +48,7 @@ export default async function FacturacionPage() {
       : [];
 
     // Clientes
-    const clientesResponse = await fetch("http://localhost:3000/clientes/getAllCli", {
+    const clientesResponse = await fetch(`${API_BASE_URL}/clientes/getAllCli`, {
       method: "GET",
       headers: { Cookie: cookie },
       credentials: "include",
@@ -63,7 +64,7 @@ export default async function FacturacionPage() {
         : [];
     }
 
-    const sucursalResponse = await fetch(`http://localhost:3000/sucursal/${authStatus.user.idsucursal}`, {
+    const sucursalResponse = await fetch(`${API_BASE_URL}/sucursal/${authStatus.user.idsucursal}`, {
       method: "GET",
       headers: { Cookie: cookie }, 
       credentials: "include",

@@ -5,6 +5,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function FacturasExcluidasView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -26,7 +27,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   useEffect(() => {
     const fetchFacturasExcluidas = async () => {
       try {
-        const response = await fetch("http://localhost:3000/sujeto-excluido", {
+        const response = await fetch(`${API_BASE_URL}/sujeto-excluido`, {
           credentials: "include"
         });
         if (!response.ok) throw new Error("Error al cargar facturas excluidas");
@@ -149,7 +150,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   const handleTransmitir = async (facturaId) => {
     setTransmitiendo(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/sujeto-excluido/${facturaId}/transmitir`, {
+      const response = await fetch(`${API_BASE_URL}/sujeto-excluido/${facturaId}/transmitir`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -187,7 +188,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
     
     setAnulando(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/anular`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/anular`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -225,7 +226,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   const handleReTransmitir = async (facturaId) => {
     setReTransmitiendo(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/contingencia`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/contingencia`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -255,7 +256,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   const handleDownloadJSON = async (iddtefactura) => {
     setJsonLoading(iddtefactura);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${iddtefactura}/descargar-json`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -294,7 +295,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   const handleGeneratePDF = async (facturaId) => {
     setPdfLoading(facturaId);
     try {
-      const response = await fetch(`http://localhost:3000/facturas/${facturaId}/descargar-pdf`, {
+      const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/descargar-pdf`, {
         credentials: "include"
       });
       

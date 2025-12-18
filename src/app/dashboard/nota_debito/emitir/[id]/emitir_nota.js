@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "../../../components/sidebar";
 import Footer from "../../../components/footer";
@@ -71,7 +72,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
     const fetchFactura = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/creditos/${facturaId}`, {
+        const response = await fetch(`${API_BASE_URL}/creditos/${facturaId}`, {
           credentials: "include"
         });
 
@@ -200,7 +201,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
     
     try {
       // Determinar el endpoint según el tipo de nota
-      const endpoint = `http://localhost:3000/facturas/${idNota}/ver-compacto`;
+      const endpoint = `${API_BASE_URL}/facturas/${idNota}/ver-compacto`;
 
       const response = await fetch(endpoint, {
         method: 'GET',
@@ -303,8 +304,8 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
       }
 
       const baseEndpoint = tipoNota === "debito" 
-        ? "http://localhost:3000/notasdebito"
-        : "http://localhost:3000/notascredito";
+        ? `${API_BASE_URL}/notasdebito`
+        : `${API_BASE_URL}/notascredito`;
 
       const encabezadoData = {
           idcliente: idCliente,

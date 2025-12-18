@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
 import { checkPermissionAndRedirect } from "../components/authorization.js";
+import { API_BASE_URL } from "@/lib/api";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = `${API_BASE_URL}`;
 
 export default async function ConfigurarPdfPage() {
   // Verificación de permisos
