@@ -1,0 +1,28 @@
+name: Build & Push Frontend Next.js
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Frontend Image
+        run: |
+          docker build -t ghcr.io/dogor0555/frontbyte_prev:latest .
+          docker push ghcr.io/dogor0555/frontbyte_prev:latest

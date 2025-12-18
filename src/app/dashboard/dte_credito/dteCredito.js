@@ -174,13 +174,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     // Calcular base gravada después de descuentos
     const gravadasBase = items
       .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+      .reduce((sum, item) => sum + (item.ventaGravada || 0), 0);
     
-    const descuentoGravadasItems = items
-      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
-      .reduce((sum, item) => sum + (item.descuento || 0), 0);
-    
-    const gravadasConDescuento = gravadasBase - descuentoGravadasItems - descuentoGrabadasMonto;
+    const gravadasConDescuento = Math.max(0, gravadasBase - descuentoGrabadasMonto);
     
     // Calcular retención
     const montoRetencion = (gravadasConDescuento * porc) / 100;
