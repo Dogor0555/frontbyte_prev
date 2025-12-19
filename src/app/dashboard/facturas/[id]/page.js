@@ -471,7 +471,7 @@ export default function FacturaDetallePage() {
                       </div>
                       <div className="flex justify-between py-2 border-b">
                         <span className="font-medium">IVA:</span>
-                        <span className="font-medium">{formatCurrency(facturaData.factura.valoriva || 0)}</span>
+                        <span className="font-medium">$0.00</span>
                       </div>
                     </div>
 
