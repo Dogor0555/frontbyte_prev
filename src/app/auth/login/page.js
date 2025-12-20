@@ -8,6 +8,7 @@ import img from '../../images/factura.jpg';
 import logo from '../../images/logoo.png';
 import { useRouter } from "next/navigation";
 import { login } from '../../services/auth';
+import { API_BASE_URL } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,8 +23,12 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
+    const routeAttempt = `${API_BASE_URL}/login`;
+    console.log("Intentando conectar al backend. Ruta:", routeAttempt);
+
     try {
       const result = await login(email, password);
+      console.log("Conexión exitosa al backend. Ruta:", routeAttempt);
       
       // Guardar información del empleado en localStorage
       if (result.empleado) {
@@ -32,7 +37,7 @@ export default function LoginPage() {
       
       router.push("/dashboard");
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("No se pudo conectar al backend. Ruta:", routeAttempt, error);
       setError(error.message || "Error al iniciar sesión. Verifica tus credenciales y conexión con Hacienda.");
     } finally {
       setIsLoading(false);
