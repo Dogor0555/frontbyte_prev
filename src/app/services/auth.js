@@ -3,7 +3,9 @@ import { API_BASE_URL } from "@/lib/api";
 
 export const login = async (email, password) => {
   // Login al sistema nuestro
-  const response = await fetch(`${API_BASE_URL}/login`, {
+  const loginUrl = `${API_BASE_URL}/login`;
+  console.log("Intentando login en:", loginUrl);
+  const response = await fetch(loginUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -12,7 +14,7 @@ export const login = async (email, password) => {
     body: JSON.stringify({ correo: email, contrasena: password }),
   });
 
-  console.log("Respuesta del login:", response);
+  console.log("Respuesta del login:", response, "URL:", loginUrl);
 
   if (!response.ok) {
     let msg = '';
@@ -27,7 +29,7 @@ export const login = async (email, password) => {
       }
     }
 
-    const errorDetail = `HTTP ${response.status} ${response.statusText}${msg ? ' - ' + msg : ''}`;
+    const errorDetail = `URL ${loginUrl} - HTTP ${response.status} ${response.statusText}${msg ? ' - ' + msg : ''}`;
     throw new Error(`Credenciales inválidas. Detalle: ${errorDetail}`);
   }
 
