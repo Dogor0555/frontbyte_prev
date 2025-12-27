@@ -24,7 +24,6 @@ export default function LoginPage() {
     setIsLoading(true);
 
     const routeAttempt = `${API_BASE_URL}/login`;
-    console.log("Intentando conectar al backend. Ruta:", routeAttempt);
 
     try {
       const result = await login(email, password);
