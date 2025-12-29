@@ -76,8 +76,24 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                         fetch(`${API_BASE_URL}/productos/getAll`, { credentials: "include" })
                 ]);
 
-                if (provRes.ok) setProveedores(await provRes.json());
-                if (prodRes.ok) setProductos(await prodRes.json());
+                if (provRes.ok) {
+                    const provData = await provRes.json();
+                    if (Array.isArray(provData)) {
+                        setProveedores(provData);
+                    } else if (provData && Array.isArray(provData.data)) {
+                        setProveedores(provData.data);
+                    } else {
+                        setProveedores([]);
+                    }
+                } else {
+                    setProveedores([]);
+                }
+                if (prodRes.ok) {
+                    const prodData = await prodRes.json();
+                    setProductos(Array.isArray(prodData) ? prodData : (prodData && Array.isArray(prodData.data) ? prodData.data : []));
+                } else {
+                    setProductos([]);
+                }
             } catch (err) {
                 console.error("Error cargando datos:", err);
                 setError("No se pudieron cargar los datos necesarios.");
@@ -323,7 +339,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                 required
                                             >
                                                 <option value="">Seleccione un proveedor</option>
-                                                {proveedores.map(p => (
+                                                {(Array.isArray(proveedores) ? proveedores : []).map(p => (
                                                     <option key={p.id} value={p.id}>{p.nombre}</option>
                                                 ))}
                                             </select>

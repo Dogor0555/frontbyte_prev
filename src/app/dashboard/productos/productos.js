@@ -553,12 +553,15 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
     };
 
     const [currentPage, setCurrentPage] = useState(1);
-    const productosPorPagina = 10; 
-    const totalPaginas = Math.ceil(filteredProductos.length / productosPorPagina);
-    const productosPagina = filteredProductos.slice(
-        (currentPage - 1) * productosPorPagina,
-        currentPage * productosPorPagina
-    );
+    const productosPorPagina = 10;
+    const totalPaginas = Math.ceil((Array.isArray(filteredProductos) ? filteredProductos.length : 0) / productosPorPagina);
+    const safeCurrentPage = Math.min(Math.max(1, currentPage), Math.max(1, totalPaginas || 1));
+    const productosPagina = Array.isArray(filteredProductos)
+        ? filteredProductos.slice(
+            (safeCurrentPage - 1) * productosPorPagina,
+            safeCurrentPage * productosPorPagina
+          )
+        : [];
 
     return (
         <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
