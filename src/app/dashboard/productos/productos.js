@@ -244,7 +244,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
             }
 
             const data = await response.json();
-            setProveedores(data);
+            setProveedores(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error("Error al obtener los proveedores:", error);
         }
@@ -469,14 +469,16 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                 throw new Error("Error al incrementar el stock");
             }
 
-            const updatedProductos = productos.map(p => 
-                p.id === selectedProduct.id 
-                    ? { ...p, stock: p.stock + parseInt(stockIncrement) } 
-                    : p
-            );
-            
-            setProductos(updatedProductos);
-            setFilteredProductos(updatedProductos);
+            const updatedProductos = Array.isArray(productos)
+                ? productos.map(p => 
+                    p.id === selectedProduct.id 
+                        ? { ...p, stock: p.stock + parseInt(stockIncrement) } 
+                        : p
+                )
+                : productos;
+
+            setProductos(Array.isArray(updatedProductos) ? updatedProductos : []);
+            setFilteredProductos(Array.isArray(updatedProductos) ? updatedProductos : []);
             setShowStockModal(false);
             setStockIncrement(0);
             setSelectedProduct(null);
@@ -986,11 +988,11 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     >
                                         <option value="">Seleccione un proveedor</option>
-                                        {proveedores.map((proveedor) => (
+                                        {Array.isArray(proveedores) && proveedores.length > 0 ? proveedores.map((proveedor) => (
                                             <option key={proveedor.id} value={proveedor.id}>
                                                 {proveedor.nombre} ({proveedor.codigo})
                                             </option>
-                                        ))}
+                                        )) : null}
                                     </select>
                                 </div>
 
@@ -1177,11 +1179,11 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     >
                                         <option value="">Seleccione un proveedor</option>
-                                        {proveedores.map((proveedor) => (
+                                        {Array.isArray(proveedores) && proveedores.length > 0 ? proveedores.map((proveedor) => (
                                             <option key={proveedor.id} value={proveedor.id}>
                                                 {proveedor.nombre} ({proveedor.codigo})
                                             </option>
-                                        ))}
+                                        )) : null}
                                     </select>
                                 </div>
 
