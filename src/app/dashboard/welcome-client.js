@@ -66,15 +66,15 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${minutes}m`;
-    };
+  };
 
-    const now = new Date();
-    console.log('=== INFORMACIÓN DEL FRONTEND ===');
-    console.log('Fecha y hora:', now.toString());
-    console.log('Zona horaria:', Intl.DateTimeFormat().resolvedOptions().timeZone);
-    console.log('Timestamp:', now.getTime());
-    console.log('Formato local:', now.toLocaleString());
-    console.log('==============================');
+  const now = new Date();
+  console.log('=== INFORMACIÓN DEL FRONTEND ===');
+  console.log('Fecha y hora:', now.toString());
+  console.log('Zona horaria:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+  console.log('Timestamp:', now.getTime());
+  console.log('Formato local:', now.toLocaleString());
+  console.log('==============================');
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
@@ -87,19 +87,18 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
       )}
 
       {/* Estructura principal */}
-      <div className="flex flex-1 h-full">
+      <div className="flex flex-1 h-full overflow-hidden">
         {/* Sidebar */}
         <div
-          className={`md:static fixed z-40 h-full transition-all duration-300 ${
+          className={`fixed md:static z-40 h-full transition-transform duration-300 ease-in-out ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}
+          } md:translate-x-0 w-64`}
         >
-          {/* Pasamos el handler que navega a /dashboard/perfil */}
           <Sidebar onOpenPerfil={openPerfilRoute} haciendaStatus={haciendaConnection} />
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Navbar */}
           <Navbar 
             user={user}
@@ -110,37 +109,39 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
           />
 
           {/* Welcome Content */}
-          <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full" />
               </div>
             ) : (
-              <div className="min-h-[calc(100vh-16rem)]">
-                <div className="max-w-6xl mx-auto w-full relative">
-                  {/* Main welcome card */}
-                  <div className="relative overflow-hidden bg-white rounded-2xl shadow-xl mb-6">
-                    <div className="absolute top-0 right-0 w-1/2 h-full overflow-hidden hidden md:block">
-                      <div className="absolute right-0 top-0 w-full h-full bg-gradient-to-br from-blue-500/10 to-indigo-600/20 rounded-l-full transform translate-x-1/3" />
-                      <div className="absolute right-10 bottom-10 w-64 h-64 bg-gradient-to-br from-blue-500/30 to-indigo-600/40 rounded-full blur-2xl" />
-                    </div>
+              <div className="max-w-7xl mx-auto w-full">
+                {/* Main welcome card */}
+                <div className="relative overflow-hidden bg-white rounded-2xl shadow-xl mb-6 lg:mb-8">
+                  {/* Background decorations - oculto en mobile */}
+                  <div className="absolute top-0 right-0 w-1/2 h-full overflow-hidden hidden lg:block">
+                    <div className="absolute right-0 top-0 w-full h-full bg-gradient-to-br from-blue-500/10 to-indigo-600/20 rounded-l-full transform translate-x-1/3" />
+                    <div className="absolute right-10 bottom-10 w-64 h-64 bg-gradient-to-br from-blue-500/30 to-indigo-600/40 rounded-full blur-2xl" />
+                  </div>
 
-                    <div className="relative p-4 sm:p-8 md:p-12 flex flex-col md:flex-row items-center">
-                      <div className="w-full md:w-1/2 z-10">
-                        <div className="mb-2">
-                          <span className="inline-block py-1 px-3 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold tracking-wider">
+                  <div className="relative p-6 sm:p-8 lg:p-12">
+                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6 lg:gap-8">
+                      {/* Texto principal */}
+                      <div className="w-full lg:w-1/2 z-10">
+                        <div className="mb-3">
+                          <span className="inline-block py-1.5 px-3 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold tracking-wider uppercase">
                             BYTE FUSION SOLUCIONES
                           </span>
                         </div>
 
-                        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+                        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 leading-tight">
                           Bienvenido a su{" "}
                           <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-700">
                             Sistema de Facturación Electrónica
                           </span>
                         </h1>
 
-                        <p className="text-gray-600 text-sm md:text-lg mb-6 md:mb-8 max-w-xl">
+                        <p className="text-gray-600 text-base sm:text-lg mb-6 max-w-2xl">
                           Transforme su proceso de facturación con nuestra plataforma
                           intuitiva. Genere, administre y envíe facturas electrónicas que
                           cumplen con todas las regulaciones fiscales.
@@ -148,19 +149,19 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
 
                         {/* Estado de conexión destacado */}
                         <div
-                          className={`p-3 rounded-lg mb-4 ${
+                          className={`p-4 rounded-lg ${
                             haciendaConnection.connected
                               ? "bg-green-50 border border-green-200"
                               : "bg-yellow-50 border border-yellow-200"
                           }`}
                         >
-                          <div className="flex items-center">
+                          <div className="flex items-start gap-3">
                             {haciendaConnection.connected ? (
-                              <FaCheckCircle className="text-green-500 mr-2" />
+                              <FaCheckCircle className="text-green-500 flex-shrink-0 mt-0.5" />
                             ) : (
-                              <FaExclamationTriangle className="text-yellow-500 mr-2" />
+                              <FaExclamationTriangle className="text-yellow-500 flex-shrink-0 mt-0.5" />
                             )}
-                            <span className="text-green-500 text-sm">
+                            <span className={`text-sm sm:text-base ${haciendaConnection.connected ? "text-green-700" : "text-yellow-700"}`}>
                               {haciendaConnection.connected
                                 ? `Conectado a Hacienda (expira en ${formatTimeLeft(
                                     haciendaConnection.expiresIn
@@ -171,14 +172,15 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
                         </div>
                       </div>
 
-                      <div className="w-full md:w-1/2 mt-8 md:mt-0 flex justify-center items-center z-10">
-                        <div className="relative w-full max-w-xs md:max-w-md">
-                          <div className="aspect-square relative bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl p-4 md:p-8 shadow-lg">
+                      {/* Ilustración lateral */}
+                      <div className="w-full lg:w-1/2 flex justify-center items-center z-10">
+                        <div className="relative w-full max-w-sm">
+                          <div className="relative bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl p-6 sm:p-8 shadow-lg">
                             <div className="absolute inset-0 bg-white/50 backdrop-blur-sm rounded-2xl" />
-                            <div className="relative h-full flex flex-col items-center justify-center text-center">
-                              <div className="w-16 h-16 md:w-24 md:h-24 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-full flex items-center justify-center mb-4 md:mb-6">
+                            <div className="relative flex flex-col items-center justify-center text-center">
+                              <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-full flex items-center justify-center mb-6">
                                 <svg
-                                  className="w-8 h-8 md:w-12 md:h-12 text-white"
+                                  className="w-10 h-10 text-white"
                                   fill="currentColor"
                                   viewBox="0 0 20 20"
                                   xmlns="http://www.w3.org/2000/svg"
@@ -190,100 +192,100 @@ export default function WelcomeClient({ user, haciendaStatus, hasHaciendaToken }
                                   />
                                 </svg>
                               </div>
-                              <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">
+                              <h3 className="text-xl font-bold text-gray-900 mb-2">
                                 Todo listo para facturar
                               </h3>
-                              <p className="text-sm md:text-base text-gray-600 mb-4 md:mb-6">
+                              <p className="text-base text-gray-600 mb-6">
                                 Su cuenta está configurada y lista para comenzar a emitir
                                 facturas electrónicas de inmediato.
                               </p>
-                              <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1">
-                                <div className="bg-blue-600 h-1.5 rounded-full w-full animate-progress" />
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div className="bg-blue-600 h-2 rounded-full w-full" />
                               </div>
                             </div>
                           </div>
 
-                          {/* Decorative elements */}
-                          <div className="absolute -top-4 -right-4 w-8 h-8 md:w-12 md:h-12 bg-yellow-400 rounded-lg rotate-12 shadow-lg hidden sm:block" />
-                          <div className="absolute -bottom-4 -left-4 w-6 h-6 md:w-8 md:h-8 bg-blue-500 rounded-lg -rotate-12 shadow-lg hidden sm:block" />
+                          {/* Decorative elements - oculto en mobile pequeño */}
+                          <div className="absolute -top-4 -right-4 w-10 h-10 bg-yellow-400 rounded-lg rotate-12 shadow-lg hidden sm:block" />
+                          <div className="absolute -bottom-4 -left-4 w-8 h-8 bg-blue-500 rounded-lg -rotate-12 shadow-lg hidden sm:block" />
                         </div>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Features section */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-                    {/* Feature 1 */}
-                    <div className="bg-white rounded-xl p-4 md:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 hover:-translate-y-1 transform transition-transform">
-                      <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-3 md:mb-4">
-                        <svg
-                          className="w-5 h-5 md:w-6 md:h-6 text-blue-600"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1 md:mb-2">
-                        Facturación Simplificada
-                      </h3>
-                      <p className="text-sm md:text-base text-gray-600">
-                        Genere facturas electrónicas en segundos y envíelas directamente a
-                        sus clientes
-                      </p>
+                {/* Features section */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {/* Feature 1 */}
+                  <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                      <svg
+                        className="w-6 h-6 text-blue-600"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
                     </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Facturación Simplificada
+                    </h3>
+                    <p className="text-base text-gray-600">
+                      Genere facturas electrónicas en segundos y envíelas directamente a
+                      sus clientes
+                    </p>
+                  </div>
 
-                    {/* Feature 2 */}
-                    <div className="bg-white rounded-xl p-4 md:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 hover:-translate-y-1 transform transition-transform">
-                      <div className="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-lg flex items-center justify-center mb-3 md:mb-4">
-                        <svg
-                          className="w-5 h-5 md:w-6 md:h-6 text-green-600"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1 md:mb-2">
-                        Cumplimiento Fiscal
-                      </h3>
-                      <p className="text-sm md:text-base text-gray-600">
-                        Nuestro sistema se actualiza automáticamente con las últimas
-                        regulaciones fiscales
-                      </p>
+                  {/* Feature 2 */}
+                  <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                      <svg
+                        className="w-6 h-6 text-green-600"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
                     </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Cumplimiento Fiscal
+                    </h3>
+                    <p className="text-base text-gray-600">
+                      Nuestro sistema se actualiza automáticamente con las últimas
+                      regulaciones fiscales
+                    </p>
+                  </div>
 
-                    {/* Feature 3 */}
-                    <div className="bg-white rounded-xl p-4 md:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 hover:-translate-y-1 transform transition-transform">
-                      <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-3 md:mb-4">
-                        <svg
-                          className="w-5 h-5 md:w-6 md:h-6 text-indigo-600"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
-                          <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1 md:mb-2">
-                        Análisis de Datos
-                      </h3>
-                      <p className="text-sm md:text-base text-gray-600">
-                        Obtenga información valiosa sobre sus finanzas con nuestros
-                        reportes detallados
-                      </p>
+                  {/* Feature 3 */}
+                  <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 sm:col-span-2 lg:col-span-1">
+                    <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
+                      <svg
+                        className="w-6 h-6 text-indigo-600"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
+                        <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
+                      </svg>
                     </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Análisis de Datos
+                    </h3>
+                    <p className="text-base text-gray-600">
+                      Obtenga información valiosa sobre sus finanzas con nuestros
+                      reportes detallados
+                    </p>
                   </div>
                 </div>
               </div>
