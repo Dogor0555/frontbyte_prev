@@ -13,8 +13,8 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-    const [compras, setCompras] = useState(initialCompras || []);
-    const [proveedores, setProveedores] = useState(initialProveedores || []);
+    const [compras, setCompras] = useState(Array.isArray(initialCompras) ? initialCompras : []);
+    const [proveedores, setProveedores] = useState(Array.isArray(initialProveedores) ? initialProveedores : []);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -111,7 +111,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
     };
 
     const filteredCompras = useMemo(() => {
-        if (!compras.length) return [];
+        if (!Array.isArray(compras) || !compras.length) return [];
         if (!searchTerm.trim()) return compras;
 
         const term = searchTerm.toLowerCase();
@@ -211,8 +211,8 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
     }, []);
 
     useEffect(() => {
-        setCompras(initialCompras || []);
-        setProveedores(initialProveedores || []);
+        setCompras(Array.isArray(initialCompras) ? initialCompras : []);
+        setProveedores(Array.isArray(initialProveedores) ? initialProveedores : []);
     }, [initialCompras, initialProveedores]);
 
     useEffect(() => {
@@ -244,7 +244,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                 throw new Error(data.error || "Error al obtener las compras");
             }
 
-            setCompras(data);
+            setCompras(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error("Error al obtener las compras:", error);
             setErrorMessage("Error al cargar las compras: " + error.message);
@@ -750,12 +750,12 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="bg-white rounded-lg shadow p-4">
                                 <h3 className="text-lg font-semibold text-gray-900">Total Compras</h3>
-                                <p className="text-2xl font-bold text-blue-600">{compras.length}</p>
+                                <p className="text-2xl font-bold text-blue-600">{Array.isArray(compras) ? compras.length : 0}</p>
                             </div>
                             <div className="bg-white rounded-lg shadow p-4">
                                 <h3 className="text-lg font-semibold text-gray-900">Monto Total</h3>
                                 <p className="text-2xl font-bold text-green-600">
-                                    {formatearMoneda(compras.reduce((total, compra) => total +
+                                    {formatearMoneda((Array.isArray(compras) ? compras : []).reduce((total, compra) => total +
                                         (parseFloat(compra.locales) || 0) +
                                         (parseFloat(compra.importaciones) || 0) +
                                         (parseFloat(compra.monto_exento) || 0) +
@@ -768,7 +768,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
                             <div className="bg-white rounded-lg shadow p-4">
                                 <h3 className="text-lg font-semibold text-gray-900">Proveedores</h3>
                                 <p className="text-2xl font-bold text-purple-600">
-                                    {new Set(compras.map(c => c.proveedor_id)).size}
+                                    {new Set((Array.isArray(compras) ? compras : []).map(c => c.proveedor_id)).size}
                                 </p>
                             </div>
                         </div>
