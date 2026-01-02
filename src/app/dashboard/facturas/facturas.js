@@ -12,7 +12,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
   const [facturas, setFacturas] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
-  const [ordenFecha, setOrdenFecha] = useState("numero");
+  const [ordenFecha, setOrdenFecha] = useState("reciente");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -269,8 +269,8 @@ const ordenarFacturas = (facturas) => {
     }
   };
 
-
-const handleGeneratePDF = async (facturaId) => {
+const handleGeneratePDF = async (facturaId, numeroFactura) => {
+  if (!facturaId) return;
   setPdfLoading(facturaId);
   try {
     const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/descargar-pdf`, {
@@ -289,11 +289,13 @@ const handleGeneratePDF = async (facturaId) => {
     }
     
     const disposition = response.headers.get("Content-Disposition");
-    let filename = `FAC-${facturaId}.pdf`;
+    let filename = `FAC-${numeroFactura || facturaId}.pdf`;
     if (disposition && disposition.includes("filename=")) {
       filename = disposition
         .split("filename=")[1]
-        .replace(/"/g, "");
+        .split(";")[0]
+        .replace(/"/g, "")
+        .trim();
     }
 
     const pdfBlob = await response.blob();
@@ -430,7 +432,7 @@ return (
                   }}
                   className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                 >
-                  <option value="numero">Nº Factura (desc)</option>
+                  {/* <option value="numero">Nº Factura (desc)</option> */}
                   <option value="reciente">Más reciente</option>
                   <option value="antigua">Más antigua</option>
                 </select>
@@ -452,9 +454,9 @@ return (
                         </div>
                         <div>
                           <span className="font-semibold text-xs block">FACTURA</span>
-                          <span className="text-xs font-light opacity-90">
+                          {/* <span className="text-xs font-light opacity-90">
                             #{factura.numerofacturausuario?.toString().padStart(4, '0')}
-                          </span>
+                          </span> */}
                         </div>
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${

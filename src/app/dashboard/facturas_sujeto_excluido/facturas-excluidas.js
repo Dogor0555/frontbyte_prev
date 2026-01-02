@@ -12,7 +12,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   const [facturas, setFacturas] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
-  const [ordenFecha, setOrdenFecha] = useState("numero");
+  const [ordenFecha, setOrdenFecha] = useState("reciente");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -468,7 +468,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                   }}
                   className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
                 >
-                  <option value="numero">Nº Factura (desc)</option>
+                  {/* <option value="numero">Nº Factura (desc)</option> */}
                   <option value="reciente">Más reciente</option>
                   <option value="antigua">Más antigua</option>
                 </select>
@@ -489,9 +489,9 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                           </div>
                           <div>
                             <span className="font-semibold text-xs block">FACTURA EXCLUIDA</span>
-                            <span className="text-xs font-light opacity-90">
+                            {/* <span className="text-xs font-light opacity-90">
                               #{factura.numerofacturausuario?.toString().padStart(4, '0')}
-                            </span>
+                            </span> */}
                           </div>
                         </div>
                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${

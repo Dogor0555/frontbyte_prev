@@ -14,8 +14,8 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
   const [creditosAnulados, setCreditosAnulados] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchTermAnulados, setSearchTermAnulados] = useState("");
-  const [orden, setOrden] = useState("numero-reciente");
-  const [ordenAnulados, setOrdenAnulados] = useState("numero-reciente");
+  const [orden, setOrden] = useState("fecha-reciente");
+  const [ordenAnulados, setOrdenAnulados] = useState("fecha-reciente");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -326,9 +326,9 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
             </div>
             <div>
               <span className="font-semibold text-xs block">CRÉDITO FISCAL</span>
-              <span className="text-xs font-light opacity-90">
+              {/* <span className="text-xs font-light opacity-90">
                 #{credito.numerocreditousuario?.toString().padStart(4, '0') || credito.iddtefactura}
-              </span>
+              </span> */}
             </div>
           </div>
           <span className={`text-xs px-2 py-1 rounded-full font-medium ${
@@ -641,8 +641,8 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
                       }}
                       className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                     >
-                      <option value="numero-reciente">Número de crédito (más alto)</option>
-                      <option value="numero-antigua">Número de crédito (más bajo)</option>
+                      {/* <option value="numero-reciente">Número de crédito (más alto)</option>
+                      <option value="numero-antigua">Número de crédito (más bajo)</option> */}
                       <option value="fecha-reciente">Fecha (más reciente)</option>
                       <option value="fecha-antigua">Fecha (más antigua)</option>
                     </select>
@@ -724,8 +724,8 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
                       }}
                       className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-red-500 focus:border-red-500 text-gray-700"
                     >
-                      <option value="numero-reciente">Número de crédito (más alto)</option>
-                      <option value="numero-antigua">Número de crédito (más bajo)</option>
+                      {/* <option value="numero-reciente">Número de crédito (más alto)</option>
+                      <option value="numero-antigua">Número de crédito (más bajo)</option> */}
                       <option value="fecha-reciente">Fecha (más reciente)</option>
                       <option value="fecha-antigua">Fecha (más antigua)</option>
                     </select>

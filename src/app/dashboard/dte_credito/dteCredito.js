@@ -1441,9 +1441,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
               <p className="text-gray-600">Sistema de facturación electrónica</p>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="bg-green-100 p-3 rounded-lg">
+              {/* <div className="bg-green-100 p-3 rounded-lg">
                 <p className="text-lg font-semibold text-green-600">N° {String(numeroFactura).padStart(4, '0')}</p>
-              </div>
+              </div> */}
               <FechaHoraEmision onFechaHoraChange={handleFechaHoraChange} />
             </div>
           </div>

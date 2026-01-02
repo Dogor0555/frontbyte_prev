@@ -14,8 +14,8 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
   const [facturasInvalidadas, setFacturasInvalidadas] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchTermInvalidadas, setSearchTermInvalidadas] = useState("");
-  const [orden, setOrden] = useState("numero-reciente");
-  const [ordenInvalidadas, setOrdenInvalidadas] = useState("numero-reciente");
+  const [orden, setOrden] = useState("fecha-reciente");
+  const [ordenInvalidadas, setOrdenInvalidadas] = useState("fecha-reciente");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -340,9 +340,9 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
             </div>
             <div>
               <span className="font-semibold text-xs block">FACTURA EXCLUIDA</span>
-              <span className="text-xs font-light opacity-90">
+              {/* <span className="text-xs font-light opacity-90">
                 #{factura.numerofacturausuario?.toString().padStart(4, '0') || factura.iddtefactura}
-              </span>
+              </span> */}
             </div>
           </div>
           <span className={`text-xs px-2 py-1 rounded-full font-medium ${
@@ -671,8 +671,8 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
                     }}
                     className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
                   >
-                    <option value="numero-reciente">Número de factura (más alto)</option>
-                    <option value="numero-antigua">Número de factura (más bajo)</option>
+                    {/* <option value="numero-reciente">Número de factura (más alto)</option>
+                    <option value="numero-antigua">Número de factura (más bajo)</option> */}
                     <option value="fecha-reciente">Fecha (más reciente)</option>
                     <option value="fecha-antigua">Fecha (más antigua)</option>
                   </select>
@@ -757,8 +757,8 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
                       }}
                       className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-red-500 focus:border-red-500 text-gray-700"
                     >
-                      <option value="numero-reciente">Número de factura (más alto)</option>
-                      <option value="numero-antigua">Número de factura (más bajo)</option>
+                      {/* <option value="numero-reciente">Número de factura (más alto)</option>
+                      <option value="numero-antigua">Número de factura (más bajo)</option> */}
                       <option value="fecha-reciente">Fecha (más reciente)</option>
                       <option value="fecha-antigua">Fecha (más antigua)</option>
                     </select>

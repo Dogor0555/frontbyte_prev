@@ -12,7 +12,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   const [creditos, setCreditos] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
-  const [ordenFecha, setOrdenFecha] = useState("numero");
+  const [ordenFecha, setOrdenFecha] = useState("reciente");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -431,7 +431,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                     }}
                     className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                   >
-                    <option value="numero">Nº Factura (desc)</option>
+                    {/* <option value="numero">Nº Factura (desc)</option> */}
                     <option value="reciente">Más reciente</option>
                     <option value="antigua">Más antigua</option>
                   </select>
@@ -453,9 +453,9 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                           </div>
                           <div>
                             <span className="font-semibold text-xs block">CRÉDITO</span>
-                            <span className="text-xs font-light opacity-90">
+                            {/* <span className="text-xs font-light opacity-90">
                               #{credito.numerofacturausuario?.toString().padStart(4, '0') || credito.iddtecredito}
-                            </span>
+                            </span> */}
                           </div>
                         </div>
                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${
