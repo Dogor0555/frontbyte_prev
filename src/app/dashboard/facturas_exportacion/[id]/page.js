@@ -450,6 +450,7 @@ export default function FacturaExportacionDetallePage() {
                   <p>Condición de Operación: {dteData.condicionoperacion || "No especificado"}</p>
                   <p>Estado: {dteData.estado || "No especificado"}</p>
                   <p>N° Control: {dteData.ncontrol || "No disponible"}</p>
+                  <p>Sello de Recepción: {dteData.sellorec || "No disponible"}</p>
                 </div>
               </div>
             </div>

@@ -498,6 +498,7 @@ export default function FacturaDetallePage() {
                   <p>Tipo de venta: {facturaData.factura.tipoventa || "No especificado"}</p>
                   <p>Estado: {facturaData.factura.estado || "No especificado"}</p>
                   <p>N° Control: {facturaData.factura.ncontrol || "No disponible"}</p>
+                  <p>Sello de Recepción: {facturaData.factura.sellorec || "No disponible"}</p>
                 </div>
               </div>
             </div>

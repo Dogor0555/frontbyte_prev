@@ -520,6 +520,7 @@ export default function CreditoDetallePage() {
                   <p>Tipo de venta: {creditoData.factura.tipoventa || "No especificado"}</p>
                   <p>Estado: {creditoData.factura.estado || "No especificado"}</p>
                   <p>N° Control: {creditoData.factura.ncontrol || "No disponible"}</p>
+                  <p>Sello de Recepción: {creditoData.factura.sellorec || "No disponible"}</p>
                 </div>
               </div>
             </div>
