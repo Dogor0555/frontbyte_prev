@@ -1,4 +1,3 @@
-// components/Services.jsx - Propuesta Ampliada
 import { useState } from 'react';
 
 const Services = () => {
@@ -14,7 +13,7 @@ const Services = () => {
           icon: "📋",
           title: "Facturación Electrónica",
           description: "Sistema completo de facturación con emisión automática de comprobantes electrónicos, validación del Ministerio de Hacienda en tiempo real y firma digital integrada.",
-          features: ["Cumplimiento normativo", "Dashboard inteligente", "Reportes automáticos",],
+          features: ["Cumplimiento normativo", "Dashboard inteligente", "Reportes automáticos"],
           featured: true
         },
         {
@@ -116,7 +115,6 @@ const Services = () => {
           description: "Soluciones de seguridad empresarial: Kaspersky, ESET, Bitdefender con gestión centralizada y reportes.",
           features: ["Gestión centralizada", "Reportes detallados", "Actualización automática", "Soporte especializado"]
         },
-      
         {
           icon: "🎨",
           title: "Software de Diseño",
@@ -139,7 +137,6 @@ const Services = () => {
           </p>
         </div>
 
-        {/* Tabs Navigation */}
         <div className="services-tabs">
           {Object.entries(serviceCategories).map(([key, category]) => (
             <button
@@ -158,7 +155,6 @@ const Services = () => {
           ))}
         </div>
 
-        {/* Active Tab Content */}
         <div className="services-content">
           <div className="category-header">
             <h3 style={{ color: serviceCategories[activeTab].color }}>
@@ -199,7 +195,6 @@ const Services = () => {
           </div>
         </div>
 
-        {/* Call to Action Section */}
         <div className="services-cta">
           <div className="cta-content">
             <h3>¿Necesitas una solución personalizada?</h3>
@@ -229,10 +224,21 @@ const Services = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
+        * {
+          box-sizing: border-box;
+        }
+
         .services {
-          padding: 80px 0;
+          width: 100%;
+          padding: 80px 20px;
           background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        .container {
+          max-width: 1200px;
+          margin: 0 auto;
+          width: 100%;
         }
 
         .services-header {
@@ -244,7 +250,7 @@ const Services = () => {
           font-size: 2.5rem;
           font-weight: 700;
           color: #333;
-          margin-bottom: 20px;
+          margin: 0 0 20px 0;
         }
 
         .section-subtitle {
@@ -258,14 +264,17 @@ const Services = () => {
         .services-tabs {
           display: flex;
           justify-content: center;
-          gap: 20px;
+          align-items: center;
+          gap: 15px;
           margin-bottom: 50px;
           flex-wrap: wrap;
+          padding: 0 20px;
         }
 
         .tab-button {
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 10px;
           padding: 15px 25px;
           border: 2px solid transparent;
@@ -275,6 +284,7 @@ const Services = () => {
           transition: all 0.3s ease;
           font-weight: 600;
           box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+          font-size: 1rem;
         }
 
         .tab-button:hover {
@@ -290,10 +300,16 @@ const Services = () => {
 
         .tab-icon {
           font-size: 1.5rem;
+          line-height: 1;
         }
 
         .tab-text {
           font-size: 1rem;
+          line-height: 1;
+        }
+
+        .services-content {
+          width: 100%;
         }
 
         .category-header {
@@ -309,9 +325,10 @@ const Services = () => {
 
         .services-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
           gap: 30px;
           margin-bottom: 60px;
+          width: 100%;
         }
 
         .service-card {
@@ -322,6 +339,8 @@ const Services = () => {
           transition: all 0.3s ease;
           position: relative;
           border: 2px solid transparent;
+          display: flex;
+          flex-direction: column;
         }
 
         .service-card:hover {
@@ -345,25 +364,28 @@ const Services = () => {
           border-radius: 20px;
           font-size: 0.85rem;
           font-weight: bold;
+          white-space: nowrap;
         }
 
         .service-icon {
           font-size: 3rem;
           margin-bottom: 20px;
           display: block;
+          line-height: 1;
         }
 
         .service-card h4 {
           font-size: 1.4rem;
           font-weight: 600;
           color: #333;
-          margin-bottom: 15px;
+          margin: 0 0 15px 0;
         }
 
         .service-card p {
           color: #666;
           line-height: 1.6;
-          margin-bottom: 20px;
+          margin: 0 0 20px 0;
+          flex-grow: 1;
         }
 
         .service-features {
@@ -395,6 +417,7 @@ const Services = () => {
           font-weight: 600;
           cursor: pointer;
           transition: all 0.3s ease;
+          font-size: 0.9rem;
         }
 
         .btn-primary {
@@ -431,13 +454,13 @@ const Services = () => {
 
         .cta-content h3 {
           font-size: 2rem;
-          margin-bottom: 15px;
+          margin: 0 0 15px 0;
         }
 
         .cta-content p {
           font-size: 1.1rem;
           line-height: 1.6;
-          margin-bottom: 30px;
+          margin: 0 0 30px 0;
           opacity: 0.9;
         }
 
@@ -458,12 +481,6 @@ const Services = () => {
         .cta-button.primary {
           background: #00d4ff;
           color: white;
-        }
-
-        .cta-button.secondary {
-          background: transparent;
-          color: white;
-          border: 2px solid white;
         }
 
         .cta-button:hover {
@@ -487,33 +504,62 @@ const Services = () => {
           font-size: 2.5rem;
           font-weight: bold;
           color: #00d4ff;
+          margin: 0;
+          line-height: 1;
         }
 
         .stat-label {
           font-size: 0.9rem;
           opacity: 0.8;
-          margin-top: 5px;
+          margin: 10px 0 0 0;
+        }
+
+        @media (max-width: 992px) {
+          .services-grid {
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          }
         }
 
         @media (max-width: 768px) {
+          .services {
+            padding: 60px 15px;
+          }
+
+          .section-title {
+            font-size: 2rem;
+          }
+
+          .section-subtitle {
+            font-size: 1rem;
+          }
+
           .services-tabs {
             flex-direction: column;
-            align-items: center;
+            align-items: stretch;
+            padding: 0;
           }
           
           .tab-button {
             width: 100%;
-            max-width: 300px;
             justify-content: center;
           }
           
           .services-grid {
             grid-template-columns: 1fr;
+            gap: 20px;
           }
           
           .services-cta {
             grid-template-columns: 1fr;
-            text-align: center;
+            padding: 30px 20px;
+          }
+
+          .cta-content h3 {
+            font-size: 1.5rem;
+          }
+
+          .cta-content p {
+            font-size: 1rem;
           }
           
           .cta-buttons {
@@ -523,6 +569,14 @@ const Services = () => {
           .cta-stats {
             flex-direction: row;
             justify-content: space-around;
+          }
+
+          .stat-number {
+            font-size: 2rem;
+          }
+
+          .stat-label {
+            font-size: 0.8rem;
           }
         }
       `}</style>
