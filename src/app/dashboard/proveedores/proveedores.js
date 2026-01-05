@@ -12,7 +12,7 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
-    const [proveedores, setProveedores] = useState(initialProveedores || []);
+    const [proveedores, setProveedores] = useState(Array.isArray(initialProveedores) ? initialProveedores : []);
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -42,7 +42,7 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
 
     // ✅ SIMPLIFICADO: Cálculo directo sin useMemo complejo
     const filteredProveedores = useMemo(() => {
-        if (!proveedores.length) return [];
+        if (!Array.isArray(proveedores) || !proveedores.length) return [];
         if (!searchTerm.trim()) return proveedores;
 
         const term = searchTerm.toLowerCase();
@@ -133,7 +133,7 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
     }, []);
 
     useEffect(() => {
-        setProveedores(initialProveedores || []);
+        setProveedores(Array.isArray(initialProveedores) ? initialProveedores : []);
     }, [initialProveedores]);
 
     // ✅ Resetear página cuando se filtra
@@ -153,7 +153,7 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
             if (!response.ok) throw new Error("Error al obtener los proveedores");
 
             const data = await response.json();
-            setProveedores(data);
+            setProveedores(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error("Error al obtener los proveedores:", error);
             setErrorMessage("Error al cargar los proveedores");
@@ -162,6 +162,7 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
     };
 
     const checkIfCodeExists = (codigo, id = null) => {
+        if (!Array.isArray(proveedores)) return false;
         return proveedores.some(proveedor => 
             proveedor.codigo.toUpperCase() === codigo.toUpperCase() && proveedor.id !== id
         );
