@@ -75,7 +75,7 @@ export default function FacturaDetallePage() {
       const pdfUrl = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = pdfUrl;
-      link.download = `FAC-${facturaData.factura.numerofacturausuario || idFactura}.pdf`;
+      link.download = `${facturaData.factura.ncontrol || 'factura-' + idFactura}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
