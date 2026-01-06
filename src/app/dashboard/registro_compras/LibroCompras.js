@@ -74,7 +74,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 }
             );
             
-            if (!response.ok) throw new Error("Error al cargar libro de compras");
+            if (!response.ok) throw new Error("Error al cargar registro de compras");
             const data = await response.json();
             
             setLibro(Array.isArray(data.libro) ? data.libro : []);
@@ -173,7 +173,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             }
 
             const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet('Libro de Compras');
+            const worksheet = workbook.addWorksheet('Registro de Compras');
 
             worksheet.columns = [
                 { header: 'FECHA', key: 'fecha', width: 12 },
@@ -253,7 +253,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `libro-compras-${fechaInicio}-a-${fechaFin}.xlsx`;
+            link.download = `registro-compras-${fechaInicio}-a-${fechaFin}.xlsx`;
             link.click();
             URL.revokeObjectURL(url);
         } catch (error) {
@@ -272,7 +272,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             const fechaGeneracion = new Date().toLocaleDateString('es-SV');
 
             doc.setFontSize(16);
-            doc.text("LIBRO DE COMPRAS", 14, 15);
+            doc.text("REGISTRO DE COMPRAS", 14, 15);
             doc.setFontSize(10);
             doc.text(`Período: ${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`, 14, 22);
             doc.text(`Generado: ${fechaGeneracion}`, 14, 27);
@@ -322,7 +322,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 }
             });
 
-            doc.save(`libro-compras-${fechaInicio}-a-${fechaFin}.pdf`);
+            doc.save(`registro-compras-${fechaInicio}-a-${fechaFin}.pdf`);
         } catch (error) {
             console.error("Error exportando PDF:", error);
             alert("Error al exportar PDF");
@@ -336,7 +336,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             <div className="flex items-center justify-center min-h-screen bg-gray-50">
                 <div className="text-center">
                     <div className="animate-spin h-12 w-12 border-4 border-gray-600 rounded-full border-t-transparent mx-auto mb-4"></div>
-                    <p className="text-gray-600 font-medium">Cargando libro de compras...</p>
+                    <p className="text-black font-medium">Cargando registro de compras...</p>
                 </div>
             </div>
         );
@@ -369,11 +369,10 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                             {/* Header y Botones */}
                             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6">
                                 <div>
-                                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Libro de Compras</h1>
-                                    <p className="text-gray-600 text-sm">Registro detallado de compras y créditos fiscales</p>
+                                    <h1 className="text-2xl md:text-3xl font-bold text-black mb-2">Registro de Compras</h1>
                                 </div>
                                 <div className="flex flex-wrap gap-3 mt-4 lg:mt-0">
-                                    <button onClick={handleRefresh} disabled={refreshing} className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                                    <button onClick={handleRefresh} disabled={refreshing} className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-black hover:bg-gray-50 disabled:opacity-50 transition-colors">
                                         <FaSync className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                                         {refreshing ? 'Actualizando...' : 'Actualizar'}
                                     </button>
@@ -392,23 +391,23 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                             <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-gray-200 p-4 mb-6">
                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
                                     <div>
-                                        <div className="text-sm text-gray-600 font-medium">Total Compras</div>
-                                        <div className="text-xl font-bold text-gray-800">{formatCurrency(totales.monto)}</div>
+                                        <div className="text-sm text-black font-medium">Total Compras</div>
+                                        <div className="text-xl font-bold text-black">{formatCurrency(totales.monto)}</div>
                                     </div>
                                     <div>
-                                        <div className="text-sm text-gray-600 font-medium">Compras Locales</div>
+                                        <div className="text-sm text-black font-medium">Compras Locales</div>
                                         <div className="text-xl font-bold text-blue-600">{formatCurrency(totales.locales)}</div>
                                     </div>
                                     <div>
-                                        <div className="text-sm text-gray-600 font-medium">Crédito Fiscal (IVA)</div>
+                                        <div className="text-sm text-black font-medium">Crédito Fiscal (IVA)</div>
                                         <div className="text-xl font-bold text-green-600">{formatCurrency(totales.iva)}</div>
                                     </div>
                                     <div>
-                                        <div className="text-sm text-gray-600 font-medium">Retención</div>
+                                        <div className="text-sm text-black font-medium">Retención</div>
                                         <div className="text-xl font-bold text-orange-600">{formatCurrency(totales.retencion)}</div>
                                     </div>
                                     <div>
-                                        <div className="text-sm text-gray-600 font-medium">Percepción</div>
+                                        <div className="text-sm text-black font-medium">Percepción</div>
                                         <div className="text-xl font-bold text-purple-600">{formatCurrency(totales.percepcion)}</div>
                                     </div>
                                 </div>
@@ -418,23 +417,23 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio</label>
+                                        <label className="block text-sm font-medium text-black mb-2">Fecha Inicio</label>
                                         <div className="relative">
-                                            <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                            <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black" />
                                             <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors" />
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Fin</label>
+                                        <label className="block text-sm font-medium text-black mb-2">Fecha Fin</label>
                                         <div className="relative">
-                                            <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                            <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black" />
                                             <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors" />
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+                                        <label className="block text-sm font-medium text-black mb-2">Buscar</label>
                                         <div className="relative">
-                                            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black" />
                                             <input type="text" placeholder="Proveedor, documento, NRC..." className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
                                         </div>
                                     </div>
@@ -447,36 +446,36 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                                     <table className="min-w-full divide-y divide-gray-200">
                                         <thead className="bg-gray-50">
                                             <tr>
-                                                <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-left">No.</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-left">Fecha</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-left">Documento</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-left">Proveedor</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Exentas</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Import.</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Locales</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">IVA</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Retención</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Percepción</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Total</th>
+                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-left">No.</th>
+                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-left">Fecha</th>
+                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-left">Documento</th>
+                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-left">Proveedor</th>
+                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Exentas</th>
+                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Import.</th>
+                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Locales</th>
+                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">IVA</th>
+                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Retención</th>
+                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Percepción</th>
+                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
                                             {currentItems.map((item, idx) => (
                                                 <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-3 py-3 text-sm text-gray-700">{item.no}</td>
-                                                    <td className="px-3 py-3 text-sm text-gray-700 whitespace-nowrap">{item.fecha}</td>
-                                                    <td className="px-3 py-3 text-sm text-gray-700 font-mono">{item.numero_documento}</td>
+                                                    <td className="px-3 py-3 text-sm text-black">{item.no}</td>
+                                                    <td className="px-3 py-3 text-sm text-black whitespace-nowrap">{item.fecha}</td>
+                                                    <td className="px-3 py-3 text-sm text-black font-mono">{item.numero_documento}</td>
                                                     <td className="px-3 py-3 text-sm max-w-xs">
-                                                        <div className="font-medium text-gray-800 truncate" title={item.nombre_proveedor}>{item.nombre_proveedor}</div>
-                                                        <div className="text-xs text-gray-500">{item.numero_registro}</div>
+                                                        <div className="font-medium text-black truncate" title={item.nombre_proveedor}>{item.nombre_proveedor}</div>
+                                                        <div className="text-xs text-black">{item.numero_registro}</div>
                                                     </td>
-                                                    <td className="px-3 py-3 text-sm text-right text-gray-700 font-mono">{formatCurrency(item.exentas)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right text-gray-700 font-mono">{formatCurrency(item.importaciones)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right text-gray-700 font-mono">{formatCurrency(item.locales)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right text-gray-700 font-mono">{formatCurrency(item.iva)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right text-gray-700 font-mono">{formatCurrency(item.retencion)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right text-gray-700 font-mono">{formatCurrency(item.percepcion)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right font-bold text-gray-800 font-mono">{formatCurrency(item.monto)}</td>
+                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.exentas)}</td>
+                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.importaciones)}</td>
+                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.locales)}</td>
+                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.iva)}</td>
+                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.retencion)}</td>
+                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.percepcion)}</td>
+                                                    <td className="px-3 py-3 text-sm text-right font-bold text-black font-mono">{formatCurrency(item.monto)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -487,13 +486,13 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                                 {libroFiltrado.length > itemsPerPage && (
                                     <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
                                         <div className="flex items-center justify-between">
-                                            <div className="text-sm text-gray-700">
+                                            <div className="text-sm text-black">
                                                 Mostrando {indexOfFirstItem + 1} a {Math.min(indexOfLastItem, libroFiltrado.length)} de {libroFiltrado.length} registros
                                             </div>
                                             <div className="flex space-x-2">
-                                                <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">Anterior</button>
-                                                <span className="px-3 py-1 text-sm text-gray-700">Página {currentPage} de {totalPages}</span>
-                                                <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">Siguiente</button>
+                                                <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 rounded border border-gray-300 bg-white text-black hover:bg-gray-50 disabled:opacity-50 transition-colors">Anterior</button>
+                                                <span className="px-3 py-1 text-sm text-black">Página {currentPage} de {totalPages}</span>
+                                                <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 rounded border border-gray-300 bg-white text-black hover:bg-gray-50 disabled:opacity-50 transition-colors">Siguiente</button>
                                             </div>
                                         </div>
                                     </div>
@@ -501,9 +500,9 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
 
                                 {libroFiltrado.length === 0 && (
                                     <div className="text-center py-12">
-                                        <div className="text-gray-400 mb-3"><FaFileAlt className="inline-block text-4xl" /></div>
-                                        <h3 className="text-lg font-medium text-gray-700 mb-2">No se encontraron registros</h3>
-                                        <p className="text-gray-500 text-sm">Intenta ajustar los filtros o el rango de fechas</p>
+                                        <div className="text-black mb-3"><FaFileAlt className="inline-block text-4xl" /></div>
+                                        <h3 className="text-lg font-medium text-black mb-2">No se encontraron registros</h3>
+                                        <p className="text-black text-sm">Intenta ajustar los filtros o el rango de fechas</p>
                                     </div>
                                 )}
                             </div>
