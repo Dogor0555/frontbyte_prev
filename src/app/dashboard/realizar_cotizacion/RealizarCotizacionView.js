@@ -1,0 +1,2041 @@
+"use client";
+import { useState, useEffect, useRef } from "react";
+import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner, FaEye } from "react-icons/fa";
+import Sidebar from "../components/sidebar";
+import Footer from "../components/footer";
+import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
+import { codactividad } from "./data/data";
+import ClientListModal from "./components/modals/ClientListModal";
+import SelectorModal from "./components/modals/SelectorModal";
+import ProductModal from "./components/modals/ProductModal";
+import NonTaxableModal from "./components/modals/NonTaxableModal";
+import TaxModal from "./components/modals/TaxModal";
+import DiscountModal from "./components/modals/DiscountModal";
+import FechaHoraEmision from "./components/FechaHoraEmision";
+import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaModal";
+import MensajeModal from "./components/MensajeModal";
+import VistaPreviaModal from "./components/modals/VistaPreviaModal"; // Reutilizaremos el contenedor del modal
+import { useReactToPrint } from 'react-to-print';
+import Handlebars from 'handlebars';
+import { API_BASE_URL } from "@/lib/api";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+export default function RealizarCotizacionView({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
+  // Estados para la factura
+  const [cliente, setCliente] = useState(null);
+  const [nombreCliente, setNombreCliente] = useState("");
+  const [documentoCliente, setDocumentoCliente] = useState("");
+  const [condicionPago, setCondicionPago] = useState("Contado");
+  const [fechaVencimiento, setFechaVencimiento] = useState("");
+  const [items, setItems] = useState([]);
+  const [sumaopesinimpues, setSumaopesinimpues] = useState(0);
+  const [totaldescuento, setTotaldescuento] = useState(0);
+  const [ventasgrabadas, setVentasgrabadas] = useState(0);
+  const [valoriva, setValoriva] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showClientList, setShowClientList] = useState(false);
+  const [showClientDetails, setShowClientDetails] = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [numeroFactura, setNumeroFactura] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(""); 
+  const [clientes, setClientes] = useState(initialClientes);
+  const [productos, setProductos] = useState(initialProductos);
+  const [productosCargados, setProductosCargados] = useState([]);
+  const [productoSeleccionado, setProductoSeleccionado] = useState(null);
+  const [cargandoProductos, setCargandoProductos] = useState(false);
+  const [errorCargaProductos, setErrorCargaProductos] = useState(null);
+  // --- Emisor (vendedor logueado) ---
+  const [actividadEconomica, setActividadEconomica] = useState("");
+  const [direccionEmisor, setDireccionEmisor] = useState("");
+  const [correoVendedor, setCorreoVendedor] = useState("");
+  const [telefonoEmisor, setTelefonoEmisor] = useState("");
+  // --- Receptor (cliente de la factura) ---
+  const [tipoDocumentoReceptor, setTipoDocumentoReceptor] = useState("");
+  const [numeroDocumentoReceptor, setNumeroDocumentoReceptor] = useState("");
+  const [nombreReceptor, setNombreReceptor] = useState("");
+  const [direccionReceptor, setDireccionReceptor] = useState("");
+  const [correoReceptor, setCorreoReceptor] = useState("");
+  const [telefonoReceptor, setTelefonoReceptor] = useState("");
+  const [complementoReceptor, setComplementoReceptor] = useState("");
+  const [tipoDocumentoLabel, setTipoDocumentoLabel] = useState("Documento");
+  const [idReceptor, setIdReceptor] = useState(null);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [descuentoGrabadasMonto, setDescuentoGrabadasMonto] = useState(0);
+  const [descuentoExentasMonto, setDescuentoExentasMonto] = useState(0);
+  const [exentasConDescuentoState, setExentasConDescuentoState] = useState(0);
+  const [gravadasSinDescuentoState, setGravadasSinDescuentoState] = useState(0);
+  const [exentasSinDescuentoState, setExentasSinDescuentoState] = useState(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [formasPago, setFormasPago] = useState([]);
+  const [guardandoFactura, setGuardandoFactura] = useState(false);
+  const [datosEntrega, setDatosEntrega] = useState({
+    emisorDocumento: "",
+    emisorNombre: "",
+    receptorDocumento: "",
+    receptorNombre: ""
+  });
+  const [fechaHoraEmision, setFechaHoraEmision] = useState({
+    fechaEmision: "",
+    horaEmision: ""
+  });
+  const [totalModal, setTotalModal] = useState(0);
+  const [errorValidacion, setErrorValidacion] = useState("");
+  const [emisorDocumento, setEmisorDocumento] = useState("");
+  const [emisorNombre, setEmisorNombre] = useState("");
+  const [tributosDetallados, setTributosDetallados] = useState({});
+
+  // Nuevo estado para retención de IVA
+  const [retencionIVA, setRetencionIVA] = useState({
+    aplicar: false,
+    porcentaje: 1, // 1% o 13%
+    monto: 0
+  });
+
+  // Nuevos estados para el MensajeModal
+  const [mostrarMensaje, setMostrarMensaje] = useState(false);
+  const [mensajeConfig, setMensajeConfig] = useState({
+    tipo: "exito",
+    titulo: "",
+    mensaje: "",
+    detalles: "",
+    idFactura: null
+  });
+  const [descargandoTicket, setDescargandoTicket] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [template, setTemplate] = useState(null);
+
+  const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
+    if (!tipoDocumento || !numeroDocumento.trim()) {
+      return { valido: false, mensaje: "El número de documento es requerido" };
+    }
+
+    const VALIDACIONES_DOCUMENTO = {
+      "13": { regex: /^\d{8}-\d{1}$/, mensaje: "Formato de DUI inválido. Debe ser: 12345678-9" },
+      "36": { regex: /^\d{4}-\d{6}-\d{3}-\d{1}$/, mensaje: "Formato de NIT inválido. Debe ser: 1234-123456-123-1" },
+      "03": { regex: /^[A-Za-z0-9]{5,20}$/, mensaje: "Pasaporte debe contener solo letras y números (5-20 caracteres)" },
+      "02": { regex: /^[A-Za-z0-9]{5,20}$/, mensaje: "Carnet de residente debe contener solo letras y números (5-20 caracteres)" }
+    };
+
+    const validacion = VALIDACIONES_DOCUMENTO[tipoDocumento];
+    if (!validacion) {
+      return { valido: false, mensaje: "Tipo de documento no válido" };
+    }
+
+    if (!validacion.regex.test(numeroDocumento)) {
+      return { valido: false, mensaje: validacion.mensaje };
+    }
+
+    return { valido: true, mensaje: "" };
+  };
+
+  // Inicializar correo desde user o, si no hay, desde localStorage
+  useEffect(() => {
+    const fromUser =
+      (user && (user.correoEmpleado || user.emailemp || user.email)) || "";
+
+    if (fromUser) {
+      setCorreoVendedor(fromUser);
+      return;
+    }
+
+    try {
+      const emp = JSON.parse(localStorage.getItem("empleado"));
+      if (emp?.correo) setCorreoVendedor(emp.correo);
+    } catch {
+      /* ignore */
+    }
+  }, [user]);
+
+  const ticketRef = useRef();
+
+  // Catálogo de unidades
+  const [unidades, setUnidades] = useState([
+    { codigo: "1", nombre: "metro" },
+    { codigo: "2", nombre: "Yarda" },
+    { codigo: "6", nombre: "milímetro" },
+    { codigo: "10", nombre: "Hectárea" },
+    { codigo: "13", nombre: "metro cuadrado" },
+    { codigo: "15", nombre: "Vara cuadrada" },
+    { codigo: "18", nombre: "metro cúbico" },
+    { codigo: "20", nombre: "Barril" },
+    { codigo: "22", nombre: "Galón" },
+    { codigo: "23", nombre: "Litro" },
+    { codigo: "24", nombre: "Botella" },
+    { codigo: "26", nombre: "Mililitro" },
+    { codigo: "30", nombre: "Tonelada" },
+    { codigo: "32", nombre: "Quintal" },
+    { codigo: "33", nombre: "Arroba" },
+    { codigo: "34", nombre: "Kilogramo" },
+    { codigo: "36", nombre: "Libra" },
+    { codigo: "37", nombre: "Onza troy" },
+    { codigo: "38", nombre: "Onza" },
+    { codigo: "39", nombre: "Gramo" },
+    { codigo: "40", nombre: "Miligramo" },
+    { codigo: "42", nombre: "Megawatt" },
+    { codigo: "43", nombre: "Kilowatt" },
+    { codigo: "44", nombre: "Watt" },
+    { codigo: "45", nombre: "Megavoltio-amperio" },
+    { codigo: "46", nombre: "Kilovoltio-amperio" },
+    { codigo: "47", nombre: "Voltio-amperio" },
+    { codigo: "49", nombre: "Gigawatt-hora" },
+    { codigo: "50", nombre: "Megawatt-hora" },
+    { codigo: "51", nombre: "Kilowatt-hora" },
+    { codigo: "52", nombre: "Watt-hora" },
+    { codigo: "53", nombre: "Kilovoltio" },
+    { codigo: "54", nombre: "Voltio" },
+    { codigo: "55", nombre: "Kilómetro" },
+    { codigo: "56", nombre: "Medio millar" },
+    { codigo: "57", nombre: "Ciento" },
+    { codigo: "58", nombre: "Docena" },
+    { codigo: "59", nombre: "Unidad" },
+    { codigo: "99", nombre: "Otra" },
+  ]);
+
+  // Función para mostrar mensajes
+  const mostrarModalMensaje = (tipo, titulo, mensaje, detalles = "", idFactura = null) => {
+    setMensajeConfig({
+      tipo,
+      titulo,
+      mensaje,
+      detalles,
+      idFactura
+    });
+    setMostrarMensaje(true);
+  };
+
+const descargarTicketFactura = async (idFactura) => {
+    setDescargandoTicket(true);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/${idFactura}/ver-compacto`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        const newTab = window.open(url, '_blank');
+        
+        if (!newTab) {
+          throw new Error('El navegador bloqueó la nueva pestaña. Por favor, permite ventanas emergentes.');
+        }
+        
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = `factura_${idFactura}.pdf`;
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+          }
+        }
+        
+        mostrarModalMensaje(
+          "exito", 
+          "Ticket Abierto", 
+          "El ticket de la factura se ha abierto en una nueva pestaña.",
+          `Archivo: ${filename}`
+        );
+        
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 5000);
+        
+      } else {
+        throw new Error('Error al generar el ticket');
+      }
+    } catch (error) {
+      console.error('Error al abrir ticket:', error);
+      mostrarModalMensaje(
+        "error",
+        "Error al Abrir Ticket",
+        "No se pudo abrir el ticket de la factura.",
+        error.message
+      );
+    } finally {
+      setDescargandoTicket(false);
+    }
+  };
+
+  const validarDatosFactura = () => {
+    if (!nombreReceptor.trim()) {
+      const mensaje = "El nombre del cliente es obligatorio";
+      setErrorValidacion(mensaje);
+      mostrarModalMensaje("error", "Datos Incompletos", mensaje);
+      return false;
+    }
+    
+    if (!numeroDocumentoReceptor.trim()) {
+      const mensaje = "El documento del cliente es obligatorio";
+      setErrorValidacion(mensaje);
+      mostrarModalMensaje("error", "Datos Incompletos", mensaje);
+      return false;
+    }
+
+    if (tipoDocumentoReceptor) {
+      const validacionDocumento = validarFormatoDocumento(tipoDocumentoReceptor, numeroDocumentoReceptor);
+      if (!validacionDocumento.valido) {
+        const mensaje = `Documento inválido: ${validacionDocumento.mensaje}`;
+        setErrorValidacion(mensaje);
+        mostrarModalMensaje("error", "Documento Inválido", mensaje);
+        return false;
+      }
+    }
+    
+    if (items.length === 0) {
+      const mensaje = "Debe agregar al menos un item a la factura";
+      setErrorValidacion(mensaje);
+      mostrarModalMensaje("error", "Factura Vacía", mensaje);
+      return false;
+    }
+    
+    
+    setErrorValidacion("");
+    return true;
+  };
+
+  const guardarFactura = async () => {
+    // Generar PDF con jsPDF
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const marginLeft = 6;
+    const marginRight = 6;
+    const marginTop = 8;
+    
+    let currentY = marginTop;
+    const pageWidth = 210;
+    const contentWidth = pageWidth - marginLeft - marginRight;
+    
+    doc.setFont("helvetica");
+    doc.setFontSize(8);
+
+    // --- HEADER ---
+    // Logo (Left) - Placeholder logic
+    if (sucursalUsuario?.logo) {
+        // doc.addImage(sucursalUsuario.logo, 'PNG', marginLeft, currentY, 30, 15);
+    }
+    
+    // Title "COTIZACIÓN"
+    doc.setFontSize(15); // h1
+    doc.setFont("helvetica", "bold");
+    doc.text("COTIZACIÓN", marginLeft, currentY + 6);
+    
+    // Right: Moneda
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Moneda: ${"USD"}`, pageWidth - marginRight, currentY + 6, { align: "right" });
+    
+    currentY += 12;
+
+    // --- IDENTIFICATION BLOCK ---
+    const idBlockHeight = 12;
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.1);
+    doc.rect(marginLeft, currentY, contentWidth, idBlockHeight);
+    
+    const idY = currentY + 7;
+    doc.setFontSize(9);
+    doc.text("Número de Cotización:", marginLeft + 2, idY);
+    doc.setFont("courier", "bold"); 
+    doc.setFontSize(11);
+    doc.text(`COT-${numeroFactura}`, marginLeft + 40, idY); 
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Fecha de Emisión:", marginLeft + 90, idY);
+    doc.setFont("courier", "normal");
+    
+    // Fecha formatting
+    const ahora = new Date();
+    const fechaStr = ahora.toLocaleDateString('es-SV');
+    const horaStr = ahora.toLocaleTimeString('es-SV');
+    doc.text(`${fechaStr} ${horaStr}`, marginLeft + 125, idY);
+    
+    currentY += idBlockHeight + 4;
+
+    // --- EMISOR / RECEPTOR ---
+    const gap = 2;
+    const colWidth = (contentWidth - gap) / 2;
+    const startRowY = currentY;
+    
+    // Helper to draw KV
+    const drawBlockContent = (x, y, title, data) => {
+        let cursor = y + 5;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10); // h2
+        doc.text(title.toUpperCase(), x + 2, cursor);
+        cursor += 5;
+        
+        doc.setFontSize(8);
+        data.forEach(item => {
+            if (!item.value) return;
+            doc.setFont("helvetica", "normal");
+            doc.text(item.label, x + 2, cursor);
+            
+            doc.setFont(item.mono ? "courier" : "helvetica", "normal");
+            const valX = x + 35; // Fixed label width approx
+            const maxValWidth = colWidth - 37;
+            const splitVal = doc.splitTextToSize(item.value.toString(), maxValWidth);
+            doc.text(splitVal, valX, cursor);
+            cursor += (splitVal.length * 3.5) + 1;
+        });
+        return cursor;
+    };
+
+    // Emisor Data
+    const emisorData = [
+        { label: "Nombre:", value: sucursalUsuario?.usuario?.nombre || "" },
+        { label: "NIT:", value: sucursalUsuario?.usuario?.nit || "", mono: true },
+        { label: "NRC:", value: sucursalUsuario?.nrc || "-", mono: true },
+        { label: "Actividad:", value: codactividad.find(c => c.codigo === actividadEconomica)?.nombre || "" },
+        { label: "Dirección:", value: `${direccionEmisor}, ${sucursalUsuario?.municipio?.nombre || ""}, ${sucursalUsuario?.departamento?.nombre || ""}` },
+        { label: "Teléfono:", value: telefonoEmisor },
+        { label: "Correo:", value: correoVendedor }
+    ];
+
+    // Receptor Data
+    const receptorData = [
+        { label: "Nombre:", value: nombreReceptor },
+        { label: "Tipo Doc.:", value: tipoDocumentoLabel },
+        { label: "N° Doc:", value: numeroDocumentoReceptor, mono: true },
+        { label: "Dirección:", value: `${direccionReceptor}, ${cliente?.municipio?.nombre || ""}, ${cliente?.departamento?.nombre || ""}` },
+        { label: "Teléfono:", value: telefonoReceptor },
+        { label: "Correo:", value: correoReceptor }
+    ];
+
+    const endY1 = drawBlockContent(marginLeft, startRowY, "Emisor", emisorData);
+    const endY2 = drawBlockContent(marginLeft + colWidth + gap, startRowY, "Receptor", receptorData);
+    
+    const rowHeight = Math.max(endY1, endY2) - startRowY + 2;
+    
+    // Draw borders
+    doc.rect(marginLeft, startRowY, colWidth, rowHeight);
+    doc.rect(marginLeft + colWidth + gap, startRowY, colWidth, rowHeight);
+    
+    currentY += rowHeight + 4;
+
+    // --- DETALLE ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("DETALLE", marginLeft, currentY + 3);
+    
+    currentY += 5;
+
+    const tableBody = items.map((item, index) => {
+        const subtotalItem = item.precioUnitario * item.cantidad;
+        const descuentoItem = item.descuento || 0;
+        const baseImponible = subtotalItem - descuentoItem;
+        
+        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+        const esExento = item.tipo === "noAfecto";
+        const esNoSujeto = !esGravado && !esExento;
+        
+        return [
+            index + 1,
+            item.cantidad.toFixed(2),
+            obtenerNombreUnidad(item.unidadMedida || "59"),
+            item.descripcion,
+            item.precioUnitario.toFixed(2),
+            descuentoItem.toFixed(2),
+            esNoSujeto ? baseImponible.toFixed(2) : "0.00",
+            esExento ? baseImponible.toFixed(2) : "0.00",
+            esGravado ? baseImponible.toFixed(2) : "0.00"
+        ];
+    });
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [["N°", "Cantidad", "Unidad", "Descripción", "Precio Unit.", "Desc.", "No Suj.", "Exentas", "Gravadas"]],
+      body: tableBody,
+      theme: 'grid',
+      styles: { 
+          fontSize: 7, 
+          cellPadding: 1.5,
+          textColor: 0,
+          lineColor: 0,
+          lineWidth: 0.1
+      },
+      headStyles: { 
+          fillColor: [243, 243, 243], 
+          textColor: 0,
+          fontStyle: 'bold',
+          halign: 'left'
+      },
+      columnStyles: {
+          0: { halign: 'center', cellWidth: 8 },
+          1: { halign: 'right', font: 'courier' },
+          2: { cellWidth: 15 },
+          4: { halign: 'right', font: 'courier' },
+          5: { halign: 'right', font: 'courier' },
+          6: { halign: 'right', font: 'courier' },
+          7: { halign: 'right', font: 'courier' },
+          8: { halign: 'right', font: 'courier' }
+      },
+      margin: { left: marginLeft, right: marginRight }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 4;
+
+    // --- TOTALS ---
+    const totalsStartY = currentY;
+    const leftColW = contentWidth * 0.5;
+    const rightColW = contentWidth * 0.5;
+    
+    // Right side (Totals Table)
+    const totalsBody = [
+        ["Suma Ventas No Sujetas", formatMoney(0)],
+        ["Suma Ventas Exentas", formatMoney(exentasConDescuentoState)],
+        ["Descuentos Gravadas", formatMoney(descuentoGrabadasMonto)],
+        ["Total Gravada", formatMoney(ventasgrabadas)],
+        ["Sub-Total", formatMoney(sumaopesinimpues - totaldescuento)],
+        ["Retención Renta", formatMoney(0)],
+        ["Monto Total Operación", formatMoney(sumaopesinimpues - totaldescuento)],
+        ["Otros montos no afectos", formatMoney(0)],
+        ["Total a Pagar", formatMoney(total)]
+    ];
+
+    autoTable(doc, {
+        startY: totalsStartY,
+        body: totalsBody,
+        theme: 'plain',
+        styles: { 
+            fontSize: 7, 
+            cellPadding: 1,
+            textColor: 0
+        },
+        columnStyles: {
+            0: { cellWidth: 'auto' },
+            1: { halign: 'right', font: 'courier' }
+        },
+        margin: { left: marginLeft + leftColW },
+        tableWidth: rightColW
+    });
+    
+    const totalsTableHeight = doc.lastAutoTable.finalY - totalsStartY;
+    
+    // Left side (Text)
+    let leftCursor = totalsStartY + 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    
+    const valorLetras = convertirNumeroALetras(total);
+    const splitLetras = doc.splitTextToSize(`Valor en Letras: ${valorLetras}`, leftColW - 4);
+    
+    doc.text("Valor en Letras:", marginLeft + 2, leftCursor);
+    doc.text(splitLetras, marginLeft + 25, leftCursor);
+    
+    leftCursor += (splitLetras.length * 4) + 2;
+    
+    doc.text(`Condición de la Operación: ${condicionPago.toUpperCase()}`, marginLeft + 2, leftCursor);
+    leftCursor += 6;
+    
+    doc.text("Observaciones: -", marginLeft + 2, leftCursor);
+    leftCursor += 6;
+    
+    const blockHeight = Math.max(totalsTableHeight, leftCursor - totalsStartY) + 2;
+    
+    // Border for Totals Block
+    doc.rect(marginLeft, totalsStartY, contentWidth, blockHeight);
+    // Vertical line
+    doc.line(marginLeft + leftColW, totalsStartY, marginLeft + leftColW, totalsStartY + blockHeight);
+
+    // Guardar PDF
+    doc.save(`Cotizacion_${numeroFactura}.pdf`);
+
+    mostrarModalMensaje(
+      "exito",
+      "Cotización Generada",
+      "La cotización se ha generado y descargado correctamente.",
+    );
+    setShowPreviewModal(false);
+  };
+
+  useEffect(() => {
+    fetch('/templates/plantilla_cotizacion.hbs')
+      .then(response => response.text())
+      .then(text => {
+        Handlebars.registerHelper('two', (value) => {
+          if (value === undefined || value === null || isNaN(value)) return "0.00";
+          const numValue = typeof value === 'number' ? value : parseFloat(value);
+          return numValue.toFixed(2);
+        });
+
+        Handlebars.registerHelper('money', (value) => {
+          if (value === undefined || value === null || isNaN(value)) return "$0.00";
+          const numValue = typeof value === 'number' ? value : parseFloat(value);
+          return `$${numValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        });
+
+        Handlebars.registerHelper('isContado', (value) => {
+          return value === 1;
+        });
+
+        Handlebars.registerHelper('unitName', (codigoUnidad) => {
+          if (!codigoUnidad) return '';
+          const unidad = unidades.find(u => u.codigo === codigoUnidad.toString());
+          return unidad ? unidad.nombre : '';
+        });
+        setTemplate(() => Handlebars.compile(text));
+      })
+      .catch(error => console.error("Error al cargar la plantilla de vista previa:", error));
+  }, []);
+
+  const handleConfirmarYGuardar = () => {
+    if (guardandoFactura) return;
+
+    if (!validarDatosFactura()) {
+      return;
+    }
+
+    if (!template) {
+      mostrarModalMensaje("error", "Plantilla no cargada", "La plantilla para la vista previa aún no está lista. Intente de nuevo en unos segundos.");
+      return;
+    }
+
+    const datosParaPlantilla = prepararDatosFactura(true);
+    setPreviewHtml(template(datosParaPlantilla));
+    setShowPreviewModal(true);
+  };
+
+  const reiniciarFormulario = () => {
+    setItems([]);
+    setCliente(null);
+    setNombreCliente("");
+    setDocumentoCliente("");
+    setCondicionPago("Contado");
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 30);
+    setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
+    setSumaopesinimpues(0);
+    setTotaldescuento(0);
+    setVentasgrabadas(0);
+    setValoriva(0);
+    setTotal(0);
+    setDescuentoGrabadasMonto(0);
+    setDescuentoExentasMonto(0);
+    setFormasPago([]);
+    setRetencionIVA({
+      aplicar: false,
+      porcentaje: 1,
+      monto: 0
+    });
+    obtenerUltimoNumeroFactura();
+  };
+
+  const reiniciarEstados = () => {
+    setCliente(null);
+    setNombreCliente("");
+    setDocumentoCliente("");
+    setTipoDocumentoReceptor("");
+    setNumeroDocumentoReceptor("");
+    setNombreReceptor("");
+    setDireccionReceptor("");
+    setCorreoReceptor("");
+    setTelefonoReceptor("");
+    setComplementoReceptor("");
+    setTipoDocumentoLabel("Documento");
+    setItems([]);
+    setSumaopesinimpues(0);
+    setTotaldescuento(0);
+    setVentasgrabadas(0);
+    setValoriva(0);
+    setTotal(0);
+    setDescuentoGrabadasMonto(0);
+    setDescuentoExentasMonto(0);
+    setExentasConDescuentoState(0);
+    setGravadasSinDescuentoState(0);
+    setExentasSinDescuentoState(0);
+    setCondicionPago("Contado");
+    setFormasPago([]);
+    setRetencionIVA({
+      aplicar: false,
+      porcentaje: 1,
+      monto: 0
+    });
+    setDatosEntrega({
+      emisorDocumento: "",
+      emisorNombre: "",
+      receptorDocumento: "",
+      receptorNombre: ""
+    });
+    
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 30);
+    setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
+    obtenerUltimoNumeroFactura();
+    setShowModal(false);
+    setShowDiscountModal(false);
+    setShowConfirmModal(false);
+    setShowClientList(false);
+    setShowClientDetails(false);
+    setSearchTerm("");
+  };
+
+  const verDatosFactura = () => {
+    if (items.length === 0) {
+      mostrarModalMensaje("error", "Factura Vacía", "La factura debe tener al menos un item");
+      return;
+    }
+
+    const datosFactura = prepararDatosFactura();
+    
+    console.log("====== DATOS COMPLETOS DE FACTURA (SOLO VISUALIZACIÓN) ======");
+    console.log("========== ENCABEZADO ==========");
+    console.log(JSON.stringify(datosFactura, null, 2)); // Formateado para legibilidad
+    console.log("========== ITEMS (RAW) ==========");
+    console.log(items);
+    
+    const detalles = items.map((item, index) => {
+      const subtotalItem = item.precioUnitario * item.cantidad;
+      const descuentoItem = item.descuento;
+      const baseImponible = subtotalItem - descuentoItem;
+
+      const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+      const esExento = item.tipo === "noAfecto";
+
+      const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+
+      return {
+        numitem: index + 1,
+        tipoitem: "1",
+        numerodocumento: null,
+        cantidad: parseFloat(item.cantidad.toFixed(2)),
+        codigo: codigoItem,
+        codtributo: null,
+        unimedida: item.unidadMedida || "59",
+        descripcion: item.descripcion,
+        preciouni: parseFloat(item.precioUnitario.toFixed(2)),
+        montodescu: parseFloat(descuentoItem.toFixed(2)),
+        ventanosuj: 0.00,
+        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+        tributos: null,
+        psv: 0,
+        nogravado: 0.00,
+        ivaitem: 0.00
+      };
+    });
+    
+    const datosDetalles = {
+      transmitir: true,
+      idEnvio: Math.floor(1000 + Math.random() * 9000),
+      detalles: detalles,
+    };
+    
+    console.log("========== DETALLES (PARA ENVÍO) ==========");
+    console.log(JSON.stringify(datosDetalles, null, 2));
+    console.log("=============================================================");
+    
+    mostrarModalMensaje(
+      "exito",
+      "Datos en Consola",
+      "Datos de factura mostrados en consola.",
+      "Revisa la consola del navegador (F12) para ver los detalles completos."
+    );
+  };
+
+  const actualizarStockProductos = async (itemsFactura) => {
+    try {
+      // Filtrar solo items que son productos, necesitan actualización de stock y NO son servicios
+      const productosParaActualizar = itemsFactura.filter(item => 
+        item.actualizarStock && item.productoId && item.tipo === "producto"
+      );
+
+      console.log("Productos a actualizar stock:", productosParaActualizar);
+
+      // Actualizar stock para cada producto
+      for (const producto of productosParaActualizar) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/productos/decrementStock/${producto.productoId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ cantidad: producto.cantidad })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`Stock actualizado para producto ${producto.productoId}:`, result);
+          } else {
+            console.error(`Error al actualizar stock para producto ${producto.productoId}:`, response.statusText);
+          }
+        } catch (error) {
+          console.error(`Error al actualizar stock para producto ${producto.productoId}:`, error);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error general en actualización de stock:", error);
+      throw error;
+    }
+  };
+
+  const guardarDetallesFactura = async (iddtefactura) => {
+    try {
+      const detalles = items.map((item, index) => {
+        const subtotalItem = item.precioUnitario * item.cantidad;
+        
+        // CORRECCIÓN: Usar descuento como monto fijo, no como porcentaje
+        const descuentoItem = item.descuento || 0; // ← MONTO FIJO, no porcentaje
+        const baseImponible = subtotalItem - descuentoItem;
+
+        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+        const esExento = item.tipo === "noAfecto";
+        // CORRECCIÓN: Definir esNoSujeto
+        const esNoSujeto = item.tipo === "noSuj"; // Items que no son gravados ni exentos
+
+        const tasaIVA = 13;
+        const ivaItem = esGravado ? 
+          (baseImponible * tasaIVA) / (100 + tasaIVA) : 0;
+
+        const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+
+        return {
+          numitem: index + 1,
+          tipoitem: "1",
+          numerodocumento: null,
+          cantidad: parseFloat(item.cantidad.toFixed(2)),
+          codigo: codigoItem,
+          codtributo: null,
+          unimedida: item.unidadMedida || "59",
+          descripcion: item.descripcion,
+          preciouni: parseFloat(item.precioUnitario.toFixed(2)),
+          montodescu: parseFloat(descuentoItem.toFixed(2)), // ← MONTO FIJO del descuento
+          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+          tributos: item.tributos,
+          psv: 0,
+          nogravado: 0.00,
+          ivaitem: parseFloat(ivaItem.toFixed(2)) 
+        };
+      });
+
+      const datosDetalles = {
+        transmitir: true,
+        idEnvio: Math.floor(1000 + Math.random() * 9000),
+        detalles: detalles,
+      };
+
+      console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
+
+      const responseDetalles = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/detalles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(datosDetalles),
+      });
+
+      if (responseDetalles.ok) {
+        const resultDetalles = await responseDetalles.json();
+        console.log("Detalles de factura guardados:", resultDetalles);
+        
+        // ACTUALIZAR STOCK DESPUÉS DE GUARDAR LOS DETALLES
+        await actualizarStockProductos(items);
+        
+        // RETORNAR LA RESPUESTA COMPLETA EN LUGAR DE SOLO 'true'
+        return resultDetalles;
+      } else {
+        const errorText = await responseDetalles.text();
+        console.error("Error response from server:", errorText);
+        throw new Error(`Error al guardar los detalles: ${errorText}`);
+      }
+    } catch (error) {
+      console.error("Error al guardar detalles:", error);
+      throw error;
+    }
+  };
+
+  const obtenerUltimoNumeroFactura = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/ultima`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const ultimoNumero = typeof data.ultimaFactura === 'number' ? data.ultimaFactura + 1 : 1;
+        setNumeroFactura(ultimoNumero);
+      } else {
+        console.warn("No se pudo obtener el último número, usando 1 por defecto");
+        setNumeroFactura(1);
+      }
+    } catch (error) {
+      console.error("Error al obtener el último número de factura:", error);
+      setNumeroFactura(1);
+    }
+  };
+
+  const prepararDatosFactura = (paraVistaPrevia = false) => {
+    const subtotal = sumaopesinimpues;
+    const totalPagar = total;
+    
+    // OBTENER FECHA CORRECTA PARA EL SALVADOR (UTC-6)
+    const ahora = new Date();
+    
+    // Ajustar a zona horaria de El Salvador (UTC-6)
+    const offset = -6; // UTC-6 para El Salvador
+    const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+    
+    // Formatear fecha YYYY-MM-DD
+    const year = salvadorTime.getUTCFullYear();
+    const month = String(salvadorTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(salvadorTime.getUTCDate()).padStart(2, '0');
+    const fechaEmision = `${year}-${month}-${day}`;
+    
+    // Formatear hora HH:MM:SS (usar la hora local ya ajustada)
+    const horaEmision = ahora.toTimeString().split(' ')[0];
+
+    let formapagoValue = "Efectivo";
+    
+    if (formasPago && formasPago.length > 0) {
+      const metodoPago = formasPago[0]?.metodo?.toLowerCase() || "";
+      
+      if (formasPago && formasPago.length > 0) {
+        const metodoPago = formasPago[0]?.metodo || "";
+        formapagoValue = metodoPago || "Efectivo";
+      }
+    }
+
+    const gravadasBase = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const exentasBase = items
+      .filter(item => item.tipo === "noAfecto")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    // CORRECCIÓN: Usar descuento como monto fijo en todos los cálculos
+    const gravadasConDescuento = gravadasBase - 
+      (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) - // ← MONTO FIJO
+      descuentoGrabadasMonto;
+    
+    const exentasConDescuento = exentasBase - 
+      (items.filter(item => item.tipo === "noAfecto")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) - // ← MONTO FIJO
+      descuentoExentasMonto;
+
+    const tasaIVA = 13;
+    const ivaIncluido = gravadasConDescuento > 0 ? 
+      (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
+
+    if (paraVistaPrevia) { 
+      const cuerpoDocumento = items.map((item, index) => {
+        const subtotalItem = item.precioUnitario * item.cantidad;
+        const descuentoItem = item.descuento || 0;
+        const baseImponible = subtotalItem - descuentoItem;
+
+        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+        const esExento = item.tipo === "noAfecto";
+        const esNoSujeto = !esGravado && !esExento;
+
+        const ivaItem = 0;
+
+        return {
+          numItem: index + 1,
+          cantidad: item.cantidad,
+          uniMedida: item.unidadMedida || "59",
+          descripcion: item.descripcion,
+          precioUni: item.precioUnitario,
+          montoDescu: descuentoItem,
+          ventaNoSuj: esNoSujeto ? baseImponible : 0,
+          ventaExenta: esExento ? baseImponible : 0,
+          ventaGravada: esGravado ? baseImponible : 0,
+          ivaItem: ivaItem, 
+        };
+      });
+
+      return {
+        identificacion: {
+          tipoMoneda: "USD",
+          numeroControl: `COT-${numeroFactura}`,
+          fecEmi: fechaEmision,
+          horEmi: horaEmision,
+        },
+        emisor: {
+          nombre: sucursalUsuario?.usuario?.nombre || "Nombre Emisor",
+          nit: sucursalUsuario?.usuario?.nit || "0000-000000-000-0",
+          nrc: sucursalUsuario?.nrc || "-",
+          descActividad: codactividad.find(c => c.codigo === actividadEconomica)?.nombre || "Actividad no especificada",
+          direccion: {
+            complemento: direccionEmisor,
+            municipio: sucursalUsuario?.municipio?.nombre || "",
+            departamento: sucursalUsuario?.departamento?.nombre || "",
+          },
+          telefono: telefonoEmisor,
+          correo: correoVendedor,
+          nombreComercial: sucursalUsuario?.nombre || "Nombre Comercial",
+          tipoEstablecimiento: "Sucursal", // O el valor que corresponda
+        },
+        receptor: {
+          nombre: nombreReceptor,
+          tipoDocumento: tipoDocumentoLabel,
+          numDocumento: numeroDocumentoReceptor,
+          direccion: {
+            complemento: direccionReceptor,
+            municipio: cliente?.municipio?.nombre || "",
+            departamento: cliente?.departamento?.nombre || "",
+          },
+          telefono: telefonoReceptor,
+          correo: correoReceptor,
+        },
+        cuerpoDocumento: cuerpoDocumento,
+        resumen: {
+          totalLetras: convertirNumeroALetras(totalPagar),
+          condicionOperacion: condicionPago.toLowerCase() === "contado" ? 1 : 2,
+          totalNoSuj: 0.00,
+          totalExenta: parseFloat(exentasConDescuento.toFixed(2)),
+          totalGravada: parseFloat(gravadasBase.toFixed(2)),
+          totalIva: 0.00, // Para la vista previa, el total de IVA se mostrará como 0
+          subTotal: parseFloat(subtotal - totaldescuento).toFixed(2),
+          totalPagar: parseFloat(totalPagar.toFixed(2)),
+          montoTotalOperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
+        },
+        extension: {
+          observaciones: "Vista previa del documento.",
+        }
+      };
+    }
+
+    return {
+      idcliente: idReceptor,
+      sellorec: "", 
+      modelofac: "01",
+      verjson: "1.0",
+      tipotran: "1",
+      fechaemision: fechaEmision, // Ahora será la fecha correcta de El Salvador
+      horaemision: horaEmision,
+      transaccioncontable: `TRX-${numeroFactura}`,
+      tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "crédito",
+      formapago: formapagoValue,
+      estado: "",
+
+      sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
+      totaldescuento: parseFloat(totaldescuento.toFixed(2)),
+      valoriva: parseFloat(ivaIncluido.toFixed(2)), 
+      subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
+      ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
+      ivarete1: retencionIVA.aplicar ? parseFloat(retencionIVA.monto.toFixed(2)) : 0.00, // RETENCIÓN IVA
+      montototalope: parseFloat(subtotal - totaldescuento).toFixed(2),
+      totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
+      totalapagar: parseFloat(totalPagar.toFixed(2)),
+      valorletras: convertirNumeroALetras(totalPagar),
+      tipocontingencia: "",
+      motivocontin: "",
+
+      totalnosuj: 0.00,
+      totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
+      totalgravada: parseFloat(gravadasBase.toFixed(2)),
+      subtotalventas: parseFloat(subtotal.toFixed(2)),
+
+      descunosuj: 0.00,
+      descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
+      descugravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
+      porcentajedescuento: totaldescuento > 0 ? parseFloat(((totaldescuento / sumaopesinimpues) * 100).toFixed(2)) : 0.00,
+      totaldescu: parseFloat(totaldescuento.toFixed(2)),
+      tributosf: null,
+      codigot: "",
+      descripciont: "",
+      valort: 0.00,
+
+      ivaperci1: parseFloat(ivaIncluido.toFixed(2)),
+      reterenta: 0.00,
+
+      montototaloperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
+      totalpagar: parseFloat(totalPagar.toFixed(2)),
+      totalletras: convertirNumeroALetras(totalPagar),
+      totaliva: parseFloat(ivaIncluido.toFixed(2)),
+      saldofavor: 0.00,
+
+      condicionoperacion: 1,
+      codigo: "01",
+      montopago: parseFloat(totalPagar.toFixed(2)),
+      referencia: "",
+      plazo: null,
+      periodo: null,
+      numpagoelectronico: "",
+      nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
+      docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
+      correo_seleccionado: correoReceptor,
+
+      documentofirmado: null
+    };
+  };
+
+  const convertirNumeroALetras = (numero) => {
+    const unidades = ["", "UNO", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE"];
+    const especiales = ["DIEZ", "ONCE", "DOCE", "TRECE", "CATORCE", "QUINCE", "DIECISÉIS", "DIECISIETE", "DIECIOCHO", "DIECINUEVE"];
+    const decenas = ["", "", "VEINTE", "TREINTA", "CUARENTA", "CINCUENTA", "SESENTA", "SETENTA", "OCHENTA", "NOVENTA"];
+    const centenas = ["", "CIENTO", "DOSCIENTOS", "TRESCIENTOS", "CUATROCIENTOS", "QUINIENTOS", "SEISCIENTOS", "SETECIENTOS", "OCHOCIENTOS", "NOVECIENTOS"];
+
+    const convertirMenorQueMil = (n) => {
+      if (n === 100) return "CIEN";
+      let texto = "";
+      const c = Math.floor(n / 100);
+      const d = Math.floor((n % 100) / 10);
+      const u = n % 10;
+
+      if (c > 0) texto += centenas[c] + " ";
+      if (d === 1) texto += especiales[u] + " ";
+      else if (d === 2 && u !== 0) texto += "VEINTI" + unidades[u].toLowerCase() + " ";
+      else {
+        if (d > 2) texto += decenas[d] + (u > 0 ? " Y " : "");
+        if (u > 0) texto += unidades[u] + " ";
+      }
+      return texto.trim();
+    };
+
+    const entero = Math.floor(numero);
+    const decimales = Math.round((numero - entero) * 100);
+
+    if (entero === 0) return `CERO CON ${decimales.toString().padStart(2, "0")}/100`;
+
+    let partes = [];
+    let resto = entero;
+
+    const millones = Math.floor(resto / 1000000);
+    if (millones > 0) {
+      partes.push(millones === 1 ? "UN MILLÓN" : `${convertirMenorQueMil(millones)} MILLONES`);
+      resto %= 1000000;
+    }
+
+    const miles = Math.floor(resto / 1000);
+    if (miles > 0) {
+      partes.push(miles === 1 ? "MIL" : `${convertirMenorQueMil(miles)} MIL`);
+      resto %= 1000;
+    }
+
+    if (resto > 0) {
+      partes.push(convertirMenorQueMil(resto));
+    }
+
+    const textoEntero = partes.join(" ");
+    const textoDecimales = `${decimales.toString().padStart(2, "0")}/100`;
+
+    return `${textoEntero} CON ${textoDecimales} DÓLARES`;
+  };
+
+  // Función para calcular la retención de IVA
+  const calcularRetencionIVA = (porcentaje = null) => {
+    const porc = porcentaje !== null ? porcentaje : retencionIVA.porcentaje;
+    
+    // Calcular base gravada después de descuentos
+    const gravadasBase = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const descuentoGravadasItems = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.descuento || 0), 0);
+    
+    const gravadasConDescuento = gravadasBase - descuentoGravadasItems - descuentoGrabadasMonto;
+    
+    // Calcular retención
+    const montoRetencion = (gravadasConDescuento * porc) / 100;
+    return parseFloat(montoRetencion.toFixed(2));
+  };
+
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkIsMobile();
+    window.addEventListener("resize", checkIsMobile);
+    return () => window.removeEventListener("resize", checkIsMobile);
+  }, []);
+
+  useEffect(() => {
+    obtenerUltimoNumeroFactura();
+  }, []);
+
+  useEffect(() => {
+    if (showModal && modalType === "producto") {
+      const fetchProductos = async () => {
+        setCargandoProductos(true);
+        setErrorCargaProductos(null);
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/productos/getAll`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setProductosCargados(data);
+          } else {
+            const errorMsg = `Error ${response.status}: ${response.statusText}`;
+            setErrorCargaProductos(errorMsg);
+            console.error(errorMsg);
+          }
+        } catch (error) {
+          const errorMsg = `Error de conexión: ${error.message}`;
+          setErrorCargaProductos(errorMsg);
+          console.error(errorMsg);
+        } finally {
+          setCargandoProductos(false);
+        }
+      };
+
+      fetchProductos();
+    }
+  }, [showModal, modalType]);
+
+  const clientesFiltrados = Array.isArray(clientes) ? clientes.filter(
+    (cliente) =>
+      (cliente?.nombre?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (cliente?.nit?.toString() || "").includes(searchTerm.toLowerCase()) ||
+      (cliente?.dui?.toString() || "").includes(searchTerm.toLowerCase())
+  ) : [];
+
+  useEffect(() => {
+    const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const descuentoItems = items.reduce((sum, item) => 
+      sum + (item.descuento || 0), 0);
+
+    // CORRECCIÓN: Definir claramente cada tipo
+    const gravadasBase = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const exentasBase = items
+      .filter(item => item.tipo === "noAfecto")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+
+    // CORRECCIÓN: Items no sujetos son los que no son gravados ni exentos
+    const noSujetasBase = items
+      .filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+
+    const descuentoGrabadas = descuentoGrabadasMonto;
+    const descuentoExentas = descuentoExentasMonto;
+    
+    const descuentoTotal = descuentoItems + descuentoGrabadas + descuentoExentas;
+    
+    // CORRECCIÓN: Usar descuento como monto fijo en todos los cálculos
+    const gravadasConDescuento = gravadasBase - 
+      (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) - // ← MONTO FIJO
+      descuentoGrabadas;
+    
+    const exentasConDescuento = exentasBase - 
+      (items.filter(item => item.tipo === "noAfecto")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) - // ← MONTO FIJO
+      descuentoExentas;
+
+    const noSujetasConDescuento = noSujetasBase - 
+      (items.filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0));
+
+    const nuevosTributos = {};
+    
+    items.forEach(item => {
+      if (item.tributos && Array.isArray(item.tributos)) {
+        item.tributos.forEach(tributo => {
+          const subtotalItem = item.precioUnitario * item.cantidad;
+          // CORRECCIÓN: Usar descuento como monto fijo
+          const descuentoItem = item.descuento || 0;
+          const baseImponible = subtotalItem - descuentoItem;
+          
+          // Calcular el valor del tributo para este item
+          let valorTributo = 0;
+          
+          if (tributo.codigo === "20") {
+            // IVA 13%
+            valorTributo = baseImponible * 0.13;
+          } else {
+            // Para otros tributos, usar el valor calculado o calcularlo
+            valorTributo = tributo.valor || 0;
+          }
+          
+          if (nuevosTributos[tributo.codigo]) {
+            nuevosTributos[tributo.codigo].valor += valorTributo;
+          } else {
+            nuevosTributos[tributo.codigo] = {
+              codigo: tributo.codigo,
+              descripcion: tributo.descripcion || obtenerDescripcionTributo(tributo.codigo),
+              valor: valorTributo
+            };
+          }
+        });
+      }
+    });
+    
+    setTributosDetallados(nuevosTributos);
+
+    const tasaIVA = 13; 
+    const ivaIncluido = gravadasConDescuento > 0 ? 
+      (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
+
+    // Calcular retención de IVA si aplica
+    const montoRetencionIVA = retencionIVA.aplicar ? calcularRetencionIVA() : 0;
+
+    // CORRECCIÓN: Incluir los no sujetos en el total y restar la retención si aplica
+    const totalBase = gravadasConDescuento + exentasConDescuento + noSujetasConDescuento;
+    const totalConRetencion = retencionIVA.aplicar 
+      ? totalBase - montoRetencionIVA 
+      : totalBase;
+
+    // Actualizar estado de retención
+    if (retencionIVA.aplicar) {
+      setRetencionIVA(prev => ({
+        ...prev,
+        monto: montoRetencionIVA
+      }));
+    }
+
+    setSumaopesinimpues(parseFloat(suma.toFixed(2)));
+    setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
+    setVentasgrabadas(parseFloat(gravadasConDescuento.toFixed(2)));
+    setValoriva(parseFloat(ivaIncluido.toFixed(2))); 
+    setTotal(parseFloat(totalConRetencion.toFixed(2)));
+    
+    setGravadasSinDescuentoState(parseFloat(gravadasBase.toFixed(2)));
+    setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
+    setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
+  }, [items, descuentoGrabadasMonto, descuentoExentasMonto, retencionIVA.aplicar, retencionIVA.porcentaje]);
+
+  // Efecto para actualizar el monto de retención cuando cambien los items o descuentos
+  useEffect(() => {
+    if (retencionIVA.aplicar) {
+      const nuevoMonto = calcularRetencionIVA();
+      setRetencionIVA(prev => ({
+        ...prev,
+        monto: nuevoMonto
+      }));
+    }
+  }, [items, descuentoGrabadasMonto, retencionIVA.porcentaje]);
+
+  const obtenerDescripcionTributo = (codigo) => {
+    const tributosMap = {
+      "20": "IVA 13%",
+      "59": "Turismo: por alojamiento (5%)",
+      "71": "Turismo: salida del país por vía aérea $7.00",
+      "D1": "FOVIAL ($0.20 por galón)",
+      "C8": "COTRANS ($0.10 por galón)",
+      "D5": "Otras tasas casos especiales",
+      "D4": "Otros impuestos casos especiales",
+      "C5": "Impuesto ad-valorem bebidas alcohólicas (8%)",
+      "C6": "Impuesto ad-valorem tabaco cigarrillos (39%)",
+      "C7": "Impuesto ad-valorem tabaco cigarros (100%)",
+    };
+    
+    return tributosMap[codigo] || `Tributo ${codigo}`;
+  };
+
+  const showClientDetailsPopup = (cliente) => {
+    setSelectedClient(cliente);
+    setShowClientDetails(true);
+  };
+
+  const handleApplyDiscounts = (discounts) => {
+    setDescuentoGrabadasMonto(discounts.grabadas);
+    setDescuentoExentasMonto(discounts.exentas);
+  };
+
+  const handleDatosEntregaChange = (nuevosDatos) => {
+    setDatosEntrega(nuevosDatos);
+  };
+
+  const handleFechaHoraChange = (datos) => {
+    setFechaHoraEmision(datos);
+  };
+
+  const getTipoDocumentoInfo = (cli) => {
+    if (!cli) return { label: "Documento", value: "" };
+
+    const code = (cli.tipodocumento ?? "").toString().padStart(2, "0");
+    const map = {
+      "13": { label: "DUI", value: cli.dui },
+      "36": { label: "NIT", value: cli.nit },
+      "03": { label: "Pasaporte", value: cli.pasaporte },
+    };
+
+    if (map[code]?.value) return map[code];
+
+    if (cli.nit) return { label: "NIT", value: cli.nit };
+    if (cli.dui) return { label: "DUI", value: cli.dui };
+    if (cli.pasaporte) return { label: "Pasaporte", value: cli.pasaporte };
+    if (cli.nrc) return { label: "NRC", value: cli.nrc };
+    if (cli.carnetresidente) return { label: "Carnet de Residente", value: cli.carnetresidente };
+
+    return { label: "Documento", value: "" };
+  };
+
+  const selectCliente = () => {
+    setCliente(selectedClient);
+    setNombreCliente(selectedClient.nombre);
+
+    const { label, value } = getTipoDocumentoInfo(selectedClient);
+    setTipoDocumentoLabel(label);
+    setDocumentoCliente(value ?? "");
+    const numeroDoc = selectedClient.tipodocumento === "13" ? selectedClient.dui
+      : selectedClient.tipodocumento === "36" ? selectedClient.nit
+        : selectedClient.tipodocumento === "03" ? selectedClient.pasaporte
+          : selectedClient.tipodocumento === "02" ? selectedClient.carnetresidente
+            : (selectedClient.nit ?? selectedClient.dui ?? selectedClient.pasaporte ?? selectedClient.carnetresidente ?? "");
+    setNumeroDocumentoReceptor(numeroDoc ?? "");
+
+    setNombreReceptor(selectedClient.nombre ?? "");
+    setDireccionReceptor(selectedClient.complemento ?? "");
+    setCorreoReceptor(selectedClient.correo ?? "");
+    setTelefonoReceptor(selectedClient.telefono ?? "");
+    setComplementoReceptor("");
+    setSearchTerm("");
+    setShowClientList(false);
+    setShowClientDetails(false);
+  };
+
+  const handleItemChange = (id, field, value) => {
+    const updatedItems = items.map((item) => {
+      if (item.id === id) {
+        const updatedItem = { ...item, [field]: value };
+        if (field === "cantidad" || field === "precioUnitario" || field === "descuento" || 
+            field === "descuentoGravado" || field === "descuentoExento" || field === "descuentoNoSujeto") {
+          const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
+          // CORRECCIÓN: Tratar descuento como monto fijo, no porcentaje
+          const descuentoMonto = updatedItem.descuento || 0;
+          updatedItem.total = Math.max(0, subtotalItem - descuentoMonto);
+        }
+        return updatedItem;
+      }
+      return item;
+    });
+    setItems(updatedItems);
+  };
+
+  const removeItem = (id) => {
+    setItems(items.filter((item) => item.id !== id));
+  };
+
+  useEffect(() => {
+    const today = new Date();
+    const nextMonth = new Date(today);
+    nextMonth.setDate(today.getDate() + 30);
+    setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
+  }, []);
+
+  useEffect(() => {
+    if (sucursalUsuario) {
+      try {
+        setActividadEconomica(`${sucursalUsuario.codactividad}`);
+        setDireccionEmisor(sucursalUsuario.complemento || "");
+        setTelefonoEmisor(sucursalUsuario.telefono || "");
+
+        setEmisorDocumento(sucursalUsuario.usuario.nit || sucursalUsuario.dui || "");
+        setEmisorNombre(sucursalUsuario.usuario.nombre || sucursalUsuario.usuario.razonsocial || "");
+        
+        if (!correoVendedor && sucursalUsuario.usuario?.correo) {
+          setCorreoVendedor(sucursalUsuario.usuario.correo);
+        }
+      } catch (error) {
+        console.error("Error al procesar datos de sucursal:", error);
+      }
+    }
+  }, [sucursalUsuario, correoVendedor]);
+
+  const idEmisor =  sucursalUsuario.usuario.id;
+
+  const formatMoney = (value) => {
+    if (value === undefined || value === null || isNaN(value)) {
+      return "$0.00";
+    }
+    
+    const numValue = typeof value === 'number' ? value : parseFloat(value);
+    
+    return `$${numValue.toLocaleString(undefined, { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
+  };
+
+  const openModalSelector = () => {
+    setModalType("selector");
+    setShowModal(true);
+  };
+
+  const selectTipoDetalle = (tipo) => {
+    setModalType(tipo);
+  };
+
+  const agregarItemDesdeModal = (tipo, datos) => {
+    console.log("=== DEBUG dteFactura: Item recibido ===");
+    console.log("Tipo:", tipo);
+    console.log("Datos descuento distribuido:", {
+      descuentoGravado: datos.descuentoGravado,
+      descuentoExento: datos.descuentoExento,
+      descuentoNoSujeto: datos.descuentoNoSujeto,
+      descuento: datos.descuento,
+      valorDescuento: datos.valorDescuento,
+      precioUnitario: datos.precioUnitario,
+      cantidad: datos.cantidad,
+      subtotal: datos.precioUnitario * datos.cantidad
+    });
+    console.log("======================================");
+    
+    const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
+
+    const newItem = {
+      id: newId,
+      tipo: tipo,
+      ...datos,
+      total: (datos.cantidad * datos.precioUnitario) - (datos.descuento || 0),
+      // Asegurar que los campos de descuento distribuido estén presentes
+      descuentoGravado: datos.descuentoGravado || 0,
+      descuentoExento: datos.descuentoExento || 0,
+      descuentoNoSujeto: datos.descuentoNoSujeto || 0
+    };
+    
+    setItems([...items, newItem]);
+    setShowModal(false);
+    setModalType("");
+    setProductoSeleccionado(null);
+    setTotalModal(0); 
+  };
+
+  const obtenerNombreUnidad = (codigoUnidad) => {
+    const unidad = unidades.find(u => u.codigo === codigoUnidad.toString());
+    return unidad ? unidad.nombre : "Unidad";
+  };
+
+  const calcularTotalProducto = () => {
+    if (!productoSeleccionado) return;
+
+    const cantidad = parseFloat(document.getElementById('cantidadProducto')?.value) || 1;
+    const precio = parseFloat(productoSeleccionado.precio) || 0;
+    const impuestoSelect = document.getElementById('impuestoProducto');
+    const tasaImpuesto = impuestoSelect.value === "20" ? 0.13 : impuestoSelect.value === "21" ? 0.15 : 0;
+
+    const subtotal = cantidad * precio;
+    const impuesto = subtotal * tasaImpuesto;
+    const total = subtotal + impuesto;
+
+    document.getElementById('totalProducto').textContent = `$${total.toFixed(2)}`;
+  };
+
+  const handleSeleccionProducto = (productoId) => {
+    const producto = productosCargados.find(p => p.id === parseInt(productoId));
+    if (producto) {
+      setProductoSeleccionado(producto);
+
+      setTimeout(() => {
+        calcularTotalProducto();
+      }, 100);
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-100">
+      {/* Sidebar */}
+      <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}>
+        <Sidebar />
+      </div>
+
+      {/* Contenido principal */}
+      <div className="text-black flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="bg-white shadow-sm">
+          <div className="flex items-center justify-between p-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Cotización</h1>
+              <p className="text-gray-600">Sistema de generación de cotizaciones</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              {/* <div className="bg-blue-100 p-3 rounded-lg">
+                <p className="text-lg font-semibold text-blue-600">N° {String(numeroFactura).padStart(4, '0')}</p>
+              </div> */}
+              <FechaHoraEmision onFechaHoraChange={handleFechaHoraChange} />
+            </div>
+          </div>
+        </header>
+
+        {/* Contenido principal con scroll */}
+        <main className="flex-1 overflow-y-auto p-4">
+          <div className="max-w-6xl mx-auto">
+            {/* Tarjeta principal */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+
+              {/* Mostrar mensaje de error si existe */}
+              {errorValidacion && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                  <div className="flex items-center">
+                    <FaExclamationTriangle className="mr-2" />
+                    <span>{errorValidacion}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Datos del cliente */}
+              <DatosEmisorReceptor
+                tipoDocumentoReceptor={tipoDocumentoReceptor}
+                setTipoDocumentoReceptor={setTipoDocumentoReceptor}
+                numeroDocumentoReceptor={numeroDocumentoReceptor}
+                setNumeroDocumentoReceptor={setNumeroDocumentoReceptor}
+                nombreReceptor={nombreReceptor}
+                setNombreReceptor={setNombreReceptor}
+                direccionReceptor={direccionReceptor}
+                setDireccionReceptor={setDireccionReceptor}
+                correoReceptor={correoReceptor}
+                setCorreoReceptor={setCorreoReceptor}
+                telefonoReceptor={telefonoReceptor}
+                setTelefonoReceptor={setTelefonoReceptor}
+                complementoReceptor={complementoReceptor}
+                setComplementoReceptor={setComplementoReceptor}
+                idReceptor={idReceptor}
+                setIdReceptor={setIdReceptor}
+                
+                actividadEconomica={actividadEconomica}
+                setActividadEconomica={setActividadEconomica}
+                direccionEmisor={direccionEmisor}
+                setDireccionEmisor={setDireccionEmisor}
+                correoVendedor={correoVendedor}
+                setCorreoVendedor={setCorreoVendedor}
+                telefonoEmisor={telefonoEmisor}
+                setTelefonoEmisor={setTelefonoEmisor}
+                idEmisor={idEmisor}
+
+                actividadesEconomicas={codactividad}
+              />
+
+              {/* Detalle de Factura */}
+              <div className="text-black mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-800">Detalle de Cotización</h2>
+                  <button
+                    onClick={openModalSelector}
+                    className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                  >
+                    <FaPlus className="mr-2" />
+                    Agregar Detalle
+                  </button>
+                </div>
+
+                {/* Tabla de items */}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Unidad de Medida</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Descripción</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Cantidad</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Precio</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Sub Total</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Gravado</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Exento</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Sujeto</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total Gravado</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total Exento</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total No Sujeto</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {items.length === 0 ? (
+                        <tr>
+                          <td colSpan="13" className="px-4 py-4 text-center text-gray-500 border-b">
+                            No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.
+                          </td>
+                        </tr>
+                      ) : (
+                        items.map((item) => {
+                          const subtotal = item.precioUnitario * item.cantidad;
+                      
+                          const totalGravado = (item.tipo === "producto" || item.tipo === "impuestos") 
+                            ? subtotal - (item.descuentoGravado || 0) 
+                            : 0;
+                            
+                          const totalExento = (item.tipo === "noAfecto") 
+                            ? subtotal - (item.descuentoExento || 0) 
+                            : 0;
+                            
+                          const totalNoSujeto = subtotal - (item.descuentoNoSujeto || 0);
+
+                          const totalItem = ((item.precioUnitario * item.cantidad) - item.descuentoGravado -  item.descuentoExento - item.descuentoNoSujeto);
+
+                          return (
+                            <tr key={item.id}>
+                              <td className="px-4 py-2 border-b">
+                                <span className="text-sm">
+                                  {item.unidadMedida} - {obtenerNombreUnidad(item.unidadMedida)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <input
+                                  type="text"
+                                  value={item.descripcion}
+                                  onChange={(e) => handleItemChange(item.id, "descripcion", e.target.value)}
+                                  className="w-full p-1 border border-gray-300 rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.cantidad}
+                                  onChange={(e) => handleItemChange(item.id, "cantidad", parseFloat(e.target.value))}
+                                  className="w-20 p-1 border border-gray-300 rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.precioUnitario}
+                                  onChange={(e) => handleItemChange(item.id, "precioUnitario", parseFloat(e.target.value))}
+                                  className="w-24 p-1 border border-gray-300 rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-2 font-medium border-b">
+                                {formatMoney(subtotal)}
+                              </td>
+                              {/* CELDAS DE DESCUENTOS */}
+                              <td className="px-4 py-2 border-b text-center">
+                                <span className="text-sm text-red-600 font-medium">
+                                  {formatMoney(item.descuentoGravado || 0)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 border-b text-center">
+                                <span className="text-sm text-red-600 font-medium">
+                                  {formatMoney(item.descuentoExento || 0)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 border-b text-center">
+                                <span className="text-sm text-red-600 font-medium">
+                                  {formatMoney(item.descuentoNoSujeto || 0)}
+                                </span>
+                              </td>
+                              {/* CELDAS DE TOTALES POR TIPO DESPUÉS DE DESCUENTOS */}
+                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
+                                {formatMoney(totalGravado)}
+                              </td>
+                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
+                                {formatMoney(totalExento)}
+                              </td>
+                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
+                                {formatMoney(totalNoSujeto)}
+                              </td>
+                              {/* NUEVA COLUMNA PARA EL TOTAL */}
+                              <td className="px-4 py-2 border-b text-center font-bold text-blue-700">
+                                {formatMoney(totalItem)}
+                              </td>
+                              <td className="px-4 py-2 border-b">
+                                <button
+                                  onClick={() => removeItem(item.id)}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <FaTrash />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Totales */}
+              <div className="bg-gray-50 p-4 rounded-lg mb-6 text-black">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Subtotal sin impuestos:</span>
+                      <span className="font-medium">{formatMoney(sumaopesinimpues)}</span>
+                    </div>
+                    
+                    {/* Descuentos desglosados de los items */}
+                    {(() => {
+                      // Calcular totales de descuentos por tipo desde los items
+                      const totalDescuentoGravado = items.reduce((sum, item) => sum + (item.descuentoGravado || 0), 0);
+                      const totalDescuentoExento = items.reduce((sum, item) => sum + (item.descuentoExento || 0), 0);
+                      const totalDescuentoNoSujeto = items.reduce((sum, item) => sum + (item.descuentoNoSujeto || 0), 0);
+                      
+                      return (
+                        <>
+                          {totalDescuentoGravado > 0 && (
+                            <div className="flex justify-between text-blue-600">
+                              <span className="text-sm">Descuento ventas gravadas:</span>
+                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoGravado)}</span>
+                            </div>
+                          )}
+                          {totalDescuentoExento > 0 && (
+                            <div className="flex justify-between text-blue-600">
+                              <span className="text-sm">Descuento ventas exentas:</span>
+                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoExento)}</span>
+                            </div>
+                          )}
+                          {totalDescuentoNoSujeto > 0 && (
+                            <div className="flex justify-between text-blue-600">
+                              <span className="text-sm">Descuento ventas no sujetas:</span>
+                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoNoSujeto)}</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                    
+                    <div className="flex justify-between text-red-600">
+                      <span className="text-gray-700">Total descuentos:</span>
+                      <span className="font-medium">-{formatMoney(totaldescuento)}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-gray-300">
+                      <span className="text-gray-700 font-semibold">Sub Total después de descuentos:</span>
+                      <span className="font-semibold">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Monto Total de la operación:</span>
+                      <span className="font-medium">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
+                    </div>
+
+                    <div className="space-y-1 pl-4 border-l-2 border-gray-300">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Gravado:</span>
+                        <span className="font-medium">
+                          {formatMoney(
+                            items.reduce((sum, item) => sum + (item.ventaGravada || 0), 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Exento:</span>
+                        <span className="font-medium">
+                          {formatMoney(
+                            items.reduce((sum, item) => sum + (item.ventaExenta || 0), 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">No Sujeto:</span>
+                        <span className="font-medium">
+                          {formatMoney(
+                            items.reduce((sum, item) => sum + (item.ventaNoSujeta || 0), 0)
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Mostrar tributos desglosados */}
+                    {Object.values(tributosDetallados)
+                      .filter(tributo => tributo.codigo !== "20")
+                      .map((tributo) => (
+                        <div key={tributo.codigo} className="flex justify-between text-sm">
+                          <span className="text-gray-600">
+                            {tributo.codigo} - {tributo.descripcion}:
+                          </span>
+                          <span className="font-medium text-green-600">
+                            +{formatMoney(tributo.valor)}
+                          </span>
+                        </div>
+                      ))
+                    }
+                    
+                    {/* Mostrar retención de IVA si aplica */}
+                    {retencionIVA.aplicar && (
+                      <div className="flex justify-between text-sm text-red-600">
+                        <span className="text-gray-600">
+                          Retención IVA ({retencionIVA.porcentaje}%):
+                        </span>
+                        <span className="font-medium">
+                          -{formatMoney(retencionIVA.monto)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between pt-2 border-t border-gray-300">
+                      <span className="text-gray-900 font-bold text-lg">Total a pagar:</span>
+                      <span className="text-blue-800 font-bold text-lg">{formatMoney(total)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex justify-end space-x-4">
+                <button 
+                  onClick={handleConfirmarYGuardar}
+                  disabled={guardandoFactura}
+                  className={`flex items-center px-4 py-2 rounded-md ${
+                    guardandoFactura 
+                      ? "bg-gray-400 cursor-not-allowed" 
+                      : "bg-green-600 hover:bg-green-700" 
+                  } text-white`}
+                >
+                  {guardandoFactura ? (
+                    <>
+                      <FaSpinner className="mr-2 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <FaEye className="mr-2" />
+                      Vista Previa
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* Footer */}
+        <Footer />
+      </div>
+
+      {/* Modal Selector de Tipo de Detalle */}
+      <SelectorModal
+        isOpen={showModal && modalType === "selector"}
+        onClose={() => setShowModal(false)}
+        onSelectTipoDetalle={selectTipoDetalle}
+      />
+
+      {/* Modal para Producto o Servicio */}
+      <ProductModal
+        isOpen={showModal && modalType === "producto"}
+        onClose={() => {
+          setShowModal(false);
+          setProductoSeleccionado(null);
+          setTotalModal(0);
+        }}
+        onAddItem={(itemData) => agregarItemDesdeModal("producto", itemData)}
+        onBackToSelector={() => setModalType("selector")}
+        productosCargados={productosCargados}
+        cargandoProductos={cargandoProductos}
+        errorCargaProductos={errorCargaProductos}
+        unidades={unidades}
+        obtenerNombreUnidad={obtenerNombreUnidad}
+        totalCalculado={totalModal} 
+        onTotalChange={setTotalModal}
+      />
+
+      {/* Modal para Monto No Afecto */}
+      <NonTaxableModal
+        isOpen={showModal && modalType === "noAfecto"}
+        onClose={() => {
+          setShowModal(false);
+          setModalType("");
+        }}
+        onAddItem={(itemData) => agregarItemDesdeModal("noAfecto", itemData)}
+      />
+
+      {/* Modal para Impuestos/Tasas */}
+      <TaxModal
+        isOpen={showModal && modalType === "impuestos"}
+        onClose={() => {
+          setShowModal(false);
+          setModalType("");
+        }}
+        onAddItem={(itemData) => agregarItemDesdeModal("impuestos", itemData)}
+      />
+
+      {/* Pop-up de lista de clientes */}
+      <ClientListModal
+        isOpen={showClientList && searchTerm}
+        onClose={() => setShowClientList(false)}
+        clients={clientesFiltrados}
+        onSelectClient={showClientDetailsPopup}
+      />
+
+      {/* Modal para Descuentos */}
+      <DiscountModal
+        isOpen={showDiscountModal}
+        onClose={() => setShowDiscountModal(false)}
+        onApplyDiscounts={handleApplyDiscounts}
+        currentGrabadasDiscount={descuentoGrabadasMonto}  
+        currentExentasDiscount={descuentoExentasMonto}    
+      />
+
+      <ConfirmacionFacturaModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={guardarFactura}
+        datosFactura={prepararDatosFactura()}
+      />
+
+      {/* Nuevo Modal de Mensajes */}
+      <MensajeModal
+        isOpen={mostrarMensaje}
+        onClose={() => setMostrarMensaje(false)}
+        tipo={mensajeConfig.tipo}
+        titulo={mensajeConfig.titulo}
+        mensaje={mensajeConfig.mensaje}
+        detalles={mensajeConfig.detalles}
+        idFactura={mensajeConfig.idFactura}
+        onDescargarTicket={descargarTicketFactura}
+        descargando={descargandoTicket}
+      />
+
+      <VistaPreviaModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        htmlContent={previewHtml}
+        onConfirm={guardarFactura}
+        isSaving={guardandoFactura}
+      />
+
+      {/* Pop-up de detalles del cliente */}
+      {showClientDetails && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-11/12 max-w-md">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Detalles del Cliente</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nombre</label>
+                <p className="mt-1 p-2 bg-gray-50 rounded-md text-gray-900">{selectedClient.nombre}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Documento</label>
+                <p className="mt-1 p-2 bg-gray-50 rounded-md">
+                  {selectedClient.nit || selectedClient.dui || "N/A"}
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end space-x-4">
+              <button
+                onClick={() => setShowClientDetails(false)}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={selectCliente}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Seleccionar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}                    

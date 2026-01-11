@@ -132,6 +132,13 @@ export default function Sidebar({ onOpenPerfil }) {
       permiso: "Inicio" 
     },
 
+    { 
+      name: "Realizar Cotización", 
+      icon: <FaFileContract />, 
+      href: "/dashboard/realizar_cotizacion",
+      permiso: "Realizar Cotización" 
+    },
+
     // 📋 DTES
     {
       name: "DTES",

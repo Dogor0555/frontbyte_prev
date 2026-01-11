@@ -77,7 +77,22 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             if (!response.ok) throw new Error("Error al cargar registro de compras");
             const data = await response.json();
             
-            setLibro(Array.isArray(data.libro) ? data.libro : []);
+            const rawData = Array.isArray(data) ? data : (Array.isArray(data.libro) ? data.libro : []);
+            
+            const mappedData = rawData.map(item => ({
+                ...item,
+                fecha: item.fecha ? item.fecha.split('T')[0] : item.fecha,
+                numero_registro: item.nrc || item.nit_dui_sujeto_excluido || item.numero_registro || "",
+                exentas: item.exentas_internas ?? item.exentas ?? 0,
+                locales: item.gravadas_internas ?? item.locales ?? 0,
+                importaciones: item.gravadas_importaciones ?? item.importaciones ?? 0,
+                iva: item.credito_fiscal ?? item.iva ?? 0,
+                anticipo_iva: item.anticipo_iva_percibido ?? item.anticipo_iva ?? 0,
+                sujetos_excluidos: item.compras_sujetos_excluidos ?? item.sujetos_excluidos ?? 0,
+                monto: item.total_compras ?? item.monto ?? 0
+            }));
+            
+            setLibro(mappedData);
             setResumenData(data.resumen || {});
         } catch (error) {
             console.error("Error:", error);
@@ -119,6 +134,14 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     const libroFiltrado = Array.isArray(libro)
         ? libro.filter((item) => {
             if (!item) return false;
+
+            if (fechaInicio && fechaFin && item.fecha) {
+                const itemDate = item.fecha;
+                if (itemDate < fechaInicio || itemDate > fechaFin) {
+                    return false;
+                }
+            }
+
             const searchLower = searchTerm.toLowerCase();
             return (
                 (item.nombre_proveedor?.toLowerCase() || "").includes(searchLower) ||
@@ -132,20 +155,32 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     // Cálculo de totales basado en los datos filtrados
     const getTotales = () => {
         return libroFiltrado.reduce((acc, item) => ({
-            exentas: acc.exentas + (parseFloat(item.exentas) || 0),
-            importaciones: acc.importaciones + (parseFloat(item.importaciones) || 0),
-            locales: acc.locales + (parseFloat(item.locales) || 0),
-            iva: acc.iva + (parseFloat(item.iva) || 0),
+            exentas_internas: acc.exentas_internas + (parseFloat(item.exentas) || 0),
+            exentas_importaciones: acc.exentas_importaciones + (parseFloat(item.exentas_importaciones) || 0),
+            gravadas_internas: acc.gravadas_internas + (parseFloat(item.locales) || 0),
+            gravadas_importaciones: acc.gravadas_importaciones + (parseFloat(item.importaciones) || 0),
+            credito_fiscal: acc.credito_fiscal + (parseFloat(item.iva) || 0),
+            fovial: acc.fovial + (parseFloat(item.fovial) || 0),
+            cotrans: acc.cotrans + (parseFloat(item.cotrans) || 0),
+            cesc: acc.cesc + (parseFloat(item.cesc) || 0),
+            anticipo_iva: acc.anticipo_iva + (parseFloat(item.anticipo_iva) || 0),
             retencion: acc.retencion + (parseFloat(item.retencion) || 0),
             percepcion: acc.percepcion + (parseFloat(item.percepcion) || 0),
+            sujetos_excluidos: acc.sujetos_excluidos + (parseFloat(item.sujetos_excluidos) || 0),
             monto: acc.monto + (parseFloat(item.monto) || 0)
         }), {
-            exentas: 0,
-            importaciones: 0,
-            locales: 0,
-            iva: 0,
+            exentas_internas: 0,
+            exentas_importaciones: 0,
+            gravadas_internas: 0,
+            gravadas_importaciones: 0,
+            credito_fiscal: 0,
+            fovial: 0,
+            cotrans: 0,
+            cesc: 0,
+            anticipo_iva: 0,
             retencion: 0,
             percepcion: 0,
+            sujetos_excluidos: 0,
             monto: 0
         });
     };
@@ -158,6 +193,29 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     const currentItems = libroFiltrado.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(libroFiltrado.length / itemsPerPage);
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+    // Columnas para la tabla
+    const columns = [
+        { key: 'no', label: 'No.', width: '50px', align: 'center' },
+        { key: 'fecha', label: 'FECHA', width: '100px', align: 'center' },
+        { key: 'tipo_documento', label: 'TIPO DOC', width: '100px', align: 'center' },
+        { key: 'numero_documento', label: 'NUMERO', width: '120px', align: 'center' },
+        { key: 'numero_registro', label: 'NIT/NRC', width: '120px', align: 'center' },
+        { key: 'nombre_proveedor', label: 'PROVEEDOR', width: '250px', align: 'left' },
+        { key: 'exentas', label: 'EXENTAS INT.', width: '120px', align: 'right' },
+        { key: 'exentas_importaciones', label: 'EXENTAS IMP.', width: '120px', align: 'right' },
+        { key: 'locales', label: 'GRAVADAS INT.', width: '120px', align: 'right' },
+        { key: 'importaciones', label: 'GRAVADAS IMP.', width: '120px', align: 'right' },
+        { key: 'iva', label: 'CRÉDITO FISCAL', width: '120px', align: 'right' },
+        { key: 'fovial', label: 'FOVIAL', width: '100px', align: 'right' },
+        { key: 'cotrans', label: 'COTRANS', width: '100px', align: 'right' },
+        { key: 'cesc', label: 'CESC', width: '100px', align: 'right' },
+        { key: 'anticipo_iva', label: 'ANT. IVA', width: '100px', align: 'right' },
+        { key: 'retencion', label: 'RETENCION', width: '100px', align: 'right' },
+        { key: 'percepcion', label: 'PERCEPCION', width: '100px', align: 'right' },
+        { key: 'sujetos_excluidos', label: 'SUJ. EXCL.', width: '100px', align: 'right' },
+        { key: 'monto', label: 'TOTAL', width: '120px', align: 'right' },
+    ];
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
@@ -179,14 +237,20 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 { header: 'FECHA', key: 'fecha', width: 12 },
                 { header: 'TIPO DOC', key: 'tipo_documento', width: 10 },
                 { header: 'NUMERO', key: 'numero_documento', width: 15 },
-                { header: 'NRC', key: 'numero_registro', width: 15 },
+                { header: 'NIT/NRC', key: 'numero_registro', width: 15 },
                 { header: 'PROVEEDOR', key: 'nombre_proveedor', width: 30 },
-                { header: 'EXENTAS', key: 'exentas', width: 12 },
-                { header: 'IMPORTACIONES', key: 'importaciones', width: 15 },
-                { header: 'LOCALES', key: 'locales', width: 12 },
-                { header: 'IVA', key: 'iva', width: 12 },
+                { header: 'EXENTAS INT.', key: 'exentas_internas', width: 12 },
+                { header: 'EXENTAS IMP.', key: 'exentas_importaciones', width: 12 },
+                { header: 'GRAVADAS INT.', key: 'gravadas_internas', width: 12 },
+                { header: 'GRAVADAS IMP.', key: 'gravadas_importaciones', width: 12 },
+                { header: 'CRÉDITO FISCAL', key: 'credito_fiscal', width: 12 },
+                { header: 'FOVIAL', key: 'fovial', width: 10 },
+                { header: 'COTRANS', key: 'cotrans', width: 10 },
+                { header: 'CESC', key: 'cesc', width: 10 },
+                { header: 'ANTICIPO IVA', key: 'anticipo_iva', width: 12 },
                 { header: 'RETENCION', key: 'retencion', width: 12 },
                 { header: 'PERCEPCION', key: 'percepcion', width: 12 },
+                { header: 'SUJ. EXCLUIDOS', key: 'sujetos_excluidos', width: 15 },
                 { header: 'TOTAL', key: 'monto', width: 15 }
             ];
 
@@ -206,12 +270,18 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                     numero_documento: item.numero_documento,
                     numero_registro: item.numero_registro,
                     nombre_proveedor: item.nombre_proveedor,
-                    exentas: parseFloat(item.exentas) || 0,
-                    importaciones: parseFloat(item.importaciones) || 0,
-                    locales: parseFloat(item.locales) || 0,
-                    iva: parseFloat(item.iva) || 0,
+                    exentas_internas: parseFloat(item.exentas) || 0,
+                    exentas_importaciones: parseFloat(item.exentas_importaciones) || 0,
+                    gravadas_internas: parseFloat(item.locales) || 0,
+                    gravadas_importaciones: parseFloat(item.importaciones) || 0,
+                    credito_fiscal: parseFloat(item.iva) || 0,
+                    fovial: parseFloat(item.fovial) || 0,
+                    cotrans: parseFloat(item.cotrans) || 0,
+                    cesc: parseFloat(item.cesc) || 0,
+                    anticipo_iva: parseFloat(item.anticipo_iva) || 0,
                     retencion: parseFloat(item.retencion) || 0,
                     percepcion: parseFloat(item.percepcion) || 0,
+                    sujetos_excluidos: parseFloat(item.sujetos_excluidos) || 0,
                     monto: parseFloat(item.monto) || 0
                 });
 
@@ -232,12 +302,18 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             // Agregar fila de totales
             const totalRow = worksheet.addRow({
                 nombre_proveedor: 'TOTALES',
-                exentas: totales.exentas,
-                importaciones: totales.importaciones,
-                locales: totales.locales,
-                iva: totales.iva,
+                exentas_internas: totales.exentas_internas,
+                exentas_importaciones: totales.exentas_importaciones,
+                gravadas_internas: totales.gravadas_internas,
+                gravadas_importaciones: totales.gravadas_importaciones,
+                credito_fiscal: totales.credito_fiscal,
+                fovial: totales.fovial,
+                cotrans: totales.cotrans,
+                cesc: totales.cesc,
+                anticipo_iva: totales.anticipo_iva,
                 retencion: totales.retencion,
                 percepcion: totales.percepcion,
+                sujetos_excluidos: totales.sujetos_excluidos,
                 monto: totales.monto
             });
             totalRow.font = { bold: true };
@@ -277,30 +353,44 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             doc.text(`Período: ${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`, 14, 22);
             doc.text(`Generado: ${fechaGeneracion}`, 14, 27);
 
-            const tableColumn = ["Fecha", "Doc", "Número", "Proveedor", "Exentas", "Import.", "Locales", "IVA", "Retención", "Percepción", "Total"];
-            const tableRows = libroFiltrado.map(item => [
+            const tableColumn = ["No.", "Fecha", "Tipo", "Número", "NIT/NRC", "Proveedor", "Ex. Int", "Ex. Imp", "Gr. Int", "Gr. Imp", "CF IVA", "FOVIAL", "COTRANS", "CESC", "Ant. IVA", "Ret", "Perc", "Suj. Ex", "Total"];
+            const tableRows = libroFiltrado.map((item, index) => [
+                item.no || index + 1,
                 item.fecha,
                 item.tipo_documento,
                 item.numero_documento,
+                item.numero_registro,
                 item.nombre_proveedor,
-                formatCurrency(item.exentas),
-                formatCurrency(item.importaciones),
-                formatCurrency(item.locales),
-                formatCurrency(item.iva),
-                formatCurrency(item.retencion),
-                formatCurrency(item.percepcion),
+                formatCurrency(item.exentas || 0),
+                formatCurrency(item.exentas_importaciones || 0),
+                formatCurrency(item.locales || 0),
+                formatCurrency(item.importaciones || 0),
+                formatCurrency(item.iva || 0),
+                formatCurrency(item.fovial || 0),
+                formatCurrency(item.cotrans || 0),
+                formatCurrency(item.cesc || 0),
+                formatCurrency(item.anticipo_iva || 0),
+                formatCurrency(item.retencion || 0),
+                formatCurrency(item.percepcion || 0),
+                formatCurrency(item.sujetos_excluidos || 0),
                 formatCurrency(item.monto)
             ]);
 
             // Agregar fila de totales
             tableRows.push([
                 "", "", "", "TOTALES",
-                formatCurrency(totales.exentas),
-                formatCurrency(totales.importaciones),
-                formatCurrency(totales.locales),
-                formatCurrency(totales.iva),
+                formatCurrency(totales.exentas_internas),
+                formatCurrency(totales.exentas_importaciones),
+                formatCurrency(totales.gravadas_internas),
+                formatCurrency(totales.gravadas_importaciones),
+                formatCurrency(totales.credito_fiscal),
+                formatCurrency(totales.fovial),
+                formatCurrency(totales.cotrans),
+                formatCurrency(totales.cesc),
+                formatCurrency(totales.anticipo_iva),
                 formatCurrency(totales.retencion),
                 formatCurrency(totales.percepcion),
+                formatCurrency(totales.sujetos_excluidos),
                 formatCurrency(totales.monto)
             ]);
 
@@ -309,16 +399,15 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 body: tableRows,
                 startY: 35,
                 theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 1 },
+                styles: { fontSize: 6, cellPadding: 1 },
                 headStyles: { fillColor: [66, 139, 202] },
                 columnStyles: {
-                    4: { halign: 'right' },
-                    5: { halign: 'right' },
-                    6: { halign: 'right' },
-                    7: { halign: 'right' },
-                    8: { halign: 'right' },
-                    9: { halign: 'right' },
-                    10: { halign: 'right', fontStyle: 'bold' }
+                    0: { halign: 'center' },
+                    // Align numeric columns right
+                    6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' },
+                    10: { halign: 'right' }, 11: { halign: 'right' }, 12: { halign: 'right' }, 13: { halign: 'right' },
+                    14: { halign: 'right' }, 15: { halign: 'right' }, 16: { halign: 'right' }, 17: { halign: 'right' },
+                    18: { halign: 'right', fontStyle: 'bold' }
                 }
             });
 
@@ -396,11 +485,11 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                                     </div>
                                     <div>
                                         <div className="text-sm text-black font-medium">Compras Locales</div>
-                                        <div className="text-xl font-bold text-blue-600">{formatCurrency(totales.locales)}</div>
+                                        <div className="text-xl font-bold text-blue-600">{formatCurrency(totales.gravadas_internas)}</div>
                                     </div>
                                     <div>
                                         <div className="text-sm text-black font-medium">Crédito Fiscal (IVA)</div>
-                                        <div className="text-xl font-bold text-green-600">{formatCurrency(totales.iva)}</div>
+                                        <div className="text-xl font-bold text-green-600">{formatCurrency(totales.credito_fiscal)}</div>
                                     </div>
                                     <div>
                                         <div className="text-sm text-black font-medium">Retención</div>
@@ -446,36 +535,40 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                                     <table className="min-w-full divide-y divide-gray-200">
                                         <thead className="bg-gray-50">
                                             <tr>
-                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-left">No.</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-left">Fecha</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-left">Documento</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-left">Proveedor</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Exentas</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Import.</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Locales</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">IVA</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Retención</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Percepción</th>
-                                                <th className="px-3 py-3 text-xs font-medium text-black uppercase tracking-wider text-right">Total</th>
+                                                {columns.map((column) => (
+                                                    <th 
+                                                        key={column.key}
+                                                        className={`px-3 py-3 text-xs font-medium text-black uppercase tracking-wider whitespace-nowrap ${
+                                                            column.align === 'right' ? 'text-right' : 
+                                                            column.align === 'center' ? 'text-center' : 'text-left'
+                                                        }`}
+                                                        style={{ width: column.width }}
+                                                    >
+                                                        {column.label}
+                                                    </th>
+                                                ))}
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
                                             {currentItems.map((item, idx) => (
                                                 <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-3 py-3 text-sm text-black">{item.no}</td>
-                                                    <td className="px-3 py-3 text-sm text-black whitespace-nowrap">{item.fecha}</td>
-                                                    <td className="px-3 py-3 text-sm text-black font-mono">{item.numero_documento}</td>
-                                                    <td className="px-3 py-3 text-sm max-w-xs">
-                                                        <div className="font-medium text-black truncate" title={item.nombre_proveedor}>{item.nombre_proveedor}</div>
-                                                        <div className="text-xs text-black">{item.numero_registro}</div>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.exentas)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.importaciones)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.locales)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.iva)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.retencion)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right text-black font-mono">{formatCurrency(item.percepcion)}</td>
-                                                    <td className="px-3 py-3 text-sm text-right font-bold text-black font-mono">{formatCurrency(item.monto)}</td>
+                                                    {columns.map((column) => (
+                                                        <td 
+                                                            key={column.key}
+                                                            className={`px-3 py-3 text-sm text-black whitespace-nowrap ${
+                                                                column.align === 'right' ? 'text-right' : 
+                                                                column.align === 'center' ? 'text-center' : 'text-left'
+                                                            } ${
+                                                                ['numero_documento', 'numero_registro'].includes(column.key) ? 'font-mono' : ''
+                                                            }`}
+                                                        >
+                                                            {['exentas', 'exentas_importaciones', 'locales', 'importaciones', 'iva', 'fovial', 'cotrans', 'cesc', 'anticipo_iva', 'retencion', 'percepcion', 'sujetos_excluidos', 'monto'].includes(column.key) ? (
+                                                                formatCurrency(item[column.key] || 0)
+                                                            ) : (
+                                                                column.key === 'no' ? (item.no || (indexOfFirstItem + idx + 1)) : (item[column.key] || '-')
+                                                            )}
+                                                        </td>
+                                                    ))}
                                                 </tr>
                                             ))}
                                         </tbody>

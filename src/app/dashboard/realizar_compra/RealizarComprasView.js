@@ -35,18 +35,37 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     // --- Estados del Formulario ---
     const [formData, setFormData] = useState({
         fecha: new Date().toISOString().split('T')[0],
+        fecha_emision: new Date().toISOString().split('T')[0],
         proveedor_id: "",
+        nombre_proveedor: "",
         numero_documento: "",
+        tipo_documento: "CCF", // Por defecto Comprobante de Crédito Fiscal
+        nrc: "",
+        nit_dui_sujeto_excluido: "",
         tipo_compra: "local",
         descripcion: "",
-        monto_exento: 0,
-        iva: 0,
+        
+        // Campos detallados
+        exentas_internas: 0,
+        exentas_internaciones: 0,
+        exentas_importaciones: 0,
+        gravadas_internas: 0,
+        gravadas_internaciones: 0,
+        gravadas_importaciones: 0,
+        compras_sujetos_excluidos: 0,
+        
+        // Impuestos y Retenciones
+        credito_fiscal: 0, // IVA
+        fovial: 0,
+        cotrans: 0,
+        cesc: 0,
+        anticipo_iva_percibido: 0,
         retencion: 0,
         percepcion: 0,
-        // Campos calculados/internos
-        locales: 0,
-        importaciones: 0,
-        monto: 0
+        retencion_terceros: 0,
+        
+        // Total
+        total_compras: 0
     });
 
     // --- Estados para Detalles (Productos) ---
@@ -157,28 +176,83 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const updateTotals = (currentDetalles, tipo) => {
         const totalMonto = currentDetalles.reduce((sum, item) => sum + item.subtotal, 0);
         const totalFixed = parseFloat(totalMonto.toFixed(2));
+        
+        // Cálculo automático sugerido de IVA (13%) si es gravada
+        const ivaSugerido = parseFloat((totalFixed * 0.13).toFixed(2));
 
-        setFormData(prev => ({
-            ...prev,
-            monto: totalFixed,
-            locales: tipo === 'local' ? totalFixed : 0,
-            importaciones: tipo === 'importacion' ? totalFixed : 0
-        }));
+        setFormData(prev => {
+            const newData = {
+                ...prev,
+                gravadas_internas: tipo === 'local' ? totalFixed : 0,
+                gravadas_importaciones: tipo === 'importacion' ? totalFixed : 0,
+                credito_fiscal: ivaSugerido,
+                // Resetear exentas al recalcular desde productos (asumiendo gravado por defecto)
+                exentas_internas: 0,
+                exentas_importaciones: 0
+            };
+            return { ...newData, total_compras: calculateTotal(newData) };
+        });
+    };
+
+    const calculateTotal = (data) => {
+        return parseFloat((
+            parseFloat(data.exentas_internas || 0) +
+            parseFloat(data.exentas_internaciones || 0) +
+            parseFloat(data.exentas_importaciones || 0) +
+            parseFloat(data.gravadas_internas || 0) +
+            parseFloat(data.gravadas_internaciones || 0) +
+            parseFloat(data.gravadas_importaciones || 0) +
+            parseFloat(data.compras_sujetos_excluidos || 0) +
+            parseFloat(data.credito_fiscal || 0) +
+            parseFloat(data.fovial || 0) +
+            parseFloat(data.cotrans || 0) +
+            parseFloat(data.cesc || 0) +
+            parseFloat(data.anticipo_iva_percibido || 0) +
+            parseFloat(data.percepcion || 0)
+            // Nota: La retención generalmente se resta del pago, no suma al valor de la compra contable, 
+            // pero depende del criterio. Aquí sumamos los costos positivos.
+        ).toFixed(2));
     };
 
     // --- Manejadores del Formulario ---
     const handleChange = (e) => {
         const { name, value } = e.target;
         
-        if (name === 'tipo_compra') {
-            setFormData(prev => ({
+        if (name === 'proveedor_id') {
+            const prov = proveedores.find(p => p.id.toString() === value);
+            setFormData(prev => ({ 
                 ...prev,
-                tipo_compra: value,
-                locales: value === 'local' ? prev.monto : 0,
-                importaciones: value === 'importacion' ? prev.monto : 0
+                [name]: value,
+                nombre_proveedor: prov ? prov.nombre : "",
+                // Si el proveedor tuviera NRC en la respuesta, podríamos setearlo aquí:
+                // nrc: prov.nrc || "" 
             }));
+        } else if (name === 'tipo_compra') {
+            // Al cambiar tipo de compra, movemos los montos si existen
+            setFormData(prev => {
+                const totalGravado = prev.gravadas_internas + prev.gravadas_importaciones;
+                const newData = {
+                    ...prev,
+                    tipo_compra: value,
+                    gravadas_internas: value === 'local' ? totalGravado : 0,
+                    gravadas_importaciones: value === 'importacion' ? totalGravado : 0
+                };
+                return { ...newData, total_compras: calculateTotal(newData) };
+            });
         } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
+            setFormData(prev => {
+                const newData = { ...prev, [name]: value };
+                // Recalcular total si cambia algún campo numérico
+                if ([
+                    'exentas_internas', 'exentas_internaciones', 'exentas_importaciones',
+                    'gravadas_internas', 'gravadas_internaciones', 'gravadas_importaciones',
+                    'compras_sujetos_excluidos', 'credito_fiscal', 'fovial', 'cotrans', 'cesc',
+                    'anticipo_iva_percibido', 'percepcion'
+                ].includes(name)) {
+                    newData.total_compras = calculateTotal(newData);
+                }
+                return newData;
+            });
         }
     };
 
@@ -197,13 +271,29 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             const payload = {
                 ...formData,
                 proveedor_id: parseInt(formData.proveedor_id),
-                monto: parseFloat(formData.monto),
-                monto_exento: parseFloat(formData.monto_exento || 0),
-                iva: parseFloat(formData.iva || 0),
+                // Mapeo de campos para compatibilidad con el controlador
+                monto: parseFloat(formData.total_compras), // Campo legacy requerido
+                monto_exento: parseFloat(formData.exentas_internas || 0), // Campo legacy
+                iva: parseFloat(formData.credito_fiscal || 0), // Campo legacy
+                locales: parseFloat(formData.gravadas_internas || 0), // Campo legacy
+                importaciones: parseFloat(formData.gravadas_importaciones || 0), // Campo legacy
+                
+                // Campos nuevos numéricos
+                exentas_internas: parseFloat(formData.exentas_internas || 0),
+                exentas_internaciones: parseFloat(formData.exentas_internaciones || 0),
+                exentas_importaciones: parseFloat(formData.exentas_importaciones || 0),
+                gravadas_internas: parseFloat(formData.gravadas_internas || 0),
+                gravadas_internaciones: parseFloat(formData.gravadas_internaciones || 0),
+                gravadas_importaciones: parseFloat(formData.gravadas_importaciones || 0),
+                compras_sujetos_excluidos: parseFloat(formData.compras_sujetos_excluidos || 0),
+                credito_fiscal: parseFloat(formData.credito_fiscal || 0),
+                fovial: parseFloat(formData.fovial || 0),
+                cotrans: parseFloat(formData.cotrans || 0),
+                cesc: parseFloat(formData.cesc || 0),
+                anticipo_iva_percibido: parseFloat(formData.anticipo_iva_percibido || 0),
                 retencion: parseFloat(formData.retencion || 0),
                 percepcion: parseFloat(formData.percepcion || 0),
-                locales: parseFloat(formData.locales || 0),
-                importaciones: parseFloat(formData.importaciones || 0),
+                retencion_terceros: parseFloat(formData.retencion_terceros || 0),
                 detalles: detalles
             };
 
@@ -237,17 +327,31 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             // Limpiar formulario
             setFormData({
                 fecha: new Date().toISOString().split('T')[0],
+                fecha_emision: new Date().toISOString().split('T')[0],
                 proveedor_id: "",
+                nombre_proveedor: "",
                 numero_documento: "",
+                tipo_documento: "CCF",
+                nrc: "",
+                nit_dui_sujeto_excluido: "",
                 tipo_compra: "local",
                 descripcion: "",
-                monto_exento: 0,
-                iva: 0,
+                exentas_internas: 0,
+                exentas_internaciones: 0,
+                exentas_importaciones: 0,
+                gravadas_internas: 0,
+                gravadas_internaciones: 0,
+                gravadas_importaciones: 0,
+                compras_sujetos_excluidos: 0,
+                credito_fiscal: 0,
+                fovial: 0,
+                cotrans: 0,
+                cesc: 0,
+                anticipo_iva_percibido: 0,
                 retencion: 0,
                 percepcion: 0,
-                locales: 0,
-                importaciones: 0,
-                monto: 0
+                retencion_terceros: 0,
+                total_compras: 0
             });
             setDetalles([]);
             setTimeout(() => setSuccessMessage(""), 3000);
@@ -319,11 +423,22 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                     <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Datos Generales</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Registro</label>
                                             <input 
                                                 type="date" 
                                                 name="fecha" 
                                                 value={formData.fecha} 
+                                                onChange={handleChange}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Emisión Doc.</label>
+                                            <input 
+                                                type="date" 
+                                                name="fecha_emision" 
+                                                value={formData.fecha_emision} 
                                                 onChange={handleChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 required
@@ -345,6 +460,17 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             </select>
                                         </div>
                                         <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Proveedor (Doc)</label>
+                                            <input 
+                                                type="text" 
+                                                name="nombre_proveedor" 
+                                                value={formData.nombre_proveedor} 
+                                                onChange={handleChange}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                placeholder="Nombre en documento"
+                                            />
+                                        </div>
+                                        <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">N° Documento</label>
                                             <input 
                                                 type="text" 
@@ -354,6 +480,33 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 placeholder="Ej: FAC-001"
                                                 required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo Documento</label>
+                                            <select 
+                                                name="tipo_documento" 
+                                                value={formData.tipo_documento} 
+                                                onChange={handleChange}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                            >
+                                                <option value="CCF">Comprobante Crédito Fiscal</option>
+                                                <option value="FCF">Factura Consumidor Final</option>
+                                                <option value="FSE">Factura Sujeto Excluido</option>
+                                                <option value="NC">Nota de Crédito</option>
+                                                <option value="ND">Nota de Débito</option>
+                                                <option value="DUA">Declaración de Mercancías (Importación)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">NRC / NIT</label>
+                                            <input 
+                                                type="text" 
+                                                name="nrc" 
+                                                value={formData.nrc} 
+                                                onChange={handleChange}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                placeholder="Registro o NIT"
                                             />
                                         </div>
                                         <div>
@@ -369,7 +522,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                 </label>
                                             </div>
                                         </div>
-                                        <div className="md:col-span-2">
+                                        <div className="md:col-span-3">
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                                             <input 
                                                 type="text" 
@@ -497,28 +650,46 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                 {/* --- Sección 3: Totales --- */}
                                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                                     <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Totales y Retenciones</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        {/* Columna 1: Gravadas */}
                                         <div className="space-y-4">
+                                            <h3 className="text-sm font-bold text-gray-800">Compras Gravadas</h3>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Monto Neto (Calculado)</label>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Internas</label>
                                                 <div className="relative">
                                                     <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
-                                                        value={formData.monto} 
-                                                        readOnly 
-                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md bg-gray-100 font-bold text-gray-800"
+                                                        name="gravadas_internas"
+                                                        value={formData.gravadas_internas} 
+                                                        onChange={handleChange}
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        min="0" step="0.01"
                                                     />
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Monto Exento</label>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Importaciones</label>
                                                 <div className="relative">
                                                     <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
-                                                        name="monto_exento"
-                                                        value={formData.monto_exento} 
+                                                        name="gravadas_importaciones"
+                                                        value={formData.gravadas_importaciones} 
+                                                        onChange={handleChange}
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        min="0" step="0.01"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Internaciones</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                                                    <input 
+                                                        type="number" 
+                                                        name="gravadas_internaciones"
+                                                        value={formData.gravadas_internaciones} 
                                                         onChange={handleChange}
                                                         className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
@@ -526,15 +697,18 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* Columna 2: Exentas */}
                                         <div className="space-y-4">
+                                            <h3 className="text-sm font-bold text-gray-800">Compras Exentas</h3>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">IVA</label>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Internas</label>
                                                 <div className="relative">
                                                     <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
-                                                        name="iva"
-                                                        value={formData.iva} 
+                                                        name="exentas_internas"
+                                                        value={formData.exentas_internas} 
                                                         onChange={handleChange}
                                                         className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
@@ -542,46 +716,146 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Percepción</label>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Importaciones</label>
                                                 <div className="relative">
                                                     <span className="absolute left-3 top-2 text-gray-500">$</span>
+                                                    <input 
+                                                        type="number" 
+                                                        name="exentas_importaciones"
+                                                        value={formData.exentas_importaciones} 
+                                                        onChange={handleChange}
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        min="0" step="0.01"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Sujetos Excluidos</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                                                    <input 
+                                                        type="number" 
+                                                        name="compras_sujetos_excluidos"
+                                                        value={formData.compras_sujetos_excluidos} 
+                                                        onChange={handleChange}
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        min="0" step="0.01"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Columna 3: Impuestos */}
+                                        <div className="space-y-4">
+                                            <h3 className="text-sm font-bold text-gray-800">Impuestos</h3>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Crédito Fiscal (IVA)</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                                                    <input 
+                                                        type="number" 
+                                                        name="credito_fiscal"
+                                                        value={formData.credito_fiscal} 
+                                                        onChange={handleChange}
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        min="0" step="0.01"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">FOVIAL</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                                                    <input 
+                                                        type="number" 
+                                                        name="fovial"
+                                                        value={formData.fovial} 
+                                                        onChange={handleChange}
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        min="0" step="0.01"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">COTRANS / CESC</label>
+                                                <div className="flex space-x-2">
+                                                    <input 
+                                                        type="number" 
+                                                        name="cotrans"
+                                                        value={formData.cotrans} 
+                                                        onChange={handleChange}
+                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        placeholder="COTRANS"
+                                                        min="0" step="0.01"
+                                                    />
+                                                    <input 
+                                                        type="number" 
+                                                        name="cesc"
+                                                        value={formData.cesc} 
+                                                        onChange={handleChange}
+                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        placeholder="CESC"
+                                                        min="0" step="0.01"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Columna 4: Retenciones y Total */}
+                                        <div className="space-y-4">
+                                            <h3 className="text-sm font-bold text-gray-800">Retenciones / Percepciones</h3>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Anticipo IVA / Percepción</label>
+                                                <div className="flex space-x-2">
+                                                    <input 
+                                                        type="number" 
+                                                        name="anticipo_iva_percibido"
+                                                        value={formData.anticipo_iva_percibido} 
+                                                        onChange={handleChange}
+                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        placeholder="Anticipo"
+                                                        min="0" step="0.01"
+                                                    />
                                                     <input 
                                                         type="number" 
                                                         name="percepcion"
                                                         value={formData.percepcion} 
                                                         onChange={handleChange}
-                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        placeholder="Percep."
                                                         min="0" step="0.01"
                                                     />
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="space-y-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Retención</label>
-                                                <div className="relative">
-                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Retención (1% / Terceros)</label>
+                                                <div className="flex space-x-2">
                                                     <input 
                                                         type="number" 
                                                         name="retencion"
                                                         value={formData.retencion} 
                                                         onChange={handleChange}
-                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        placeholder="Ret. 1%"
+                                                        min="0" step="0.01"
+                                                    />
+                                                    <input 
+                                                        type="number" 
+                                                        name="retencion_terceros"
+                                                        value={formData.retencion_terceros} 
+                                                        onChange={handleChange}
+                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        placeholder="Terceros"
                                                         min="0" step="0.01"
                                                     />
                                                 </div>
                                             </div>
+
                                             <div className="pt-6">
                                                 <div className="text-right">
-                                                    <span className="text-sm text-gray-500">Total Estimado a Pagar:</span>
+                                                    <span className="text-sm text-gray-500">Total Compras:</span>
                                                     <div className="text-3xl font-bold text-green-600">
-                                                        ${(
-                                                            parseFloat(formData.monto || 0) + 
-                                                            parseFloat(formData.monto_exento || 0) + 
-                                                            parseFloat(formData.iva || 0) + 
-                                                            parseFloat(formData.percepcion || 0) + 
-                                                            parseFloat(formData.retencion || 0)
-                                                        ).toFixed(2)}
+                                                        ${formData.total_compras.toFixed(2)}
                                                     </div>
                                                 </div>
                                             </div>
