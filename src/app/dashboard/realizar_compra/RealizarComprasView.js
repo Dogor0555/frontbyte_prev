@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "../components/sidebar";
 import Navbar from "../components/navbar";
 import Footer from "../components/footer";
+import JsonDteUploader from "./JsonDteUploader";
 import { 
     FaCalendarAlt, 
     FaSave, 
@@ -20,7 +21,6 @@ import {
 export default function RealizarComprasView({ user, hasHaciendaToken, haciendaStatus }) {
     const router = useRouter();
     
-    // --- Estados de UI ---
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -28,24 +28,20 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
 
-    // --- Estados de Datos ---
     const [proveedores, setProveedores] = useState([]);
     const [productos, setProductos] = useState([]);
     
-    // --- Estados del Formulario ---
     const [formData, setFormData] = useState({
         fecha: new Date().toISOString().split('T')[0],
         fecha_emision: new Date().toISOString().split('T')[0],
         proveedor_id: "",
         nombre_proveedor: "",
         numero_documento: "",
-        tipo_documento: "CCF", // Por defecto Comprobante de Crédito Fiscal
+        tipo_documento: "CCF",
         nrc: "",
         nit_dui_sujeto_excluido: "",
         tipo_compra: "local",
         descripcion: "",
-        
-        // Campos detallados
         exentas_internas: 0,
         exentas_internaciones: 0,
         exentas_importaciones: 0,
@@ -53,9 +49,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         gravadas_internaciones: 0,
         gravadas_importaciones: 0,
         compras_sujetos_excluidos: 0,
-        
-        // Impuestos y Retenciones
-        credito_fiscal: 0, // IVA
+        credito_fiscal: 0,
         fovial: 0,
         cotrans: 0,
         cesc: 0,
@@ -63,19 +57,15 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         retencion: 0,
         percepcion: 0,
         retencion_terceros: 0,
-        
-        // Total
         total_compras: 0
     });
 
-    // --- Estados para Detalles (Productos) ---
     const [detalles, setDetalles] = useState([]);
     const [productSearch, setProductSearch] = useState("");
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [addQuantity, setAddQuantity] = useState(1);
     const [addPrice, setAddPrice] = useState("");
 
-    // --- Efectos ---
     useEffect(() => {
         const checkMobile = () => {
             const mobile = window.innerWidth < 768;
@@ -123,14 +113,13 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         fetchData();
     }, []);
 
-    // --- Lógica de Productos ---
     const filteredProducts = useMemo(() => {
         if (!productSearch) return [];
         const term = productSearch.toLowerCase();
         return productos.filter(p => 
             p.nombre.toLowerCase().includes(term) || 
             p.codigo.toLowerCase().includes(term)
-        ).slice(0, 5); // Limitar a 5 resultados
+        ).slice(0, 5);
     }, [productSearch, productos]);
 
     const handleSelectProduct = (prod) => {
@@ -160,7 +149,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         setDetalles(newDetalles);
         updateTotals(newDetalles, formData.tipo_compra);
         
-        // Resetear selección
         setSelectedProduct(null);
         setProductSearch("");
         setAddQuantity(1);
@@ -177,7 +165,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         const totalMonto = currentDetalles.reduce((sum, item) => sum + item.subtotal, 0);
         const totalFixed = parseFloat(totalMonto.toFixed(2));
         
-        // Cálculo automático sugerido de IVA (13%) si es gravada
         const ivaSugerido = parseFloat((totalFixed * 0.13).toFixed(2));
 
         setFormData(prev => {
@@ -186,7 +173,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 gravadas_internas: tipo === 'local' ? totalFixed : 0,
                 gravadas_importaciones: tipo === 'importacion' ? totalFixed : 0,
                 credito_fiscal: ivaSugerido,
-                // Resetear exentas al recalcular desde productos (asumiendo gravado por defecto)
                 exentas_internas: 0,
                 exentas_importaciones: 0
             };
@@ -209,12 +195,151 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             parseFloat(data.cesc || 0) +
             parseFloat(data.anticipo_iva_percibido || 0) +
             parseFloat(data.percepcion || 0)
-            // Nota: La retención generalmente se resta del pago, no suma al valor de la compra contable, 
-            // pero depende del criterio. Aquí sumamos los costos positivos.
         ).toFixed(2));
     };
 
-    // --- Manejadores del Formulario ---
+    const handleDteLoaded = async (dteData) => {
+        setIsLoading(true);
+        try {
+            const emisorNit = dteData.emisor.nit;
+            const emisorNrc = dteData.emisor.nrc;
+            
+            let foundProv = proveedores.find(p => 
+                (p.nit && p.nit === emisorNit) || 
+                (p.nrc && p.nrc === emisorNrc) ||
+                (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor.nombre.toLowerCase()))
+            );
+
+            if (!foundProv) {
+                try {
+                    const newProvData = {
+                        nombre: dteData.emisor.nombre,
+                        codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
+                        descripcion: dteData.emisor.descActividad || "Creado automáticamente desde DTE"
+                    };
+
+                    const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify(newProvData),
+                    });
+
+                    if (response.ok) {
+                        const resJson = await response.json();
+                        foundProv = resJson.proveedor;
+                        setProveedores(prev => [...prev, foundProv]);
+                    }
+                } catch (err) {
+                    console.error("Error creando proveedor automático:", err);
+                }
+            }
+
+            const currentProveedorId = foundProv ? foundProv.id : null;
+
+            const nuevosDetalles = [];
+            const productosNoEncontrados = [];
+            let currentProductos = [...productos];
+
+            for (const item of dteData.cuerpoDocumento) {
+                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+                
+                if (!foundProd) {
+                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+                }
+
+                if (!foundProd) {
+                    try {
+                        const newProductData = {
+                            nombre: item.descripcion,
+                            codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                            unidad: item.uniMedida || "Unidad",
+                            precio: item.precioUni,
+                            preciooferta: 0,
+                            stock: 0,
+                            es_servicio: item.tipoItem === 2,
+                            idproveedor: currentProveedorId
+                        };
+
+                        const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify(newProductData),
+                        });
+
+                        if (response.ok) {
+                            const resJson = await response.json();
+                            foundProd = resJson.producto;
+                            currentProductos.push(foundProd);
+                            setProductos(prev => [...prev, foundProd]);
+                        } else {
+                            productosNoEncontrados.push(`${item.codigo} - ${item.descripcion} (Error al crear)`);
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        productosNoEncontrados.push(`${item.codigo} - ${item.descripcion} (Error conexión)`);
+                    }
+                }
+
+                if (foundProd) {
+                    nuevosDetalles.push({
+                        producto_id: foundProd.id,
+                        producto_nombre: foundProd.nombre,
+                        producto_codigo: foundProd.codigo,
+                        cantidad: item.cantidad,
+                        precio_unitario: item.precioUni,
+                        subtotal: item.ventaGravada
+                    });
+                }
+            }
+
+            setFormData(prev => {
+                const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
+                
+                const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
+                
+                const tipoMap = {
+                    "01": "FCF",
+                    "03": "CCF",
+                    "05": "NC",
+                    "06": "ND",
+                    "14": "FSE"
+                };
+                
+                return {
+                    ...prev,
+                    fecha_emision: dteData.identificacion.fecEmi,
+                    numero_documento: dteData.identificacion.numeroControl,
+                    nrc: dteData.emisor.nrc,
+                    nombre_proveedor: dteData.emisor.nombre,
+                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                    tipo_documento: tipoMap[tipoDteValue] || "CCF",
+                    
+                    gravadas_internas: dteData.resumen.totalGravada,
+                    credito_fiscal: iva,
+                    total_compras: dteData.resumen.totalPagar
+                };
+            });
+
+            if (nuevosDetalles.length > 0) {
+                setDetalles(prev => [...prev, ...nuevosDetalles]);
+                if (productosNoEncontrados.length > 0) {
+                    alert(`Se cargaron ${nuevosDetalles.length} productos.\n\nNo se pudieron crear/encontrar:\n${productosNoEncontrados.join("\n")}`);
+                }
+            } else {
+                if (productosNoEncontrados.length > 0) {
+                    alert(`No se encontraron productos coincidentes en el sistema.\n\nItems del DTE:\n${productosNoEncontrados.join("\n")}`);
+                }
+            }
+        } catch (error) {
+            console.error("Error procesando DTE:", error);
+            setError("Error al procesar el archivo DTE.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         
@@ -223,12 +348,9 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             setFormData(prev => ({ 
                 ...prev,
                 [name]: value,
-                nombre_proveedor: prov ? prov.nombre : "",
-                // Si el proveedor tuviera NRC en la respuesta, podríamos setearlo aquí:
-                // nrc: prov.nrc || "" 
+                nombre_proveedor: prov ? prov.nombre : ""
             }));
         } else if (name === 'tipo_compra') {
-            // Al cambiar tipo de compra, movemos los montos si existen
             setFormData(prev => {
                 const totalGravado = prev.gravadas_internas + prev.gravadas_importaciones;
                 const newData = {
@@ -242,7 +364,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         } else {
             setFormData(prev => {
                 const newData = { ...prev, [name]: value };
-                // Recalcular total si cambia algún campo numérico
                 if ([
                     'exentas_internas', 'exentas_internaciones', 'exentas_importaciones',
                     'gravadas_internas', 'gravadas_internaciones', 'gravadas_importaciones',
@@ -271,14 +392,11 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             const payload = {
                 ...formData,
                 proveedor_id: parseInt(formData.proveedor_id),
-                // Mapeo de campos para compatibilidad con el controlador
-                monto: parseFloat(formData.total_compras), // Campo legacy requerido
-                monto_exento: parseFloat(formData.exentas_internas || 0), // Campo legacy
-                iva: parseFloat(formData.credito_fiscal || 0), // Campo legacy
-                locales: parseFloat(formData.gravadas_internas || 0), // Campo legacy
-                importaciones: parseFloat(formData.gravadas_importaciones || 0), // Campo legacy
-                
-                // Campos nuevos numéricos
+                monto: parseFloat(formData.total_compras),
+                monto_exento: parseFloat(formData.exentas_internas || 0),
+                iva: parseFloat(formData.credito_fiscal || 0),
+                locales: parseFloat(formData.gravadas_internas || 0),
+                importaciones: parseFloat(formData.gravadas_importaciones || 0),
                 exentas_internas: parseFloat(formData.exentas_internas || 0),
                 exentas_internaciones: parseFloat(formData.exentas_internaciones || 0),
                 exentas_importaciones: parseFloat(formData.exentas_importaciones || 0),
@@ -312,8 +430,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 throw new Error(data.error || data.message || "Error al guardar la compra");
             }
 
-            // Actualizar stock (opcional, dependiendo de si el backend lo hace automático o no, 
-            // basado en el código anterior se hacía manual)
             for (const detalle of detalles) {
                 await fetch(`${API_BASE_URL}/productos/incrementStock/${detalle.producto_id}`, {
                     method: "PUT",
@@ -324,7 +440,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             }
 
             setSuccessMessage("Compra registrada exitosamente.");
-            // Limpiar formulario
             setFormData({
                 fecha: new Date().toISOString().split('T')[0],
                 fecha_emision: new Date().toISOString().split('T')[0],
@@ -418,7 +533,11 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                             )}
 
                             <form onSubmit={handleSubmit} className="space-y-6">
-                                {/* --- Sección 1: Datos Generales --- */}
+                                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                    <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Carga Automática</h2>
+                                    <JsonDteUploader onDataLoaded={handleDteLoaded} />
+                                </div>
+
                                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                                     <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Datos Generales</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -536,7 +655,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                     </div>
                                 </div>
 
-                                {/* --- Sección 2: Agregar Productos --- */}
                                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                                     <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Agregar Productos</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -602,7 +720,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                         </div>
                                     </div>
 
-                                    {/* Tabla de Detalles */}
                                     <div className="mt-6 overflow-x-auto">
                                         <table className="min-w-full divide-y divide-gray-200 border">
                                             <thead className="bg-gray-50">
@@ -647,11 +764,9 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                     </div>
                                 </div>
 
-                                {/* --- Sección 3: Totales --- */}
                                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                                     <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Totales y Retenciones</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                        {/* Columna 1: Gravadas */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Compras Gravadas</h3>
                                             <div>
@@ -698,7 +813,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             </div>
                                         </div>
 
-                                        {/* Columna 2: Exentas */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Compras Exentas</h3>
                                             <div>
@@ -745,7 +859,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             </div>
                                         </div>
 
-                                        {/* Columna 3: Impuestos */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Impuestos</h3>
                                             <div>
@@ -801,7 +914,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             </div>
                                         </div>
 
-                                        {/* Columna 4: Retenciones y Total */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Retenciones / Percepciones</h3>
                                             <div>
@@ -863,7 +975,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                     </div>
                                 </div>
 
-                                {/* --- Botones de Acción --- */}
                                 <div className="flex justify-end space-x-4 pt-4">
                                     <button 
                                         type="button"
