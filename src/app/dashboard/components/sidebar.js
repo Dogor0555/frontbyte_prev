@@ -169,6 +169,12 @@ export default function Sidebar({ onOpenPerfil }) {
           href: "/dashboard/dte_exportacion",
           permiso: "DTE Exportación" 
         },
+        { 
+          name: "DTE Liquidación", 
+          icon: <FaClipboardList />, 
+          href: "/dashboard/dte_liquidacion",
+          permiso: "DTE Liquidacion" 
+        },
       ],
       menuKey: "dtes",
       permiso: "DTES"
@@ -325,6 +331,28 @@ export default function Sidebar({ onOpenPerfil }) {
       ],
       menuKey: "sujeto_excluido",
       permiso: "Facturas Sujeto Excluido"
+    },
+
+    {
+      name: "Liquidación",
+      icon: <FaClipboardList />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Ver Comprobantes", 
+          icon: <FaEye />, 
+          href: "/dashboard/comprobantes_liquidacion",
+          permiso: "Ver Comprobantes de Liquidación" 
+        },
+        { 
+          name: "Anular Liquidación", 
+          icon: <FaBan />, 
+          href: "/dashboard/anular_liquidacion",
+          permiso: "Anular Liquidacion" 
+        },
+      ],
+      menuKey: "liquidacion",
+      permiso: "Liquidacion"
     },
 
     {
