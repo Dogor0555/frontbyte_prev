@@ -21,7 +21,7 @@ import { useReactToPrint } from 'react-to-print';
 import Handlebars from 'handlebars';
 import { API_BASE_URL } from "@/lib/api";
 
-export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
+export default function NotaRemisionView({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
   const [cliente, setCliente] = useState(null);
   const [nombreCliente, setNombreCliente] = useState("");
   const [documentoCliente, setDocumentoCliente] = useState("");
@@ -256,7 +256,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         }
         
         const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = `credito_${idFactura}.pdf`;
+        let filename = `nota_remision_${idFactura}.pdf`;
         
         if (contentDisposition) {
           const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
@@ -268,7 +268,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         mostrarModalMensaje(
           "exito", 
           "Ticket Abierto", 
-          "El ticket del crédito se ha abierto en una nueva pestaña.",
+          "El ticket de la nota de remisión se ha abierto en una nueva pestaña.",
           `Archivo: ${filename}`
         );
         
@@ -284,7 +284,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       mostrarModalMensaje(
         "error",
         "Error al Abrir Ticket",
-        "No se pudo abrir el ticket del crédito.",
+        "No se pudo abrir el ticket de la nota de remisión.",
         error.message
       );
     } finally {
@@ -318,9 +318,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     }
     
     if (items.length === 0) {
-      const mensaje = "Debe agregar al menos un item al crédito";
+      const mensaje = "Debe agregar al menos un item a la nota de remisión";
       setErrorValidacion(mensaje);
-      mostrarModalMensaje("error", "Crédito Vacío", mensaje);
+      mostrarModalMensaje("error", "Nota de Remisión Vacía", mensaje);
       return false;
     }
     
@@ -359,7 +359,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       
       console.log("Enviando encabezado:", datosFactura);
       
-      const responseEncabezado = await fetch(`${API_BASE_URL}/creditos/encabezado`, {
+      const responseEncabezado = await fetch(`${API_BASE_URL}/notasremision/encabezado`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -370,31 +370,31 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
       if (responseEncabezado.ok) {
         const result = await responseEncabezado.json();
-        console.log("Encabezado de crédito guardado:", result);
+        console.log("Encabezado de nota de remisión guardado:", result);
         
         const detallesResult = await guardarDetallesFactura(result.iddtefactura);
         
         if (detallesResult) {
           setShowConfirmModal(false);
           
-          let mensajeTitulo = "Crédito Guardado";
+          let mensajeTitulo = "Nota de Remisión Guardada";
           let mensajeDetalles = "";
           let idFacturaParaDescarga = result.iddtefactura;
 
           if (detallesResult.contingencia && detallesResult.aviso) {
-            mensajeTitulo = "Crédito en Contingencia";
+            mensajeTitulo = "Nota de Remisión en Contingencia";
             mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message}`;
           } else if (detallesResult.transmitido) {
-            mensajeTitulo = "Crédito Transmitido";
-            mensajeDetalles = `Crédito ${result.ncontrol} guardado y transmitido exitosamente`;
+            mensajeTitulo = "Nota de Remisión Transmitida";
+            mensajeDetalles = `Nota de Remisión ${result.ncontrol} guardada y transmitida exitosamente`;
           } else {
-            mensajeDetalles = `Crédito ${result.ncontrol} guardado exitosamente`;
+            mensajeDetalles = `Nota de Remisión ${result.ncontrol} guardada exitosamente`;
           }
           
           mostrarModalMensaje(
             "exito",
             mensajeTitulo,
-            "El crédito se ha procesado correctamente.",
+            "La nota de remisión se ha procesado correctamente.",
             mensajeDetalles,
             idFacturaParaDescarga
           );
@@ -411,7 +411,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       mostrarModalMensaje(
         "error",
         "Error al Guardar",
-        "No se pudo guardar el crédito.",
+        "No se pudo guardar la nota de remisión.",
         error.message
       );
       setShowPreviewModal(false);
@@ -557,13 +557,13 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
   const verDatosFactura = () => {
     if (items.length === 0) {
-      mostrarModalMensaje("error", "Crédito Vacío", "El crédito debe tener al menos un item");
+      mostrarModalMensaje("error", "Nota de Remisión Vacía", "La nota de remisión debe tener al menos un item");
       return;
     }
 
     const datosFactura = prepararDatosFactura();
     
-    console.log("====== DATOS COMPLETOS DE CRÉDITO (SOLO VISUALIZACIÓN) ======");
+    console.log("====== DATOS COMPLETOS DE NOTA DE REMISIÓN (SOLO VISUALIZACIÓN) ======");
     console.log("ENCABEZADO:");
     console.log(JSON.stringify(datosFactura, null, 2));
     console.log("========== Items ==================")
@@ -613,7 +613,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     mostrarModalMensaje(
       "exito",
       "Datos en Consola",
-      "Datos de crédito mostrados en consola.",
+      "Datos de nota de remisión mostrados en consola.",
       "Revisa la consola del navegador (F12) para ver los detalles completos."
     );
   };
@@ -700,7 +700,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
       console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
 
-      const responseDetalles = await fetch(`${API_BASE_URL}/creditos/${iddtefactura}/detalles`, {
+      const responseDetalles = await fetch(`${API_BASE_URL}/notasremision/${iddtefactura}/detalles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -709,7 +709,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
       if (responseDetalles.ok) {
         const resultDetalles = await responseDetalles.json();
-        console.log("Detalles de crédito guardados:", resultDetalles);
+        console.log("Detalles de nota de remisión guardados:", resultDetalles);
         
         await actualizarStockProductos(items);
         
@@ -726,27 +726,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   };
 
   const obtenerUltimoNumeroFactura = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/facturas/ultima`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const ultimoNumero = typeof data.ultimaFactura === 'number' ? data.ultimaFactura + 1 : 1;
-        setNumeroFactura(ultimoNumero);
-      } else {
-        console.warn("No se pudo obtener el último número, usando 1 por defecto");
-        setNumeroFactura(1);
-      }
-    } catch (error) {
-      console.error("Error al obtener el último número de factura:", error);
-      setNumeroFactura(1);
-    }
+    // No hay endpoint específico para última nota de remisión en el snippet proporcionado.
+    // Se establece en 0 o 1 por defecto para evitar mostrar un número incorrecto de facturas.
+    setNumeroFactura(1);
   };
 
   const prepararDatosFactura = (paraVistaPrevia = false) => {
@@ -835,7 +817,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       return {
         identificacion: {
           version: "1.0",
-          tipoDteLabel: "COMPROBANTE DE CRÉDITO FISCAL",
+          tipoDteLabel: "NOTA DE REMISIÓN",
           tipoMoneda: "USD",
           tipoModelo: "1",
           tipoOperacion: "1",
@@ -908,11 +890,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
     return {
       idcliente: idReceptor,
-      tipo_dte: "03",
+      tipo_dte: "04",
       sellorec: "", 
-      modelofac: "01",
+      modelofac: "04",
       verjson: "1.0",
-      tipotran: "1",
+      tipotran: "04",
       fechaemision: fechaEmision,
       horaemision: horaEmision,
       transaccioncontable: `TRX-${numeroFactura}`,
@@ -1440,7 +1422,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         <header className="bg-white shadow-sm">
           <div className="flex items-center justify-between p-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Crédito Fiscal</h1>
+              <h1 className="text-2xl font-bold text-gray-800">Nota de Remisión</h1>
               <p className="text-gray-600">Sistema de facturación electrónica</p>
             </div>
             <div className="flex items-center space-x-4">
@@ -1503,7 +1485,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
               <div className="text-black mb-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-800">Detalle de Crédito</h2>
+                  <h2 className="text-xl font-semibold text-gray-800">Detalle de Nota de Remisión</h2>
                   <button
                     onClick={openModalSelector}
                     className="flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md"
@@ -1956,7 +1938,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   ) : (
                     <>
                       <FaEye className="mr-2" />
-                      Guardar Crédito
+                      Guardar Nota
                     </>
                   )}
                 </button>

@@ -158,6 +158,12 @@ export default function Sidebar({ onOpenPerfil }) {
           permiso: "DTE Crédito" 
         },
         { 
+          name: "DTE Nota de Remisión", 
+          icon: <FaTruck />, 
+          href: "/dashboard/dte_nota_remision",
+          permiso: "DTE Nota de Remisión" 
+        },
+        { 
           name: "DTE Sujeto Excluido", 
           icon: <FaClipboardList />, 
           href: "/dashboard/sujeto_excluido",
@@ -230,6 +236,29 @@ export default function Sidebar({ onOpenPerfil }) {
       ],
       menuKey: "creditos",
       permiso: "Créditos"
+    },
+
+    // 🚚 Notas de Remisión
+    {
+      name: "Notas de Remisión",
+      icon: <FaTruck />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Ver Notas de Remisión", 
+          icon: <FaEye />, 
+          href: "/dashboard/notas_remision",
+          permiso: "Ver Notas de Remisión" 
+        },
+        { 
+          name: "Anular Notas de Remisión", 
+          icon: <FaBan />, 
+          href: "/dashboard/anular_nota_remision",
+          permiso: "Anular Nota de Remision" 
+        },
+      ],
+      menuKey: "remision",
+      permiso: "Notas de Remisión"
     },
 
     {
