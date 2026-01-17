@@ -27,26 +27,28 @@ import {
   FaArrowCircleUp,
   FaArrowCircleDown,
   FaExclamationTriangle,
-  FaTruck,             // Para Nota de Remisión
-  FaReceipt,           // Para Retención
-  FaClipboardList,     // Para Liquidación
+  FaTruck,
+  FaReceipt,
+  FaClipboardList,
   FaHistory,
-  FaUserCheck,         // Para Contribuyentes
-  FaFileExport,        // Para Anexos
-  FaTicketAlt,         // Nuevo ícono para Configurar Tickets
-  FaGlobe,             // Para Exportación
-  FaFilePdf,           // Nuevo ícono para Detalles de Documentos
-  FaWrench,            // Para Configurar PDF
-  FaShoppingCart,      // Para Compras
+  FaUserCheck,
+  FaFileExport,
+  FaTicketAlt,
+  FaGlobe,
+  FaFilePdf,
+  FaWrench,
+  FaShoppingCart,
   FaCartPlus
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
 import { useState, useEffect } from "react";
 import { API_BASE_URL } from "@/lib/api";
+import { usePathname } from "next/navigation";
 
 export default function Sidebar({ onOpenPerfil }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [empleado, setEmpleado] = useState(null);
   const [permisos, setPermisos] = useState([]);
@@ -64,7 +66,6 @@ export default function Sidebar({ onOpenPerfil }) {
     exportacion: false,
     compras: false,
   });
-  const [hoveredItem, setHoveredItem] = useState(null);
 
   useEffect(() => {
     const empleadoData = localStorage.getItem("empleado");
@@ -74,6 +75,87 @@ export default function Sidebar({ onOpenPerfil }) {
       cargarPermisos();
     }
   }, []);
+
+  // Determinar qué menú está abierto basado en la ruta actual
+  useEffect(() => {
+    const determineOpenMenu = () => {
+      const newOpenMenus = { ...openMenus };
+      
+      // Check which menu should be open based on current path
+      if (pathname.includes('/dte_') || pathname.includes('/sujeto_excluido')) {
+        Object.keys(newOpenMenus).forEach(key => {
+          if (key !== 'dtes') newOpenMenus[key] = false;
+        });
+        newOpenMenus.dtes = true;
+      } else if (pathname.includes('/facturas') && !pathname.includes('sujeto_excluido') && !pathname.includes('exportacion')) {
+        Object.keys(newOpenMenus).forEach(key => {
+          if (key !== 'facturas') newOpenMenus[key] = false;
+        });
+        newOpenMenus.facturas = true;
+      } else if (pathname.includes('/creditos') || pathname.includes('/nota_debito')) {
+        Object.keys(newOpenMenus).forEach(key => {
+          if (key !== 'creditos') newOpenMenus[key] = false;
+        });
+        newOpenMenus.creditos = true;
+      } else if (pathname.includes('/notas_remision')) {
+        Object.keys(newOpenMenus).forEach(key => {
+          if (key !== 'remision') newOpenMenus[key] = false;
+        });
+        newOpenMenus.remision = true;
+      } else if (pathname.includes('/facturas_sujeto_excluido') || pathname.includes('/anular_facturas_sujeto_excluido')) {
+        Object.keys(newOpenMenus).forEach(key => {
+          if (key !== 'sujeto_excluido') newOpenMenus[key] = false;
+        });
+        newOpenMenus.sujeto_excluido = true;
+      } else if (pathname.includes('/liquidacion')) {
+        Object.keys(newOpenMenus).forEach(key => {
+          if (key !== 'liquidacion') newOpenMenus[key] = false;
+        });
+        newOpenMenus.liquidacion = true;
+      } else if (pathname.includes('/exportacion')) {
+        Object.keys(newOpenMenus).forEach(key => {
+          if (key !== 'exportacion') newOpenMenus[key] = false;
+        });
+        newOpenMenus.exportacion = true;
+      } else if (pathname.includes('/contribuyente')) {
+        Object.keys(newOpenMenus).forEach(key => {
+          if (key !== 'contribuyentes') newOpenMenus[key] = false;
+        });
+        newOpenMenus.contribuyentes = true;
+      } else if (pathname.includes('/consumidor_final')) {
+        Object.keys(newOpenMenus).forEach(key => {
+          if (key !== 'consumidorfinal') newOpenMenus[key] = false;
+        });
+        newOpenMenus.consumidorfinal = true;
+      } else if (pathname.includes('/compras')) {
+        Object.keys(newOpenMenus).forEach(key => {
+          if (key !== 'compras') newOpenMenus[key] = false;
+        });
+        newOpenMenus.compras = true;
+      } else if (
+        pathname.includes('/empleados') || 
+        pathname.includes('/productos') || 
+        pathname.includes('/clientes') ||
+        pathname.includes('/registro-eventos') ||
+        pathname.includes('/configurar-pdf') ||
+        pathname.includes('/configurar-tickets')
+      ) {
+        Object.keys(newOpenMenus).forEach(key => {
+          if (key !== 'admin') newOpenMenus[key] = false;
+        });
+        newOpenMenus.admin = true;
+      } else {
+        // Si no está en ninguna subpágina, cerrar todos los menús
+        Object.keys(newOpenMenus).forEach(key => {
+          newOpenMenus[key] = false;
+        });
+      }
+
+      setOpenMenus(newOpenMenus);
+    };
+
+    determineOpenMenu();
+  }, [pathname]);
 
   const cargarPermisos = async () => {
     try {
@@ -122,6 +204,11 @@ export default function Sidebar({ onOpenPerfil }) {
       ...prevState,
       [menu]: !prevState[menu],
     }));
+  };
+
+  // Función para verificar si una ruta está activa
+  const isActive = (href) => {
+    return pathname === href;
   };
 
   const todosLosMenuItems = [
@@ -183,7 +270,10 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "dtes",
-      permiso: "DTES"
+      permiso: "DTES",
+      color: "bg-purple-900",
+      borderColor: "border-purple-500",
+      activeColor: "bg-purple-700"
     },
 
     // 🧾 Facturas
@@ -206,7 +296,10 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "facturas",
-      permiso: "Facturas"
+      permiso: "Facturas",
+      color: "bg-emerald-900",
+      borderColor: "border-emerald-500",
+      activeColor: "bg-emerald-700"
     },
 
     // 💳 Créditos
@@ -235,7 +328,10 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "creditos",
-      permiso: "Créditos"
+      permiso: "Créditos",
+      color: "bg-amber-900",
+      borderColor: "border-amber-500",
+      activeColor: "bg-amber-700"
     },
 
     // 🚚 Notas de Remisión
@@ -258,7 +354,94 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "remision",
-      permiso: "Notas de Remisión"
+      permiso: "Notas de Remisión",
+      color: "bg-orange-900",
+      borderColor: "border-orange-500",
+      activeColor: "bg-orange-700"
+    },
+
+    // 📜 Comprobante de Liquidación Electrónico (Sujeto Excluido)
+    {
+      name: "Sujeto Excluido",
+      icon: <FaClipboardList />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Ver Facturas Sujeto Excluido", 
+          icon: <FaEye />, 
+          href: "/dashboard/facturas_sujeto_excluido",
+          permiso: "Ver Facturas Sujeto Excluido" 
+        },
+        { 
+          name: "Anular Factura Sujeto Excluido", 
+          icon: <FaBan />, 
+          href: "/dashboard/anular_facturas_sujeto_excluido",
+          permiso: "Anular Factura Sujeto Excluido" 
+        },
+      ],
+      menuKey: "sujeto_excluido",
+      permiso: "Facturas Sujeto Excluido",
+      color: "bg-teal-900",
+      borderColor: "border-teal-500",
+      activeColor: "bg-teal-700"
+    },
+
+    {
+      name: "Liquidación",
+      icon: <FaClipboardList />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Ver Comprobantes", 
+          icon: <FaEye />, 
+          href: "/dashboard/comprobantes_liquidacion",
+          permiso: "Ver Comprobantes de Liquidación" 
+        },
+        { 
+          name: "Anular Liquidación", 
+          icon: <FaBan />, 
+          href: "/dashboard/anular_liquidacion",
+          permiso: "Anular Liquidacion" 
+        },
+      ],
+      menuKey: "liquidacion",
+      permiso: "Liquidacion",
+      color: "bg-cyan-900",
+      borderColor: "border-cyan-500",
+      activeColor: "bg-cyan-700"
+    },
+
+    {
+      name: "Facturas de Exportación",
+      icon: <FaGlobe />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Ver Facturas de Exportación", 
+          icon: <FaEye />, 
+          href: "/dashboard/facturas_exportacion",
+          permiso: "Ver Facturas de Exportación" 
+        },
+        { 
+          name: "Anular Facturas de Exportación", 
+          icon: <FaBan />, 
+          href: "/dashboard/anular_factura_exportacion",
+          permiso: "Anular Facturas de Exportación" 
+        },
+      ],
+      menuKey: "exportacion",
+      permiso: "Facturas de Exportación",
+      color: "bg-violet-900",
+      borderColor: "border-violet-500",
+      activeColor: "bg-violet-700"
+    },
+
+    // ⚠️ Contingencia
+    { 
+      name: "Contingencia", 
+      icon: <FaExclamationTriangle />, 
+      href: "/dashboard/contingencia",
+      permiso: "Contingencia" 
     },
 
     {
@@ -286,7 +469,10 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "contribuyentes",
-      permiso: "Ventas a Contribuyentes"
+      permiso: "Ventas a Contribuyentes",
+      color: "bg-rose-900",
+      borderColor: "border-rose-500",
+      activeColor: "bg-rose-700"
     },
 
     // 👤 VENTAS A CONSUMIDOR FINAL
@@ -315,8 +501,12 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "consumidorfinal",
-      permiso: "Ventas a Consumidor Final"
+      permiso: "Ventas a Consumidor Final",
+      color: "bg-pink-900",
+      borderColor: "border-pink-500",
+      activeColor: "bg-pink-700"
     },
+    
     {
       name: "Compras",
       icon: <FaShoppingCart />,
@@ -336,82 +526,10 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "compras",
-      permiso: "Compras"
-    },
-
-    // 📜 Comprobante de Liquidación Electrónico (Sujeto Excluido)
-    {
-      name: "Sujeto Excluido",
-      icon: <FaClipboardList />,
-      href: "#",
-      subMenu: [
-        { 
-          name: "Ver Facturas Sujeto Excluido", 
-          icon: <FaEye />, 
-          href: "/dashboard/facturas_sujeto_excluido",
-          permiso: "Ver Facturas Sujeto Excluido" 
-        },
-        { 
-          name: "Anular Factura Sujeto Excluido", 
-          icon: <FaBan />, 
-          href: "/dashboard/anular_facturas_sujeto_excluido",
-          permiso: "Anular Factura Sujeto Excluido" 
-        },
-      ],
-      menuKey: "sujeto_excluido",
-      permiso: "Facturas Sujeto Excluido"
-    },
-
-    {
-      name: "Liquidación",
-      icon: <FaClipboardList />,
-      href: "#",
-      subMenu: [
-        { 
-          name: "Ver Comprobantes", 
-          icon: <FaEye />, 
-          href: "/dashboard/comprobantes_liquidacion",
-          permiso: "Ver Comprobantes de Liquidación" 
-        },
-        { 
-          name: "Anular Liquidación", 
-          icon: <FaBan />, 
-          href: "/dashboard/anular_liquidacion",
-          permiso: "Anular Liquidacion" 
-        },
-      ],
-      menuKey: "liquidacion",
-      permiso: "Liquidacion"
-    },
-
-    {
-      name: "Facturas de Exportación",
-      icon: <FaGlobe />,
-      href: "#",
-      subMenu: [
-        { 
-          name: "Ver Facturas de Exportación", 
-          icon: <FaEye />, 
-          href: "/dashboard/facturas_exportacion",
-          permiso: "Ver Facturas de Exportación" 
-        },
-        { 
-          name: "Anular Facturas de Exportación", 
-          icon: <FaBan />, 
-          href: "/dashboard/anular_factura_exportacion",
-          permiso: "Anular Facturas de Exportación" 
-        },
-      ],
-      menuKey: "exportacion",
-      permiso: "Facturas de Exportación"
-    },
-
-    // ⚠️ Contingencia
-    { 
-      name: "Contingencia", 
-      icon: <FaExclamationTriangle />, 
-      href: "/dashboard/contingencia",
-      permiso: "Contingencia" 
+      permiso: "Compras",
+      color: "bg-lime-900",
+      borderColor: "border-lime-500",
+      activeColor: "bg-lime-700"
     },
 
     { 
@@ -509,7 +627,10 @@ export default function Sidebar({ onOpenPerfil }) {
         href: "#",
         subMenu: adminSubMenu,
         menuKey: "admin",
-        permiso: "Administración"
+        permiso: "Administración",
+        color: "bg-gray-900",
+        borderColor: "border-gray-500",
+        activeColor: "bg-gray-700"
       });
     }
   }
@@ -532,8 +653,8 @@ export default function Sidebar({ onOpenPerfil }) {
 
         {/* Navigation */}
         <nav className="flex-1 py-6 px-3 overflow-y-auto">
-          <ul className="space-y-1">
-            {menuItems.map(({ name, icon, href, subMenu, menuKey }) => (
+          <ul className="space-y-2">
+            {menuItems.map(({ name, icon, href, subMenu, menuKey, color, borderColor, activeColor }) => (
               <li key={name}>
                 {subMenu ? (
                   <div className="group">
@@ -541,18 +662,16 @@ export default function Sidebar({ onOpenPerfil }) {
                     <button
                       className={`
                         w-full flex items-center justify-between px-4 py-3 text-blue-100 rounded-xl 
-                        transition-all duration-300 ease-out group-hover:scale-105
+                        transition-all duration-300 ease-out mb-1
                         ${openMenus[menuKey] 
-                          ? 'bg-gradient-to-r from-sky-500/80 to-cyan-500/80 text-white shadow-lg shadow-blue-500/25 ring-1 ring-white/20' 
-                          : 'hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 hover:text-white hover:shadow-md hover:shadow-blue-500/20'
+                          ? `${activeColor} text-white shadow-lg border-l-4 ${borderColor}` 
+                          : 'hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 hover:text-white hover:shadow-md'
                         }
                       `}
                       onClick={() => toggleMenu(menuKey)}
-                      onMouseEnter={() => setHoveredItem(menuKey)}
-                      onMouseLeave={() => setHoveredItem(null)}
                     >
                       <div className="flex items-center">
-                        <span className={`text-lg transition-all duration-300 ${hoveredItem === menuKey ? 'scale-110' : ''}`}>
+                        <span className={`text-lg transition-all duration-300 ${openMenus[menuKey] ? 'scale-110' : ''}`}>
                           {icon}
                         </span>
                         <span className="ml-3 font-medium">{name}</span>
@@ -565,63 +684,72 @@ export default function Sidebar({ onOpenPerfil }) {
                       </span>
                     </button>
                     
-                    {/* Submenu */}
+                    {/* Submenu con fondo sólido y borde destacado */}
                     <div className={`
                       overflow-hidden transition-all duration-300 ease-out
-                      ${openMenus[menuKey] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
+                      ${openMenus[menuKey] ? 'max-h-96 opacity-100 mb-2' : 'max-h-0 opacity-0'}
                     `}>
-                      <ul className="mt-2 ml-4 space-y-1 border-l-2 border-blue-400/30 pl-4">
-                        {subMenu
-                          .filter(subItem => tienePermiso(subItem.permiso))
-                          .map(({ name: subName, icon: subIcon, href: subHref }, index) => (
-                          <li 
-                            key={subName}
-                            className={`
-                              transform transition-all duration-300 ease-out
-                              ${openMenus[menuKey] 
-                                ? `translate-x-0 opacity-100` 
-                                : 'translate-x-4 opacity-0'
-                              }
-                            `}
-                            style={{
-                              transitionDelay: openMenus[menuKey] ? `${index * 50}ms` : '0ms'
-                            }}
-                          >
-                            <Link
-                              href={subHref}
-                              className="
-                                flex items-center px-3 py-2.5 text-blue-200 rounded-lg 
-                                transition-all duration-300 ease-out relative overflow-hidden
-                                hover:bg-gradient-to-r hover:from-indigo-500/40 hover:to-purple-500/40 
-                                hover:text-white hover:shadow-md hover:shadow-indigo-500/20
-                                hover:translate-x-1 hover:scale-105
-                                before:absolute before:left-0 before:top-0 before:h-full before:w-1 
-                                before:bg-gradient-to-b before:from-cyan-400 before:to-blue-500 
-                                before:transform before:scale-y-0 before:transition-transform 
-                                before:duration-300 hover:before:scale-y-100
-                              "
+                      <div className={`
+                        rounded-lg ${color} border-2 ${borderColor} 
+                        shadow-lg p-2 ml-2
+                      `}>
+                        <ul className="space-y-1">
+                          {subMenu
+                            .filter(subItem => tienePermiso(subItem.permiso))
+                            .map(({ name: subName, icon: subIcon, href: subHref }, index) => (
+                            <li 
+                              key={subName}
+                              className={`
+                                transform transition-all duration-300 ease-out
+                                ${openMenus[menuKey] 
+                                  ? `translate-x-0 opacity-100` 
+                                  : 'translate-x-4 opacity-0'
+                                }
+                              `}
+                              style={{
+                                transitionDelay: openMenus[menuKey] ? `${index * 50}ms` : '0ms'
+                              }}
                             >
-                              <span className="text-base">{subIcon}</span>
-                              <span className="ml-3 text-sm font-medium">{subName}</span>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
+                              <Link
+                                href={subHref}
+                                className={`
+                                  flex items-center px-3 py-2.5 text-white rounded-lg 
+                                  transition-all duration-200 ease-out relative
+                                  ${isActive(subHref) 
+                                    ? `bg-white/30 border-l-4 ${borderColor} font-semibold` 
+                                    : 'hover:bg-white/20'
+                                  }
+                                `}
+                              >
+                                <span className="text-base">{subIcon}</span>
+                                <span className="ml-3 text-sm">{subName}</span>
+                                {isActive(subHref) && (
+                                  <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                                )}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 ) : (
                   <Link
                     href={href}
-                    className="
+                    className={`
                       flex items-center px-4 py-3 text-blue-100 rounded-xl 
-                      transition-all duration-300 ease-out group relative overflow-hidden
-                      hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 
-                      hover:text-white hover:shadow-md hover:shadow-blue-500/20 
-                      hover:scale-105 hover:translate-x-1
-                    "
+                      transition-all duration-300 ease-out
+                      ${isActive(href) 
+                        ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-lg' 
+                        : 'hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 hover:text-white hover:shadow-md'
+                      }
+                    `}
                   >
-                    <span className="text-lg">{icon}</span>
+                    <span className={`text-lg ${isActive(href) ? 'scale-110' : ''}`}>{icon}</span>
                     <span className="ml-3 font-medium">{name}</span>
+                    {isActive(href) && (
+                      <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                    )}
                   </Link>
                 )}
               </li>
@@ -648,15 +776,21 @@ export default function Sidebar({ onOpenPerfil }) {
             <Link
               href="/dashboard/editar_perfil"
               scroll={false}
-              className="
+              className={`
                 flex items-center justify-center w-full px-4 py-3 text-blue-200 
                 border border-blue-500/50 rounded-xl transition-all duration-300 
-                hover:bg-gradient-to-r hover:from-blue-600/60 hover:to-indigo-600/60 
-                hover:text-white hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/25
-              "
+                ${isActive('/dashboard/editar_perfil') 
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-400' 
+                  : 'hover:bg-gradient-to-r hover:from-blue-600/60 hover:to-indigo-600/60 hover:text-white hover:border-blue-400'
+                }
+                hover:shadow-lg hover:shadow-blue-500/25
+              `}
             >
               <FaUserAlt className="text-base" />
               <span className="ml-3 font-medium">{perfilLabel}</span>
+              {isActive('/dashboard/editar_perfil') && (
+                <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              )}
             </Link>
           </div>
         )}
