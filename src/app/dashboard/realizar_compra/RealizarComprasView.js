@@ -490,7 +490,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     }
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50">
+        <div className="text-black flex flex-col h-screen bg-gray-50">
             {isMobile && sidebarOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-30" onClick={() => setSidebarOpen(false)}></div>
             )}

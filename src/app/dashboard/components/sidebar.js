@@ -270,10 +270,7 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "dtes",
-      permiso: "DTES",
-      color: "bg-purple-900",
-      borderColor: "border-purple-500",
-      activeColor: "bg-purple-700"
+      permiso: "DTES"
     },
 
     // 🧾 Facturas
@@ -296,10 +293,7 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "facturas",
-      permiso: "Facturas",
-      color: "bg-emerald-900",
-      borderColor: "border-emerald-500",
-      activeColor: "bg-emerald-700"
+      permiso: "Facturas"
     },
 
     // 💳 Créditos
@@ -328,10 +322,7 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "creditos",
-      permiso: "Créditos",
-      color: "bg-amber-900",
-      borderColor: "border-amber-500",
-      activeColor: "bg-amber-700"
+      permiso: "Créditos"
     },
 
     // 🚚 Notas de Remisión
@@ -354,10 +345,7 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "remision",
-      permiso: "Notas de Remisión",
-      color: "bg-orange-900",
-      borderColor: "border-orange-500",
-      activeColor: "bg-orange-700"
+      permiso: "Notas de Remisión"
     },
 
     // 📜 Comprobante de Liquidación Electrónico (Sujeto Excluido)
@@ -380,10 +368,7 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "sujeto_excluido",
-      permiso: "Facturas Sujeto Excluido",
-      color: "bg-teal-900",
-      borderColor: "border-teal-500",
-      activeColor: "bg-teal-700"
+      permiso: "Facturas Sujeto Excluido"
     },
 
     {
@@ -405,10 +390,7 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "liquidacion",
-      permiso: "Liquidacion",
-      color: "bg-cyan-900",
-      borderColor: "border-cyan-500",
-      activeColor: "bg-cyan-700"
+      permiso: "Liquidacion"
     },
 
     {
@@ -430,10 +412,7 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "exportacion",
-      permiso: "Facturas de Exportación",
-      color: "bg-violet-900",
-      borderColor: "border-violet-500",
-      activeColor: "bg-violet-700"
+      permiso: "Facturas de Exportación"
     },
 
     // ⚠️ Contingencia
@@ -469,10 +448,7 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "contribuyentes",
-      permiso: "Ventas a Contribuyentes",
-      color: "bg-rose-900",
-      borderColor: "border-rose-500",
-      activeColor: "bg-rose-700"
+      permiso: "Ventas a Contribuyentes"
     },
 
     // 👤 VENTAS A CONSUMIDOR FINAL
@@ -501,10 +477,7 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "consumidorfinal",
-      permiso: "Ventas a Consumidor Final",
-      color: "bg-pink-900",
-      borderColor: "border-pink-500",
-      activeColor: "bg-pink-700"
+      permiso: "Ventas a Consumidor Final"
     },
     
     {
@@ -526,10 +499,7 @@ export default function Sidebar({ onOpenPerfil }) {
         },
       ],
       menuKey: "compras",
-      permiso: "Compras",
-      color: "bg-lime-900",
-      borderColor: "border-lime-500",
-      activeColor: "bg-lime-700"
+      permiso: "Compras"
     },
 
     { 
@@ -627,10 +597,7 @@ export default function Sidebar({ onOpenPerfil }) {
         href: "#",
         subMenu: adminSubMenu,
         menuKey: "admin",
-        permiso: "Administración",
-        color: "bg-gray-900",
-        borderColor: "border-gray-500",
-        activeColor: "bg-gray-700"
+        permiso: "Administración"
       });
     }
   }
@@ -653,8 +620,8 @@ export default function Sidebar({ onOpenPerfil }) {
 
         {/* Navigation */}
         <nav className="flex-1 py-6 px-3 overflow-y-auto">
-          <ul className="space-y-2">
-            {menuItems.map(({ name, icon, href, subMenu, menuKey, color, borderColor, activeColor }) => (
+          <ul className="space-y-1">
+            {menuItems.map(({ name, icon, href, subMenu, menuKey }) => (
               <li key={name}>
                 {subMenu ? (
                   <div className="group">
@@ -662,36 +629,36 @@ export default function Sidebar({ onOpenPerfil }) {
                     <button
                       className={`
                         w-full flex items-center justify-between px-4 py-3 text-blue-100 rounded-xl 
-                        transition-all duration-300 ease-out mb-1
+                        transition-all duration-200 ease-out mb-1
                         ${openMenus[menuKey] 
-                          ? `${activeColor} text-white shadow-lg border-l-4 ${borderColor}` 
-                          : 'hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 hover:text-white hover:shadow-md'
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-400 text-white shadow-lg border-l-4 border-blue-300' 
+                          : 'hover:bg-gradient-to-r hover:from-blue-700/60 hover:to-blue-600/60 hover:text-white hover:shadow-md'
                         }
                       `}
                       onClick={() => toggleMenu(menuKey)}
                     >
                       <div className="flex items-center">
-                        <span className={`text-lg transition-all duration-300 ${openMenus[menuKey] ? 'scale-110' : ''}`}>
+                        <span className={`text-lg ${openMenus[menuKey] ? 'text-white' : ''}`}>
                           {icon}
                         </span>
                         <span className="ml-3 font-medium">{name}</span>
                       </div>
                       <span className={`
-                        text-sm transition-all duration-300 ease-out
-                        ${openMenus[menuKey] ? 'rotate-180' : 'rotate-0'}
+                        text-sm transition-all duration-200 ease-out
+                        ${openMenus[menuKey] ? 'rotate-180 text-white' : 'text-blue-300'}
                       `}>
                         <FaChevronDown />
                       </span>
                     </button>
                     
-                    {/* Submenu con fondo sólido y borde destacado */}
+                    {/* Submenu con fondo azul más claro */}
                     <div className={`
-                      overflow-hidden transition-all duration-300 ease-out
+                      overflow-hidden transition-all duration-200 ease-out
                       ${openMenus[menuKey] ? 'max-h-96 opacity-100 mb-2' : 'max-h-0 opacity-0'}
                     `}>
                       <div className={`
-                        rounded-lg ${color} border-2 ${borderColor} 
-                        shadow-lg p-2 ml-2
+                        rounded-lg bg-blue-800/80 border border-blue-700/50 
+                        shadow-inner p-2 ml-3 backdrop-blur-sm
                       `}>
                         <ul className="space-y-1">
                           {subMenu
@@ -700,31 +667,36 @@ export default function Sidebar({ onOpenPerfil }) {
                             <li 
                               key={subName}
                               className={`
-                                transform transition-all duration-300 ease-out
+                                transform transition-all duration-200 ease-out
                                 ${openMenus[menuKey] 
                                   ? `translate-x-0 opacity-100` 
                                   : 'translate-x-4 opacity-0'
                                 }
                               `}
                               style={{
-                                transitionDelay: openMenus[menuKey] ? `${index * 50}ms` : '0ms'
+                                transitionDelay: openMenus[menuKey] ? `${index * 30}ms` : '0ms'
                               }}
                             >
                               <Link
                                 href={subHref}
                                 className={`
-                                  flex items-center px-3 py-2.5 text-white rounded-lg 
-                                  transition-all duration-200 ease-out relative
+                                  flex items-center px-3 py-2.5 text-blue-100 rounded-lg 
+                                  transition-all duration-150 ease-out relative group
                                   ${isActive(subHref) 
-                                    ? `bg-white/30 border-l-4 ${borderColor} font-semibold` 
-                                    : 'hover:bg-white/20'
+                                    ? 'bg-gradient-to-r from-blue-600/60 to-blue-400/60 text-white border-l-4 border-blue-300 font-semibold' 
+                                    : 'hover:bg-gradient-to-r hover:from-blue-700/40 hover:to-blue-600/40 hover:text-white'
                                   }
                                 `}
                               >
                                 <span className="text-base">{subIcon}</span>
                                 <span className="ml-3 text-sm">{subName}</span>
                                 {isActive(subHref) && (
-                                  <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                                  <div className="ml-auto w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
+                                )}
+                                {!isActive(subHref) && (
+                                  <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <FaChevronRight className="text-xs text-blue-300" />
+                                  </div>
                                 )}
                               </Link>
                             </li>
@@ -738,17 +710,22 @@ export default function Sidebar({ onOpenPerfil }) {
                     href={href}
                     className={`
                       flex items-center px-4 py-3 text-blue-100 rounded-xl 
-                      transition-all duration-300 ease-out
+                      transition-all duration-200 ease-out relative
                       ${isActive(href) 
-                        ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-lg' 
-                        : 'hover:bg-gradient-to-r hover:from-sky-600/60 hover:to-cyan-600/60 hover:text-white hover:shadow-md'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg border-l-4 border-blue-300' 
+                        : 'hover:bg-gradient-to-r hover:from-blue-700/60 hover:to-blue-600/60 hover:text-white hover:shadow-md'
                       }
                     `}
                   >
-                    <span className={`text-lg ${isActive(href) ? 'scale-110' : ''}`}>{icon}</span>
+                    <span className={`text-lg ${isActive(href) ? 'text-white' : ''}`}>{icon}</span>
                     <span className="ml-3 font-medium">{name}</span>
                     {isActive(href) && (
-                      <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                      <div className="ml-auto w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
+                    )}
+                    {!isActive(href) && (
+                      <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FaChevronRight className="text-xs text-blue-300" />
+                      </div>
                     )}
                   </Link>
                 )}
@@ -780,8 +757,8 @@ export default function Sidebar({ onOpenPerfil }) {
                 flex items-center justify-center w-full px-4 py-3 text-blue-200 
                 border border-blue-500/50 rounded-xl transition-all duration-300 
                 ${isActive('/dashboard/editar_perfil') 
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-400' 
-                  : 'hover:bg-gradient-to-r hover:from-blue-600/60 hover:to-indigo-600/60 hover:text-white hover:border-blue-400'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border-blue-400' 
+                  : 'hover:bg-gradient-to-r hover:from-blue-700/60 hover:to-blue-600/60 hover:text-white hover:border-blue-400'
                 }
                 hover:shadow-lg hover:shadow-blue-500/25
               `}
@@ -789,7 +766,7 @@ export default function Sidebar({ onOpenPerfil }) {
               <FaUserAlt className="text-base" />
               <span className="ml-3 font-medium">{perfilLabel}</span>
               {isActive('/dashboard/editar_perfil') && (
-                <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                <div className="ml-auto w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
               )}
             </Link>
           </div>
@@ -803,7 +780,7 @@ export default function Sidebar({ onOpenPerfil }) {
             className="
               flex items-center justify-center w-full px-4 py-3 text-blue-200 
               border border-red-500/50 rounded-xl transition-all duration-300 
-              hover:bg-gradient-to-r hover:from-red-600/60 hover:to-rose-600/60 
+              hover:bg-gradient-to-r hover:from-red-600/60 hover:to-red-500/60 
               hover:text-white hover:border-red-400 hover:shadow-lg hover:shadow-red-500/25
             "
           >

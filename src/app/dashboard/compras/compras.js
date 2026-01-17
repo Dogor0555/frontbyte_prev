@@ -507,7 +507,7 @@ export default function Compras({ initialCompras = [], initialProveedores = [], 
     };
 
     return (
-        <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
+        <div className="text-black flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
             {isMobile && sidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 z-30"
