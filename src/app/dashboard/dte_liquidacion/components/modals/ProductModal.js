@@ -16,7 +16,7 @@ export default function ProductModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [cantidad, setCantidad] = useState(1);
   const [impuestoSeleccionado, setImpuestoSeleccionado] = useState("20");
-  const [tipoVenta, setTipoVenta] = useState("1");
+  const [tipoVenta, setTipoVenta] = useState("2"); // Exento por defecto
   const [tipoProducto, setTipoProducto] = useState("1");
   const [isMobile, setIsMobile] = useState(false);
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(false);
@@ -210,7 +210,7 @@ export default function ProductModal({
     setSearchTerm("");
     setCantidad(1);
     setImpuestoSeleccionado("20");
-    setTipoVenta("1");
+    setTipoVenta("2"); // Exento por defecto
     setMostrarAlertaStock(false);
     setStockDisponible(0);
     setTributos([]);
