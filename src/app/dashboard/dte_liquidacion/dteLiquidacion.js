@@ -89,11 +89,14 @@ export default function LiquidacionViewComplete({ initialProductos = [], initial
   const [emisorNombre, setEmisorNombre] = useState("");
   const [tributosDetallados, setTributosDetallados] = useState({});
 
-  // Nuevo estado para retención de IVA
+  // Estado para gestionar RETENCIÓN DE IVA
+  // - La retención es un tributo que se descuenta del IVA generado en la transacción
+  // - Algunos vendedores deben retener un porcentaje del IVA (1% o 13%) según regulaciones
+  // - Este monto se deducirá del total a pagar al cliente
   const [retencionIVA, setRetencionIVA] = useState({
-    aplicar: false,
-    porcentaje: 1, // 1% o 13%
-    monto: 0
+    aplicar: false,          // Determina si se aplica retención en esta transacción
+    porcentaje: 1,           // Porcentaje de retención (1% o 13%)
+    monto: 0                 // Monto calculado de retención
   });
 
   // Nuevos estados para el MensajeModal
@@ -855,7 +858,9 @@ const descargarTicketFactura = async (idFactura) => {
           totalNoSuj: parseFloat(noSujetasConDescuento.toFixed(2)),
           totalExenta: parseFloat(exentasConDescuento.toFixed(2)),
           totalGravada: parseFloat(gravadasBase.toFixed(2)),
-          totalIva: 0.00, // Para la vista previa, el total de IVA se mostrará como 0
+          // PERCEPCIÓN DE IVA (Vista Previa): Total de IVA generado en la transacción
+          // En vista previa se muestra como 0 para propósitos de presentación
+          totalIva: 0.00,
           subTotal: parseFloat(subtotal - totaldescuento).toFixed(2),
           totalPagar: parseFloat(totalPagar.toFixed(2)),
           montoTotalOperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
@@ -881,10 +886,19 @@ const descargarTicketFactura = async (idFactura) => {
 
       sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
       totaldescuento: parseFloat(totaldescuento.toFixed(2)),
+      // VALOR IVA (valoriva): Monto total del IVA generado en la transacción
+      // Se calcula sobre la base gravada de acuerdo a la tasa del 13%
+      // Fórmula: (base gravada * 13%) / (100 + 13)
       valoriva: parseFloat(ivaIncluido.toFixed(2)), 
       subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
+      // PERCEPCIÓN DE IVA: Total del IVA que se genera en esta transacción
+      // Se incluye en el precio final que paga el cliente
       ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
-      ivarete1: retencionIVA.aplicar ? parseFloat(retencionIVA.monto.toFixed(2)) : 0.00, // RETENCIÓN IVA
+      // RETENCIÓN DE IVA (ivarete1): Porcentaje del IVA que se retiene
+      // - Si aplicar = true, se retiene el porcentaje especificado
+      // - Típicamente es 1% o 13% según la naturaleza del cliente
+      // - Este monto se deduce del IVA percibido
+      ivarete1: retencionIVA.aplicar ? parseFloat(retencionIVA.monto.toFixed(2)) : 0.00,
       montototalope: parseFloat(subtotal - totaldescuento).toFixed(2),
       totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
       totalapagar: parseFloat(totalPagar.toFixed(2)),
@@ -895,6 +909,8 @@ const descargarTicketFactura = async (idFactura) => {
       totalnosuj: parseFloat(noSujetasConDescuento.toFixed(2)),
       totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
       totalgravada: parseFloat(gravadasBase.toFixed(2)),
+      // SUBTOTAL VENTAS: Suma total de todas las ventas antes de aplicar tributos
+      // Se utiliza como base para calcular la PERCEPCIÓN DE IVA
       subtotalventas: parseFloat(subtotal.toFixed(2)),
 
       descunosuj: 0.00,
@@ -907,12 +923,19 @@ const descargarTicketFactura = async (idFactura) => {
       descripciont: "",
       valort: 0.00,
 
+      // PERCEPCIÓN DE IVA: Monto del IVA que se percibe/genera en la transacción
+      // Se calcula como: (base gravada * 13%) / (100 + 13)
       ivaperci1: parseFloat(ivaIncluido.toFixed(2)),
+      // RETENCIÓN DE RENTA: Monto retenido por concepto de impuesto a la renta
+      // Generalmente es 0 en transacciones normales, se aplica en casos especiales
       reterenta: 0.00,
 
       montototaloperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
       totalpagar: parseFloat(totalPagar.toFixed(2)),
       totalletras: convertirNumeroALetras(totalPagar),
+      // PERCEPCIÓN DE IVA (totaliva): Total del IVA generado en la transacción
+      // Este es el tributo que se percibe sobre las ventas gravadas
+      // Se calcula sobre la base imponible después de descuentos
       totaliva: parseFloat(ivaIncluido.toFixed(2)),
       saldofavor: 0.00,
 
@@ -984,22 +1007,35 @@ const descargarTicketFactura = async (idFactura) => {
     return `${textoEntero} CON ${textoDecimales} DÓLARES`;
   };
 
-  // Función para calcular la retención de IVA
+  // ============================================================
+  // FUNCIÓN: Calcular RETENCIÓN DE IVA
+  // ============================================================
+  // La RETENCIÓN DE IVA es un tributo que retiene el Estado sobre el IVA
+  // generado en ciertas transacciones. Es obligatorio para algunos vendedores
+  // y se aplica sobre el total de ventas gravadas.
+  //
+  // EJEMPLO: Si las ventas gravadas son $1,000 y la tasa de retención es 1%,
+  // entonces se retiene $10 de IVA.
+  //
+  // Esta retención se deduce del IVA percibido en la transacción
+  // ============================================================
   const calcularRetencionIVA = (porcentaje = null) => {
     const porc = porcentaje !== null ? porcentaje : retencionIVA.porcentaje;
     
-    // Calcular base gravada después de descuentos
+    // 1. Obtener la base gravada (suma de productos e impuestos antes de descuentos)
     const gravadasBase = items
       .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
       .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
     
+    // 2. Restar los descuentos aplicados a items gravados
     const descuentoGravadasItems = items
       .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
       .reduce((sum, item) => sum + (item.descuento || 0), 0);
     
+    // 3. Obtener base final después de descuentos
     const gravadasConDescuento = gravadasBase - descuentoGravadasItems - descuentoGrabadasMonto;
     
-    // Calcular retención
+    // 4. Calcular el monto a retener: (base gravada * porcentaje retención) / 100
     const montoRetencion = (gravadasConDescuento * porc) / 100;
     return parseFloat(montoRetencion.toFixed(2));
   };
@@ -1729,12 +1765,13 @@ const descargarTicketFactura = async (idFactura) => {
               </div>
 
               {/* Retención de IVA */}
+              {/* SECCIÓN COMENTADA - NO MOSTRAR CUADROS DE PERCEPCIÓN/RETENCIÓN IVA
               <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-gray-50">
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">Retención de IVA</h3>
                 
                 <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-6">
                   {/* Checkbox para aplicar retención */}
-                  <div className="flex items-center">
+                  {/* <div className="flex items-center">
                     <input
                       type="checkbox"
                       id="aplicarRetencionIVA"
@@ -1755,7 +1792,7 @@ const descargarTicketFactura = async (idFactura) => {
                   </div>
 
                   {/* Selector de porcentaje */}
-                  {retencionIVA.aplicar && (
+                  {/* {retencionIVA.aplicar && (
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center">
                         <input
@@ -1802,15 +1839,15 @@ const descargarTicketFactura = async (idFactura) => {
                       </div>
 
                       {/* Mostrar monto calculado */}
-                      <div className="ml-4">
+                      {/* <div className="ml-4">
                         <span className="text-sm text-gray-600">Monto a retener:</span>
                         <span className="ml-2 font-semibold text-red-600">
                           {formatMoney(retencionIVA.monto)}
                         </span>
                       </div>
                     </div>
-                  )}
-                </div>
+                  )} */}
+                {/* </div>
 
                 {retencionIVA.aplicar && (
                   <div className="mt-3 text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
@@ -1820,7 +1857,8 @@ const descargarTicketFactura = async (idFactura) => {
                     </p>
                   </div>
                 )}
-              </div>
+              </div> */}
+              {/* FIN SECCIÓN COMENTADA */}
 
               <FormaPago 
                 condicionPago={condicionPago}

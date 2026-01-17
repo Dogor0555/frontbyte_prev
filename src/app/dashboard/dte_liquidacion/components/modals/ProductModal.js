@@ -28,6 +28,15 @@ export default function ProductModal({
   const [precioEditable, setPrecioEditable] = useState(0);
   const [errorDescuento, setErrorDescuento] = useState("");
 
+  const calcularPreciso = (operacion, decimales = 10) => {
+    return parseFloat(operacion.toFixed(decimales));
+  };
+
+  // Función para mostrar con 2 decimales
+  const mostrarDecimales = (valor, decimales = 2) => {
+    return parseFloat(valor).toFixed(decimales);
+  };
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -72,44 +81,86 @@ export default function ProductModal({
     }
   }, [productoSeleccionado]);
 
-  // CORRECCIÓN: Manejar tributos según tipo de venta
+  const calcularPrecioConDescuento = (precioBruto, descuentoTotal, cantidad) => {
+    const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(descuentoTotal / cantidad, 10) : 0;
+    const precioConDescuento = Math.max(0, calcularPreciso(precioBruto - descuentoPorUnidad, 10));
+    return precioConDescuento;
+  };
+
+  const calcularPrecioNetoEIVA = (precioBrutoConDescuento) => {
+    const precioNeto = calcularPreciso(precioBrutoConDescuento / 1.13, 10);
+    const iva = calcularPreciso(precioBrutoConDescuento - precioNeto, 10);
+    return {
+      neto: precioNeto,
+      iva: iva,
+      bruto: parseFloat(precioBrutoConDescuento)
+    };
+  };
+
+  const calcularValorImpuesto = (codigoImpuesto, subtotalNeto) => {
+    const tasas = {
+      "20": 0.13,
+      "59": 0.05, 
+      "C5": 0.08,
+      "C6": 0.39, 
+      "C7": 1.00, 
+    };
+    
+    const tasa = tasas[codigoImpuesto] || 0;
+    return calcularPreciso(subtotalNeto * tasa, 10);
+  };
+
   useEffect(() => {
     if (tipoVenta === "1") {
-      // Gravado - Agregar IVA automáticamente si no existe
       const ivaExiste = tributos.some(t => t.codigo === "20");
       
       if (!ivaExiste && productoSeleccionado) {
-        const precio = precioEditable;
-        const subtotal = cantidad * precio;
-        const subtotalConDescuento = Math.max(0, subtotal - descuentoAplicado);
-        const valorImpuesto = calcularValorImpuesto("20", subtotalConDescuento);
+        const precioBruto = precioEditable;
+        const precioBrutoConDescuento = calcularPrecioConDescuento(precioBruto, valorDescuento, cantidad);
+        const { neto: precioNeto } = calcularPrecioNetoEIVA(precioBrutoConDescuento);
+        const subtotalNeto = calcularPreciso(cantidad * precioNeto, 10);
+        const valorImpuesto = calcularValorImpuesto("20", subtotalNeto);
         
         const ivaTributo = {
           codigo: "20",
           descripcion: obtenerDescripcionImpuesto("20"),
-          valor: parseFloat(valorImpuesto.toFixed(2))
+          valor: valorImpuesto
         };
         
         setTributos([ivaTributo]);
       }
     } else {
-      // Exento o No Sujeto - Remover IVA si existe
       setTributos(tributos.filter(t => t.codigo !== "20"));
     }
-  }, [tipoVenta, productoSeleccionado, cantidad, descuentoAplicado, precioEditable]);
+  }, [tipoVenta, productoSeleccionado, cantidad, valorDescuento, precioEditable]);
 
+  useEffect(() => {
+    if (productoSeleccionado && tributos.length > 0) {
+      const precioBruto = precioEditable;
+      const precioBrutoConDescuento = calcularPrecioConDescuento(precioBruto, valorDescuento, cantidad);
+      const { neto: precioNeto } = calcularPrecioNetoEIVA(precioBrutoConDescuento);
+      const subtotalNeto = calcularPreciso(cantidad * precioNeto, 10);
+      
+      const tributosActualizados = tributos.map(tributo => ({
+        ...tributo,
+        valor: calcularValorImpuesto(tributo.codigo, subtotalNeto)
+      }));
+      
+      setTributos(tributosActualizados);
+    }
+  }, [valorDescuento, cantidad, productoSeleccionado, precioEditable]);
+  
   const validarDescuento = (valorDescuento, productoSeleccionado, cantidad) => {
     if (!productoSeleccionado) {
       setErrorDescuento("");
       return true;
     }
-
-    const precio = precioEditable;
-    const subtotalSinDescuento = (cantidad * precio);
+  
+    const subtotalBruto = calcularPreciso(precioEditable * cantidad, 10);
     const descuento = parseFloat(valorDescuento) || 0;
-
-    if (descuento > subtotalSinDescuento) {
-      setErrorDescuento(`El descuento no puede ser mayor al subtotal (${formatMoney(subtotalSinDescuento)})`);
+  
+    if (descuento > subtotalBruto) {
+      setErrorDescuento(`El descuento no puede ser mayor al subtotal (${formatMoney(subtotalBruto)})`);
       return false;
     } else {
       setErrorDescuento("");
@@ -117,31 +168,28 @@ export default function ProductModal({
     }
   };
 
-  const calcularDescuento = () => {
+  const calcularDescuento = (valor, producto, cant) => {
     if (!productoSeleccionado) {
       setDescuentoAplicado(0);
       return;
     }
-
-    const precio = precioEditable;
-    const subtotalSinDescuento = (cantidad * precio);
-    const descuento = parseFloat(valorDescuento) || 0;
+  
+    const subtotalBruto = calcularPreciso(precioEditable * cant, 10);
+    const descuento = parseFloat(valor) || 0;
     
-    // Validar que el descuento no sea mayor al subtotal
-    if (descuento > subtotalSinDescuento) {
+    if (descuento > subtotalBruto) {
       setDescuentoAplicado(0);
       return;
     }
     
-    const descuentoFinal = Math.min(descuento, subtotalSinDescuento);
+    const descuentoFinal = Math.min(descuento, subtotalBruto);
     setDescuentoAplicado(descuentoFinal);
   };
 
   const handleValorDescuentoChange = (value) => {
     const numericValue = value === "" ? "" : parseFloat(value);
     setValorDescuento(numericValue);
-    
-    // Validar en tiempo real
+
     if (productoSeleccionado) {
       validarDescuento(numericValue, productoSeleccionado, cantidad);
     }
@@ -149,9 +197,8 @@ export default function ProductModal({
 
   useEffect(() => {
     if (productoSeleccionado) {
-      calcularDescuento();
-      // Validar el descuento actual cuando cambia el producto o cantidad
-      validarDescuento(valorDescuento, productoSeleccionado, cantidad, precioEditable);
+      calcularDescuento(valorDescuento, productoSeleccionado, cantidad);
+      validarDescuento(valorDescuento, productoSeleccionado, cantidad);
     } else {
       setDescuentoAplicado(0);
       setErrorDescuento("");
@@ -232,51 +279,38 @@ export default function ProductModal({
     return impuestos[codigo] || "Impuesto no especificado";
   };
 
-  const calcularValorImpuesto = (codigoImpuesto, subtotal) => {
-    const tasas = {
-      "20": 0.13, 
-      "59": 0.05, 
-      "C5": 0.08,
-      "C6": 0.39, 
-      "C7": 1.00, 
-    };
-    
-    const tasa = tasas[codigoImpuesto] || 0;
-    return subtotal * tasa;
-  };
-
   const formatMoney = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 2
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(amount);
   };
 
   const agregarTributo = () => {
     if (!productoSeleccionado) return;
     
-    // CORRECCIÓN: No permitir agregar tributos para No Sujeto
     if (tipoVenta === "3") {
       alert("No puede agregar tributos a un producto No Sujeto");
       return;
     }
     
-    // CORRECCIÓN: No permitir agregar IVA a productos exentos
     if (tipoVenta === "2" && impuestoSeleccionado === "20") {
       alert("No puede agregar IVA a un producto exento");
       return;
     }
     
-    const precio = precioEditable;
-    const subtotal = cantidad * precio;
-    const subtotalConDescuento = Math.max(0, subtotal - descuentoAplicado);
-    const valorImpuesto = calcularValorImpuesto(impuestoSeleccionado, subtotalConDescuento);
+    const precioBruto = precioEditable;
+    const precioBrutoConDescuento = calcularPrecioConDescuento(precioBruto, valorDescuento, cantidad);
+    const { neto: precioNeto } = calcularPrecioNetoEIVA(precioBrutoConDescuento);
+    const subtotalNeto = calcularPreciso(cantidad * precioNeto, 10);
+    const valorImpuesto = calcularValorImpuesto(impuestoSeleccionado, subtotalNeto);
     
     const nuevoTributo = {
       codigo: impuestoSeleccionado,
       descripcion: obtenerDescripcionImpuesto(impuestoSeleccionado),
-      valor: parseFloat(valorImpuesto.toFixed(2))
+      valor: valorImpuesto
     };
 
     const existe = tributos.some(t => t.codigo === nuevoTributo.codigo);
@@ -289,7 +323,6 @@ export default function ProductModal({
   };
 
   const eliminarTributo = (codigo) => {
-    // CORRECCIÓN: No permitir eliminar IVA de productos gravados
     if (tipoVenta === "1" && codigo === "20") {
       alert("No puede eliminar el IVA de un producto gravado");
       return;
@@ -298,27 +331,53 @@ export default function ProductModal({
     setTributos(tributos.filter(t => t.codigo !== codigo));
   };
 
-  const calcularTotal = () => {
-    if (!productoSeleccionado) return 0;
-    
-    const precio = precioEditable;
-    const subtotal = cantidad * precio;
-    const subtotalConDescuento = Math.max(0, subtotal - descuentoAplicado);
-    
-    // CORRECCIÓN: Para No Sujeto, solo retornar el subtotal con descuento
-    if (tipoVenta === "3") {
-      return subtotalConDescuento;
+const calcularTotal = () => {
+  if (!productoSeleccionado) return 0;
+  
+  const precioBruto = precioEditable;
+  const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(valorDescuento / cantidad, 10) : 0;
+  const precioBrutoConDescuento = calcularPreciso(precioBruto - descuentoPorUnidad, 10);
+  
+  // Para productos exentos y no sujetos, el total es simplemente precio con descuento * cantidad
+  if (tipoVenta === "3" || tipoVenta === "2") {
+    return calcularPreciso(cantidad * precioBrutoConDescuento, 10);
+  }
+  
+  // Para productos gravados, el total es el precio bruto con descuento * cantidad
+  // (ya que el precio bruto incluye el IVA)
+  return calcularPreciso(cantidad * precioBrutoConDescuento, 10);
+};
+
+  const obtenerDesglosePrecios = () => {
+    if (!productoSeleccionado) {
+      return {
+        unitario: { neto: 0, iva: 0, bruto: 0, brutoOriginal: 0, descuento: 0, descuentoTotal: 0 },
+        subtotal: { neto: 0, iva: 0, bruto: 0, brutoOriginal: 0, descuento: 0 }
+      }; 
     }
     
-    if (tipoVenta === "2") {
-      // Exento - sin impuestos
-      return subtotalConDescuento;
-    }
+    const precioBrutoOriginal = parseFloat(productoSeleccionado.precio) || 0;
+    const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(valorDescuento / cantidad, 10) : 0;
+    const precioBrutoConDescuento = calcularPreciso(precioBrutoOriginal - descuentoPorUnidad, 10);
+    const { neto, iva } = calcularPrecioNetoEIVA(precioBrutoConDescuento);
     
-    // Gravado - sumar tributos (incluye IVA automático)
-    const totalImpuestos = tributos.reduce((sum, tributo) => sum + tributo.valor, 0);
-    
-    return subtotalConDescuento + totalImpuestos;
+    return {
+      unitario: { 
+        neto, 
+        iva, 
+        bruto: precioBrutoConDescuento,
+        brutoOriginal: precioBrutoOriginal,
+        descuento: descuentoPorUnidad,
+        descuentoTotal: valorDescuento
+      },
+      subtotal: {
+        neto: calcularPreciso(cantidad * neto, 10),
+        iva: calcularPreciso(cantidad * iva, 10),
+        bruto: calcularPreciso(cantidad * precioBrutoConDescuento, 10),
+        brutoOriginal: calcularPreciso(cantidad * precioBrutoOriginal, 10),
+        descuento: valorDescuento
+      }
+    };
   };
 
   const handleAgregarItem = () => {
@@ -327,7 +386,6 @@ export default function ProductModal({
       return;
     }
 
-    // Validar descuento antes de agregar
     if (!validarDescuento(valorDescuento, productoSeleccionado, cantidad, precioEditable)) {
       alert("El descuento no puede ser mayor al precio del item");
       return;
@@ -366,58 +424,58 @@ export default function ProductModal({
     const esServicio = tipoProducto === "2" || tipoProducto === "3" || productoSeleccionado.es_servicio;
     const necesitaActualizarStock = !esServicio && productoSeleccionado.id;
     
+    const precioBrutoOriginal = precioEditable;
+    const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(valorDescuento / cantidad, 10) : 0;
+    const precioBrutoConDescuento = calcularPreciso(precioBrutoOriginal - descuentoPorUnidad, 10);
+
     const total = calcularTotal();
     
-    // Calcular montos por tipo de venta
     let ventaGravada = 0;
     let ventaExenta = 0;
     let ventaNoSujeta = 0;
     
-    // Calcular descuentos por tipo de venta
     let descuentoGravado = 0;
     let descuentoExento = 0;
     let descuentoNoSujeto = 0;
     
-    const precioUnitario = precioEditable;
-    const subtotalSinDescuento = cantidad * precioUnitario;
+    const subtotalBrutoOriginal = calcularPreciso(cantidad * precioBrutoOriginal, 10);
+    const descuentoTotal = valorDescuento;
     
-    switch (tipoVenta) {
-      case "1": // Gravado
-        ventaGravada = subtotalSinDescuento;
-        descuentoGravado = descuentoAplicado;
-        break;
-      case "2": // Exento
-        ventaExenta = subtotalSinDescuento;
-        descuentoExento = descuentoAplicado;
-        break;
-      case "3": // No sujeto
-        ventaNoSujeta = subtotalSinDescuento;
-        descuentoNoSujeto = descuentoAplicado;
-        break;
+    if (tipoVenta === "1") {
+      const precioNeto = calcularPreciso(precioBrutoConDescuento / 1.13, 10);
+      ventaGravada = calcularPreciso(cantidad * precioNeto, 10);
+      descuentoGravado = descuentoTotal;
+    } else if (tipoVenta === "2") {
+      ventaExenta = calcularPreciso(cantidad * precioBrutoConDescuento, 10);
+      descuentoExento = descuentoTotal;
+    } else if (tipoVenta === "3") {
+      ventaNoSujeta = calcularPreciso(cantidad * precioBrutoConDescuento, 10);
+      descuentoNoSujeto = descuentoTotal;
     }
     
     onAddItem({
       descripcion: productoSeleccionado.nombre,
       cantidad: cantidad,
       codigo: productoSeleccionado.codigo,
-      precioUnitario: precioUnitario,
-      descuento: descuentoAplicado,
+      precioUnitario: precioBrutoOriginal, 
+      precioUnitarioConDescuento: precioBrutoConDescuento, 
+      precioNeto: tipoVenta === "1" ? calcularPreciso(precioBrutoConDescuento / 1.13, 10) : precioBrutoConDescuento,
+      descuento: descuentoTotal, // Descuento total del item
       valorDescuento: valorDescuento,
       unidadMedida: productoSeleccionado.unidad || "59",
       tipo: tipoItem,
-      tributos: tipoVenta === "3" ? [] : tributos, // CORRECCIÓN: No Sujeto no lleva tributos
+      tributos: tipoVenta === "3" ? [] : tributos,
       productoId: !esServicio ? productoSeleccionado.id : null,
       actualizarStock: necesitaActualizarStock,
       stockAnterior: !esServicio ? productoSeleccionado.stock : null,
-      esServicio: esServicio, // Este campo ya existía
-      // Nuevos campos para tipos de venta
-      ventaGravada: (ventaGravada - descuentoGravado),
-      ventaExenta: (ventaExenta - descuentoExento),
-      ventaNoSujeta: (ventaNoSujeta - descuentoNoSujeto),
-      // Nuevos campos para descuentos por tipo
+      esServicio: esServicio,
+      ventaGravada: ventaGravada,
+      ventaExenta: ventaExenta,
+      ventaNoSujeta: ventaNoSujeta,
       descuentoGravado: descuentoGravado,
       descuentoExento: descuentoExento,
-      descuentoNoSujeto: descuentoNoSujeto
+      descuentoNoSujeto: descuentoNoSujeto,
+      total: total
     });
     
     limpiarFormulario();
@@ -434,11 +492,7 @@ export default function ProductModal({
 
   if (!isOpen) return null;
 
-  const subtotalSinDescuento = productoSeleccionado ? 
-    (cantidad * precioEditable) : 0;
-
-  const subtotalConDescuento = Math.max(0, subtotalSinDescuento - descuentoAplicado);
-  const total = calcularTotal();
+  const desglose = obtenerDesglosePrecios();
   const esServicio = tipoProducto === "2" || tipoProducto === "3" || (productoSeleccionado && productoSeleccionado.es_servicio);
   const stockInsuficiente = !esServicio && productoSeleccionado && 
                            productoSeleccionado.stock !== undefined && 
@@ -464,7 +518,7 @@ export default function ProductModal({
             </p>
             
             <p className="text-gray-700 mb-6">
-              ¿Desea continuar con la venta? El stock se actualizará al procesar la factura.
+              ¿Desea continuar con la venta? El stock se actualizará al procesar la nota de crédito.
             </p>
             
             <div className="flex justify-end space-x-3">
@@ -487,7 +541,7 @@ export default function ProductModal({
       
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="bg-gray-800 text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
-          <h2 className="text-xl font-bold">Agregar Producto o Servicio</h2>
+          <h2 className="text-xl font-bold">Agregar Producto o Servicio - Nota de Crédito</h2>
           <button
             onClick={handleClose}
             className="text-white hover:text-gray-300 transition-colors"
@@ -580,7 +634,6 @@ export default function ProductModal({
                 )}
               </div>
 
-              {/* SECCIÓN DE DESCUENTO CON VALIDACIÓN */}
               <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <FaPercent className="mr-2 text-gray-600" />
@@ -588,10 +641,10 @@ export default function ProductModal({
                 </h4>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Monto de descuento:
+                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="descuento-total-item">
+                    Monto de descuento total para este item:
                   </label>
-                  <div className="flex">
+                  <div className="flex" id="descuento-total-item">
                     <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-100 text-gray-500">
                       $
                     </span>
@@ -614,18 +667,18 @@ export default function ProductModal({
                     <p className="text-red-500 text-xs mt-1">{errorDescuento}</p>
                   )}
                   {productoSeleccionado && (
-                    <p className="text-gray-500 text-xs mt-1">
-                      Subtotal: {formatMoney(subtotalSinDescuento)}
+                    <p className="text-gray-500 text-xs mt-1" id="subtotal-original-info">
+                      Subtotal bruto original: {formatMoney(parseFloat(productoSeleccionado.precio) * cantidad)}
                     </p>
                   )}
                 </div>
 
                 {descuentoAplicado > 0 && (
-                  <div className="mt-3 p-2 bg-white rounded border border-gray-200">
+                  <div className="mt-3 p-2 bg-white rounded border border-gray-200" id="descuento-aplicado-info">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Descuento aplicado:</span>
-                      <span className="font-semibold text-gray-900">
-                        -${descuentoAplicado.toFixed(2)}
+                      <span className="text-gray-600">Descuento total aplicado:</span>
+                      <span className="font-semibold text-red-600">
+                        -${mostrarDecimales(descuentoAplicado)}
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
@@ -637,6 +690,7 @@ export default function ProductModal({
                 )}
               </div>
 
+              {/* SECCIÓN COMENTADA - TIPO VENTA FIJO A EXENTO POR AHORA
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo Venta</label>
                 <select 
@@ -648,7 +702,7 @@ export default function ProductModal({
                   <option value="2">Exento</option>
                   <option value="3">No sujeto</option>
                 </select>
-              </div>
+              </div> */}
 
               {!esServicio && productoSeleccionado && productoSeleccionado.stock !== undefined && (
                 <div className={`p-3 rounded-lg border ${
@@ -663,7 +717,7 @@ export default function ProductModal({
                   {stockInsuficiente && (
                     <div className="flex items-center mt-2 text-red-600 text-sm">
                       <FaExclamationTriangle className="mr-1" />
-                      <span>Stock insuficiente - Se venderá en negativo</span>
+                      <span>Stock insuficiente - Se ajustará stock al procesar</span>
                     </div>
                   )}
                 </div>
@@ -731,7 +785,7 @@ export default function ProductModal({
                         <div
                           key={producto.id}
                           className={`p-3 border-b border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors ${
-                            productoSeleccionado?.id === producto.id ? 'bg-blue-100 border-l-4 border-l-blue-500' : ''
+                            productoSeleccionado?.id === producto.id ? 'bg-blue-100 border-l-4 border-blue-500' : ''
                           }`}
                           onClick={() => setProductoSeleccionado(producto)}
                         >
@@ -739,7 +793,7 @@ export default function ProductModal({
                           <div className="text-sm text-gray-600 flex justify-between mt-1">
                             <span>Código: {producto.codigo}</span>
                             <span className="font-semibold text-green-600">
-                              ${parseFloat(producto.precio).toFixed(2)}
+                              ${mostrarDecimales(producto.precio)}
                             </span>
                           </div>
                           <div className="text-xs text-gray-500 mt-1 flex justify-between">
@@ -828,7 +882,7 @@ export default function ProductModal({
                         <div key={index} className="flex justify-between items-center p-2 bg-white rounded border border-gray-200">
                           <div className="flex-1">
                             <div className="text-sm font-medium">{tributo.codigo} - {tributo.descripcion}</div>
-                            <div className="text-xs text-gray-600">${tributo.valor.toFixed(2)}</div>
+                            <div className="text-xs text-gray-600">${mostrarDecimales(tributo.valor)}</div>
                           </div>
                           <button
                             onClick={() => eliminarTributo(tributo.codigo)}
@@ -843,7 +897,6 @@ export default function ProductModal({
                   </div>
                 )}
 
-                {/* CORRECCIÓN: Mensaje informativo para No Sujeto */}
                 {esNoSujeto && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-2">
                     <p className="text-sm text-yellow-800">
@@ -855,34 +908,68 @@ export default function ProductModal({
 
               <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
                 <h4 className="font-semibold text-gray-900 mb-4 text-center">Resumen del Item</h4>
+                
+                {productoSeleccionado && (
+                  <div className="mb-4 p-3 bg-white rounded-lg border border-gray-200">
+                    <h5 className="font-medium text-gray-700 mb-2 text-sm">Desglose Unitario:</h5>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="text-gray-600">Precio Original:</div>
+                      <div className="text-right font-medium">${mostrarDecimales(desglose.unitario.brutoOriginal)}</div>
+                      
+                      <div className="text-gray-600">Descuento:</div>
+                      <div className="text-right font-medium text-red-600">-${mostrarDecimales(desglose.unitario.descuento, 4)}</div>
+                      
+                      <div className="text-gray-600 border-t pt-1">Precio con Descuento:</div>
+                      <div className="text-right font-medium border-t pt-1">${mostrarDecimales(desglose.unitario.bruto)}</div>
+                      
+                      <div className="text-gray-600">Precio Neto:</div>
+                      <div className="text-right font-medium">${mostrarDecimales(desglose.unitario.neto)}</div>
+                      
+                      <div className="text-gray-600">IVA (13%):</div>
+                      <div className="text-right font-medium">${mostrarDecimales(desglose.unitario.iva)}</div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="space-y-3">
                   <div className="flex justify-between py-2">
-                    <span className="text-gray-700">Subtotal:</span>
-                    <span className="font-semibold text-gray-900">${subtotalSinDescuento.toFixed(2)}</span>
+                    <span className="text-gray-700">Subtotal Bruto Original:</span>
+                    <span className="font-semibold text-gray-900">${mostrarDecimales(desglose.subtotal.brutoOriginal)}</span>
                   </div>
                   
                   {descuentoAplicado > 0 && (
                     <div className="flex justify-between py-2 border-t border-gray-100">
-                      <span className="text-gray-700">Descuento:</span>
-                      <span className="font-semibold text-gray-900">-${descuentoAplicado.toFixed(2)}</span>
+                      <span className="text-gray-700">Descuento Total:</span>
+                      <span className="font-semibold text-red-600">-${mostrarDecimales(desglose.subtotal.descuento)}</span>
                     </div>
                   )}
                   
                   <div className="flex justify-between py-2 border-t border-gray-100">
                     <span className="text-gray-700">Subtotal con descuento:</span>
-                    <span className="font-semibold text-gray-900">${subtotalConDescuento.toFixed(2)}</span>
+                    <span className="font-semibold text-gray-900">
+                      ${mostrarDecimales(desglose.subtotal.bruto)}
+                    </span>
                   </div>
                   
-                  {tributos.filter(tributo => tributo.codigo !== "20").map((tributo, index) => (
+                  {tributos.map((tributo, index) => (
                     <div key={index} className="flex justify-between py-1">
-                      <span className="text-sm text-gray-600">{tributo.codigo}: ${tributo.valor.toFixed(2)}</span>
+                      <span className="text-sm text-gray-600">{tributo.descripcion}:</span>
+                      <span className="text-sm font-medium">${mostrarDecimales(tributo.valor)}</span>
                     </div>
                   ))}
                   
                   <div className="flex justify-between py-3 border-t border-gray-300 mt-2">
                     <span className="text-lg font-semibold text-gray-900">Total:</span>
-                    <span className="text-xl font-bold text-blue-700">${total.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-blue-700">${mostrarDecimales(calcularTotal())}</span>
                   </div>
+
+                  {productoSeleccionado && tipoVenta === "1" && (
+                    <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-xs">
+                      <div className="text-green-700 text-center">
+                        Verificación: ${mostrarDecimales(desglose.unitario.neto)} + ${mostrarDecimales(desglose.unitario.iva)} = ${mostrarDecimales(desglose.unitario.bruto)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

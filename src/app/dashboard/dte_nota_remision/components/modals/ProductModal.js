@@ -690,6 +690,7 @@ const calcularTotal = () => {
                 )}
               </div>
 
+              {/* SECCIÓN COMENTADA - TIPO VENTA FIJO A EXENTO POR AHORA
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo Venta</label>
                 <select 
@@ -701,7 +702,7 @@ const calcularTotal = () => {
                   <option value="2">Exento</option>
                   <option value="3">No sujeto</option>
                 </select>
-              </div>
+              </div> */}
 
               {!esServicio && productoSeleccionado && productoSeleccionado.stock !== undefined && (
                 <div className={`p-3 rounded-lg border ${

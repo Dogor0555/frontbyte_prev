@@ -1739,12 +1739,13 @@ export default function NotaRemisionView({ initialProductos = [], initialCliente
               </div>
 
               {/* Retención de IVA */}
+              {/* SECCIÓN COMENTADA - NO MOSTRAR CUADROS DE RETENCIÓN IVA
               <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-gray-50">
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">Retención de IVA</h3>
                 
                 <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-6">
                   {/* Checkbox para aplicar retención */}
-                  <div className="flex items-center">
+                  {/* <div className="flex items-center">
                     <input
                       type="checkbox"
                       id="aplicarRetencionIVA"
@@ -1765,7 +1766,7 @@ export default function NotaRemisionView({ initialProductos = [], initialCliente
                   </div>
 
                   {/* Selector de porcentaje */}
-                  {retencionIVA.aplicar && (
+                  {/* {retencionIVA.aplicar && (
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center">
                         <input
@@ -1812,15 +1813,15 @@ export default function NotaRemisionView({ initialProductos = [], initialCliente
                       </div>
 
                       {/* Mostrar monto calculado */}
-                      <div className="ml-4">
+                      {/* <div className="ml-4">
                         <span className="text-sm text-gray-600">Monto a retener:</span>
                         <span className="ml-2 font-semibold text-red-600">
                           {formatMoney(retencionIVA.monto)}
                         </span>
                       </div>
                     </div>
-                  )}
-                </div>
+                  )} */}
+                {/* </div>
 
                 {retencionIVA.aplicar && (
                   <div className="mt-3 text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
@@ -1830,15 +1831,17 @@ export default function NotaRemisionView({ initialProductos = [], initialCliente
                     </p>
                   </div>
                 )}
-              </div>
+              </div> */}
+              {/* FIN SECCIÓN COMENTADA */}
 
               {/* Percepción de IVA */}
+              {/* SECCIÓN COMENTADA - NO MOSTRAR CUADROS DE PERCEPCIÓN IVA
               <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-gray-50">
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">Percepción de IVA</h3>
                 
                 <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-6">
                   {/* Checkbox para aplicar percepción */}
-                  <div className="flex items-center">
+                  {/* <div className="flex items-center">
                     <input
                       type="checkbox"
                       id="aplicarPercepcionIVA"
@@ -1859,7 +1862,7 @@ export default function NotaRemisionView({ initialProductos = [], initialCliente
                   </div>
 
                   {/* Selector de porcentaje */}
-                  {percepcionIVA.aplicar && (
+                  {/* {percepcionIVA.aplicar && (
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center">
                         <input
@@ -1884,15 +1887,15 @@ export default function NotaRemisionView({ initialProductos = [], initialCliente
                       </div>
 
                       {/* Mostrar monto calculado */}
-                      <div className="ml-4">
+                      {/* <div className="ml-4">
                         <span className="text-sm text-gray-600">Monto a percibir:</span>
                         <span className="ml-2 font-semibold text-blue-600">
                           {formatMoney(percepcionIVA.monto)}
                         </span>
                       </div>
                     </div>
-                  )}
-                </div>
+                  )} */}
+                {/* </div>
 
                 {percepcionIVA.aplicar && (
                   <div className="mt-3 text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
@@ -1902,7 +1905,8 @@ export default function NotaRemisionView({ initialProductos = [], initialCliente
                     </p>
                   </div>
                 )}
-              </div>
+              </div> */}
+              {/* FIN SECCIÓN COMENTADA */}
 
               <FormaPago 
                 condicionPago={condicionPago}
