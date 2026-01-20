@@ -381,8 +381,8 @@ export default function ProductModal({
                 </div>
               </div>
 
-              {/* SECCIÓN DE DESCUENTO CON VALIDACIÓN */}
-              <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
+              {/* SECCIÓN DE DESCUENTO CON VALIDACIÓN - COMENTADO */}
+              {/* <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <FaPercent className="mr-2 text-gray-600" />
                   Descuento (Monto Fijo)
@@ -429,7 +429,7 @@ export default function ProductModal({
                     </div>
                   </div>
                 )}
-              </div>
+              </div> */}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo Venta</label>
