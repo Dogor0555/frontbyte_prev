@@ -66,6 +66,15 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [addQuantity, setAddQuantity] = useState(1);
     const [addPrice, setAddPrice] = useState("");
 
+    const [showDialog, setShowDialog] = useState(false);
+    const [productosNoEncontradosMsg, setProductosNoEncontradosMsg] = useState([]);
+    const [pendingDteData, setPendingDteData] = useState(null);
+    const [selectedProductosToCreate, setSelectedProductosToCreate] = useState({});
+    
+    const [pendingDtes, setPendingDtes] = useState([]);
+    const [currentDteIndex, setCurrentDteIndex] = useState(0);
+    const [isProcessingMultiple, setIsProcessingMultiple] = useState(false);
+
     useEffect(() => {
         const checkMobile = () => {
             const mobile = window.innerWidth < 768;
@@ -198,7 +207,21 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         ).toFixed(2));
     };
 
-    const handleDteLoaded = async (dteData) => {
+    const handleDteLoaded = async (dtesData) => {
+        setIsLoading(true);
+        setIsProcessingMultiple(true);
+        
+        const dtes = Array.isArray(dtesData) ? dtesData : [dtesData];
+        
+
+        if (dtes.length > 0) {
+            setPendingDtes(dtes);
+            setCurrentDteIndex(0);
+            await procesarDteActual(dtes[0]);
+        }
+    };
+
+    const procesarDteActual = async (dteData) => {
         setIsLoading(true);
         try {
             const emisorNit = dteData.emisor.nit;
@@ -237,8 +260,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
             const currentProveedorId = foundProv ? foundProv.id : null;
 
-            const nuevosDetalles = [];
             const productosNoEncontrados = [];
+            const productosACrear = [];
             let currentProductos = [...productos];
 
             for (const item of dteData.cuerpoDocumento) {
@@ -249,37 +272,36 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 }
 
                 if (!foundProd) {
-                    try {
-                        const newProductData = {
-                            nombre: item.descripcion,
-                            codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                            unidad: item.uniMedida || "Unidad",
-                            precio: item.precioUni,
-                            preciooferta: 0,
-                            stock: 0,
-                            es_servicio: item.tipoItem === 2,
-                            idproveedor: currentProveedorId
-                        };
+                    productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
+                    productosACrear.push({
+                        item,
+                        nombre: item.descripcion,
+                        codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                        unidad: item.uniMedida || "Unidad",
+                        precio: item.precioUni,
+                        preciooferta: 0,
+                        stock: 0,
+                        es_servicio: item.tipoItem === 2,
+                        idproveedor: currentProveedorId
+                    });
+                }
+            }
 
-                        const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            credentials: "include",
-                            body: JSON.stringify(newProductData),
-                        });
+            if (productosNoEncontrados.length > 0) {
+                setProductosNoEncontradosMsg(productosNoEncontrados);
+                setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
+                setShowDialog(true);
+                setIsLoading(false);
+                return;
+            }
 
-                        if (response.ok) {
-                            const resJson = await response.json();
-                            foundProd = resJson.producto;
-                            currentProductos.push(foundProd);
-                            setProductos(prev => [...prev, foundProd]);
-                        } else {
-                            productosNoEncontrados.push(`${item.codigo} - ${item.descripcion} (Error al crear)`);
-                        }
-                    } catch (err) {
-                        console.error(err);
-                        productosNoEncontrados.push(`${item.codigo} - ${item.descripcion} (Error conexión)`);
-                    }
+            const nuevosDetalles = [];
+
+            for (const item of dteData.cuerpoDocumento) {
+                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+                
+                if (!foundProd) {
+                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
                 }
 
                 if (foundProd) {
@@ -324,13 +346,72 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
             if (nuevosDetalles.length > 0) {
                 setDetalles(prev => [...prev, ...nuevosDetalles]);
-                if (productosNoEncontrados.length > 0) {
-                    alert(`Se cargaron ${nuevosDetalles.length} productos.\n\nNo se pudieron crear/encontrar:\n${productosNoEncontrados.join("\n")}`);
+            }
+
+            setIsLoading(false);
+        } catch (error) {
+            console.error("Error procesando DTE:", error);
+            setError("Error al procesar el archivo DTE.");
+            setIsLoading(false);
+        }
+    };
+
+    const procesarDte = async (dteData, foundProv) => {
+        try {
+            const nuevosDetalles = [];
+            let currentProductos = [...productos];
+
+            for (const item of dteData.cuerpoDocumento) {
+                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+                
+                if (!foundProd) {
+                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
                 }
-            } else {
-                if (productosNoEncontrados.length > 0) {
-                    alert(`No se encontraron productos coincidentes en el sistema.\n\nItems del DTE:\n${productosNoEncontrados.join("\n")}`);
+
+                if (foundProd) {
+                    nuevosDetalles.push({
+                        producto_id: foundProd.id,
+                        producto_nombre: foundProd.nombre,
+                        producto_codigo: foundProd.codigo,
+                        cantidad: item.cantidad,
+                        precio_unitario: item.precioUni,
+                        subtotal: item.ventaGravada
+                    });
                 }
+            }
+
+            setFormData(prev => {
+                const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
+                
+                const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
+                
+                const tipoMap = {
+                    "01": "FCF",
+                    "03": "CCF",
+                    "05": "NC",
+                    "06": "ND",
+                    "14": "FSE"
+                };
+                
+                return {
+                    ...prev,
+                    fecha_emision: dteData.identificacion.fecEmi,
+                    numero_documento: dteData.identificacion.numeroControl,
+                    nrc: dteData.emisor.nrc,
+                    nombre_proveedor: dteData.emisor.nombre,
+                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                    tipo_documento: tipoMap[tipoDteValue] || "CCF",
+                    
+                    gravadas_internas: dteData.resumen.totalGravada,
+                    credito_fiscal: iva,
+                    total_compras: dteData.resumen.totalPagar
+                };
+            });
+
+            if (nuevosDetalles.length > 0) {
+                setDetalles(prev => [...prev, ...nuevosDetalles]);
+                setSuccessMessage(`Se cargaron ${nuevosDetalles.length} productos correctamente.`);
+                setTimeout(() => setSuccessMessage(""), 3000);
             }
         } catch (error) {
             console.error("Error procesando DTE:", error);
@@ -384,7 +465,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
         if (!formData.proveedor_id) return setError("Seleccione un proveedor.");
         if (!formData.numero_documento) return setError("Ingrese el número de documento.");
-        if (detalles.length === 0) return setError("Debe agregar al menos un producto.");
 
         setIsLoading(true);
 
@@ -440,35 +520,83 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             }
 
             setSuccessMessage("Compra registrada exitosamente.");
-            setFormData({
-                fecha: new Date().toISOString().split('T')[0],
-                fecha_emision: new Date().toISOString().split('T')[0],
-                proveedor_id: "",
-                nombre_proveedor: "",
-                numero_documento: "",
-                tipo_documento: "CCF",
-                nrc: "",
-                nit_dui_sujeto_excluido: "",
-                tipo_compra: "local",
-                descripcion: "",
-                exentas_internas: 0,
-                exentas_internaciones: 0,
-                exentas_importaciones: 0,
-                gravadas_internas: 0,
-                gravadas_internaciones: 0,
-                gravadas_importaciones: 0,
-                compras_sujetos_excluidos: 0,
-                credito_fiscal: 0,
-                fovial: 0,
-                cotrans: 0,
-                cesc: 0,
-                anticipo_iva_percibido: 0,
-                retencion: 0,
-                percepcion: 0,
-                retencion_terceros: 0,
-                total_compras: 0
-            });
-            setDetalles([]);
+            
+            window.scrollTo(0, 0);
+            
+
+            if (isProcessingMultiple && currentDteIndex < pendingDtes.length - 1) {
+                const nextIndex = currentDteIndex + 1;
+                setCurrentDteIndex(nextIndex);
+                
+                setFormData({
+                    fecha: new Date().toISOString().split('T')[0],
+                    fecha_emision: new Date().toISOString().split('T')[0],
+                    proveedor_id: "",
+                    nombre_proveedor: "",
+                    numero_documento: "",
+                    tipo_documento: "CCF",
+                    nrc: "",
+                    nit_dui_sujeto_excluido: "",
+                    tipo_compra: "local",
+                    descripcion: "",
+                    exentas_internas: 0,
+                    exentas_internaciones: 0,
+                    exentas_importaciones: 0,
+                    gravadas_internas: 0,
+                    gravadas_internaciones: 0,
+                    gravadas_importaciones: 0,
+                    compras_sujetos_excluidos: 0,
+                    credito_fiscal: 0,
+                    fovial: 0,
+                    cotrans: 0,
+                    cesc: 0,
+                    anticipo_iva_percibido: 0,
+                    retencion: 0,
+                    percepcion: 0,
+                    retencion_terceros: 0,
+                    total_compras: 0
+                });
+                setDetalles([]);
+                
+                setTimeout(() => {
+                    procesarDteActual(pendingDtes[nextIndex]);
+                }, 1000);
+                
+            } else {
+                setFormData({
+                    fecha: new Date().toISOString().split('T')[0],
+                    fecha_emision: new Date().toISOString().split('T')[0],
+                    proveedor_id: "",
+                    nombre_proveedor: "",
+                    numero_documento: "",
+                    tipo_documento: "CCF",
+                    nrc: "",
+                    nit_dui_sujeto_excluido: "",
+                    tipo_compra: "local",
+                    descripcion: "",
+                    exentas_internas: 0,
+                    exentas_internaciones: 0,
+                    exentas_importaciones: 0,
+                    gravadas_internas: 0,
+                    gravadas_internaciones: 0,
+                    gravadas_importaciones: 0,
+                    compras_sujetos_excluidos: 0,
+                    credito_fiscal: 0,
+                    fovial: 0,
+                    cotrans: 0,
+                    cesc: 0,
+                    anticipo_iva_percibido: 0,
+                    retencion: 0,
+                    percepcion: 0,
+                    retencion_terceros: 0,
+                    total_compras: 0
+                });
+                setDetalles([]);
+                setPendingDtes([]);
+                setCurrentDteIndex(0);
+                setIsProcessingMultiple(false);
+            }
+            
             setTimeout(() => setSuccessMessage(""), 3000);
 
         } catch (err) {
@@ -480,6 +608,195 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     };
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+    const handleCheckboxChange = (index) => {
+        setSelectedProductosToCreate(prev => ({
+            ...prev,
+            [index]: !prev[index]
+        }));
+    };
+
+    const handleDialogYes = async () => {
+        if (!pendingDteData) return;
+
+        setIsLoading(true);
+        try {
+            const { dteData, productosACrear, foundProv, currentProveedorId } = pendingDteData;
+            let currentProductos = [...productos];
+            const nuevosDetalles = [];
+
+            for (let i = 0; i < productosACrear.length; i++) {
+                if (selectedProductosToCreate[i]) {
+                    const prodData = productosACrear[i];
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                                nombre: prodData.nombre,
+                                codigo: prodData.codigo,
+                                unidad: prodData.unidad,
+                                precio: prodData.precio,
+                                preciooferta: prodData.preciooferta,
+                                stock: prodData.stock,
+                                es_servicio: prodData.es_servicio,
+                                idproveedor: currentProveedorId
+                            }),
+                        });
+
+                        if (response.ok) {
+                            const resJson = await response.json();
+                            const newProd = resJson.producto;
+                            currentProductos.push(newProd);
+                            setProductos(prev => [...prev, newProd]);
+
+                            nuevosDetalles.push({
+                                producto_id: newProd.id,
+                                producto_nombre: newProd.nombre,
+                                producto_codigo: newProd.codigo,
+                                cantidad: prodData.item.cantidad,
+                                precio_unitario: prodData.item.precioUni,
+                                subtotal: prodData.item.ventaGravada
+                            });
+                        }
+                    } catch (err) {
+                        console.error("Error creando producto:", err);
+                    }
+                }
+            }
+
+            for (const item of dteData.cuerpoDocumento) {
+                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+                
+                if (!foundProd) {
+                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+                }
+
+                if (foundProd) {
+                    const yaExiste = nuevosDetalles.some(d => d.producto_id === foundProd.id);
+                    if (!yaExiste) {
+                        nuevosDetalles.push({
+                            producto_id: foundProd.id,
+                            producto_nombre: foundProd.nombre,
+                            producto_codigo: foundProd.codigo,
+                            cantidad: item.cantidad,
+                            precio_unitario: item.precioUni,
+                            subtotal: item.ventaGravada
+                        });
+                    }
+                }
+            }
+
+            setFormData(prev => {
+                const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
+                
+                const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
+                
+                const tipoMap = {
+                    "01": "FCF",
+                    "03": "CCF",
+                    "05": "NC",
+                    "06": "ND",
+                    "14": "FSE"
+                };
+                
+                return {
+                    ...prev,
+                    fecha_emision: dteData.identificacion.fecEmi,
+                    numero_documento: dteData.identificacion.numeroControl,
+                    nrc: dteData.emisor.nrc,
+                    nombre_proveedor: dteData.emisor.nombre,
+                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                    tipo_documento: tipoMap[tipoDteValue] || "CCF",
+                    
+                    gravadas_internas: dteData.resumen.totalGravada,
+                    credito_fiscal: iva,
+                    total_compras: dteData.resumen.totalPagar
+                };
+            });
+
+            if (nuevosDetalles.length > 0) {
+                setDetalles(prev => [...prev, ...nuevosDetalles]);
+            }
+
+            setShowDialog(false);
+            setPendingDteData(null);
+            setProductosNoEncontradosMsg([]);
+            setSelectedProductosToCreate({});
+            setIsLoading(false);
+
+        } catch (error) {
+            console.error("Error:", error);
+            setError("Error al crear los productos.");
+            setIsLoading(false);
+        }
+    };
+
+    const handleDialogNo = () => {
+        if (!pendingDteData) return;
+
+        const { dteData } = pendingDteData;
+        const nuevosDetalles = [];
+
+        for (const item of dteData.cuerpoDocumento) {
+            let foundProd = productos.find(p => p.codigo === item.codigo);
+            
+            if (!foundProd) {
+                foundProd = productos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+            }
+
+            if (foundProd) {
+                nuevosDetalles.push({
+                    producto_id: foundProd.id,
+                    producto_nombre: foundProd.nombre,
+                    producto_codigo: foundProd.codigo,
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precioUni,
+                    subtotal: item.ventaGravada
+                });
+            }
+        }
+
+        if (nuevosDetalles.length > 0) {
+            setDetalles(prev => [...prev, ...nuevosDetalles]);
+        }
+
+        setShowDialog(false);
+        setPendingDteData(null);
+        setProductosNoEncontradosMsg([]);
+        setSelectedProductosToCreate({});
+
+        setFormData(prev => {
+            const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
+            
+            const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
+            
+            const tipoMap = {
+                "01": "FCF",
+                "03": "CCF",
+                "05": "NC",
+                "06": "ND",
+                "14": "FSE"
+            };
+            
+            return {
+                ...prev,
+                fecha_emision: dteData.identificacion.fecEmi,
+                numero_documento: dteData.identificacion.numeroControl,
+                nrc: dteData.emisor.nrc,
+                nombre_proveedor: dteData.emisor.nombre,
+                proveedor_id: pendingDteData.foundProv ? pendingDteData.foundProv.id : prev.proveedor_id,
+                tipo_documento: tipoMap[tipoDteValue] || "CCF",
+                
+                gravadas_internas: dteData.resumen.totalGravada,
+                credito_fiscal: iva,
+                total_compras: dteData.resumen.totalPagar
+            };
+        });
+
+        setIsLoading(false);
+    };
 
     if (isLoadingData) {
         return (
@@ -515,7 +832,14 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                         <div className="max-w-6xl mx-auto">
                             <div className="flex items-center mb-6">
                                 <FaShoppingCart className="text-2xl text-blue-600 mr-3" />
-                                <h1 className="text-2xl font-bold text-gray-800">Realizar Nueva Compra</h1>
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-800">Realizar Nueva Compra</h1>
+                                    {isProcessingMultiple && pendingDtes.length > 0 && (
+                                        <p className="text-sm text-gray-600 mt-1">
+                                            Procesando {currentDteIndex + 1} de {pendingDtes.length} archivos
+                                        </p>
+                                    )}
+                                </div>
                             </div>
 
                             {error && (
@@ -1006,6 +1330,49 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     <Footer />
                 </div>
             </div>
+
+            {showDialog && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
+                        <div className="bg-blue-50 border-b border-blue-200 px-6 py-4">
+                            <h2 className="text-lg font-bold text-blue-700">Productos no registrados</h2>
+                        </div>
+                        <div className="px-6 py-4">
+                            <p className="text-gray-700 mb-4">
+                                Los siguientes productos del DTE no están registrados en el inventario. Selecciona cuáles deseas agregar:
+                            </p>
+                            <div className="bg-gray-50 border border-gray-200 rounded p-3 max-h-64 overflow-y-auto space-y-2">
+                                {productosNoEncontradosMsg.map((item, idx) => (
+                                    <label key={idx} className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedProductosToCreate[idx] || false}
+                                            onChange={() => handleCheckboxChange(idx)}
+                                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                                        />
+                                        <span className="ml-3 text-sm text-gray-700">{item}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3">
+                            <button 
+                                onClick={handleDialogNo}
+                                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-md font-medium transition-colors"
+                            >
+                                No agregar
+                            </button>
+                            <button 
+                                onClick={handleDialogYes}
+                                disabled={!Object.values(selectedProductosToCreate).some(v => v)}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-md font-medium transition-colors disabled:cursor-not-allowed"
+                            >
+                                Agregar al Inventario
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

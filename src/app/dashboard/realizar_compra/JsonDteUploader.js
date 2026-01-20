@@ -12,51 +12,72 @@ export default function JsonDteUploader({ onDataLoaded }) {
     };
 
     const handleFileChange = (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const content = event.target?.result;
-                const firstBraceIndex = content.indexOf('{');
-                const lastBraceIndex = content.lastIndexOf('}');
-                
-                if (firstBraceIndex === -1 || lastBraceIndex === -1) {
-                    throw new Error('Formato de archivo inválido: No se encontró un objeto JSON.');
-                }
-                
-                const jsonString = content.substring(firstBraceIndex, lastBraceIndex + 1);
-                const parsedData = JSON.parse(jsonString);
+        const parseFile = (file, index) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const content = event.target?.result;
+                        const firstBraceIndex = content.indexOf('{');
+                        const lastBraceIndex = content.lastIndexOf('}');
+                        
+                        if (firstBraceIndex === -1 || lastBraceIndex === -1) {
+                            throw new Error(`${file.name}: Formato de archivo inválido`);
+                        }
+                        
+                        const jsonString = content.substring(firstBraceIndex, lastBraceIndex + 1);
+                        const parsedData = JSON.parse(jsonString);
 
-                if (!parsedData.identificacion || !parsedData.emisor || !parsedData.cuerpoDocumento) {
-                    throw new Error('El JSON no tiene la estructura de un DTE válido.');
-                }
+                        if (!parsedData.identificacion || !parsedData.emisor || !parsedData.cuerpoDocumento) {
+                            throw new Error(`${file.name}: No tiene estructura de DTE válido`);
+                        }
 
-                setStatus('success');
-                setMessage(`DTE cargado: ${parsedData.identificacion.numeroControl}`);
-                onDataLoaded(parsedData);
-            } catch (error) {
-                console.error('Error al procesar el JSON:', error);
-                setStatus('error');
-                setMessage(error.message || 'Error al leer el archivo JSON');
-            }
-            
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
+                        resolve({ success: true, data: parsedData, fileName: file.name });
+                    } catch (error) {
+                        console.error('Error al procesar el JSON:', error);
+                        resolve({ success: false, error: error.message, fileName: file.name });
+                    }
+                };
+                reader.readAsText(file);
+            });
         };
 
-        reader.readAsText(file);
+        // Procesar todos los archivos
+        Promise.all(Array.from(files).map((file, index) => parseFile(file, index))).then((results) => {
+            const successResults = results.filter(r => r.success);
+            const errorResults = results.filter(r => !r.success);
+
+            if (successResults.length > 0) {
+                setStatus('success');
+                setMessage(`${successResults.length} archivo(s) cargado(s) exitosamente${errorResults.length > 0 ? ` (${errorResults.length} con error)` : ''}`);
+                
+                // Pasar array de DTEs o un solo DTE si es uno
+                const dteData = successResults.map(r => r.data);
+                onDataLoaded(dteData.length === 1 ? dteData[0] : dteData);
+            }
+
+            if (errorResults.length > 0) {
+                const errorMessages = errorResults.map(e => e.error).join('; ');
+                setStatus('error');
+                setMessage(`Error(es): ${errorMessages}`);
+            }
+        });
+        
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     };
 
     return (
         <div className="flex flex-col items-start gap-2 mb-4">
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" multiple className="hidden" />
             
             <button type="button" onClick={handleButtonClick} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm">
                 <FaFileUpload className="w-4 h-4" />
-                <span>Subir JSON de Compra (DTE)</span>
+                <span>Subir JSON de Compra(s) (DTE)</span>
             </button>
 
             {status === 'success' && (
