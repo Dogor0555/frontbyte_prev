@@ -854,15 +854,6 @@ const calcularTotal = () => {
                     disabled={esExento || esNoSujeto}
                   >
                     <option value="20">20 - Impuesto al Valor Agregado 13%</option>
-                    <option value="59">59 - Turismo: por alojamiento (5%)</option>
-                    <option value="71">71 - Turismo: salida del país por vía aérea $7.00</option>
-                    <option value="D1">D1 - FOVIAL ($0.20 Ctvs. por galón)</option>
-                    <option value="C8">C8 - COTRANS ($0.10 Ctvs. por galón)</option>
-                    <option value="D5">D5 - Otras tasas casos especiales</option>
-                    <option value="D4">D4 - Otros impuestos casos especiales</option>
-                    <option value="C5">C5 - Impuesto ad-valorem por diferencial de precios de Bebidas Alcohólicas (8%)</option>
-                    <option value="C6">C6 - Impuesto ad-valorem por diferencial de precios al tabaco cigarrillos (39%)</option>
-                    <option value="C7">C7 - Impuesto ad-valorem por diferencial de precios al tabaco cigarros (100%)</option>
                   </select>
                   <button
                     onClick={agregarTributo}

@@ -187,47 +187,6 @@ export default function ProductModal({
   const obtenerDescripcionImpuesto = (codigo) => {
     const impuestos = {
       "20": "Impuesto al Valor Agregado 13%",
-      "59": "Turismo: por alojamiento (5%)",
-      "71": "Turismo: salida del país por vía aérea $7.00",
-      "D1": "FOVIAL ($0.20 Ctvs. por galón)",
-      "C8": "COTRANS ($0.10 Ctvs. por galón)",
-      "D5": "Otras tasas casos especiales",
-      "D4": "Otros impuestos casos especiales",
-      "C5": "Impuesto ad-valorem por diferencial de precios de Bebidas Alcohólicas (8%)",
-      "C6": "Impuesto ad-valorem por diferencial de precios al tabaco cigarrillos (39%)",
-      "C7": "Impuesto ad-valorem por diferencial de precios al tabaco cigarros (100%)",
-      "19": "Fabricante de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes o Estimulante",
-      "28": "Importador de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizante o Estimulante",
-      "31": "Detallistas o Expendedores de Bebidas Alcohólicas",
-      "32": "Fabricante de Cerveza",
-      "33": "Importador de Cerveza",
-      "34": "Fabricante de Productos de Tabaco",
-      "35": "Importador de Productos de Tabaco",
-      "36": "Fabricante de Armas de Fuego, Municiones y Artículos Similares",
-      "37": "Importador de Armas de Fuego, Municiones y Artículos Similares",
-      "38": "Fabricante de Explosivos",
-      "39": "Importador de Explosivos",
-      "42": "Fabricante de Productos Pirotécnicos",
-      "43": "Importador de Productos Pirotécnicos",
-      "44": "Productor de Tabaco",
-      "50": "Distribuidor de Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizante o Estimulante",
-      "51": "Bebidas Alcohólicas",
-      "52": "Cerveza",
-      "53": "Productos del Tabaco",
-      "54": "Bebidas Carbonatadas ou Gaseosas Simples ou Endulzadas",
-      "55": "Otros Específicos",
-      "58": "Alcohol",
-      "77": "Importador de Jugos, Néctares, Bebidas con Jugo y Refrescos",
-      "78": "Distribuidor de Jugos, Néctares, Bebidas con Jugo y Refrescos",
-      "79": "Sobre Llamadas Telefónicas Provenientes del Ext.",
-      "85": "Detallista de Jugos, Néctares, Bebidas con Jugo y Refrescos",
-      "86": "Fabricante de Preparaciones Concentradas ou en Polvo para la Elaboración de Bebidas",
-      "91": "Fabricante de Jugos, Néctares, Bebidas con Jugo y Refrescos",
-      "92": "Importador de Preparaciones Concentradas ou en Polvo para la Elaboración de Bebidas",
-      "A1": "Específicos y Ad-valorem",
-      "A5": "Bebidas Gaseosas, Isotónicas, Deportivas, Fortificantes, Energizantes ou Estimulantes",
-      "A7": "Alcohol Etílico",
-      "A9": "Sacos Sintéticos"
     };
     return impuestos[codigo] || "Impuesto no especificado";
   };
@@ -788,15 +747,6 @@ export default function ProductModal({
                     disabled={esExento || esNoSujeto}
                   >
                     <option value="20">20 - Impuesto al Valor Agregado 13%</option>
-                    <option value="59">59 - Turismo: por alojamiento (5%)</option>
-                    <option value="71">71 - Turismo: salida del país por vía aérea $7.00</option>
-                    <option value="D1">D1 - FOVIAL ($0.20 Ctvs. por galón)</option>
-                    <option value="C8">C8 - COTRANS ($0.10 Ctvs. por galón)</option>
-                    <option value="D5">D5 - Otras tasas casos especiales</option>
-                    <option value="D4">D4 - Otros impuestos casos especiales</option>
-                    <option value="C5">C5 - Impuesto ad-valorem por diferencial de precios de Bebidas Alcohólicas (8%)</option>
-                    <option value="C6">C6 - Impuesto ad-valorem por diferencial de precios al tabaco cigarrillos (39%)</option>
-                    <option value="C7">C7 - Impuesto ad-valorem por diferencial de precios al tabaco cigarros (100%)</option>
                   </select>
                   <button
                     onClick={agregarTributo}
