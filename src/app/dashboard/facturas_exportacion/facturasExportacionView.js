@@ -544,24 +544,6 @@ return (
                     {/* Botones de acción */}
                     <div className="flex items-center gap-1">
                       {/* Botón de Re-transmitir */}
-                      {puedeReTransmitir(factura) && (
-                        <button
-                          onClick={() => handleReTransmitir(factura.iddtefactura)}
-                          disabled={reTransmitiendo === factura.iddtefactura}
-                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                            reTransmitiendo === factura.iddtefactura
-                              ? 'bg-gray-400 text-gray-700'
-                              : 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                          }`}
-                        >
-                          {reTransmitiendo === factura.iddtefactura ? (
-                            <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
-                          ) : (
-                            <FaSync className="mr-1 text-xs" />
-                          )}
-                          Re-transmitir
-                        </button>
-                      )}
 
                       {/* Botón de Anular */}
                       {puedeAnular(factura) && (

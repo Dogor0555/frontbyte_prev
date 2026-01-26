@@ -7,7 +7,7 @@ import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 
-export default function LiquidacionView( { user, hasHaciendaToken, haciendaStatus } ) {
+export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaStatus } ) {
   const [isMobile, setIsMobile] = useState(false);
   const [facturas, setFacturas] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,15 +26,15 @@ export default function LiquidacionView( { user, hasHaciendaToken, haciendaStatu
   useEffect(() => {
     const fetchFacturas = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/liquidacion`, {
+        const response = await fetch(`${API_BASE_URL}/retencion`, {
           credentials: "include"
         });
-        if (!response.ok) throw new Error("Error al cargar comprobantes de liquidación");
+        if (!response.ok) throw new Error("Error al cargar comprobantes de retención DTE 07");
         const data = await response.json();
         setFacturas(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error:", error);
-        alert("Error al cargar los comprobantes: " + error.message);
+        alert("Error al cargar las retenciones DTE 07: " + error.message);
         setFacturas([]);
       } finally {
         setLoading(false);
@@ -154,7 +154,7 @@ const ordenarFacturas = (facturas) => {
 
   const handleAnularFactura = async (facturaId) => {
       const confirmarAnulacion = window.confirm(
-        "¿Está seguro que desea anular este comprobante?\n\n" +
+        "¿Está seguro que desea anular esta retención DTE 07?\n\n" +
         "Una vez anulada, no podrá revertir esta acción."
       );
       
@@ -164,8 +164,6 @@ const ordenarFacturas = (facturas) => {
     setAnulando(facturaId);
     try {
       const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/anular`, {
-        method: "POST",
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -178,7 +176,7 @@ const ordenarFacturas = (facturas) => {
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
-        throw new Error(data.descripcionMsg || data.error || "Error al anular factura");
+        throw new Error(data.descripcionMsg || data.error || "Error al anular retención");
       }
 
       setFacturas((prev) =>
@@ -189,7 +187,7 @@ const ordenarFacturas = (facturas) => {
         )
       );
 
-      alert("Comprobante anulado exitosamente");
+      alert("Retención DTE 07 anulada exitosamente");
     } catch (error) {
       console.error("Error al anular:", error);
       alert("Error: " + error.message);
@@ -219,7 +217,7 @@ const ordenarFacturas = (facturas) => {
           : factura
       ));
       
-      alert('Re-transmisión exitosa');
+      alert('Re-transmisión de retención DTE 07 exitosa');
     } catch (error) {
       console.error('Error en re-transmisión:', error);
       alert('Error: ' + error.message);
@@ -241,7 +239,7 @@ const ordenarFacturas = (facturas) => {
 
       // Leer el header con el nombre del archivo
       const disposition = response.headers.get("Content-Disposition");
-      let filename = `factura-${iddtefactura}.json`; // fallback
+      let filename = `retencion-DTE07-${iddtefactura}.json`; // fallback
       if (disposition && disposition.includes("filename=")) {
         filename = disposition
           .split("filename=")[1]
@@ -263,7 +261,7 @@ const ordenarFacturas = (facturas) => {
 
     } catch (error) {
       console.error('Error descargando JSON:', error);
-      alert(`Error al descargar JSON: ${error.message}`);
+      alert(`Error al descargar JSON de retención: ${error.message}`);
     } finally {
       setPdfLoading(null);
     }
@@ -289,7 +287,7 @@ const handleGeneratePDF = async (facturaId, numeroFactura) => {
     }
     
     const disposition = response.headers.get("Content-Disposition");
-    let filename = `LIQ-${numeroFactura || facturaId}.pdf`;
+    let filename = `RET07-${numeroFactura || facturaId}.pdf`;
     if (disposition && disposition.includes("filename=")) {
       filename = disposition
         .split("filename=")[1]
@@ -310,7 +308,7 @@ const handleGeneratePDF = async (facturaId, numeroFactura) => {
 
   } catch (error) {
     console.error("Error al generar PDF:", error);
-    alert("Error al generar el PDF: " + error.message);
+    alert("Error al generar el PDF de retención DTE 07: " + error.message);
   } finally {
     setPdfLoading(null);
   }
@@ -318,7 +316,7 @@ const handleGeneratePDF = async (facturaId, numeroFactura) => {
 
 
   const handleViewDetails = (facturaId) => {
-    // router.push(`/dashboard/comprobantes_liquidacion/${facturaId}`);
+    router.push(`/dashboard/comprobantes_retencion/${facturaId}`);
   };
 
   const toggleSidebar = () => {
@@ -387,10 +385,10 @@ return (
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Comprobantes de Liquidación</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Comprobantes de Retención (DTE 07)</h1>
                 <p className="text-gray-600">
-                  {facturas.length} {facturas.length === 1 ? "documento" : "documentos"} registrados
-                  {searchTerm && ` (${facturasFiltradas.length} encontrados)`}
+                  {facturas.length} {facturas.length === 1 ? "retención" : "retenciones"} registradas
+                  {searchTerm && ` (${facturasFiltradas.length} encontradas)`}
                 </p>
               </div>
 
@@ -399,7 +397,7 @@ return (
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Buscar por código, cliente, número o DTE..."
+                  placeholder="Buscar por código, cliente, número o retención..."
                   className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={searchTerm}
                   onChange={(e) => {
@@ -453,7 +451,7 @@ return (
                           <FaFileAlt className="text-white text-xs" />
                         </div>
                         <div>
-                          <span className="font-semibold text-xs block">LIQUIDACIÓN</span>
+                          <span className="font-semibold text-xs block">RETENCIÓN DTE 07</span>
                           {/* <span className="text-xs font-light opacity-90">
                             #{factura.numerofacturausuario?.toString().padStart(4, '0')}
                           </span> */}
@@ -490,14 +488,14 @@ return (
                       </span>
                     </div>
 
-                    {/* Información del cliente */}
+                    {/* Información del retenido */}
                     <div className="mb-3">
                       <div className="flex items-center text-gray-700 mb-1">
                         <FaUser className="mr-1 text-blue-500 text-xs" /> 
-                        <span className="text-xs font-medium">Receptor</span>
+                        <span className="text-xs font-medium">Sujeto Retenido</span>
                       </div>
                       <p className="text-gray-900 text-sm font-medium truncate pl-3">
-                        {factura.nombrecibe || factura.nombentrega || 'Receptor no especificado'}
+                        {factura.nombrecibe || factura.nombentrega || 'Sujeto retenido no especificado'}
                       </p>
                       {factura.docuentrega && (
                         <p className="text-xs text-gray-500 pl-3 mt-0.5">DUI: {factura.docuentrega}</p>
@@ -520,11 +518,11 @@ return (
                       </div>
                     </div>
 
-                    {/* Total */}
+                    {/* Total Retenido */}
                     <div className="border-t border-gray-100 pt-2">
                       <div className="flex justify-between items-center">
-                        <div className="text-xs text-gray-500">Total a pagar</div>
-                        <div className="text-lg font-bold text-blue-600">
+                        <div className="text-xs text-gray-500">Monto Retenido</div>
+                        <div className="text-lg font-bold text-orange-600">
                           {formatCurrency(factura.totalpagar || factura.montototaloperacion || 0)}
                         </div>
                       </div>
@@ -578,7 +576,7 @@ return (
                               ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
                               : 'bg-red-500 hover:bg-red-600 text-white'
                         }`}
-                        title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Comprobante no firmado" : "Descargar DTE en PDF"}
+                        title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Retención no firmada" : "Descargar Retención DTE 07 en PDF"}
                       >
                         {pdfLoading === factura.iddtefactura ? (
                           <>
@@ -602,7 +600,7 @@ return (
                             ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
                             : 'bg-green-500 hover:bg-green-600 text-white'
                         }`}
-                        title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Comprobante no firmado" : "Descargar DTE en JSON"}
+                        title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Retención no firmada" : "Descargar Retención DTE 07 en JSON"}
                       >
                         <FaFileCode className="mr-1 text-xs" />
                         JSON
@@ -724,10 +722,10 @@ return (
                   <FaFileAlt className="inline-block text-4xl" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-700">
-                  {facturas.length === 0 ? 'No hay comprobantes registrados' : 'No se encontraron coincidencias'}
+                  {facturas.length === 0 ? 'No hay retenciones registradas' : 'No se encontraron coincidencias'}
                 </h3>
                 <p className="text-gray-500 mt-1">
-                  {facturas.length === 0 ? 'Comienza creando tu primer comprobante de liquidación' : 'Intenta con otros términos de búsqueda'}
+                  {facturas.length === 0 ? 'Comienza creando tu primer comprobante de retención DTE 07' : 'Intenta con otros términos de búsqueda'}
                 </p>
               </div>
             )}

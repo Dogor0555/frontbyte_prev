@@ -1,0 +1,152 @@
+
+<CertificadoMH>
+    <_id>6966bcc246cebe7055a31f50</_id>
+    <nit>06141502221048</nit>
+    <publicKey>
+        <keyType>PUBLIC</keyType>
+        <algorithm>RSA</algorithm>
+        <encodied>MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAipqKgCUupuKQlBCuqiJP1G9Rc0jbIuoA
+Eyta/MmxPE9jVr6l/49FqfvuDf08OaTKWUkpCFzamjA0EjjZKnue9KgIKzhoaBi9KikTRm2iyPjL
+z6KH84Wh27Pdy/oV8HgeInuprMqKIoY0l3PLm9gEhnjCmKGgrw57+kcT5Zc9H91c/ARR48MNnCRH
+ufuuB2giRSKfP0uslN/AHSClK36JLEpErsitrYwdRJ4bWAH6z7xxadfKUKi1gWzoaVWf3Lx+yFhX
+s9vwX7umXSSpGvjpe7NCLuVNTJl6iSqOrpW+9ZBNfWt2z064TAB9x5GkhBcdI5jSp5t4znX2CcXG
+uI4Q6QIDAQAB</encodied>
+        <format>X.509</format>
+        <clave>e2187c648333190ff5b164fcdfe294000334a488828a3e17b3272552493a99de6fb0071d6177fc93a4e38455388988d0f86c7bdceb2fed56d7d5a7588f0ab4fd</clave>
+    </publicKey>
+    <privateKey>
+        <keyType>PRIVATE</keyType>
+        <algorithm>RSA</algorithm>
+        <encodied>MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCKmoqAJS6m4pCUEK6qIk/Ub1Fz
+SNsi6gATK1r8ybE8T2NWvqX/j0Wp++4N/Tw5pMpZSSkIXNqaMDQSONkqe570qAgrOGhoGL0qKRNG
+baLI+MvPoofzhaHbs93L+hXweB4ie6msyooihjSXc8ub2ASGeMKYoaCvDnv6RxPllz0f3Vz8BFHj
+ww2cJEe5+64HaCJFIp8/S6yU38AdIKUrfoksSkSuyK2tjB1EnhtYAfrPvHFp18pQqLWBbOhpVZ/c
+vH7IWFez2/Bfu6ZdJKka+Ol7s0Iu5U1MmXqJKo6ulb71kE19a3bPTrhMAH3HkaSEFx0jmNKnm3jO
+dfYJxca4jhDpAgMBAAECggEACscJjf1WK1PiuiCx9DjGzFX7l2NK5uQbLWJpqM5mIbJqnwwkDEMv
+v4//ascOL81IjrjJoATYWrT015XkDRGfwpZuTC4OsEl8LBMVlJxh1A7EilixCZaSh2rtDDdeDVzJ
+uxSylOUK6LRW0pAGfQ/HCk3Jk+S9gd82dLeiLHAeKKQHUy3PzB/+oyGKj+r9UFg7M6oIcNrPREer
+Si0YeEa0W5lOOppH35Cp8yqA4I6x4pEQnKVnZmj0S1RK9Bh+06Y3OfdFwNf1EkLAjmAl5ThhpsJ6
+KVlqF2AH835bv6G2KIg2YFWRh3XvADsdQSE104bD00YSe0+YsZxftJNebBzkIQKBgQD8Dv6LbglD
+2AbXxUn7MkR8LcU7LlAvHCT/+xuRSeh+QZii4E+LITxZqYi/ePPFlSqv5/FEMKXgD0A4ykL5orxh
+Mu7ROnYaPgx3Nq3YGgVDUsB9sIEHNWQgFfrLpLjK4FXC5hR+Tbqw3fai6GNKIBC5XBpb4mjf2JWc
+7rVaxOn9FwKBgQCMxWFBVsqHTFg6bpaCcGPFpPeCEAPsb/EGxZEzwxWb4ZFjuFgOXHXd8A8gpAAE
+8Hl7sdMHve8BcCK5piItDSNWPXmdYDGyQKNjVqehtrCXVVmagW1YIsGlBfWG219GWz0B7FdHbLUP
+j0nhfZm1YWINRZcXdFCJoNMFEHXym90h/wKBgQDF0FqyQCwjQ2GzatDxw/R9ZEpadLFXF4ZuIrry
+3gcJNx+8C8BBV1cOov+ADUN69+MlZCkzs94qJq3nI81GLxIaUiecqn3PgIy17oKmi11ABaytt5y7
+dIpcqANIWMDx7vc/WuQQb54pejk6hpiNrvaREhhZrilSK57XJ3vKfamJBwKBgA0s9DtfWjlrpd5i
+N2giCNSY6imcQiHBIHgXyc1kdwNOC4Of324IrWeGboQJlY7gyx4OuMfCuToTOszRheVdk28g9d8K
+/9vFPQWxOKNkLAceD/LsJkXXivRdKGvk4Hf/Vih17H1c6V15ddrLHLXjVYAUgV3KnzcifF2++qso
+d3wVAoGBALvrZr1IonLKahS0D3VQOKtk8LAlcFckJdsvceEuGx0DMgTkrn7lbG/gaoXpToeFcfoF
+vEEWuPa1lNi0WXv5fpTbHRHbrw7KguEsibKVI+wfU8dAxFFjd73cXeiqGIaYxuugS8DP5578r3+4
+naKdU7XP81FDkuaC/h4GiqRNY8J6</encodied>
+        <format>PKCS#8</format>
+        <clave>a7fb2e2c526f08f2448013a167afee77d88ef9619ebfdc5004e64532a84a977bcb2e3d11ad45ec27977f01079fa5b7dbd13ce52dfac11790b0925cb7e71ae66f</clave>
+    </privateKey>
+    <activo>true</activo>
+    <verificado/>
+    <fechaVerificacion/>
+    <certificado>
+        <basicEstructure>
+            <version>2</version>
+            <serial>1.2.840.113549.1.1.11</serial>
+            <signatureAlgorithm>
+                <algorithm>Sha256WithRSAEncryption</algorithm>
+                <parameters/>
+            </signatureAlgorithm>
+            <issuer>
+                <countryName>SV</countryName>
+                <localilyName>SAN SALVADOR</localilyName>
+                <organizationalUnit>MINISTERIO DE HACIENDA</organizationalUnit>
+                <organizationalName>DIRECCIÓN GENERAL DE IMPUESTOS INTERNOS</organizationalName>
+                <commonName>UNIDAD COORDINADORA DEL PROGAMA FORTALECIMIENTO A LA ADMINISTRACIÓN TRIBUTARÍA</commonName>
+                <organizationIdentifier>VATSV-0614-010111-003-2</organizationIdentifier>
+            </issuer>
+            <validity>
+                <notBefore>1768340674.946000000</notBefore>
+                <notAfter>1926020674.946000000</notAfter>
+            </validity>
+            <subject>
+                <countryName>El Salvador</countryName>
+                <organizationName>QIUBO, SOCIEDAD ANONIMA DE CAPITAL VARIABLE</organizationName>
+                <organizationUnitName>QIUBO, SOCIEDAD ANONIMA DE CAPITAL VARIABLE</organizationUnitName>
+                <organizationIdentifier>VATSV06141502221048</organizationIdentifier>
+                <surname>CARLOS ARMANDO ZELAYA CANO - REPRESENTANTE LEGAL</surname>
+                <givenName>CARLOS ARMANDO ZELAYA CANO - REPRESENTANTE LEGAL</givenName>
+                <commonName>MINISTERO DE HACIENDA</commonName>
+                <description>06141306931096</description>
+            </subject>
+            <subjectPublicKeyInfo>
+                <algorithmIdenitifier>
+                    <algorithm>RSA</algorithm>
+                    <parameters/>
+                </algorithmIdenitifier>
+                <subjectPublicKey>MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAipqKgCUupuKQlBCuqiJP1G9Rc0jbIuoA
+Eyta/MmxPE9jVr6l/49FqfvuDf08OaTKWUkpCFzamjA0EjjZKnue9KgIKzhoaBi9KikTRm2iyPjL
+z6KH84Wh27Pdy/oV8HgeInuprMqKIoY0l3PLm9gEhnjCmKGgrw57+kcT5Zc9H91c/ARR48MNnCRH
+ufuuB2giRSKfP0uslN/AHSClK36JLEpErsitrYwdRJ4bWAH6z7xxadfKUKi1gWzoaVWf3Lx+yFhX
+s9vwX7umXSSpGvjpe7NCLuVNTJl6iSqOrpW+9ZBNfWt2z064TAB9x5GkhBcdI5jSp5t4znX2CcXG
+uI4Q6QIDAQAB</subjectPublicKey>
+            </subjectPublicKeyInfo>
+        </basicEstructure>
+        <extensions>
+            <authorityKeyIdentifier>
+                <keyIdentifier>6966bcc246cebe7055a31f51</keyIdentifier>
+            </authorityKeyIdentifier>
+            <subjectKeyIdentifier>
+                <keyIdentifier>6966bcc246cebe7055a31f52</keyIdentifier>
+            </subjectKeyIdentifier>
+            <keyUsage>
+                <digitalSignature>1</digitalSignature>
+                <contentCommintment>1</contentCommintment>
+                <dataEncipherment>0</dataEncipherment>
+                <keyAgreement>0</keyAgreement>
+                <keyCertificateSignature>0</keyCertificateSignature>
+                <crlSignature>0</crlSignature>
+                <encipherOnly>0</encipherOnly>
+                <decipherOnly>0</decipherOnly>
+            </keyUsage>
+            <certificatePolicies>
+                <policyInformations/>
+            </certificatePolicies>
+            <subjectAlternativeNames>
+                <rfc822Name></rfc822Name>
+            </subjectAlternativeNames>
+            <extendedKeyUsage>
+                <clientAuth></clientAuth>
+                <emailProtection></emailProtection>
+            </extendedKeyUsage>
+            <crlDistributionPoint>
+                <distributionPoint>
+                    <distributionPoint>http://www2.mh.gob.sv/crl</distributionPoint>
+                    <distributionPoint>http://www2.mh.gob.sv/crl2</distributionPoint>
+                </distributionPoint>
+            </crlDistributionPoint>
+            <authorityInfoAccess>
+                <accessDescription>
+                    <accessDescription>
+                        <accessMethod></accessMethod>
+                        <accessLocation>
+                            <accessLocation>https://www.minec.gob.sv/ca/public/donwload/subordinadal.crt</accessLocation>
+                        </accessLocation>
+                    </accessDescription>
+                </accessDescription>
+            </authorityInfoAccess>
+            <qualifiedCertificateStatements>
+                <qcCompliance></qcCompliance>
+                <qcEuRetentionPeriod>10</qcEuRetentionPeriod>
+                <qcPDS>
+                    <pdsLocation/>
+                    <url>https://www2.mh.gob.sv/pds</url>
+                    <language>ES</language>
+                </qcPDS>
+                <qcType>id-etsi-qct-esign</qcType>
+            </qualifiedCertificateStatements>
+            <basicConstraints>
+                <ca>false</ca>
+            </basicConstraints>
+        </extensions>
+    </certificado>
+    <fechaDebaja/>
+    <clavePub/>
+    <clavePri/>
+</CertificadoMH>
