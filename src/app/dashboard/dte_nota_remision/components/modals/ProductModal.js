@@ -16,7 +16,7 @@ export default function ProductModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [cantidad, setCantidad] = useState(1);
   const [impuestoSeleccionado, setImpuestoSeleccionado] = useState("20");
-  const [tipoVenta, setTipoVenta] = useState("2"); // Exento por defecto
+  const [tipoVenta, setTipoVenta] = useState("1");
   const [tipoProducto, setTipoProducto] = useState("1");
   const [isMobile, setIsMobile] = useState(false);
   const [mostrarAlertaStock, setMostrarAlertaStock] = useState(false);
@@ -210,7 +210,7 @@ export default function ProductModal({
     setSearchTerm("");
     setCantidad(1);
     setImpuestoSeleccionado("20");
-    setTipoVenta("2"); // Exento por defecto
+    setTipoVenta("1");
     setMostrarAlertaStock(false);
     setStockDisponible(0);
     setTributos([]);
@@ -690,7 +690,6 @@ const calcularTotal = () => {
                 )}
               </div>
 
-              {/* SECCIÓN COMENTADA - TIPO VENTA FIJO A EXENTO POR AHORA
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Tipo Venta</label>
                 <select 
@@ -702,7 +701,7 @@ const calcularTotal = () => {
                   <option value="2">Exento</option>
                   <option value="3">No sujeto</option>
                 </select>
-              </div> */}
+              </div>
 
               {!esServicio && productoSeleccionado && productoSeleccionado.stock !== undefined && (
                 <div className={`p-3 rounded-lg border ${
