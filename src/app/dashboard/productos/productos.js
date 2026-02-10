@@ -39,7 +39,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         codigo: "",
         unidad: "",
         precio: 0,
-        preciooferta: 0,
         stock: 0,
         es_servicio: false,
         idproveedor: ""
@@ -140,10 +139,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
 
         if (!validateNumber(formData.precio)) {
             setErrorMessage("El precio debe ser un número válido.");
-            return false;
-        }
-        if (!validateNumber(formData.preciooferta)) {
-            setErrorMessage("El precio de oferta debe ser un número válido.");
             return false;
         }
         if (!validateStock(formData.stock)) {
@@ -322,12 +317,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
     const handleSaveNewProduct = async (e) => {
         e.preventDefault();
 
-        if (formData.preciooferta > formData.precio) {
-            setErrorMessage("El precio de oferta no puede ser mayor que el precio normal.");
-            setShowErrorModal(true);
-            return;
-        }
-
         if (!validateForm()) {
             setShowErrorModal(true);
             return;
@@ -366,7 +355,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                 codigo: "",
                 unidad: "",
                 precio: 0,
-                preciooferta: 0,
                 stock: 0,
                 es_servicio: false,
                 idproveedor: ""
@@ -383,12 +371,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
 
     const handleUpdateProduct = async (e) => {
         e.preventDefault();
-
-        if (formData.preciooferta > formData.precio) {
-            setErrorMessage("El precio de oferta no puede ser mayor que el precio normal.");
-            setShowErrorModal(true);
-            return;
-        }
 
         if (!validateForm()) {
             setShowErrorModal(true);
@@ -428,7 +410,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                 codigo: "",
                 unidad: "",
                 precio: 0,
-                preciooferta: 0,
                 stock: 0,
                 es_servicio: false,
                 idproveedor: ""
@@ -657,7 +638,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
-                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Oferta</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Proveedor</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -672,7 +652,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                                     {getNombreUnidad(producto.unidad)}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.precio}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.preciooferta}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.stock}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                                                     {getNombreProveedor(producto.idproveedor)}
@@ -775,10 +754,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                                 <span className="text-sm text-gray-900">{producto.precio}</span>
                                             </div>
                                             <div className="flex justify-between">
-                                                <span className="text-sm font-medium text-gray-500">Precio Oferta:</span>
-                                                <span className="text-sm text-gray-900">{producto.preciooferta}</span>
-                                            </div>
-                                            <div className="flex justify-between">
                                                 <span className="text-sm font-medium text-gray-500">Stock:</span>
                                                 <span className="text-sm text-gray-900">{producto.stock}</span>
                                             </div>
@@ -852,10 +827,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                                 <div className="flex justify-between">
                                                     <span className="text-sm font-medium text-gray-500">Precio:</span>
                                                     <span className="text-sm text-gray-900">{producto.precio}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-sm font-medium text-gray-500">Precio Oferta:</span>
-                                                    <span className="text-sm text-gray-900">{producto.preciooferta}</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-sm font-medium text-gray-500">Stock:</span>
@@ -1008,20 +979,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                         onChange={handleNumberChange}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
-                                    />
-                                </div>
-
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="preciooferta">
-                                        Precio Oferta
-                                    </label>
-                                    <input
-                                        type="number"
-                                        id="preciooferta"
-                                        name="preciooferta"
-                                        value={formData.preciooferta}
-                                        onChange={handleNumberChange}
-                                        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     />
                                 </div>
 
@@ -1196,21 +1153,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                         id="precio"
                                         name="precio"
                                         value={formData.precio}
-                                        onChange={handleNumberChange}
-                                        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="preciooferta">
-                                        Precio Oferta
-                                    </label>
-                                    <input
-                                        type="number"
-                                        id="preciooferta"
-                                        name="preciooferta"
-                                        value={formData.preciooferta}
                                         onChange={handleNumberChange}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
@@ -1407,7 +1349,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                             codigo: "",
                                             unidad: "",
                                             precio: 0,
-                                            preciooferta: 0,
                                             stock: 0,
                                             es_servicio: false,
                                             idproveedor: ""
