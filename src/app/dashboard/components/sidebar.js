@@ -38,7 +38,10 @@ import {
   FaFilePdf,
   FaWrench,
   FaShoppingCart,
-  FaCartPlus
+  FaCartPlus,
+  FaBriefcase,
+  FaStore,
+  FaMapMarkerAlt
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -51,8 +54,11 @@ export default function Sidebar({ onOpenPerfil }) {
   const pathname = usePathname();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [empleado, setEmpleado] = useState(null);
+  const [empresa, setEmpresa] = useState(null);
+  const [sucursal, setSucursal] = useState(null);
   const [permisos, setPermisos] = useState([]);
   const [loadingPermisos, setLoadingPermisos] = useState(true);
+  const [headerExpanded, setHeaderExpanded] = useState(false);
   const [openMenus, setOpenMenus] = useState({
     dtes: false,
     facturas: false,
@@ -69,86 +75,125 @@ export default function Sidebar({ onOpenPerfil }) {
 
   useEffect(() => {
     const empleadoData = localStorage.getItem("empleado");
+    const empresaData = localStorage.getItem("empresa");
+    const sucursalData = localStorage.getItem("sucursal");
+    
     if (empleadoData) {
       const empleadoParsed = JSON.parse(empleadoData);
       setEmpleado(empleadoParsed);
-      cargarPermisos();
+      console.log('Empleado cargado:', empleadoParsed.nombre);
     }
+    
+    if (empresaData) {
+      const empresaParsed = JSON.parse(empresaData);
+      setEmpresa(empresaParsed);
+      console.log('Empresa cargada:', empresaParsed.nombre);
+    }
+    
+    // 🟢 CORREGIDO: SOLO USA LA SUCURSAL DEL LOCALSTORAGE, NUNCA LA CREES GENÉRICA
+    if (sucursalData) {
+      const sucursalParsed = JSON.parse(sucursalData);
+      setSucursal(sucursalParsed);
+      console.log('✅ Sucursal cargada:', sucursalParsed.nombre);
+      console.log('📦 Datos completos sucursal:', sucursalParsed);
+    } else {
+      console.warn('⚠️ No hay sucursal en localStorage. El backend no la envió o no se guardó correctamente.');
+      // NO CREES UNA SUCURSAL GENÉRICA AQUÍ
+    }
+    
+    cargarPermisos();
   }, []);
 
-  // Determinar qué menú está abierto basado en la ruta actual
+  // 👇 MEJORADO: Determinar qué menú abrir basado en la ruta actual
   useEffect(() => {
     const determineOpenMenu = () => {
       const newOpenMenus = { ...openMenus };
       
-      // Check which menu should be open based on current path
-      if (pathname.includes('/dte_') || pathname.includes('/sujeto_excluido')) {
-        Object.keys(newOpenMenus).forEach(key => {
-          if (key !== 'dtes') newOpenMenus[key] = false;
-        });
+      // Resetear todos los menús a false
+      Object.keys(newOpenMenus).forEach(key => {
+        newOpenMenus[key] = false;
+      });
+
+      // DTE y sus variantes
+      if (pathname.includes('/dte_factura') || 
+          pathname.includes('/dte_credito') || 
+          pathname.includes('/dte_nota_remision') || 
+          pathname.includes('/dte_exportacion') || 
+          pathname.includes('/dte_liquidacion')) {
         newOpenMenus.dtes = true;
-      } else if (pathname.includes('/facturas') && !pathname.includes('sujeto_excluido') && !pathname.includes('exportacion')) {
-        Object.keys(newOpenMenus).forEach(key => {
-          if (key !== 'facturas') newOpenMenus[key] = false;
-        });
+      }
+      
+      // Facturas
+      else if (pathname.includes('/facturas') && 
+               !pathname.includes('sujeto_excluido') && 
+               !pathname.includes('exportacion')) {
         newOpenMenus.facturas = true;
-      } else if (pathname.includes('/creditos') || pathname.includes('/nota_debito')) {
-        Object.keys(newOpenMenus).forEach(key => {
-          if (key !== 'creditos') newOpenMenus[key] = false;
-        });
+      }
+      
+      // Créditos
+      else if (pathname.includes('/creditos') || 
+               pathname.includes('/nota_debito')) {
         newOpenMenus.creditos = true;
-      } else if (pathname.includes('/notas_remision')) {
-        Object.keys(newOpenMenus).forEach(key => {
-          if (key !== 'remision') newOpenMenus[key] = false;
-        });
+      }
+      
+      // Notas de Remisión
+      else if (pathname.includes('/notas_remision') || 
+               pathname.includes('/anular_nota_remision')) {
         newOpenMenus.remision = true;
-      } else if (pathname.includes('/facturas_sujeto_excluido') || pathname.includes('/anular_facturas_sujeto_excluido')) {
-        Object.keys(newOpenMenus).forEach(key => {
-          if (key !== 'sujeto_excluido') newOpenMenus[key] = false;
-        });
+      }
+      
+      // Sujeto Excluido
+      else if (pathname.includes('/facturas_sujeto_excluido') || 
+               pathname.includes('/anular_facturas_sujeto_excluido') ||
+               pathname.includes('/sujeto_excluido')) {
         newOpenMenus.sujeto_excluido = true;
-      } else if (pathname.includes('/liquidacion')) {
-        Object.keys(newOpenMenus).forEach(key => {
-          if (key !== 'liquidacion') newOpenMenus[key] = false;
-        });
+      }
+      
+      // Liquidación
+      else if (pathname.includes('/liquidacion') || 
+               pathname.includes('/comprobantes_liquidacion') ||
+               pathname.includes('/anular_liquidacion')) {
         newOpenMenus.liquidacion = true;
-      } else if (pathname.includes('/exportacion')) {
-        Object.keys(newOpenMenus).forEach(key => {
-          if (key !== 'exportacion') newOpenMenus[key] = false;
-        });
+      }
+      
+      // Exportación
+      else if (pathname.includes('/exportacion') || 
+               pathname.includes('/facturas_exportacion') ||
+               pathname.includes('/anular_factura_exportacion')) {
         newOpenMenus.exportacion = true;
-      } else if (pathname.includes('/contribuyente')) {
-        Object.keys(newOpenMenus).forEach(key => {
-          if (key !== 'contribuyentes') newOpenMenus[key] = false;
-        });
+      }
+      
+      // Contribuyentes
+      else if (pathname.includes('/contribuyente') || 
+               pathname.includes('/libro_contribuyente') ||
+               pathname.includes('/anexo_contribuyente') ||
+               pathname.includes('/detalle_documentos_contribuyentes')) {
         newOpenMenus.contribuyentes = true;
-      } else if (pathname.includes('/consumidor_final')) {
-        Object.keys(newOpenMenus).forEach(key => {
-          if (key !== 'consumidorfinal') newOpenMenus[key] = false;
-        });
+      }
+      
+      // Consumidor Final
+      else if (pathname.includes('/consumidor_final') || 
+               pathname.includes('/libro_consumidor_final') ||
+               pathname.includes('/anexo_consumidor_final') ||
+               pathname.includes('/detalle_documentos_consumidor_final')) {
         newOpenMenus.consumidorfinal = true;
-      } else if (pathname.includes('/compras')) {
-        Object.keys(newOpenMenus).forEach(key => {
-          if (key !== 'compras') newOpenMenus[key] = false;
-        });
+      }
+      
+      // Compras
+      else if (pathname.includes('/compras') || 
+               pathname.includes('/realizar_compra') ||
+               pathname.includes('/registro_compras')) {
         newOpenMenus.compras = true;
-      } else if (
-        pathname.includes('/empleados') || 
-        pathname.includes('/productos') || 
-        pathname.includes('/clientes') ||
-        pathname.includes('/registro-eventos') ||
-        pathname.includes('/configurar-pdf') ||
-        pathname.includes('/configurar-tickets')
-      ) {
-        Object.keys(newOpenMenus).forEach(key => {
-          if (key !== 'admin') newOpenMenus[key] = false;
-        });
+      }
+      
+      // Administración
+      else if (pathname.includes('/empleados') || 
+               pathname.includes('/productos') || 
+               pathname.includes('/clientes') ||
+               pathname.includes('/registro-eventos') ||
+               pathname.includes('/configurar-pdf') ||
+               pathname.includes('/configurar-tickets')) {
         newOpenMenus.admin = true;
-      } else {
-        // Si no está en ninguna subpágina, cerrar todos los menús
-        Object.keys(newOpenMenus).forEach(key => {
-          newOpenMenus[key] = false;
-        });
       }
 
       setOpenMenus(newOpenMenus);
@@ -191,6 +236,8 @@ export default function Sidebar({ onOpenPerfil }) {
     try {
       await logout();
       localStorage.removeItem("empleado");
+      localStorage.removeItem("empresa");
+      localStorage.removeItem("sucursal");
       router.push("/auth/login");
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
@@ -206,7 +253,6 @@ export default function Sidebar({ onOpenPerfil }) {
     }));
   };
 
-  // Función para verificar si una ruta está activa
   const isActive = (href) => {
     return pathname === href;
   };
@@ -218,15 +264,12 @@ export default function Sidebar({ onOpenPerfil }) {
       href: "/dashboard",
       permiso: "Inicio" 
     },
-
     { 
       name: "Realizar Cotización", 
       icon: <FaFileContract />, 
       href: "/dashboard/realizar_cotizacion",
       permiso: "Realizar Cotización" 
     },
-
-    // 📋 DTES
     {
       name: "DTES",
       icon: <FaFileInvoiceDollar />,
@@ -272,8 +315,6 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "dtes",
       permiso: "DTES"
     },
-
-    // 🧾 Facturas
     {
       name: "Facturas",
       icon: <FaFileInvoice />,
@@ -295,8 +336,6 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "facturas",
       permiso: "Facturas"
     },
-
-    // 💳 Créditos
     {
       name: "Créditos",
       icon: <FaCreditCard />,
@@ -324,8 +363,6 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "creditos",
       permiso: "Créditos"
     },
-
-    // 🚚 Notas de Remisión
     {
       name: "Notas de Remisión",
       icon: <FaTruck />,
@@ -347,8 +384,6 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "remision",
       permiso: "Notas de Remisión"
     },
-
-    // 📜 Comprobante de Liquidación Electrónico (Sujeto Excluido)
     {
       name: "Sujeto Excluido",
       icon: <FaClipboardList />,
@@ -370,7 +405,6 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "sujeto_excluido",
       permiso: "Facturas Sujeto Excluido"
     },
-
     {
       name: "Liquidación",
       icon: <FaClipboardList />,
@@ -392,7 +426,6 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "liquidacion",
       permiso: "Liquidacion"
     },
-
     {
       name: "Facturas de Exportación",
       icon: <FaGlobe />,
@@ -414,15 +447,12 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "exportacion",
       permiso: "Facturas de Exportación"
     },
-
-    // ⚠️ Contingencia
     { 
       name: "Contingencia", 
       icon: <FaExclamationTriangle />, 
       href: "/dashboard/contingencia",
       permiso: "Contingencia" 
     },
-
     {
       name: "Ventas a Contribuyentes",
       icon: <FaBook />,
@@ -450,8 +480,6 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "contribuyentes",
       permiso: "Ventas a Contribuyentes"
     },
-
-    // 👤 VENTAS A CONSUMIDOR FINAL
     {
       name: "Ventas a Consumidor Final",
       icon: <FaBook />,
@@ -479,7 +507,6 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "consumidorfinal",
       permiso: "Ventas a Consumidor Final"
     },
-    
     {
       name: "Compras",
       icon: <FaShoppingCart />,
@@ -501,7 +528,6 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "compras",
       permiso: "Compras"
     },
-
     { 
       name: "Reportes", 
       icon: <FaChartLine />, 
@@ -516,21 +542,16 @@ export default function Sidebar({ onOpenPerfil }) {
     },
   ];
 
-  // Filtrar items del menú basado en permisos
   const menuItems = todosLosMenuItems.filter(item => {
-    // Si el item tiene submenú, verificar si al menos un subitem tiene permiso
     if (item.subMenu) {
       const subMenuConPermiso = item.subMenu.filter(subItem => 
         tienePermiso(subItem.permiso)
       );
       return subMenuConPermiso.length > 0;
     }
-    
-    // Si es un item simple, verificar permiso directo
     return tienePermiso(item.permiso);
   });
 
-  // Agregar menú de administración si tiene permisos
   if (tienePermiso("Administración")) {
     const adminSubMenu = [];
     
@@ -570,7 +591,6 @@ export default function Sidebar({ onOpenPerfil }) {
       });
     }
 
-    // Nuevo: Configurar PDF
     if (tienePermiso("Configurar PDF")) {
       adminSubMenu.push({
         name: "Configurar PDF",
@@ -580,7 +600,6 @@ export default function Sidebar({ onOpenPerfil }) {
       });
     }
 
-    // Nuevo: Configurar Tickets
     if (tienePermiso("Configurar Tickets")) {
       adminSubMenu.push({
         name: "Configurar Tickets",
@@ -608,19 +627,105 @@ export default function Sidebar({ onOpenPerfil }) {
     <aside className="bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 h-full w-64 shadow-2xl">
       <div className="flex flex-col h-full">
 
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-800 to-blue-700 flex items-center justify-center h-20 border-b border-blue-600/50 shadow-lg">
-          <div className="bg-white relative h-14 w-14 rounded-full overflow-hidden shadow-lg ring-4 ring-blue-300/30">
-            <Image src={logo} alt="Byte Fusion Soluciones" fill className="object-cover" />
+        {/* ✨ HEADER EXPANDIBLE - CON SUCURSAL */}
+        <div 
+          className={`
+            bg-gradient-to-br from-blue-800 via-blue-700 to-blue-800 
+            flex flex-col items-center justify-center 
+            border-b border-blue-600/50 shadow-lg px-4
+            transition-all duration-500 ease-in-out overflow-hidden
+            ${headerExpanded ? 'py-6' : 'py-4'}
+          `}
+          onMouseEnter={() => setHeaderExpanded(true)}
+          onMouseLeave={() => setHeaderExpanded(false)}
+        >
+          {/* Logo con animación */}
+          <div 
+            className={`
+              bg-white relative rounded-full overflow-hidden 
+              shadow-xl ring-4 ring-blue-300/40
+              transition-all duration-500 ease-in-out
+              ${headerExpanded ? 'h-20 w-20 mb-4' : 'h-14 w-14 mb-2'}
+            `}
+          >
+            <Image 
+              src={logo} 
+              alt="Byte Fusion Soluciones" 
+              fill 
+              className="object-cover p-1" 
+            />
           </div>
-          <div className="ml-3">
-            <span className="text-white font-bold text-lg tracking-wide drop-shadow-sm">Facturador</span>
+          
+          {/* Nombre de la empresa - Siempre visible */}
+          <div className="text-center w-full">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <FaBriefcase 
+                className={`
+                  text-blue-200 transition-all duration-300
+                  ${headerExpanded ? 'text-base' : 'text-xs'}
+                `} 
+              />
+              <h1 
+                className={`
+                  text-white font-bold tracking-wide drop-shadow-md
+                  transition-all duration-300 truncate max-w-full
+                  ${headerExpanded ? 'text-base' : 'text-sm'}
+                `}
+              >
+                {empresa ? empresa.nombre : 'Byte Fusion Soluciones'}
+              </h1>
+            </div>
+            
+            {/* 🟢 CORREGIDO: SOLO MUESTRA SUCURSAL SI EXISTE Y USA SU NOMBRE REAL */}
+            {sucursal && (
+              <div className="flex items-center justify-center gap-1.5 mb-2">
+                <FaStore className="text-blue-300 text-xs" />
+                <span className="text-blue-100 text-xs font-medium">
+                  {sucursal.nombre}
+                </span>
+              </div>
+            )}
+            
+            {/* Información expandible - Solo visible en hover */}
+            <div 
+              className={`
+                transition-all duration-500 ease-in-out space-y-2
+                ${headerExpanded 
+                  ? 'opacity-100 max-h-32 transform translate-y-0' 
+                  : 'opacity-0 max-h-0 transform -translate-y-4'
+                }
+              `}
+            >
+              {/* NIT */}
+              {empresa?.nit && (
+                <div className="text-blue-100 text-xs font-medium bg-blue-800/60 px-3 py-1.5 rounded-full inline-block backdrop-blur-sm border border-blue-600/30">
+                  <span className="text-blue-300">NIT:</span> {empresa.nit}
+                </div>
+              )}
+              
+              {/* Ambiente */}
+              {empresa?.ambiente && (
+                <div 
+                  className={`
+                    text-xs font-semibold px-3 py-1.5 rounded-full inline-block
+                    backdrop-blur-sm transition-all duration-300
+                    ${empresa.ambiente === '00' 
+                      ? 'bg-yellow-500/20 text-yellow-200 border border-yellow-400/40 shadow-yellow-500/20' 
+                      : 'bg-green-500/20 text-green-200 border border-green-400/40 shadow-green-500/20'
+                    }
+                    shadow-lg
+                  `}
+                >
+                  {empresa.ambiente === '00' ? 'Ambiente de Pruebas' : 'Ambiente de Producción'}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 py-6 px-3 overflow-y-auto">
-          <ul className="space-y-1">
+        {/* 📱 Navigation */}
+        <nav className="flex-1 py-5 px-3 overflow-y-auto custom-scrollbar">
+          <ul className="space-y-1.5">
             {menuItems.map(({ name, icon, href, subMenu, menuKey }) => (
               <li key={name}>
                 {subMenu ? (
@@ -628,38 +733,35 @@ export default function Sidebar({ onOpenPerfil }) {
                     {/* Parent Menu Item */}
                     <button
                       className={`
-                        w-full flex items-center justify-between px-4 py-3 text-blue-100 rounded-xl 
-                        transition-all duration-200 ease-out mb-1
+                        w-full flex items-center justify-between px-4 py-3 
+                        text-blue-100 rounded-xl transition-all duration-300 ease-out
                         ${openMenus[menuKey] 
-                          ? 'bg-gradient-to-r from-blue-600 to-blue-400 text-white shadow-lg border-l-4 border-blue-300' 
-                          : 'hover:bg-gradient-to-r hover:from-blue-700/60 hover:to-blue-600/60 hover:text-white hover:shadow-md'
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 border-l-4 border-blue-300 scale-[1.02]' 
+                          : 'hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]'
                         }
                       `}
                       onClick={() => toggleMenu(menuKey)}
                     >
-                      <div className="flex items-center">
-                        <span className={`text-lg ${openMenus[menuKey] ? 'text-white' : ''}`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-lg transition-transform duration-300 ${openMenus[menuKey] ? 'scale-110' : ''}`}>
                           {icon}
                         </span>
-                        <span className="ml-3 font-medium">{name}</span>
+                        <span className="font-medium text-sm">{name}</span>
                       </div>
                       <span className={`
-                        text-sm transition-all duration-200 ease-out
+                        text-sm transition-all duration-300 ease-out
                         ${openMenus[menuKey] ? 'rotate-180 text-white' : 'text-blue-300'}
                       `}>
                         <FaChevronDown />
                       </span>
                     </button>
                     
-                    {/* Submenu con fondo azul más claro */}
+                    {/* Submenu */}
                     <div className={`
-                      overflow-hidden transition-all duration-200 ease-out
-                      ${openMenus[menuKey] ? 'max-h-96 opacity-100 mb-2' : 'max-h-0 opacity-0'}
+                      overflow-hidden transition-all duration-400 ease-out
+                      ${openMenus[menuKey] ? 'max-h-[500px] opacity-100 mt-2 mb-2' : 'max-h-0 opacity-0 mt-0'}
                     `}>
-                      <div className={`
-                        rounded-lg bg-blue-800/80 border border-blue-700/50 
-                        shadow-inner p-2 ml-3 backdrop-blur-sm
-                      `}>
+                      <div className="rounded-xl bg-blue-800/60 border border-blue-700/40 shadow-inner p-2 ml-3 backdrop-blur-sm">
                         <ul className="space-y-1">
                           {subMenu
                             .filter(subItem => tienePermiso(subItem.permiso))
@@ -667,36 +769,33 @@ export default function Sidebar({ onOpenPerfil }) {
                             <li 
                               key={subName}
                               className={`
-                                transform transition-all duration-200 ease-out
+                                transition-all duration-300 ease-out
                                 ${openMenus[menuKey] 
-                                  ? `translate-x-0 opacity-100` 
+                                  ? 'translate-x-0 opacity-100' 
                                   : 'translate-x-4 opacity-0'
                                 }
                               `}
                               style={{
-                                transitionDelay: openMenus[menuKey] ? `${index * 30}ms` : '0ms'
+                                transitionDelay: openMenus[menuKey] ? `${index * 40}ms` : '0ms'
                               }}
                             >
                               <Link
                                 href={subHref}
                                 className={`
-                                  flex items-center px-3 py-2.5 text-blue-100 rounded-lg 
-                                  transition-all duration-150 ease-out relative group
+                                  flex items-center gap-3 px-3 py-2.5 text-blue-100 
+                                  rounded-lg transition-all duration-200 ease-out relative group/sub
                                   ${isActive(subHref) 
-                                    ? 'bg-gradient-to-r from-blue-600/60 to-blue-400/60 text-white border-l-4 border-blue-300 font-semibold' 
-                                    : 'hover:bg-gradient-to-r hover:from-blue-700/40 hover:to-blue-600/40 hover:text-white'
+                                    ? 'bg-gradient-to-r from-blue-600/70 to-blue-500/70 text-white border-l-4 border-blue-300 font-semibold shadow-md' 
+                                    : 'hover:bg-gradient-to-r hover:from-blue-700/40 hover:to-blue-600/40 hover:text-white hover:translate-x-1'
                                   }
                                 `}
                               >
                                 <span className="text-base">{subIcon}</span>
-                                <span className="ml-3 text-sm">{subName}</span>
-                                {isActive(subHref) && (
-                                  <div className="ml-auto w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
-                                )}
-                                {!isActive(subHref) && (
-                                  <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <FaChevronRight className="text-xs text-blue-300" />
-                                  </div>
+                                <span className="text-sm flex-1">{subName}</span>
+                                {isActive(subHref) ? (
+                                  <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
+                                ) : (
+                                  <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/sub:opacity-100 transition-opacity" />
                                 )}
                               </Link>
                             </li>
@@ -709,23 +808,22 @@ export default function Sidebar({ onOpenPerfil }) {
                   <Link
                     href={href}
                     className={`
-                      flex items-center px-4 py-3 text-blue-100 rounded-xl 
-                      transition-all duration-200 ease-out relative
+                      flex items-center gap-3 px-4 py-3 text-blue-100 
+                      rounded-xl transition-all duration-300 ease-out relative group/item
                       ${isActive(href) 
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg border-l-4 border-blue-300' 
-                        : 'hover:bg-gradient-to-r hover:from-blue-700/60 hover:to-blue-600/60 hover:text-white hover:shadow-md'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 border-l-4 border-blue-300 scale-[1.02]' 
+                        : 'hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]'
                       }
                     `}
                   >
-                    <span className={`text-lg ${isActive(href) ? 'text-white' : ''}`}>{icon}</span>
-                    <span className="ml-3 font-medium">{name}</span>
-                    {isActive(href) && (
-                      <div className="ml-auto w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
-                    )}
-                    {!isActive(href) && (
-                      <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                        <FaChevronRight className="text-xs text-blue-300" />
-                      </div>
+                    <span className={`text-lg transition-transform duration-300 ${isActive(href) ? 'scale-110' : ''}`}>
+                      {icon}
+                    </span>
+                    <span className="font-medium text-sm flex-1">{name}</span>
+                    {isActive(href) ? (
+                      <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
+                    ) : (
+                      <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/item:opacity-100 transition-opacity" />
                     )}
                   </Link>
                 )}
@@ -734,37 +832,56 @@ export default function Sidebar({ onOpenPerfil }) {
           </ul>
         </nav>
 
-        {/* Employee Info */}
+        {/* 👤 Employee Info - SIN SUCURSAL DUPLICADA */}
         {empleado && (
-          <div className="p-4 border-t border-blue-600/50 bg-gradient-to-r from-blue-800/80 to-blue-700/80 backdrop-blur-sm">
-            <div className="text-blue-100 text-sm bg-blue-900/30 rounded-lg p-3 border border-blue-600/30">
-              <div className="font-semibold text-white">{empleado.nombre}</div>
-              <div className="text-blue-200 text-xs capitalize mt-1 flex items-center">
-                <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                {empleado.rol}
+          <div className="p-4 border-t border-blue-600/50 bg-gradient-to-br from-blue-800/90 to-blue-700/90 backdrop-blur-sm">
+            <div className="bg-gradient-to-r from-blue-900/40 to-blue-800/40 rounded-xl p-4 border border-blue-600/30 shadow-lg hover:shadow-xl hover:border-blue-500/50 transition-all duration-300">
+              <div className="flex items-center gap-4">
+                {/* Avatar con gradiente y status */}
+                <div className="relative flex-shrink-0">
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
+                    <FaUserAlt className="text-white text-lg" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-blue-800 animate-pulse shadow-lg shadow-green-400/50"></div>
+                </div>
+
+                {/* Información del empleado - SOLO nombre y rol */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-white text-base sm:text-lg truncate">
+                    {empleado.nombre}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="px-2.5 py-1 bg-blue-700/60 rounded-full text-blue-100 text-xs font-medium border border-blue-500/30 whitespace-nowrap">
+                      {empleado.rol}
+                    </span>
+                    <span className="text-xs text-blue-200 bg-blue-800/30 px-2 py-1 rounded-lg border border-blue-500/20 whitespace-nowrap">
+                      ● Activo
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Profile Button */}
+        {/* 👤 Profile Button */}
         {empleado && (
-          <div className="bg-gradient-to-r from-blue-800/80 to-blue-700/80 p-4 border-t border-blue-600/50">
+          <div className="bg-gradient-to-br from-blue-800/90 to-blue-700/90 p-4 border-t border-blue-600/50">
             <Link
               href="/dashboard/editar_perfil"
               scroll={false}
               className={`
-                flex items-center justify-center w-full px-4 py-3 text-blue-200 
-                border border-blue-500/50 rounded-xl transition-all duration-300 
+                flex items-center justify-center gap-3 w-full px-4 py-3.5 
+                border rounded-xl transition-all duration-300 font-medium text-sm
                 ${isActive('/dashboard/editar_perfil') 
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border-blue-400' 
-                  : 'hover:bg-gradient-to-r hover:from-blue-700/60 hover:to-blue-600/60 hover:text-white hover:border-blue-400'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/30' 
+                  : 'text-blue-200 border-blue-500/50 hover:bg-gradient-to-r hover:from-blue-700/60 hover:to-blue-600/60 hover:text-white hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/20'
                 }
-                hover:shadow-lg hover:shadow-blue-500/25
+                hover:scale-[1.02]
               `}
             >
               <FaUserAlt className="text-base" />
-              <span className="ml-3 font-medium">{perfilLabel}</span>
+              <span>{perfilLabel}</span>
               {isActive('/dashboard/editar_perfil') && (
                 <div className="ml-auto w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
               )}
@@ -772,25 +889,44 @@ export default function Sidebar({ onOpenPerfil }) {
           </div>
         )}
 
-        {/* Logout Button */}
-        <div className="bg-gradient-to-r from-blue-800/80 to-blue-700/80 p-4 border-t border-blue-600/50">
+        {/* 🚪 Logout Button */}
+        <div className="bg-gradient-to-br from-blue-800/90 to-blue-700/90 p-4 border-t border-blue-600/50">
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="
-              flex items-center justify-center w-full px-4 py-3 text-blue-200 
-              border border-red-500/50 rounded-xl transition-all duration-300 
-              hover:bg-gradient-to-r hover:from-red-600/60 hover:to-red-500/60 
-              hover:text-white hover:border-red-400 hover:shadow-lg hover:shadow-red-500/25
-            "
+            className={`
+              flex items-center justify-center gap-3 w-full px-4 py-3.5 
+              text-blue-200 border border-red-500/50 rounded-xl 
+              transition-all duration-300 font-medium text-sm
+              hover:bg-gradient-to-r hover:from-red-600/70 hover:to-red-500/70 
+              hover:text-white hover:border-red-400 hover:shadow-lg hover:shadow-red-500/20
+              hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed
+            `}
           >
             <FaSignOutAlt className={`text-base ${isLoggingOut ? "animate-spin" : ""}`} />
-            <span className="ml-3 font-medium">
-              {isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}
-            </span>
+            <span>{isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}</span>
           </button>
         </div>
       </div>
+
+      {/* Custom Scrollbar Styles */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(30, 58, 138, 0.3);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(96, 165, 250, 0.5);
+          border-radius: 10px;
+          transition: background 0.3s;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(96, 165, 250, 0.8);
+        }
+      `}</style>
     </aside>
   );
 }

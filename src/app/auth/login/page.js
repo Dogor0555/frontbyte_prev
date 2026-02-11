@@ -18,31 +18,41 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setIsLoading(true);
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+  setIsLoading(true);
 
-    const routeAttempt = `${API_BASE_URL}/login`;
+  const routeAttempt = `${API_BASE_URL}/login`;
 
-    try {
-      const result = await login(email, password);
-      console.log("Conexión exitosa al backend. Ruta:", routeAttempt);
-      
-      // Guardar información del empleado en localStorage
-      if (result.empleado) {
-        localStorage.setItem('empleado', JSON.stringify(result.empleado));
-      }
-      
-      router.push("/dashboard");
-    } catch (error) {
-      console.error("No se pudo conectar al backend. Ruta:", routeAttempt, error);
-      setError(error.message || "Error al iniciar sesión. Verifica tus credenciales y conexión con Hacienda.");
-    } finally {
-      setIsLoading(false);
+  try {
+    const result = await login(email, password);
+    console.log("Conexión exitosa al backend. Ruta:", routeAttempt);
+    
+    // Guardar información del empleado Y EMPRESA Y SUCURSAL en localStorage
+    if (result.empleado) {
+      localStorage.setItem('empleado', JSON.stringify(result.empleado));
     }
-  };
-
+    
+    if (result.empresa) {
+      localStorage.setItem('empresa', JSON.stringify(result.empresa));
+      console.log('Empresa guardada:', result.empresa.nombre);
+    }
+    
+    // 👇 AGREGADO: Guardar sucursal
+    if (result.sucursal) {
+      localStorage.setItem('sucursal', JSON.stringify(result.sucursal));
+      console.log('Sucursal guardada:', result.sucursal.nombre);
+    }
+    
+    router.push("/dashboard");
+  } catch (error) {
+    console.error("No se pudo conectar al backend. Ruta:", routeAttempt, error);
+    setError(error.message || "Error al iniciar sesión. Verifica tus credenciales y conexión con Hacienda.");
+  } finally {
+    setIsLoading(false);
+  }
+};
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-200 p-4 md:p-8">
       <div className="animate-fadeIn flex w-full max-w-5xl flex-col-reverse overflow-hidden rounded-2xl bg-white shadow-lg transition-all duration-300 hover:shadow-xl md:flex-row">
