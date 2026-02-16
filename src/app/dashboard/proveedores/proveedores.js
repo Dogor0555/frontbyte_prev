@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { FaSearch, FaBars, FaPlus, FaTimes, FaEdit, FaShoppingCart, FaTrash, FaFilePdf, FaSave, FaTimes as FaClose, FaBuilding, FaPhone, FaEnvelope, FaMapMarkerAlt } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
@@ -22,6 +22,22 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
     const [errorMessage, setErrorMessage] = useState("");
     const [nombreError, setNombreError] = useState("");
     const [codigoError, setCodigoError] = useState("");
+    const [proveedorToDelete, setProveedorToDelete] = useState(null);
+    
+    // Estados para el menú de reportes
+    const [showReportMenu, setShowReportMenu] = useState(false);
+    const reportMenuRef = useRef(null);
+
+    // Cerrar menú al hacer clic fuera
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (reportMenuRef.current && !reportMenuRef.current.contains(event.target)) {
+                setShowReportMenu(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
     
     // Límites de caracteres para cada campo
     const LIMITES = {
@@ -281,12 +297,8 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
     };
 
     const handleDeleteClick = (proveedorId) => {
+        setProveedorToDelete(proveedorId);
         setShowDeleteConfirmModal(true);
-        // Guardar el ID temporalmente
-        setTimeout(() => {
-            handleDeleteProveedor(proveedorId);
-            setShowDeleteConfirmModal(false);
-        }, 0);
     };
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
@@ -305,7 +317,50 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
 
     const handleViewProducts = () => router.push("/dashboard/productos");
     const handleManagePurchases = () => router.push("/dashboard/compras");
-    const handleGenerateReport = () => alert("Funcionalidad de reporte para proveedores - Próximamente");
+
+    // Función para descargar reportes (MEJORADA)
+    const handleDownloadReport = async (format) => {
+        setShowReportMenu(false);
+        try {
+            const endpoint = format === 'pdf' 
+                ? `${API_BASE_URL}/reportes/proveedores/pdf`
+                : `${API_BASE_URL}/reportes/proveedores/excel`;
+            
+            const response = await fetch(endpoint, {
+                method: "GET",
+                headers: { Cookie: document.cookie },
+                credentials: "include",
+            });
+
+            if (!response.ok) {
+                // Intentar obtener el mensaje de error del servidor
+                let errorMsg = `Error al descargar ${format.toUpperCase()}`;
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.error || errorData.mensaje || errorMsg;
+                } catch {
+                    // Si no es JSON, intentar como texto
+                    const text = await response.text();
+                    if (text) errorMsg = text;
+                }
+                throw new Error(errorMsg);
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+link.download = format === 'pdf' ? 'proveedores.pdf' : 'proveedores.xlsx';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error(`Error al descargar reporte ${format}:`, error);
+            setErrorMessage(error.message || `No se pudo descargar el reporte en ${format.toUpperCase()}`);
+            setShowErrorModal(true);
+        }
+    };
 
     return (
         <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
@@ -363,12 +418,37 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
                                 >
                                     <FaShoppingCart className="mr-2" /> Compras
                                 </button>
-                                <button
-                                    onClick={handleGenerateReport}
-                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors shadow-sm flex items-center justify-center"
-                                >
-                                    <FaFilePdf className="mr-2" /> Reporte
-                                </button>
+                                
+                                {/* Botón Reporte con menú desplegable */}
+                                <div className="relative" ref={reportMenuRef}>
+                                    <button
+                                        onClick={() => setShowReportMenu(!showReportMenu)}
+                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors shadow-sm flex items-center justify-center"
+                                    >
+                                        <FaFilePdf className="mr-2" /> Reporte
+                                    </button>
+                                    {showReportMenu && (
+                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20 border border-gray-200">
+                                            <div className="py-1">
+                                                <button
+                                                    onClick={() => handleDownloadReport('pdf')}
+                                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                                >
+                                                    <FaFilePdf className="mr-2 text-red-500" /> PDF
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDownloadReport('excel')}
+                                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                                >
+                                                    <svg className="mr-2 w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 18H6V4h7v5h5v11zM8 15h8v2H8z" />
+                                                    </svg>
+                                                    Excel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -520,7 +600,7 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
                 </div>
             </div>
 
-            {/* Modales (similar a productos) */}
+            {/* Modales */}
             {showSearchResultsModal && ( 
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
@@ -795,6 +875,7 @@ export default function Proveedores({ initialProveedores = [], user, hasHacienda
                                     onClick={() => {
                                         handleDeleteProveedor(proveedorToDelete);
                                         setShowDeleteConfirmModal(false);
+                                        setProveedorToDelete(null);
                                     }}
                                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
                                 >
