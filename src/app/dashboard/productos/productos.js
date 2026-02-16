@@ -1,14 +1,13 @@
 "use client";
-import { useState, useEffect } from "react";
-import { FaSearch, FaBars, FaPlus, FaTimes, FaEdit, FaTrash, FaFilePdf, FaSave, FaTimes as FaClose, FaBoxOpen, FaTruck, FaShoppingCart } from "react-icons/fa";
+import { useState, useEffect, useRef } from "react";
+import { FaSearch, FaBars, FaPlus, FaTimes, FaEdit, FaTrash, FaFilePdf, FaFileExcel, FaSave, FaTimes as FaClose, FaBoxOpen, FaTruck, FaShoppingCart } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
-export default function Productos({ initialProductos = [], user,   hasHaciendaToken = false,  
-  haciendaStatus = {}  }) {
+export default function Productos({ initialProductos = [], user, hasHaciendaToken = false, haciendaStatus = {} }) {
     const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
@@ -25,6 +24,21 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
     const [errorMessage, setErrorMessage] = useState("");
     const [nombreError, setNombreError] = useState("");
     const [codigoError, setCodigoError] = useState("");
+    
+    // Estados para el menú de reportes
+    const [showReportMenu, setShowReportMenu] = useState(false);
+    const reportMenuRef = useRef(null);
+
+    // Cerrar menú al hacer clic fuera
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (reportMenuRef.current && !reportMenuRef.current.contains(event.target)) {
+                setShowReportMenu(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
     
     // Límites de caracteres para cada campo
     const LIMITES = {
@@ -281,39 +295,53 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         }
     };
 
-    const handleGenerateReport = async () => {
-        try {
-            const userId = user?.id;
+    // NUEVA FUNCIÓN: Descargar reporte
+   // Función para descargar reportes (CORREGIDA)
+const handleDownloadReport = async (format) => {
+    setShowReportMenu(false);
+    try {
+        const endpoint = format === 'pdf' 
+            ? `${API_BASE_URL}/reportes/productos/pdf`
+            : `${API_BASE_URL}/reportes/productos/excel`;
+        
+        const response = await fetch(endpoint, {
+            method: "GET",
+            headers: { Cookie: document.cookie },
+            credentials: "include",
+        });
 
-            if (!userId) {
-                setErrorMessage("No se pudo obtener el ID del usuario.");
-                setShowErrorModal(true);
-                return;
+        if (!response.ok) {
+            // Primero obtenemos el texto de la respuesta
+            const errorText = await response.text();
+            let errorMsg = `Error al descargar ${format.toUpperCase()}`;
+            
+            try {
+                // Intentamos parsear el texto como JSON
+                const errorData = JSON.parse(errorText);
+                errorMsg = errorData.error || errorData.mensaje || errorMsg;
+            } catch {
+                // Si no es JSON, usamos el texto directamente
+                if (errorText) errorMsg = errorText;
             }
-
-            const response = await fetch(`${API_BASE_URL}/reporte/productos/${userId}`, {
-                method: "GET",
-                headers: {
-                    Cookie: document.cookie,
-                },
-                credentials: "include",
-            });
-
-            if (!response.ok) {
-                throw new Error("Error al generar el reporte");
-            }
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            window.open(url, "_blank");
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error("Error al generar el reporte:", error);
-            setErrorMessage("Ocurrió un error al generar el reporte. Por favor, inténtelo de nuevo.");
-            setShowErrorModal(true);
+            
+            throw new Error(errorMsg);
         }
-    };
 
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = format === 'pdf' ? 'productos.pdf' : 'productos.xlsx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error(`Error al descargar reporte ${format}:`, error);
+        setErrorMessage(error.message || `No se pudo descargar el reporte en ${format.toUpperCase()}`);
+        setShowErrorModal(true);
+    }
+};
     const handleSaveNewProduct = async (e) => {
         e.preventDefault();
 
@@ -530,7 +558,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
         router.push("/dashboard/proveedores");
     };
 
-
     const handleMakePurchase = () => {
         router.push("/dashboard/compras");
     };
@@ -601,12 +628,34 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                 >
                                     <FaShoppingCart className="mr-2" /> Compras
                                 </button>
-                                <button
-                                    onClick={handleGenerateReport}
-                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors shadow-sm flex items-center justify-center"
-                                >
-                                    <FaFilePdf className="mr-2" /> Reporte
-                                </button>
+                                
+                                {/* Botón Reporte con menú desplegable */}
+                                <div className="relative" ref={reportMenuRef}>
+                                    <button
+                                        onClick={() => setShowReportMenu(!showReportMenu)}
+                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors shadow-sm flex items-center justify-center"
+                                    >
+                                        <FaFilePdf className="mr-2" /> Reporte
+                                    </button>
+                                    {showReportMenu && (
+                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20 border border-gray-200">
+                                            <div className="py-1">
+                                                <button
+                                                    onClick={() => handleDownloadReport('pdf')}
+                                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                                >
+                                                    <FaFilePdf className="mr-2 text-red-500" /> PDF
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDownloadReport('excel')}
+                                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                                >
+                                                    <FaFileExcel className="mr-2 text-green-600" /> Excel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -792,6 +841,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                 </div>
             </div>
 
+            {/* Modales (se mantienen igual que antes) */}
             {showSearchResultsModal && ( 
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
@@ -850,6 +900,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
 
             {showAddModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    {/* Contenido del modal de agregar (igual que antes) */}
                     <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-screen overflow-y-auto">
                         <div className="flex items-center justify-between px-6 py-4 border-b">
                             <h3 className="text-lg font-medium text-gray-900">Agregar Producto</h3>
@@ -870,6 +921,7 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
 
                         <div className="px-6 py-4">
                             <form onSubmit={handleSaveNewProduct}>
+                                {/* Todo el contenido del formulario se mantiene igual */}
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="nombre">
                                         Nombre del Producto
@@ -906,7 +958,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                     <p className="text-xs text-gray-500 mt-1">{formData.codigo.length}/{LIMITES.CODIGO} caracteres</p>
                                 </div>
 
-                                {/* Nuevo campo: Es Servicio */}
                                 <div className="mb-4">
                                     <div className="flex items-center">
                                         <input
@@ -1083,7 +1134,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                                     <p className="text-xs text-gray-500 mt-1">{formData.codigo.length}/{LIMITES.CODIGO} caracteres</p>
                                 </div>
 
-                                {/* Nuevo campo: Es Servicio */}
                                 <div className="mb-4">
                                     <div className="flex items-center">
                                         <input
@@ -1201,7 +1251,6 @@ export default function Productos({ initialProductos = [], user,   hasHaciendaTo
                 </div>
             )}
 
-            {/* Los demás modales se mantienen igual */}
             {showStockModal && selectedProduct && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
