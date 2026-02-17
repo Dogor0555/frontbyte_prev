@@ -648,8 +648,8 @@ const descargarTicketFactura = async (idFactura) => {
           codtributo: null,
           unimedida: item.unidadMedida || "59",
           descripcion: item.descripcion,
-          preciouni: parseFloat(item.precioUnitario.toFixed(2)),
-          montodescu: parseFloat(descuentoItem.toFixed(2)), // ← MONTO FIJO del descuento
+          preciouni: parseFloat(item.precioUnitario.toFixed(6)),
+          montodescu: parseFloat(descuentoItem.toFixed(6)), // ← MONTO FIJO del descuento
           ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(2)) : 0.00,
           ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
           ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
