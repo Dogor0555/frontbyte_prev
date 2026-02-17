@@ -650,9 +650,9 @@ const descargarTicketFactura = async (idFactura) => {
           descripcion: item.descripcion,
           preciouni: parseFloat(item.precioUnitario.toFixed(6)),
           montodescu: parseFloat(descuentoItem.toFixed(6)), // ← MONTO FIJO del descuento
-          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(6)) : 0.00,
+          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(6)) : 0.00,
+          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(6)) : 0.00,
           tributos: item.tributos,
           psv: 0,
           nogravado: 0.00,
@@ -1546,9 +1546,9 @@ const descargarTicketFactura = async (idFactura) => {
                                 <input
                                   type="number"
                                   min="0"
-                                  step="0.01"
+                                  step="0.000001"
                                   value={item.precioUnitario}
-                                  onChange={(e) => handleItemChange(item.id, "precioUnitario", parseFloat(e.target.value))}
+                                  onChange={(e) => handleItemChange(item.id, "precioUnitario", e.target.value === "" ? 0 : parseFloat(e.target.value))}
                                   className="w-24 p-1 border border-gray-300 rounded"
                                 />
                               </td>
