@@ -533,11 +533,12 @@ const descargarTicketFactura = async (idFactura) => {
     
     const detalles = items.map((item, index) => {
       const subtotalItem = item.precioUnitario * item.cantidad;
-      const descuentoItem = item.descuento;
+      const descuentoItem = item.descuento || 0;
       const baseImponible = subtotalItem - descuentoItem;
 
       const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
       const esExento = item.tipo === "noAfecto";
+      const esNoSujeto = item.tipo === "noSuj";
 
       const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
 
@@ -555,6 +556,11 @@ const descargarTicketFactura = async (idFactura) => {
         ventanosuj: 0.00,
         ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
         ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+        preciouni: parseFloat(item.precioUnitario.toFixed(8)),
+        montodescu: parseFloat(descuentoItem.toFixed(8)),
+        ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(8)) : 0.00,
         tributos: null,
         psv: 0,
         nogravado: 0.00,
@@ -653,6 +659,11 @@ const descargarTicketFactura = async (idFactura) => {
           ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(6)) : 0.00,
           ventaexenta: esExento ? parseFloat(baseImponible.toFixed(6)) : 0.00,
           ventagravada: esGravado ? parseFloat(baseImponible.toFixed(6)) : 0.00,
+          preciouni: parseFloat(item.precioUnitario.toFixed(8)),
+          montodescu: parseFloat(descuentoItem.toFixed(8)), // ← MONTO FIJO del descuento
+          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(8)) : 0.00,
           tributos: item.tributos,
           psv: 0,
           nogravado: 0.00,
