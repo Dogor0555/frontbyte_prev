@@ -367,12 +367,12 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
           {
             descripcion: `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} - ${motivoNota.trim()}`,
             cantidad: 1,
-            precio: total.toFixed(2), // El precio unitario es el total
-            preciouni: total.toFixed(2),
-            subtotal: monto.toFixed(2),
-            ventagravada: monto.toFixed(2),
+            precio: total.toFixed(8), // El precio unitario es el total
+            preciouni: total.toFixed(8),
+            subtotal: monto.toFixed(8),
+            ventagravada: monto.toFixed(8),
             iva: iva.toFixed(2), // El IVA calculado
-            total: total.toFixed(2),
+            total: total.toFixed(8),
             unidadmedida: "UNI",
             tributo: "20",
             tributos: [

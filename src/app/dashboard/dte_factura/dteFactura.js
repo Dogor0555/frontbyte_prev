@@ -554,7 +554,7 @@ const descargarTicketFactura = async (idFactura) => {
         preciouni: parseFloat(item.precioUnitario.toFixed(6)),
         montodescu: parseFloat(descuentoItem.toFixed(6)),
         ventanosuj: 0.00,
-        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(6)) : 0.00,
         ventagravada: esGravado ? parseFloat(baseImponible.toFixed(6)) : 0.00,
         preciouni: parseFloat(item.precioUnitario.toFixed(8)),
         montodescu: parseFloat(descuentoItem.toFixed(8)),

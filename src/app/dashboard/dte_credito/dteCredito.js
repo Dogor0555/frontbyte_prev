@@ -588,11 +588,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         codtributo: null,
         unimedida: item.unidadMedida || "59",
         descripcion: item.descripcion,
-        preciouni: parseFloat(item.precioUnitario.toFixed(2)),
-        montodescu: parseFloat(descuentoItem.toFixed(2)),
+        preciouni: parseFloat(item.precioUnitario.toFixed(8)),
+        montodescu: parseFloat(descuentoItem.toFixed(8)),
         ventanosuj: 0.00,
-        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(2)) : 0.00,
-        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(2)) : 0.00,
+        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(8)) : 0.00,
         tributos: null,
         psv: 0,
         nogravado: 0.00,
@@ -680,11 +680,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           codtributo: null,
           unimedida: item.unidadMedida || "59",
           descripcion: item.descripcion,
-          preciouni: parseFloat(item.precioUnitario.toFixed(2)), // Precio original
-          montodescu: parseFloat(item.descuento.toFixed(2)), // Descuento total
-          ventanosuj: parseFloat(baseNoSujeta.toFixed(2)),
-          ventaexenta: parseFloat(baseExenta.toFixed(2)),
-          ventagravada: parseFloat(baseGravada.toFixed(2)),
+          preciouni: parseFloat(item.precioUnitario.toFixed(8)), // Precio original
+          montodescu: parseFloat(item.descuento.toFixed(8)), // Descuento total
+          ventanosuj: parseFloat(baseNoSujeta.toFixed(8)),
+          ventaexenta: parseFloat(baseExenta.toFixed(8)),
+          ventagravada: parseFloat(baseGravada.toFixed(8)),
           tributos: item.tributos,
           psv: 0,
           nogravado: 0.00,
@@ -2087,4 +2087,4 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       )}
     </div>
   );
-}
+} 
