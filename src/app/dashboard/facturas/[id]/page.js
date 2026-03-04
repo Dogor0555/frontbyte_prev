@@ -1,10 +1,12 @@
+// src/app/dashboard/facturas/[id]/page.js
 "use client";
 import { useState, useEffect } from "react";
-import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox, FaTicketAlt, FaTag } from "react-icons/fa";
+import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox, FaTicketAlt, FaTag, FaEye } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import JsonViewer from "../../components/JsonViewer";
 
 export default function FacturaDetallePage() {
   const params = useParams();
@@ -16,6 +18,7 @@ export default function FacturaDetallePage() {
   const [generandoPDF, setGenerandoPDF] = useState(false);
   const [generandoTicket, setGenerandoTicket] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [jsonViewerData, setJsonViewerData] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -49,6 +52,25 @@ export default function FacturaDetallePage() {
       fetchFactura();
     }
   }, [idFactura]);
+
+  const handleViewJSON = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/${idFactura}/descargar-json`, {
+        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) throw new Error("Error al cargar JSON");
+      
+      const data = await response.json();
+      setJsonViewerData(data);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al cargar JSON: " + error.message);
+    }
+  };
 
   const handleGeneratePDF = async () => {
     setGenerandoPDF(true);
@@ -89,50 +111,49 @@ export default function FacturaDetallePage() {
   };
 
   const handleGenerateTicket = async () => {
-      setGenerandoTicket(true);
-      try {
-        const response = await fetch(`${API_BASE_URL}/facturas/${idFactura}/ver-compacto`, {
-          credentials: "include",
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          let errorData;
-          try {
-            errorData = JSON.parse(errorText);
-          } catch {
-            throw new Error(errorText || "Error al generar ticket");
-          }
-          throw new Error(errorData.detalles || errorData.error || "Error al generar ticket");
+    setGenerandoTicket(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/${idFactura}/ver-compacto`, {
+        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
-
-        const htmlContent = await response.text();
-        
-        const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
-        
-        if (!printWindow) {
-          throw new Error("El navegador bloqueó la ventana emergente. Por favor, permite ventanas emergentes para este sitio.");
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          throw new Error(errorText || "Error al generar ticket");
         }
-
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-
-      } catch (error) {
-        console.error("Error al generar ticket:", error);
-        alert("Error al generar el ticket: " + error.message);
-      } finally {
-        setGenerandoTicket(false);
+        throw new Error(errorData.detalles || errorData.error || "Error al generar ticket");
       }
+
+      const htmlContent = await response.text();
+      
+      const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+      
+      if (!printWindow) {
+        throw new Error("El navegador bloqueó la ventana emergente. Por favor, permite ventanas emergentes para este sitio.");
+      }
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+
+    } catch (error) {
+      console.error("Error al generar ticket:", error);
+      alert("Error al generar el ticket: " + error.message);
+    } finally {
+      setGenerandoTicket(false);
+    }
   };
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  // Calcular totales de descuentos
   const calcularTotalesDescuentos = () => {
     if (!facturaData?.productos) return { totalDescuento: 0, totalDescGravado: 0, totalDescExento: 0, totalDescSujeto: 0 };
     
@@ -227,12 +248,10 @@ export default function FacturaDetallePage() {
 
   return (
     <div className="flex min-h-screen bg-blue-50">
-      {/* Sidebar para desktop */}
       <div className="hidden md:block">
         <Sidebar />
       </div>
       
-      {/* Overlay para móvil */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
@@ -240,9 +259,7 @@ export default function FacturaDetallePage() {
         ></div>
       )}
       
-      {/* Contenido principal */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Botón para abrir sidebar en móvil */}
         <button 
           onClick={toggleSidebar}
           className="md:hidden fixed left-2 top-2 z-10 p-2 rounded-md bg-white shadow-md text-gray-600"
@@ -250,7 +267,6 @@ export default function FacturaDetallePage() {
           ☰
         </button>
 
-        {/* Contenido con scroll */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">
@@ -262,6 +278,19 @@ export default function FacturaDetallePage() {
               </button>
               
               <div className="flex gap-2">
+                {/* Botón Ver JSON */}
+                <button
+                  onClick={handleViewJSON}
+                  disabled={!facturaData?.factura?.documentofirmado}
+                  className={`flex items-center px-4 py-2 rounded ${
+                    !facturaData?.factura?.documentofirmado 
+                      ? 'bg-gray-500' 
+                      : 'bg-purple-600 hover:bg-purple-700'
+                  } text-white`}
+                >
+                  <FaEye className="mr-2" /> Ver JSON
+                </button>
+
                 {/* Botón Generar Ticket */}
                 <button
                   onClick={handleGenerateTicket}
@@ -505,9 +534,16 @@ export default function FacturaDetallePage() {
           </div>
         </main>
 
-        {/* Footer */}
         <Footer />
       </div>
+
+      {/* Modal del Visualizador JSON */}
+      {jsonViewerData && (
+        <JsonViewer 
+          data={jsonViewerData} 
+          onClose={() => setJsonViewerData(null)} 
+        />
+      )}
     </div>
   );
 }
