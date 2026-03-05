@@ -90,8 +90,24 @@ export default function AddClientModal({
     } else {
       if (formData.tipodocumento === "36" && !formData.nit) {
         newErrors.nit = "El NIT es obligatorio para personas jurídicas.";
-      } else if (formData.tipodocumento === "36" && formData.nit && formData.nit.length < 14) {
-        newErrors.nit = "El NIT debe tener el formato correcto (0000-000000-000-0).";
+      } else if (formData.tipodocumento === "36" && formData.nit) {
+        // Contar solo dígitos, ignorando guiones
+        const digitos = formData.nit.replace(/-/g, '').length;
+        
+        if (digitos < 9 || digitos > 14) {
+          newErrors.nit = "El NIT debe tener entre 9 y 14 dígitos.";
+        } else if (digitos === 9) {
+          // Validar formato de NIT antiguo (8 dígitos + guión + 1 dígito)
+          const nitSinGuiones = formData.nit.replace(/-/g, '');
+          if (formData.nit.length !== 10 || !/^\d{8}-\d$/.test(formData.nit)) {
+            newErrors.nit = "El formato del NIT debe ser 00000000-0 para NITs antiguos.";
+          }
+        } else if (digitos === 14) {
+          // Validar formato de NIT nuevo (4-6-3-1)
+          if (formData.nit.length !== 17 || !/^\d{4}-\d{6}-\d{3}-\d$/.test(formData.nit)) {
+            newErrors.nit = "El formato del NIT debe ser 0000-000000-000-0.";
+          }
+        }
       }
     }
 
@@ -334,12 +350,23 @@ export default function AddClientModal({
                 value={formData.nit || ""}
                 onChange={(e) => {
                   let val = e.target.value.replace(/\D/g, "");
-                  if (val.length > 4)
-                    val = val.slice(0, 4) + "-" + val.slice(4);
-                  if (val.length > 11)
-                    val = val.slice(0, 11) + "-" + val.slice(11);
-                  if (val.length > 15)
-                    val = val.slice(0, 15) + "-" + val.slice(15, 16);
+                  
+                  // Si tiene 9 dígitos, formatear como NIT antiguo (8-1)
+                  if (val.length <= 9) {
+                    if (val.length > 8) {
+                      val = val.slice(0, 8) + "-" + val.slice(8);
+                    }
+                  } 
+                  // Si tiene más de 9 dígitos, formatear como NIT nuevo (4-6-3-1)
+                  else {
+                    if (val.length > 4)
+                      val = val.slice(0, 4) + "-" + val.slice(4);
+                    if (val.length > 11)
+                      val = val.slice(0, 11) + "-" + val.slice(11);
+                    if (val.length > 15)
+                      val = val.slice(0, 15) + "-" + val.slice(15, 16);
+                  }
+                  
                   setFormData({ ...formData, nit: val });
                   setErrors({ ...errors, nit: undefined });
                 }}
