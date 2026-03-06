@@ -95,9 +95,9 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [template, setTemplate] = useState(null);
-  const [retencionIVA, setRetencionIVA] = useState({
+  const [retencionRenta, setRetencionRenta] = useState({
     aplicar: false,
-    porcentaje: 1,
+    porcentaje: 10,
     monto: 0
   });
 
@@ -278,9 +278,8 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       }, 0);
 
     const subTotal = totalNoSuj + totalExenta;
-    // const montoRetencion = retencionIVA.aplicar ? (subTotal * 0.01) : 0;
-    const montoRetencion = 0;
-    const totalPagar = subTotal - montoRetencion;
+    const montoRetencionRenta = retencionRenta.aplicar ? (subTotal * 0.10) : 0;
+    const totalPagar = subTotal - montoRetencionRenta;
 
     return {
       identificacion: {
@@ -334,12 +333,12 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
         totalGravada: 0.00,
         totalIva: 0.00,
         subTotal: parseFloat(subTotal.toFixed(2)),
-        ivaRetenido: parseFloat(montoRetencion.toFixed(2)),
+        ivaRetenido: 0.00,
         totalPagar: parseFloat(totalPagar.toFixed(2)),
         montoTotalOperacion: parseFloat(datosDocumento.montototaloperacion),
         descuGravada: 0.00,
         ivaPercibido: 0,
-        reteRenta: 0,
+        reteRenta: parseFloat(montoRetencionRenta.toFixed(2)),
         totalNoGravado: 0,
       },
       extension: {
@@ -485,13 +484,11 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     setNoSujetasConDescuentoState(0);
     setNoSujetasSinDescuentoState(0);
     setCondicionPago("Contado");
-    /*
-    setRetencionIVA({
+    setRetencionRenta({
       aplicar: false,
-      porcentaje: 1,
+      porcentaje: 10,
       monto: 0
     });
-    */
     setFormasPago([]);
     setDatosEntrega({
       emisorDocumento: "",
@@ -630,9 +627,8 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     const descuentoItems = items.reduce((sum, item) => sum + (item.descuento || 0), 0);
     const totalDescuento = descuentoItems + descuentoExentasMonto + descuentoNoSujetasMonto;
     const subtotalNeto = subtotalBruto - totalDescuento;
-    // const montoRetencion = retencionIVA.aplicar ? (subtotalNeto * 0.01) : 0;
-    const montoRetencion = 0;
-    const totalPagar = subtotalNeto - montoRetencion;
+    const montoRetencionRenta = retencionRenta.aplicar ? (subtotalNeto * 0.10) : 0;
+    const totalPagar = subtotalNeto - montoRetencionRenta;
     
     const ahora = new Date();
     
@@ -714,8 +710,8 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       valort: 0.00,
 
       ivaperci1: 0.00,
-      ivarete1: parseFloat(montoRetencion.toFixed(2)),
-      reterenta: 0.00,
+      ivarete1: 0.00,
+      reterenta: parseFloat(montoRetencionRenta.toFixed(2)),
 
       montototaloperacion: parseFloat(subtotalNeto.toFixed(2)),
       totalpagar: parseFloat(totalPagar.toFixed(2)), 
@@ -907,10 +903,9 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     setTributosDetallados(nuevosTributos);
 
     const subtotalNeto = suma - descuentoTotal;
-    // const montoRetencion = retencionIVA.aplicar ? (subtotalNeto * 0.01) : 0;
-    const montoRetencion = 0;
-
-    const total = exentasConDescuento + noSujetasConDescuento - montoRetencion;
+    
+    const montoRetencionRenta = retencionRenta.aplicar ? (subtotalNeto * 0.10) : 0;
+    const total = exentasConDescuento + noSujetasConDescuento - montoRetencionRenta;
 
     setSumaopesinimpues(parseFloat(suma.toFixed(2)));
     setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
@@ -923,20 +918,18 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     setNoSujetasSinDescuentoState(parseFloat(noSujetasBase.toFixed(2)));
     setNoSujetasConDescuentoState(parseFloat(noSujetasConDescuento.toFixed(2)));
 
-    /*
-    if (retencionIVA.aplicar) {
-      setRetencionIVA(prev => ({
+    if (retencionRenta.aplicar) {
+      setRetencionRenta(prev => ({
         ...prev,
-        monto: parseFloat(montoRetencion.toFixed(2))
+        monto: parseFloat(montoRetencionRenta.toFixed(2))
       }));
-    } else if (retencionIVA.monto > 0) {
-       setRetencionIVA(prev => ({
+    } else {
+       setRetencionRenta(prev => ({
         ...prev,
         monto: 0
       }));
     }
-    */
-  }, [items, descuentoExentasMonto, descuentoNoSujetasMonto]);
+  }, [items, descuentoExentasMonto, descuentoNoSujetasMonto, retencionRenta.aplicar]);
 
   const obtenerDescripcionTributo = (codigo) => {
     const tributosMap = {
@@ -1429,16 +1422,16 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
                       ))
                     }
                     
-                    {/* {retencionIVA.aplicar && (
+                    {retencionRenta.aplicar && (
                       <div className="flex justify-between text-sm text-red-600">
                         <span className="text-gray-600">
-                          Retención IVA (1%):
+                          Retención Renta (10%):
                         </span>
                         <span className="font-medium">
-                          -{formatMoney(retencionIVA.monto)}
+                          -{formatMoney(retencionRenta.monto)}
                         </span>
                       </div>
-                    )} */}
+                    )}
 
                     <div className="flex justify-between pt-2 border-t border-gray-300">
                       <span className="text-gray-900 font-bold text-lg">Total a pagar:</span>
@@ -1448,40 +1441,40 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
                 </div>
               </div>
 
-              {/* Retención de IVA */}
-              {/* <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-gray-50">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">Retención de IVA</h3>
+              {/* Retención de Renta */}
+              <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-gray-50">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Retención de Renta</h3>
                 
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    id="aplicarRetencionIVA"
-                    checked={retencionIVA.aplicar}
+                    id="aplicarRetencionRenta"
+                    checked={retencionRenta.aplicar}
                     onChange={(e) => {
-                      setRetencionIVA(prev => ({
+                      setRetencionRenta(prev => ({
                         ...prev,
                         aplicar: e.target.checked
                       }));
                     }}
                     className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
                   />
-                  <label htmlFor="aplicarRetencionIVA" className="ml-2 text-gray-700 font-medium">
-                    Aplicar Retención de IVA (1%)
+                  <label htmlFor="aplicarRetencionRenta" className="ml-2 text-gray-700 font-medium">
+                    Aplicar Retención de Renta (10%)
                   </label>
                 </div>
 
-                {retencionIVA.aplicar && (
+                {retencionRenta.aplicar && (
                   <div className="mt-3 text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
                     <p>
                       <FaInfoCircle className="inline mr-1 text-blue-500" />
-                      Se aplicará retención del 1% sobre el total de la operación.
+                      Se aplicará retención del 10% sobre el total de la operación.
                       <span className="ml-2 font-bold text-red-600">
-                        Monto a retener: {formatMoney(retencionIVA.monto)}
+                        Monto a retener: {formatMoney(retencionRenta.monto)}
                       </span>
                     </p>
                   </div>
                 )}
-              </div> */}
+              </div>
 
               <FormaPago 
                 condicionPago={condicionPago}
