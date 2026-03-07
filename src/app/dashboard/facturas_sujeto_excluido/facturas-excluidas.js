@@ -1,11 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaPlus, FaExclamationTriangle } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaEye, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaPlus, FaExclamationTriangle } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import JsonViewer from "../components/JsonViewer";
+
 
 export default function FacturasExcluidasView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -21,6 +23,8 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   const [anulando, setAnulando] = useState(null);
   const [reTransmitiendo, setReTransmitiendo] = useState(null);
   const [transmitiendo, setTransmitiendo] = useState(null);
+    const [jsonViewerData, setJsonViewerData] = useState(null);
+  const [loadingJson, setLoadingJson] = useState(null);
   const itemsPerPage = 6;
   const router = useRouter();
 
@@ -49,11 +53,11 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
       if (ordenFecha === "reciente" || ordenFecha === "antigua") {
         const crearFechaCompleta = (factura) => {
           if (!factura.fechaemision) return new Date(0);
-          
+
           if (factura.fechaemision.includes('T') && !factura.fechaemision.endsWith('Z')) {
             return new Date(factura.fechaemision);
           }
-          
+
           const fechaStr = factura.fechaemision.split('T')[0];
           const horaStr = factura.horaemision || '00:00:00';
 
@@ -63,39 +67,39 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
 
         const fechaA = crearFechaCompleta(a);
         const fechaB = crearFechaCompleta(b);
-        
+
         if (ordenFecha === "reciente") {
-          return fechaB - fechaA; 
+          return fechaB - fechaA;
         } else {
-          return fechaA - fechaB; 
+          return fechaA - fechaB;
         }
       } else if (ordenFecha === "numero") {
         const numA = parseInt(a.numerofacturausuario) || 0;
         const numB = parseInt(b.numerofacturausuario) || 0;
-        return numB - numA; 
+        return numB - numA;
       }
-      
+
       return 0;
     });
   };
 
   const facturasFiltradas = Array.isArray(facturas)
     ? facturas.filter((factura) => {
-        if (!factura) return false;
-        const searchLower = searchTerm.toLowerCase();
+      if (!factura) return false;
+      const searchLower = searchTerm.toLowerCase();
 
-        const matchSearch =
-          (factura.codigo?.toLowerCase() || "").includes(searchLower) ||
-          (factura.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
-          (factura.nombrecibe?.toLowerCase() || "").includes(searchLower) ||
-          (factura.numerofacturausuario?.toString() || "").includes(searchTerm) ||
-          (factura.iddtefactura?.toString() || "").includes(searchTerm) ||
-          (factura.ncontrol?.toString() || "").includes(searchTerm);
+      const matchSearch =
+        (factura.codigo?.toLowerCase() || "").includes(searchLower) ||
+        (factura.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
+        (factura.nombrecibe?.toLowerCase() || "").includes(searchLower) ||
+        (factura.numerofacturausuario?.toString() || "").includes(searchTerm) ||
+        (factura.iddtefactura?.toString() || "").includes(searchTerm) ||
+        (factura.ncontrol?.toString() || "").includes(searchTerm);
 
-        const matchEstado = estadoFiltro ? factura.estado === estadoFiltro : true;
+      const matchEstado = estadoFiltro ? factura.estado === estadoFiltro : true;
 
-        return matchSearch && matchEstado;
-      })
+      return matchSearch && matchEstado;
+    })
     : [];
 
   const facturasOrdenadas = ordenarFacturas(facturasFiltradas);
@@ -107,7 +111,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const formatCurrency = (amount) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(amount || 0);
-  
+
   const formatDate = (dateString) => {
     if (!dateString) return "Fecha no disponible";
     try {
@@ -123,11 +127,11 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
 
   const puedeAnular = (factura) => {
     if (!factura) return false;
-    
+
     if (factura.estado === 'ANULADO') return false;
-    
+
     if (!['TRANSMITIDO', 'RE-TRANSMITIDO'].includes(factura.estado)) return false;
-    
+
     if (factura.fechaemision && factura.horaemision) {
       const fechaHoraStr = `${factura.fechaemision.split("T")[0]}T${factura.horaemision}Z`;
       const fechaEmision = new Date(fechaHoraStr);
@@ -135,7 +139,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
       const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
       return horasTranscurridas <= 24;
     }
-    
+
     return false;
   };
 
@@ -145,6 +149,29 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
 
   const puedeTransmitir = (factura) => {
     return factura && !factura.estado || factura.estado === 'PENDIENTE';
+  };
+
+
+   const handleViewJSON = async (iddtefactura) => {
+    setLoadingJson(iddtefactura);
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setJsonViewerData(data);
+    } catch (error) {
+      console.error('Error cargando JSON:', error);
+      alert(`Error al cargar JSON: ${error.message}`);
+    } finally {
+      setLoadingJson(null);
+    }
   };
 
   const handleTransmitir = async (facturaId) => {
@@ -161,12 +188,12 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
       }
 
       const result = await response.json();
-      setFacturas(prev => prev.map(factura => 
-        factura.iddtefactura === facturaId 
+      setFacturas(prev => prev.map(factura =>
+        factura.iddtefactura === facturaId
           ? { ...factura, estado: result.estado || 'TRANSMITIDO', documentofirmado: result.documentofirmado }
           : factura
       ));
-      
+
       alert('Transmisión exitosa');
     } catch (error) {
       console.error('Error en transmisión:', error);
@@ -181,11 +208,11 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
       "¿Está seguro que desea anular esta factura de sujeto excluido?\n\n" +
       "Una vez anulada, no podrá revertir esta acción."
     );
-    
+
     if (!confirmarAnulacion) {
       return;
     }
-    
+
     setAnulando(facturaId);
     try {
       const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/anular`, {
@@ -195,7 +222,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          tipoAnulacion: "2", 
+          tipoAnulacion: "2",
           motivoAnulacion: "Se emitió con datos incorrectos",
         }),
       });
@@ -237,12 +264,12 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
       }
 
       const result = await response.json();
-      setFacturas(prev => prev.map(factura => 
-        factura.iddtefactura === facturaId 
+      setFacturas(prev => prev.map(factura =>
+        factura.iddtefactura === facturaId
           ? { ...factura, estado: result.estado || 'RE-TRANSMITIDO' }
           : factura
       ));
-      
+
       alert('Re-transmisión exitosa');
     } catch (error) {
       console.error('Error en re-transmisión:', error);
@@ -266,11 +293,11 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
       }
 
       const disposition = response.headers.get("Content-Disposition");
-      let filename = `factura-excluida-${iddtefactura}.json`; 
+      let filename = `factura-excluida-${iddtefactura}.json`;
       if (disposition && disposition.includes("filename=")) {
         filename = disposition
           .split("filename=")[1]
-          .replace(/"/g, ""); 
+          .replace(/"/g, "");
       }
 
       const blob = await response.blob();
@@ -298,7 +325,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
       const response = await fetch(`${API_BASE_URL}/facturas/${facturaId}/descargar-pdf`, {
         credentials: "include"
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         let errorData;
@@ -309,7 +336,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
         }
         throw new Error(errorData.detalles || errorData.error || "Error al descargar PDF");
       }
-      
+
       const disposition = response.headers.get("Content-Disposition");
       let filename = `FAC-EXCLUIDA-${facturaId}.pdf`;
       if (disposition && disposition.includes("filename=")) {
@@ -347,20 +374,20 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
-  
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
       if (window.innerWidth < 768) {
         setSidebarOpen(false);
       } else {
-        setSidebarOpen(true); 
+        setSidebarOpen(true);
       }
     };
-    
+
     checkMobile();
     window.addEventListener("resize", checkMobile);
-    
+
     return () => {
       window.removeEventListener("resize", checkMobile);
     };
@@ -376,9 +403,8 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
 
   return (
     <div className="flex h-screen bg-green-50 text-black overflow-hidden">
-      <div className={`fixed md:relative z-20 h-screen ${
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
-      } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}
+      <div className={`fixed md:relative z-20 h-screen ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}
       >
         <Sidebar />
       </div>
@@ -391,10 +417,10 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
         ></div>
       )}
 
-      <div className="flex-1 flex flex-col min-w-0">  
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Navbar */}
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
-          <Navbar 
+          <Navbar
             user={user}
             hasHaciendaToken={hasHaciendaToken}
             haciendaStatus={haciendaStatus}
@@ -494,14 +520,13 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                             </span> */}
                           </div>
                         </div>
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          factura.estado === 'TRANSMITIDO' ? 'bg-green-500/30 text-green-100' :
-                          factura.estado === 'RE-TRANSMITIDO' ? 'bg-blue-500/30 text-blue-100' :
-                          factura.estado === 'CONTINGENCIA' ? 'bg-yellow-500/30 text-yellow-100' :
-                          factura.estado === 'ANULADO' ? 'bg-red-500/30 text-red-100' :
-                          factura.estado === 'PENDIENTE' ? 'bg-gray-500/30 text-gray-100' :
-                          'bg-orange-500/30 text-orange-100'
-                        }`}>
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${factura.estado === 'TRANSMITIDO' ? 'bg-green-500/30 text-green-100' :
+                            factura.estado === 'RE-TRANSMITIDO' ? 'bg-blue-500/30 text-blue-100' :
+                              factura.estado === 'CONTINGENCIA' ? 'bg-yellow-500/30 text-yellow-100' :
+                                factura.estado === 'ANULADO' ? 'bg-red-500/30 text-red-100' :
+                                  factura.estado === 'PENDIENTE' ? 'bg-gray-500/30 text-gray-100' :
+                                    'bg-orange-500/30 text-orange-100'
+                          }`}>
                           {factura.estado?.toUpperCase() || 'SIN TRANSMITIR'}
                         </span>
                       </div>
@@ -517,11 +542,10 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                             {factura.fechaemision ? `${new Date(factura.fechaemision).toISOString().split("T")[0]} ${factura.horaemision || ''}` : 'Fecha no disponible'}
                           </span>
                         </div>
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          factura.documentofirmado && factura.documentofirmado !== "null"
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${factura.documentofirmado && factura.documentofirmado !== "null"
                             ? 'bg-green-100 text-green-800'
                             : 'bg-gray-100 text-gray-800'
-                        }`}>
+                          }`}>
                           {factura.documentofirmado && factura.documentofirmado !== "null" ? "FIRMADO" : "NO FIRMADO"}
                         </span>
                       </div>
@@ -589,11 +613,10 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                           <button
                             onClick={() => handleTransmitir(factura.iddtefactura)}
                             disabled={transmitiendo === factura.iddtefactura}
-                            className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                              transmitiendo === factura.iddtefactura
+                            className={`flex items-center px-2 py-1 rounded text-xs font-medium ${transmitiendo === factura.iddtefactura
                                 ? 'bg-gray-400 text-gray-700'
                                 : 'bg-green-500 hover:bg-green-600 text-white'
-                            }`}
+                              }`}
                           >
                             {transmitiendo === factura.iddtefactura ? (
                               <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
@@ -606,16 +629,40 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
 
                         {/* Botón de Re-transmitir */}
 
+                        {/* Botón de Ver JSON */}
+                        <button
+                          onClick={() => handleViewJSON(factura.iddtefactura)}
+                          disabled={loadingJson === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
+                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${loadingJson === factura.iddtefactura
+                              ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                              : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
+                                ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                                : 'bg-purple-500 hover:bg-purple-600 text-white'
+                            }`}
+                          title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede ver: Factura no firmada" : "Ver JSON formateado"}
+                        >
+                          {loadingJson === factura.iddtefactura ? (
+                            <>
+                              <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                              Cargando
+                            </>
+                          ) : (
+                            <>
+                              <FaEye className="mr-1 text-xs" />
+                              Ver JSON
+                            </>
+                          )}
+                        </button>
+
                         {/* Botón de Anular */}
                         {puedeAnular(factura) && (
                           <button
                             onClick={() => handleAnularFactura(factura.iddtefactura)}
                             disabled={anulando === factura.iddtefactura}
-                            className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                              anulando === factura.iddtefactura
+                            className={`flex items-center px-2 py-1 rounded text-xs font-medium ${anulando === factura.iddtefactura
                                 ? 'bg-gray-400 text-gray-700'
                                 : 'bg-red-500 hover:bg-red-600 text-white'
-                            }`}
+                              }`}
                           >
                             {anulando === factura.iddtefactura ? (
                               <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
@@ -630,13 +677,12 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                         <button
                           onClick={() => handleGeneratePDF(factura.iddtefactura)}
                           disabled={pdfLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
-                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                            pdfLoading === factura.iddtefactura
+                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${pdfLoading === factura.iddtefactura
                               ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
                               : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
                                 ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
                                 : 'bg-red-500 hover:bg-red-600 text-white'
-                          }`}
+                            }`}
                           title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Factura no firmada" : "Descargar DTE en PDF"}
                         >
                           {pdfLoading === factura.iddtefactura ? (
@@ -656,13 +702,12 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                         <button
                           onClick={() => handleDownloadJSON(factura.iddtefactura)}
                           disabled={jsonLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
-                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-                            jsonLoading === factura.iddtefactura
+                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${jsonLoading === factura.iddtefactura
                               ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
                               : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
                                 ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
                                 : 'bg-green-500 hover:bg-green-600 text-white'
-                          }`}
+                            }`}
                           title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede descargar: Factura no firmada" : "Descargar DTE en JSON"}
                         >
                           {jsonLoading === factura.iddtefactura ? (
@@ -691,15 +736,14 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                     <button
                       onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
                       disabled={currentPage === 1}
-                      className={`px-3 py-1 rounded-l-md border ${
-                        currentPage === 1 
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                      className={`px-3 py-1 rounded-l-md border ${currentPage === 1
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                           : 'bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <FaChevronLeft className="text-sm" />
                     </button>
-                    
+
                     {/* Botones de página - Responsive */}
                     {(() => {
                       const pages = [];
@@ -716,14 +760,13 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                           <button
                             key={1}
                             onClick={() => paginate(1)}
-                            className={`px-3 py-1 border-t border-b ${
-                              1 === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                            }`}
+                            className={`px-3 py-1 border-t border-b ${1 === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                              }`}
                           >
                             1
                           </button>
                         );
-                        
+
                         if (startPage > 2) {
                           pages.push(
                             <span key="ellipsis-start" className="px-2 py-1 border-t border-b bg-white text-gray-500">
@@ -732,16 +775,15 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                           );
                         }
                       }
-                      
+
                       // Páginas visibles
                       for (let i = startPage; i <= endPage; i++) {
                         pages.push(
                           <button
                             key={i}
                             onClick={() => paginate(i)}
-                            className={`px-3 py-1 border-t border-b ${
-                              i === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                            }`}
+                            className={`px-3 py-1 border-t border-b ${i === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                              }`}
                           >
                             {i}
                           </button>
@@ -756,32 +798,30 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                             </span>
                           );
                         }
-                        
+
                         pages.push(
                           <button
                             key={totalPages}
                             onClick={() => paginate(totalPages)}
-                            className={`px-3 py-1 border-t border-b ${
-                              totalPages === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                            }`}
+                            className={`px-3 py-1 border-t border-b ${totalPages === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                              }`}
                           >
                             {totalPages}
                           </button>
                         );
                       }
-                      
+
                       return pages;
                     })()}
-                    
+
                     {/* Botón Siguiente */}
                     <button
                       onClick={() => paginate(currentPage < totalPages ? currentPage + 1 : totalPages)}
                       disabled={currentPage === totalPages}
-                      className={`px-3 py-1 rounded-r-md border ${
-                        currentPage === totalPages 
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                      className={`px-3 py-1 rounded-r-md border ${currentPage === totalPages
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                           : 'bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <FaChevronRight className="text-sm" />
                     </button>
@@ -810,6 +850,14 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
         {/* Footer */}
         <Footer />
       </div>
+
+       {/* Modal del Visualizador JSON */}
+            {jsonViewerData && (
+              <JsonViewer 
+                data={jsonViewerData} 
+                onClose={() => setJsonViewerData(null)} 
+              />
+            )}
     </div>
   );
 }
