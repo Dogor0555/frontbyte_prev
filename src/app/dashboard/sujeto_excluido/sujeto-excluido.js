@@ -100,6 +100,9 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     porcentaje: 10,
     monto: 0
   });
+  
+  // NUEVO: Actividad económica del receptor
+  const [actividadEconomicaReceptor, setActividadEconomicaReceptor] = useState("");
 
   const unidades = [
     { codigo: "1", nombre: "metro" },
@@ -281,6 +284,9 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     const montoRetencionRenta = retencionRenta.aplicar ? (subTotal * 0.10) : 0;
     const totalPagar = subTotal - montoRetencionRenta;
 
+    // Obtener nombre de la actividad económica del receptor
+    const actividadReceptor = codactividad.find(c => c.codigo === actividadEconomicaReceptor);
+
     return {
       identificacion: {
         version: "1.0",
@@ -290,7 +296,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
         tipoOperacion: "1",
         codigoGeneracion: `(Aún no generado)`,
         numeroControl: `TRX-${numeroDocumento}`,
-        esExportacion: datosDocumento.modelofac === "04", // Es 'false' para Sujeto Excluido (11)
+        esExportacion: datosDocumento.modelofac === "04",
         fecEmi: datosDocumento.fechaemision,
         horEmi: datosDocumento.horaemision,
       },
@@ -315,7 +321,9 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
         nombre: nombreReceptor,
         tipoDocumento: tipoDocumentoLabel,
         numDocumento: numeroDocumentoReceptor,
-        descActividad: "",
+        // NUEVO: Actividad económica del receptor
+        descActividad: actividadReceptor?.nombre || "",
+        codActividad: actividadEconomicaReceptor || "",
         direccion: {
           complemento: direccionReceptor,
           municipio: cliente?.municipio?.nombre || "",
@@ -471,6 +479,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     setTelefonoReceptor("");
     setComplementoReceptor("");
     setTipoDocumentoLabel("Documento");
+    setActividadEconomicaReceptor(""); // NUEVO: Reiniciar actividad del receptor
     setItems([]);
     setSumaopesinimpues(0);
     setTotaldescuento(0);
@@ -534,11 +543,10 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
           montodescu: parseFloat(descuentoItem.toFixed(8)),
           ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(8)) : 0.00,
           ventaexenta: esExento ? parseFloat(baseImponible.toFixed(8)) : 0.00,
-          ventagravada: 0.00, 
+          // IMPORTANTE: NO enviar ventagravada ni ivaitem
           tributos: item.tributos,
           psv: 0,
-          nogravado: 0.00,
-          ivaitem: 0.00
+          nogravado: 0.00
         };
       });
 
@@ -666,7 +674,6 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       .reduce((sum, item) => sum + (item.descuento || 0), 0);
     
     const exentasConDescuento = Math.max(0, exentasBase - descuentoExentasItems - descuentoExentasMonto);
-
     const noSujetasConDescuento = Math.max(0, noSujetasBase - descuentoNoSujetasItems - descuentoNoSujetasMonto);
 
     return {
@@ -729,6 +736,9 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
       docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
       correo_seleccionado: correoReceptor,
+
+      // NUEVO: Actividad económica del receptor (solo para el JSON, no requiere BD)
+      actividadEconomicaReceptor: actividadEconomicaReceptor || "",
 
       documentofirmado: null
     };
@@ -1176,9 +1186,6 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
               <p className="text-gray-600">Documento para sujetos excluidos del IVA</p>
             </div>
             <div className="flex items-center space-x-4">
-              {/* <div className="bg-blue-100 p-3 rounded-lg">
-                <p className="text-lg font-semibold text-blue-600">N° {String(numeroDocumento).padStart(4, '0')}</p>
-              </div> */}
               <FechaHoraEmision onFechaHoraChange={handleFechaHoraChange} />
             </div>
           </div>
@@ -1213,6 +1220,10 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
                 setComplementoReceptor={setComplementoReceptor}
                 idReceptor={idReceptor}
                 setIdReceptor={setIdReceptor}
+                
+                // NUEVO: Actividad económica del receptor
+                actividadEconomicaReceptor={actividadEconomicaReceptor}
+                setActividadEconomicaReceptor={setActividadEconomicaReceptor}
                 
                 actividadEconomica={actividadEconomica}
                 setActividadEconomica={setActividadEconomica}
@@ -1347,12 +1358,16 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
                 </div>
               </div>
 
-              <div className="bg-gray-50 p-4 rounded-lg mb-6 text-black">
+              {/* SECCIÓN DE RESUMEN MEJORADA - TOTALMENTE VISIBLE PARA EL USUARIO */}
+              <div className="bg-gray-50 p-5 rounded-lg mb-6 text-black border-2 border-gray-200">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">RESUMEN DE CÁLCULOS</h3>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">Subtotal sin impuestos:</span>
-                      <span className="font-medium">{formatMoney(sumaopesinimpues)}</span>
+                  {/* Columna izquierda - Subtotal y descuentos */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center bg-white p-2 rounded">
+                      <span className="text-gray-700 font-medium">Subtotal sin impuestos:</span>
+                      <span className="font-bold text-lg">{formatMoney(sumaopesinimpues)}</span>
                     </div>
                     
                     {(() => {
@@ -1362,83 +1377,128 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
                       return (
                         <>
                           {totalDescuentoExento > 0 && (
-                            <div className="flex justify-between text-blue-600">
-                              <span className="text-sm">Descuento ventas exentas:</span>
-                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoExento)}</span>
+                            <div className="flex justify-between text-blue-600 bg-blue-50 p-2 rounded">
+                              <span className="font-medium">Descuento en ventas exentas:</span>
+                              <span className="font-bold">-{formatMoney(totalDescuentoExento)}</span>
                             </div>
                           )}
                           {totalDescuentoNoSujeto > 0 && (
-                            <div className="flex justify-between text-blue-600">
-                              <span className="text-sm">Descuento ventas no sujetas:</span>
-                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoNoSujeto)}</span>
+                            <div className="flex justify-between text-blue-600 bg-blue-50 p-2 rounded">
+                              <span className="font-medium">Descuento en ventas no sujetas:</span>
+                              <span className="font-bold">-{formatMoney(totalDescuentoNoSujeto)}</span>
                             </div>
                           )}
                         </>
                       );
                     })()}
                     
-                    <div className="flex justify-between text-red-600">
-                      <span className="text-gray-700">Total descuentos:</span>
-                      <span className="font-medium">-{formatMoney(totaldescuento)}</span>
+                    <div className="flex justify-between text-red-600 bg-red-50 p-2 rounded">
+                      <span className="font-bold">TOTAL DESCUENTOS:</span>
+                      <span className="font-bold">-{formatMoney(totaldescuento)}</span>
                     </div>
-                    <div className="flex justify-between pt-2 border-t border-gray-300">
-                      <span className="text-gray-700 font-semibold">Sub Total después de descuentos:</span>
-                      <span className="font-semibold">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
+                    
+                    <div className="flex justify-between pt-2 border-t-2 border-gray-300 bg-white p-2 rounded">
+                      <span className="text-gray-800 font-bold text-base">SUBTOTAL DESPUÉS DE DESCUENTOS:</span>
+                      <span className="font-bold text-blue-700 text-lg">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">Monto Total de la operación:</span>
-                      <span className="font-medium">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
+                  {/* Columna derecha - Totales y retenciones */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between bg-white p-2 rounded">
+                      <span className="text-gray-700 font-medium">Monto Total de la operación:</span>
+                      <span className="font-bold">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
 
-                    <div className="space-y-1 pl-4 border-l-2 border-gray-300">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Exento:</span>
-                        <span className="font-medium">
-                          {formatMoney(ventasexentas)}
-                        </span>
+                    <div className="space-y-2 pl-3 border-l-4 border-green-500 bg-green-50 p-2 rounded">
+                      <div className="flex justify-between">
+                        <span className="text-gray-700 font-medium">Ventas Exentas:</span>
+                        <span className="font-bold text-green-700">+{formatMoney(ventasexentas)}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">No Sujeto:</span>
-                        <span className="font-medium">
-                          {formatMoney(ventanosujetas)}
-                        </span>
+                      <div className="flex justify-between">
+                        <span className="text-gray-700 font-medium">Ventas No Sujetas:</span>
+                        <span className="font-bold text-green-700">+{formatMoney(ventanosujetas)}</span>
                       </div>
                     </div>
-                    
-                    {Object.values(tributosDetallados)
-                      .filter(tributo => tributo.valor > 0)
-                      .map((tributo) => (
-                        <div key={tributo.codigo} className="flex justify-between text-sm">
-                          <span className="text-gray-600">
-                            {tributo.codigo} - {tributo.descripcion}:
-                          </span>
-                          <span className="font-medium text-green-600">
-                            +{formatMoney(tributo.valor)}
-                          </span>
-                        </div>
-                      ))
-                    }
                     
                     {retencionRenta.aplicar && (
-                      <div className="flex justify-between text-sm text-red-600">
-                        <span className="text-gray-600">
-                          Retención Renta (10%):
-                        </span>
-                        <span className="font-medium">
-                          -{formatMoney(retencionRenta.monto)}
-                        </span>
+                      <div className="space-y-2 mt-2">
+                        <div className="flex justify-between bg-orange-50 p-2 rounded border border-orange-200">
+                          <span className="font-medium text-orange-800">Base para Retención de Renta:</span>
+                          <span className="font-bold text-orange-800">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
+                        </div>
+                        
+                        <div className="flex justify-between bg-red-100 p-3 rounded-md border-2 border-red-300">
+                          <span className="font-bold text-red-800 flex items-center">
+                            <FaInfoCircle className="mr-2" />
+                            Retención de Renta (10%):
+                          </span>
+                          <span className="font-bold text-red-800 text-lg">-{formatMoney(retencionRenta.monto)}</span>
+                        </div>
+                        
+                        <div className="text-xs text-gray-600 bg-gray-100 p-2 rounded">
+                          <div className="flex justify-between">
+                            <span>Subtotal después de descuentos:</span>
+                            <span>{formatMoney(sumaopesinimpues - totaldescuento)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Menos retención de renta:</span>
+                            <span>-{formatMoney(retencionRenta.monto)}</span>
+                          </div>
+                          <div className="flex justify-between font-bold border-t border-gray-300 mt-1 pt-1">
+                            <span>Total final:</span>
+                            <span>{formatMoney(total)}</span>
+                          </div>
+                        </div>
                       </div>
                     )}
-
-                    <div className="flex justify-between pt-2 border-t border-gray-300">
-                      <span className="text-gray-900 font-bold text-lg">Total a pagar:</span>
-                      <span className="text-blue-800 font-bold text-lg">{formatMoney(total)}</span>
+                    
+                    <div className="flex justify-between pt-3 border-t-2 border-blue-500 bg-blue-100 p-3 rounded-lg mt-2">
+                      <span className="text-gray-900 font-bold text-xl">TOTAL A PAGAR:</span>
+                      <span className="text-blue-800 font-bold text-2xl">{formatMoney(total)}</span>
                     </div>
+                    
+                    {retencionRenta.aplicar && (
+                      <div className="text-sm text-green-700 bg-green-100 p-2 rounded text-center font-medium">
+                        <FaInfoCircle className="inline mr-1" />
+                        Se ha aplicado retención de renta del 10%. Total retenido: {formatMoney(retencionRenta.monto)}
+                      </div>
+                    )}
                   </div>
                 </div>
+                
+                {/* Línea de tiempo visual del cálculo */}
+                {retencionRenta.aplicar && (
+                  <div className="mt-4 pt-3 border-t border-gray-300">
+                    <p className="text-sm font-medium text-gray-700 mb-2">📊 DESGLOSE DEL CÁLCULO:</p>
+                    <div className="flex flex-wrap items-center justify-between text-xs bg-white p-3 rounded">
+                      <div className="text-center px-2">
+                        <span className="block font-bold">Subtotal</span>
+                        <span className="text-blue-600">{formatMoney(sumaopesinimpues)}</span>
+                      </div>
+                      <span className="text-gray-400">→</span>
+                      <div className="text-center px-2">
+                        <span className="block font-bold">- Descuentos</span>
+                        <span className="text-red-600">-{formatMoney(totaldescuento)}</span>
+                      </div>
+                      <span className="text-gray-400">→</span>
+                      <div className="text-center px-2">
+                        <span className="block font-bold">Base Renta</span>
+                        <span className="text-orange-600">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
+                      </div>
+                      <span className="text-gray-400">→</span>
+                      <div className="text-center px-2">
+                        <span className="block font-bold">- Retención 10%</span>
+                        <span className="text-red-600">-{formatMoney(retencionRenta.monto)}</span>
+                      </div>
+                      <span className="text-gray-400">→</span>
+                      <div className="text-center px-3 bg-green-100 rounded">
+                        <span className="block font-bold">TOTAL</span>
+                        <span className="text-green-700 font-bold text-base">{formatMoney(total)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Retención de Renta */}

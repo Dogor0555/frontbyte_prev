@@ -36,6 +36,10 @@ const DatosEmisorReceptor = ({
   complementoReceptor,
   setComplementoReceptor,
   
+  // Actividad económica del receptor (NUEVO)
+  actividadEconomicaReceptor,
+  setActividadEconomicaReceptor,
+  
   // Estados del emisor
   actividadEconomica,
   setActividadEconomica,
@@ -45,11 +49,12 @@ const DatosEmisorReceptor = ({
   setCorreoVendedor,
   telefonoEmisor,
   setTelefonoEmisor,
-  // Nuevo estado para idReceptor
   idReceptor,
   setIdReceptor,
-
-  idEmisor
+  idEmisor,
+  
+  // Actividades económicas (catálogo)
+  actividadesEconomicas
 
 }) => {
   const [activeTab, setActiveTab] = useState("emisor");
@@ -60,10 +65,11 @@ const DatosEmisorReceptor = ({
   const [showClientList, setShowClientList] = useState(false);
   const [loadingClientes, setLoadingClientes] = useState(false);
   
-  const [actividadesEconomicas, setActividadesEconomicas] = useState([]);
+  const [actividadesEconomicasEmisor, setActividadesEconomicasEmisor] = useState([]);
   const [loadingActividades, setLoadingActividades] = useState(false);
   const [errorActividades, setErrorActividades] = useState(null);
 
+  // Cargar actividades del emisor
   useEffect(() => {
     const fetchActividadesEconomicas = async () => {
       if (!idEmisor) {
@@ -112,7 +118,7 @@ const DatosEmisorReceptor = ({
             }
           }
 
-          setActividadesEconomicas(actividadesArray);
+          setActividadesEconomicasEmisor(actividadesArray);
 
           if (actividadesArray.length > 0 && !actividadEconomica) {
             setActividadEconomica(actividadesArray[0].codigo);
@@ -135,9 +141,8 @@ const DatosEmisorReceptor = ({
     };
 
     fetchActividadesEconomicas();
-  }, [idEmisor]);
+  }, [idEmisor, actividadEconomica, setActividadEconomica]);
 
-  // Resto del código se mantiene igual...
   // Cargar clientes al montar el componente
   useEffect(() => {
       const fetchClientes = async () => {
@@ -289,12 +294,7 @@ const DatosEmisorReceptor = ({
     }
   };
 
-  const handleIdReceptor = (e) => {
-    const valor = e.target.value;
-    setIdReceptor(valor);
-  }
-
- const selectCliente = (clienteSeleccionado) => {
+  const selectCliente = (clienteSeleccionado) => {
     
     setTipoDocumentoReceptor(clienteSeleccionado.tipodocumento || "");
     
@@ -366,10 +366,10 @@ const DatosEmisorReceptor = ({
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Datos del Emisor</h2>
           
           <div className="space-y-4">
-            {/* Actividad Económica */}
+            {/* Actividad Económica del Emisor */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Actividad Económica
+                Actividad Económica del Emisor
               </label>
               {loadingActividades ? (
                 <div className="flex items-center space-x-2">
@@ -383,7 +383,7 @@ const DatosEmisorReceptor = ({
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">-- Seleccione --</option>
-                  {actividadesEconomicas.map((actividad) => (
+                  {actividadesEconomicasEmisor.map((actividad) => (
                     <option key={actividad.codigo} value={actividad.codigo}>
                       {actividad.codigo} - {actividad.nombre}
                     </option>
@@ -391,15 +391,14 @@ const DatosEmisorReceptor = ({
                 </select>
               )}
               
-              {actividadesEconomicas.length === 0 && !loadingActividades && (
+              {actividadesEconomicasEmisor.length === 0 && !loadingActividades && (
                 <p className="text-yellow-600 text-xs mt-1">
                   {errorActividades || "No se encontraron actividades económicas para este usuario."}
                 </p>
               )}
             </div>
 
-            {/* Resto de los campos del emisor... */}
-            {/* Establecimiento / Dirección */}
+            {/* Dirección del Emisor */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Dirección
@@ -471,7 +470,7 @@ const DatosEmisorReceptor = ({
         </div>
       )}
 
-      {/* Resto del componente para receptor (se mantiene igual)... */}
+      {/* Contenido del Receptor - CON ACTIVIDAD ECONÓMICA */}
       {activeTab === "receptor" && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Datos del Receptor</h2>
@@ -575,6 +574,25 @@ const DatosEmisorReceptor = ({
                   LIMITES.NIT
                 } caracteres
               </p>
+            </div>
+
+            {/* Actividad Económica del Receptor (NUEVO) */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Actividad Económica del Receptor
+              </label>
+              <select
+                value={actividadEconomicaReceptor}
+                onChange={(e) => setActividadEconomicaReceptor(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">-- Seleccione --</option>
+                {actividadesEconomicas && actividadesEconomicas.map((actividad) => (
+                  <option key={actividad.codigo} value={actividad.codigo}>
+                    {actividad.codigo} - {actividad.nombre}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Nombre del Receptor */}
