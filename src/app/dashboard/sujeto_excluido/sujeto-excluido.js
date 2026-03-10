@@ -737,8 +737,9 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
       correo_seleccionado: correoReceptor,
 
-      // NUEVO: Actividad económica del receptor (solo para el JSON, no requiere BD)
-      actividadEconomicaReceptor: actividadEconomicaReceptor || "",
+      // Campos para guardar en la base de datos
+      actividad_economica_cliente: actividadEconomicaReceptor || null,
+      desc_actividad_economica_cliente: codactividad.find(c => c.codigo === actividadEconomicaReceptor)?.nombre || null,
 
       documentofirmado: null
     };
