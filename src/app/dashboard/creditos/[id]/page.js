@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox, FaTicketAlt, FaTag } from "react-icons/fa";
+import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox, FaTicketAlt, FaTag, FaEye } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import JsonViewer from "../../components/JsonViewer";
 
 export default function CreditoDetallePage() {
   const params = useParams();
@@ -16,6 +17,8 @@ export default function CreditoDetallePage() {
   const [generandoPDF, setGenerandoPDF] = useState(false);
   const [generandoTicket, setGenerandoTicket] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [jsonViewerData, setJsonViewerData] = useState(null);
+  const [loadingJson, setLoadingJson] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -147,6 +150,25 @@ export default function CreditoDetallePage() {
       alert("Error al generar el ticket: " + error.message);
     } finally {
       setGenerandoTicket(false);
+    }
+  };
+
+    const handleViewJSON = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/${numeroCredito}/descargar-json`, {
+        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) throw new Error("Error al cargar JSON");
+      
+      const data = await response.json();
+      setJsonViewerData(data);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al cargar JSON: " + error.message);
     }
   };
 
@@ -284,6 +306,31 @@ export default function CreditoDetallePage() {
               </button>
               
               <div className="flex gap-2">
+                {/* Botón Ver JSON */}
+                <button
+                  onClick={handleViewJSON}
+                  disabled={loadingJson || !creditoData?.factura?.documentofirmado}
+                  className={`flex items-center px-4 py-2 rounded ${
+                    loadingJson ? 'bg-gray-400' : 
+                    !creditoData?.factura?.documentofirmado ? 'bg-gray-500' : 
+                    'bg-purple-600 hover:bg-purple-700'
+                  } text-white`}
+                >
+                  {loadingJson ? (
+                    <>
+                      <FaSpinner className="animate-spin mr-2" /> Cargando...
+                    </>
+                  ) : !creditoData?.factura?.documentofirmado ? (
+                    <>
+                      <FaEye className="mr-2" /> JSON no disponible
+                    </>
+                  ) : (
+                    <>
+                      <FaEye className="mr-2" /> Ver JSON
+                    </>
+                  )}
+                </button>
+
                 {/* Botón Generar Ticket */}
                 <button
                   onClick={handleGenerateTicket}
@@ -530,6 +577,14 @@ export default function CreditoDetallePage() {
         {/* Footer */}
         <Footer />
       </div>
+
+      {/* Modal del Visualizador JSON */}
+      {jsonViewerData && (
+        <JsonViewer 
+          data={jsonViewerData} 
+          onClose={() => setJsonViewerData(null)} 
+        />
+      )}
     </div>
   );
 }

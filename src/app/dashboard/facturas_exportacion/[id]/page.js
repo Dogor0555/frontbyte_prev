@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox, FaTag, FaGlobe, FaTicketAlt } from "react-icons/fa";
+import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaBox, FaTag, FaGlobe, FaTicketAlt, FaEye } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import JsonViewer from "../../components/JsonViewer";
 
 export default function FacturaExportacionDetallePage() {
   const params = useParams();
@@ -15,6 +16,8 @@ export default function FacturaExportacionDetallePage() {
   const [error, setError] = useState(null);
   const [generandoPDF, setGenerandoPDF] = useState(false);
   const [generandoTicket, setGenerandoTicket] = useState(false);
+  const [jsonViewerData, setJsonViewerData] = useState(null);
+  const [loadingJson, setLoadingJson] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
 
@@ -58,6 +61,28 @@ export default function FacturaExportacionDetallePage() {
     }
   }, [idDte]);
 
+  const handleViewJSON = async () => {
+    setLoadingJson(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/${idDte}/descargar-json`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setJsonViewerData(data);
+    } catch (error) {
+      console.error('Error cargando JSON:', error);
+      alert(`Error al cargar JSON: ${error.message}`);
+    } finally {
+      setLoadingJson(false);
+    }
+  };
+
   const handleGeneratePDF = async () => {
     setGenerandoPDF(true);
     try {
@@ -94,46 +119,44 @@ export default function FacturaExportacionDetallePage() {
   };
 
   const handleGenerateTicket = async () => {
-      setGenerandoTicket(true);
-      try {
-        const response = await fetch(`${API_BASE_URL}/facturas/${idDte}/ver-compacto`, {
-          credentials: "include",
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          let errorData;
-          try {
-            errorData = JSON.parse(errorText);
-          } catch {
-            throw new Error(errorText || "Error al generar ticket");
-          }
-          throw new Error(errorData.detalles || errorData.error || "Error al generar ticket");
+    setGenerandoTicket(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/${idDte}/ver-compacto`, {
+        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
-
-        const htmlContent = await response.text();
-        
-        const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
-        
-        if (!printWindow) {
-          throw new Error("El navegador bloqueó la ventana emergente. Por favor, permite ventanas emergentes para este sitio.");
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          throw new Error(errorText || "Error al generar ticket");
         }
-
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-
-      } catch (error) {
-        console.error("Error al generar ticket:", error);
-        alert("Error al generar el ticket: " + error.message);
-      } finally {
-        setGenerandoTicket(false);
+        throw new Error(errorData.detalles || errorData.error || "Error al generar ticket");
       }
-  };
 
-  console.log("dteData:", dteData);
+      const htmlContent = await response.text();
+      
+      const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+      
+      if (!printWindow) {
+        throw new Error("El navegador bloqueó la ventana emergente. Por favor, permite ventanas emergentes para este sitio.");
+      }
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+
+    } catch (error) {
+      console.error("Error al generar ticket:", error);
+      alert("Error al generar el ticket: " + error.message);
+    } finally {
+      setGenerandoTicket(false);
+    }
+  };
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -262,6 +285,24 @@ export default function FacturaExportacionDetallePage() {
               </button>
               
               <div className="flex gap-2">
+                {/* Botón Ver JSON */}
+                <button
+                  onClick={handleViewJSON}
+                  disabled={loadingJson || dteData?.estado !== 'TRANSMITIDO'}
+                  className={`flex items-center px-4 py-2 rounded ${
+                    loadingJson ? 'bg-gray-400' : 
+                    dteData?.estado !== 'TRANSMITIDO' ? 'bg-gray-500 cursor-not-allowed' : 
+                    'bg-purple-600 hover:bg-purple-700'
+                  } text-white`}
+                  title={dteData?.estado !== 'TRANSMITIDO' ? "JSON no disponible: El documento no está firmado" : "Ver JSON formateado"}
+                >
+                  {loadingJson ? (
+                    <><FaSpinner className="animate-spin mr-2" /> Cargando...</>
+                  ) : (
+                    <><FaEye className="mr-2" /> Ver JSON</>
+                  )}
+                </button>
+
                 <button
                   onClick={handleGenerateTicket}
                   disabled={generandoTicket || dteData?.estado !== 'TRANSMITIDO'}
@@ -458,6 +499,14 @@ export default function FacturaExportacionDetallePage() {
         </main>
         <Footer />
       </div>
+
+      {/* Modal del Visualizador JSON */}
+      {jsonViewerData && (
+        <JsonViewer 
+          data={jsonViewerData} 
+          onClose={() => setJsonViewerData(null)} 
+        />
+      )}
     </div>
   );
 }

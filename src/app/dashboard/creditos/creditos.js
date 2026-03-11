@@ -1,11 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaEye } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import JsonViewer from "../components/JsonViewer";
+
 
 export default function CreditosView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -18,6 +20,8 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   const [currentPage, setCurrentPage] = useState(1);
   const [pdfLoading, setPdfLoading] = useState(null);
   const [anulando, setAnulando] = useState(null);
+    const [jsonViewerData, setJsonViewerData] = useState(null);
+    const [loadingJson, setLoadingJson] = useState(null);
   const [reTransmitiendo, setReTransmitiendo] = useState(null);
   const [openDownloadMenu, setOpenDownloadMenu] = useState(null);
   const itemsPerPage = 6;
@@ -151,6 +155,29 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     
     return false;
   };
+
+
+    const handleViewJSON = async (iddtefactura) => {
+      setLoadingJson(iddtefactura);
+      try {
+        const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+  
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+  
+        const data = await response.json();
+        setJsonViewerData(data);
+      } catch (error) {
+        console.error('Error cargando JSON:', error);
+        alert(`Error al cargar JSON: ${error.message}`);
+      } finally {
+        setLoadingJson(null);
+      }
+    };
 
   const puedeReTransmitir = (credito) => {
     return credito && credito.estado === 'CONTINGENCIA';
@@ -546,6 +573,32 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                       <div className="flex items-center gap-1">
                         {/* Botón de Re-transmitir */}
 
+                       {/* Botón de Ver JSON */}
+<button
+  onClick={() => handleViewJSON(credito.iddtefactura)}
+  disabled={loadingJson === credito.iddtefactura || !(credito.documentofirmado && credito.documentofirmado !== "null")}
+  className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+    loadingJson === credito.iddtefactura
+      ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+      : (!(credito.documentofirmado && credito.documentofirmado !== "null"))
+        ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+        : 'bg-purple-500 hover:bg-purple-600 text-white'
+  }`}
+  title={!(credito.documentofirmado && credito.documentofirmado !== "null") ? "No se puede ver: Crédito no firmado" : "Ver JSON formateado"}
+>
+  {loadingJson === credito.iddtefactura ? (
+    <>
+      <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+      Cargando
+    </>
+  ) : (
+    <>
+      <FaEye className="mr-1 text-xs" />
+      Ver JSON
+    </>
+  )}
+</button>
+
                         {/* Botón de Anular */}
                         {puedeAnular(credito) && (
                           <button
@@ -737,6 +790,13 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
         {/* Footer */}
         <Footer />
       </div>
+      {/* Modal del Visualizador JSON */}
+            {jsonViewerData && (
+              <JsonViewer 
+                data={jsonViewerData} 
+                onClose={() => setJsonViewerData(null)} 
+              />
+            )}
     </div>
   );
 }

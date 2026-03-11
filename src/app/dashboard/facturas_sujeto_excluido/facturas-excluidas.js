@@ -442,9 +442,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                     </div>
                     <div>
                       <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Facturas Sujeto Excluido</h1>
-                      <p className="text-green-600 font-medium text-sm">
-                        Régimen especial - Sin IVA
-                      </p>
+                      
                     </div>
                   </div>
                   <p className="text-gray-600">

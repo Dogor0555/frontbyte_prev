@@ -186,10 +186,10 @@ export default function FacturaExcluidaDetallePage() {
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                 <p>{error}</p>
                 <button 
-                  onClick={() => router.push('/dashboard/facturas-excluidas')} 
+                  onClick={() => router.push('/dashboard/facturas_sujeto_excluido')} 
                   className="mt-2 bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded"
                 >
-                  <FaArrowLeft className="inline mr-1" /> Volver a facturas excluidas
+                  <FaArrowLeft className="inline mr-1" /> Volver a facturas de sujeto excluido
                 </button>
               </div>
             </div>
@@ -213,10 +213,10 @@ export default function FacturaExcluidaDetallePage() {
               <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
                 <p>No se encontró la factura excluida solicitada</p>
                 <button 
-                  onClick={() => router.push('/dashboard/facturas-excluidas')} 
+                  onClick={() => router.push('/dashboard/facturas_sujeto_excluido')} 
                   className="mt-2 bg-yellow-500 hover:bg-yellow-700 text-white py-1 px-3 rounded"
                 >
-                  <FaArrowLeft className="inline mr-1" /> Volver a facturas excluidas
+                  <FaArrowLeft className="inline mr-1" /> Volver a facturas de sujeto excluido
                 </button>
               </div>
             </div>
@@ -274,10 +274,10 @@ export default function FacturaExcluidaDetallePage() {
           <div className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">
               <button 
-                onClick={() => router.push('/dashboard/facturas-excluidas')}
+                onClick={() => router.push('/dashboard/facturas_sujeto_excluido')}
                 className="flex items-center text-green-600 hover:text-green-800"
               >
-                <FaArrowLeft className="mr-1" /> Volver a facturas excluidas
+                <FaArrowLeft className="mr-1" /> Volver a facturas de sujeto excluido
               </button>
               
               <div className="flex gap-2">
