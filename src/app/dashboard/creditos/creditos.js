@@ -1,13 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaEye } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaEye, FaCalendarCheck } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../components/JsonViewer";
-
 
 export default function CreditosView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -20,10 +19,16 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   const [currentPage, setCurrentPage] = useState(1);
   const [pdfLoading, setPdfLoading] = useState(null);
   const [anulando, setAnulando] = useState(null);
-    const [jsonViewerData, setJsonViewerData] = useState(null);
-    const [loadingJson, setLoadingJson] = useState(null);
+  const [jsonViewerData, setJsonViewerData] = useState(null);
+  const [loadingJson, setLoadingJson] = useState(null);
   const [reTransmitiendo, setReTransmitiendo] = useState(null);
   const [openDownloadMenu, setOpenDownloadMenu] = useState(null);
+  
+  // Estados para el filtro de fecha
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  
   const itemsPerPage = 6;
   const router = useRouter();
 
@@ -51,7 +56,11 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = () => {
+    const handleClickOutside = (event) => {
+      // Solo cerrar si el clic no fue dentro del date picker
+      if (showDatePicker && !event.target.closest('.date-picker-container')) {
+        setShowDatePicker(false);
+      }
       setOpenDownloadMenu(null);
     };
 
@@ -59,7 +68,32 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, []);
+  }, [showDatePicker]);
+
+  // Función para verificar si hay filtros activos
+  const hayFiltrosActivos = () => {
+    return searchTerm !== "" || estadoFiltro !== "" || fechaInicio !== "" || fechaFin !== "" || ordenFecha !== "reciente";
+  };
+
+  // Función para filtrar por fecha
+  const filtrarPorFecha = (credito) => {
+    if (!fechaInicio && !fechaFin) return true;
+    
+    if (!credito.fechaemision) return false;
+    
+    // Extraer solo la fecha (sin hora)
+    const fechaCredito = credito.fechaemision.split('T')[0];
+    
+    if (fechaInicio && fechaFin) {
+      return fechaCredito >= fechaInicio && fechaCredito <= fechaFin;
+    } else if (fechaInicio) {
+      return fechaCredito >= fechaInicio;
+    } else if (fechaFin) {
+      return fechaCredito <= fechaFin;
+    }
+    
+    return true;
+  };
 
   const ordenarCreditos = (creditos) => {
     return [...creditos].sort((a, b) => {
@@ -106,23 +140,56 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
           (credito.nombrecibe?.toLowerCase() || "").includes(searchLower) ||
           (credito.numerocreditousuario?.toString() || "").includes(searchTerm) ||
           (credito.iddtecredito?.toString() || "").includes(searchTerm) ||
-          (credito.ncontrol?.toString() || "").includes(searchTerm) || // ← Número de control
-          (credito.numerofacturausuario?.toString() || "").includes(searchTerm); // ← Número de factura usuario
+          (credito.ncontrol?.toString() || "").includes(searchTerm) ||
+          (credito.numerofacturausuario?.toString() || "").includes(searchTerm);
 
         const matchEstado = estadoFiltro ? credito.estado === estadoFiltro : true;
+        
+        // Aplicar filtro de fecha
+        const matchFecha = filtrarPorFecha(credito);
 
-        return matchSearch && matchEstado;
+        return matchSearch && matchEstado && matchFecha;
       })
     : [];
 
   // Aplicar ordenamiento por fecha
   const creditosOrdenados = ordenarCreditos(creditosFiltrados);
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = creditosOrdenados.slice(indexOfFirstItem, indexOfLastItem);
+  // Determinar qué créditos mostrar según si hay filtros activos
+  const hayFiltros = hayFiltrosActivos();
+  
+  // Si hay filtros activos, mostrar TODOS los créditos filtrados
+  // Si no hay filtros, mostrar solo los de la página actual
+  const creditosAMostrar = hayFiltros 
+    ? creditosOrdenados 
+    : creditosOrdenados.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  
   const totalPages = Math.ceil(creditosOrdenados.length / itemsPerPage);
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Función para limpiar filtros
+  const limpiarFiltros = () => {
+    setSearchTerm("");
+    setEstadoFiltro("");
+    setFechaInicio("");
+    setFechaFin("");
+    setOrdenFecha("reciente");
+    setCurrentPage(1);
+  };
+
+  // Función para establecer filtros rápidos
+  const setFiltroRapido = (dias) => {
+    const hoy = new Date();
+    const fechaFin = hoy.toISOString().split('T')[0];
+    
+    const fechaInicio = new Date();
+    fechaInicio.setDate(hoy.getDate() - dias);
+    
+    setFechaInicio(fechaInicio.toISOString().split('T')[0]);
+    setFechaFin(fechaFin);
+    setCurrentPage(1);
+    setShowDatePicker(false);
+  };
 
   const formatCurrency = (amount) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(amount || 0);
   
@@ -156,42 +223,41 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     return false;
   };
 
+  const handleViewJSON = async (iddtefactura) => {
+    setLoadingJson(iddtefactura);
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
+        method: 'GET',
+        credentials: 'include',
+      });
 
-    const handleViewJSON = async (iddtefactura) => {
-      setLoadingJson(iddtefactura);
-      try {
-        const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
-          method: 'GET',
-          credentials: 'include',
-        });
-  
-        if (!response.ok) {
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-  
-        const data = await response.json();
-        setJsonViewerData(data);
-      } catch (error) {
-        console.error('Error cargando JSON:', error);
-        alert(`Error al cargar JSON: ${error.message}`);
-      } finally {
-        setLoadingJson(null);
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
-    };
+
+      const data = await response.json();
+      setJsonViewerData(data);
+    } catch (error) {
+      console.error('Error cargando JSON:', error);
+      alert(`Error al cargar JSON: ${error.message}`);
+    } finally {
+      setLoadingJson(null);
+    }
+  };
 
   const puedeReTransmitir = (credito) => {
     return credito && credito.estado === 'CONTINGENCIA';
   };
 
   const handleAnularCredito = async (creditoId) => {
-      const confirmarAnulacion = window.confirm(
-        "¿Está seguro que desea anular esta factura?\n\n" +
-        "Una vez anulada, no podrá revertir esta acción."
-      );
-      
-      if (!confirmarAnulacion) {
-        return;
-      }
+    const confirmarAnulacion = window.confirm(
+      "¿Está seguro que desea anular esta factura?\n\n" +
+      "Una vez anulada, no podrá revertir esta acción."
+    );
+    
+    if (!confirmarAnulacion) {
+      return;
+    }
     setAnulando(creditoId);
     console.log(creditoId)
     try {
@@ -416,7 +482,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                   <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Mis Créditos Fiscales</h1>
                   <p className="text-gray-600">
                     {creditos.length} {creditos.length === 1 ? "documento" : "documentos"} registrados
-                    {searchTerm && ` (${creditosFiltrados.length} encontrados)`}
+                    {hayFiltros && ` (${creditosOrdenados.length} encontrados)`}
                   </p>
                 </div>
 
@@ -433,6 +499,127 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                         setCurrentPage(1);
                       }}
                     />
+                  </div>
+
+                  {/* Filtro de Fecha */}
+                  <div className="relative date-picker-container">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowDatePicker(!showDatePicker);
+                      }}
+                      className={`flex items-center gap-2 px-3 py-2 border rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 ${
+                        (fechaInicio || fechaFin) ? 'border-blue-500 bg-blue-50' : ''
+                      }`}
+                    >
+                      <FaCalendarCheck className={`text-sm ${(fechaInicio || fechaFin) ? 'text-blue-600' : 'text-gray-600'}`} />
+                      <span className="text-sm text-gray-700">
+                        {fechaInicio || fechaFin 
+                          ? `${fechaInicio || 'Inicio'} - ${fechaFin || 'Fin'}`
+                          : 'Filtrar por fecha'
+                        }
+                      </span>
+                    </button>
+
+                    {showDatePicker && (
+                      <div 
+                        className="absolute right-0 mt-2 p-4 bg-white border rounded-lg shadow-lg z-50 w-80"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Fecha Inicio
+                            </label>
+                            <input
+                              type="date"
+                              value={fechaInicio}
+                              onChange={(e) => {
+                                setFechaInicio(e.target.value);
+                                setCurrentPage(1);
+                              }}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Fecha Fin
+                            </label>
+                            <input
+                              type="date"
+                              value={fechaFin}
+                              onChange={(e) => {
+                                setFechaFin(e.target.value);
+                                setCurrentPage(1);
+                              }}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                          
+                          {/* Filtros rápidos */}
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setFiltroRapido(7);
+                              }}
+                              className="flex-1 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
+                            >
+                              7 días
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setFiltroRapido(30);
+                              }}
+                              className="flex-1 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
+                            >
+                              30 días
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setFiltroRapido(90);
+                              }}
+                              className="flex-1 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
+                            >
+                              90 días
+                            </button>
+                          </div>
+                          
+                          <div className="flex justify-between pt-2 border-t">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setFechaInicio("");
+                                setFechaFin("");
+                                setCurrentPage(1);
+                              }}
+                              className="text-xs text-red-600 hover:text-red-800"
+                            >
+                              Limpiar fechas
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setShowDatePicker(false);
+                              }}
+                              className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                            >
+                              Cerrar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <select
@@ -458,16 +645,62 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                     }}
                     className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                   >
-                    {/* <option value="numero">Nº Factura (desc)</option> */}
                     <option value="reciente">Más reciente</option>
                     <option value="antigua">Más antigua</option>
                   </select>
+
+                  {/* Botón para limpiar todos los filtros */}
+                  {hayFiltros && (
+                    <button
+                      onClick={limpiarFiltros}
+                      className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+                      title="Limpiar todos los filtros"
+                    >
+                      <FaSync className="inline mr-1" />
+                      Limpiar
+                    </button>
+                  )}
                 </div>
               </div>
 
+              {/* Mostrar filtros activos */}
+              {(fechaInicio || fechaFin) && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <span className="text-sm text-gray-600">Filtros activos:</span>
+                  {fechaInicio && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                      Desde: {new Date(fechaInicio).toLocaleDateString()}
+                      <button
+                        onClick={() => {
+                          setFechaInicio("");
+                          setCurrentPage(1);
+                        }}
+                        className="ml-1 hover:text-blue-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {fechaFin && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                      Hasta: {new Date(fechaFin).toLocaleDateString()}
+                      <button
+                        onClick={() => {
+                          setFechaFin("");
+                          setCurrentPage(1);
+                        }}
+                        className="ml-1 hover:text-blue-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Listado en formato tarjeta-crédito */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {currentItems.map((credito) => (
+                {creditosAMostrar.map((credito) => (
                   <div
                     key={credito.iddtefactura}
                     className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-200"
@@ -480,9 +713,6 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                           </div>
                           <div>
                             <span className="font-semibold text-xs block">CRÉDITO</span>
-                            {/* <span className="text-xs font-light opacity-90">
-                              #{credito.numerofacturausuario?.toString().padStart(4, '0') || credito.iddtecredito}
-                            </span> */}
                           </div>
                         </div>
                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${
@@ -571,33 +801,31 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
 
                       {/* Botones de acción */}
                       <div className="flex items-center gap-1">
-                        {/* Botón de Re-transmitir */}
-
-                       {/* Botón de Ver JSON */}
-<button
-  onClick={() => handleViewJSON(credito.iddtefactura)}
-  disabled={loadingJson === credito.iddtefactura || !(credito.documentofirmado && credito.documentofirmado !== "null")}
-  className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
-    loadingJson === credito.iddtefactura
-      ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-      : (!(credito.documentofirmado && credito.documentofirmado !== "null"))
-        ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-        : 'bg-purple-500 hover:bg-purple-600 text-white'
-  }`}
-  title={!(credito.documentofirmado && credito.documentofirmado !== "null") ? "No se puede ver: Crédito no firmado" : "Ver JSON formateado"}
->
-  {loadingJson === credito.iddtefactura ? (
-    <>
-      <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
-      Cargando
-    </>
-  ) : (
-    <>
-      <FaEye className="mr-1 text-xs" />
-      Ver JSON
-    </>
-  )}
-</button>
+                        {/* Botón de Ver JSON */}
+                        <button
+                          onClick={() => handleViewJSON(credito.iddtefactura)}
+                          disabled={loadingJson === credito.iddtefactura || !(credito.documentofirmado && credito.documentofirmado !== "null")}
+                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                            loadingJson === credito.iddtefactura
+                              ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                              : (!(credito.documentofirmado && credito.documentofirmado !== "null"))
+                                ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                                : 'bg-purple-500 hover:bg-purple-600 text-white'
+                          }`}
+                          title={!(credito.documentofirmado && credito.documentofirmado !== "null") ? "No se puede ver: Crédito no firmado" : "Ver JSON formateado"}
+                        >
+                          {loadingJson === credito.iddtefactura ? (
+                            <>
+                              <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                              Cargando
+                            </>
+                          ) : (
+                            <>
+                              <FaEye className="mr-1 text-xs" />
+                              Ver JSON
+                            </>
+                          )}
+                        </button>
 
                         {/* Botón de Anular */}
                         {puedeAnular(credito) && (
@@ -664,7 +892,9 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                   </div>
                 ))}
               </div>
-              {creditosOrdenados.length > itemsPerPage && (
+              
+              {/* Mostrar paginación SOLO cuando NO hay filtros activos */}
+              {!hayFiltros && creditosOrdenados.length > itemsPerPage && (
                 <div className="flex justify-center mt-6">
                   <nav className="inline-flex rounded-md shadow">
                     {/* Botón Anterior */}
@@ -779,8 +1009,16 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
                     {creditos.length === 0 ? 'No hay créditos registrados' : 'No se encontraron coincidencias'}
                   </h3>
                   <p className="text-gray-500 mt-1">
-                    {creditos.length === 0 ? 'Comienza creando tu primer crédito fiscal' : 'Intenta con otros términos de búsqueda'}
+                    {creditos.length === 0 ? 'Comienza creando tu primer crédito fiscal' : 'Intenta con otros términos de búsqueda o rango de fechas'}
                   </p>
+                  {hayFiltros && (
+                    <button
+                      onClick={limpiarFiltros}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Limpiar todos los filtros
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -791,12 +1029,12 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
         <Footer />
       </div>
       {/* Modal del Visualizador JSON */}
-            {jsonViewerData && (
-              <JsonViewer 
-                data={jsonViewerData} 
-                onClose={() => setJsonViewerData(null)} 
-              />
-            )}
+      {jsonViewerData && (
+        <JsonViewer 
+          data={jsonViewerData} 
+          onClose={() => setJsonViewerData(null)} 
+        />
+      )}
     </div>
   );
 }

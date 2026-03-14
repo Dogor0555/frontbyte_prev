@@ -1,13 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaEye, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaPlus, FaExclamationTriangle } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaEye, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaPlus, FaExclamationTriangle, FaCalendarCheck } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../components/JsonViewer";
-
 
 export default function FacturasExcluidasView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -23,8 +22,14 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
   const [anulando, setAnulando] = useState(null);
   const [reTransmitiendo, setReTransmitiendo] = useState(null);
   const [transmitiendo, setTransmitiendo] = useState(null);
-    const [jsonViewerData, setJsonViewerData] = useState(null);
+  const [jsonViewerData, setJsonViewerData] = useState(null);
   const [loadingJson, setLoadingJson] = useState(null);
+  
+  // Estados para el filtro de fecha
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  
   const itemsPerPage = 6;
   const router = useRouter();
 
@@ -47,6 +52,45 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
     };
     fetchFacturasExcluidas();
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Solo cerrar si el clic no fue dentro del date picker
+      if (showDatePicker && !event.target.closest('.date-picker-container')) {
+        setShowDatePicker(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showDatePicker]);
+
+  // Función para verificar si hay filtros activos
+  const hayFiltrosActivos = () => {
+    return searchTerm !== "" || estadoFiltro !== "" || fechaInicio !== "" || fechaFin !== "" || ordenFecha !== "reciente";
+  };
+
+  // Función para filtrar por fecha
+  const filtrarPorFecha = (factura) => {
+    if (!fechaInicio && !fechaFin) return true;
+    
+    if (!factura.fechaemision) return false;
+    
+    // Extraer solo la fecha (sin hora)
+    const fechaFactura = factura.fechaemision.split('T')[0];
+    
+    if (fechaInicio && fechaFin) {
+      return fechaFactura >= fechaInicio && fechaFactura <= fechaFin;
+    } else if (fechaInicio) {
+      return fechaFactura >= fechaInicio;
+    } else if (fechaFin) {
+      return fechaFactura <= fechaFin;
+    }
+    
+    return true;
+  };
 
   const ordenarFacturas = (facturas) => {
     return [...facturas].sort((a, b) => {
@@ -97,18 +141,51 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
         (factura.ncontrol?.toString() || "").includes(searchTerm);
 
       const matchEstado = estadoFiltro ? factura.estado === estadoFiltro : true;
+      
+      // Aplicar filtro de fecha
+      const matchFecha = filtrarPorFecha(factura);
 
-      return matchSearch && matchEstado;
+      return matchSearch && matchEstado && matchFecha;
     })
     : [];
 
   const facturasOrdenadas = ordenarFacturas(facturasFiltradas);
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = facturasOrdenadas.slice(indexOfFirstItem, indexOfLastItem);
+  // Determinar qué facturas mostrar según si hay filtros activos
+  const hayFiltros = hayFiltrosActivos();
+  
+  // Si hay filtros activos, mostrar TODAS las facturas filtradas
+  // Si no hay filtros, mostrar solo las de la página actual
+  const facturasAMostrar = hayFiltros 
+    ? facturasOrdenadas 
+    : facturasOrdenadas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  
   const totalPages = Math.ceil(facturasOrdenadas.length / itemsPerPage);
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Función para limpiar filtros
+  const limpiarFiltros = () => {
+    setSearchTerm("");
+    setEstadoFiltro("");
+    setFechaInicio("");
+    setFechaFin("");
+    setOrdenFecha("reciente");
+    setCurrentPage(1);
+  };
+
+  // Función para establecer filtros rápidos
+  const setFiltroRapido = (dias) => {
+    const hoy = new Date();
+    const fechaFin = hoy.toISOString().split('T')[0];
+    
+    const fechaInicio = new Date();
+    fechaInicio.setDate(hoy.getDate() - dias);
+    
+    setFechaInicio(fechaInicio.toISOString().split('T')[0]);
+    setFechaFin(fechaFin);
+    setCurrentPage(1);
+    setShowDatePicker(false);
+  };
 
   const formatCurrency = (amount) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(amount || 0);
 
@@ -151,8 +228,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
     return factura && !factura.estado || factura.estado === 'PENDIENTE';
   };
 
-
-   const handleViewJSON = async (iddtefactura) => {
+  const handleViewJSON = async (iddtefactura) => {
     setLoadingJson(iddtefactura);
     try {
       const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
@@ -442,12 +518,11 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                     </div>
                     <div>
                       <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Facturas Sujeto Excluido</h1>
-                      
                     </div>
                   </div>
                   <p className="text-gray-600">
                     {facturas.length} {facturas.length === 1 ? "documento" : "documentos"} excluidos registrados
-                    {searchTerm && ` (${facturasFiltradas.length} encontrados)`}
+                    {hayFiltros && ` (${facturasOrdenadas.length} encontrados)`}
                   </p>
                 </div>
               </div>
@@ -466,6 +541,127 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                       setCurrentPage(1);
                     }}
                   />
+                </div>
+
+                {/* Filtro de Fecha */}
+                <div className="relative date-picker-container">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowDatePicker(!showDatePicker);
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 border rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-green-500 ${
+                      (fechaInicio || fechaFin) ? 'border-green-500 bg-green-50' : ''
+                    }`}
+                  >
+                    <FaCalendarCheck className={`text-sm ${(fechaInicio || fechaFin) ? 'text-green-600' : 'text-gray-600'}`} />
+                    <span className="text-sm text-gray-700">
+                      {fechaInicio || fechaFin 
+                        ? `${fechaInicio || 'Inicio'} - ${fechaFin || 'Fin'}`
+                        : 'Filtrar por fecha'
+                      }
+                    </span>
+                  </button>
+
+                  {showDatePicker && (
+                    <div 
+                      className="absolute right-0 mt-2 p-4 bg-white border rounded-lg shadow-lg z-50 w-80"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Fecha Inicio
+                          </label>
+                          <input
+                            type="date"
+                            value={fechaInicio}
+                            onChange={(e) => {
+                              setFechaInicio(e.target.value);
+                              setCurrentPage(1);
+                            }}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Fecha Fin
+                          </label>
+                          <input
+                            type="date"
+                            value={fechaFin}
+                            onChange={(e) => {
+                              setFechaFin(e.target.value);
+                              setCurrentPage(1);
+                            }}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                        
+                        {/* Filtros rápidos */}
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setFiltroRapido(7);
+                            }}
+                            className="flex-1 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
+                          >
+                            7 días
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setFiltroRapido(30);
+                            }}
+                            className="flex-1 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
+                          >
+                            30 días
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setFiltroRapido(90);
+                            }}
+                            className="flex-1 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
+                          >
+                            90 días
+                          </button>
+                        </div>
+                        
+                        <div className="flex justify-between pt-2 border-t">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setFechaInicio("");
+                              setFechaFin("");
+                              setCurrentPage(1);
+                            }}
+                            className="text-xs text-red-600 hover:text-red-800"
+                          >
+                            Limpiar fechas
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setShowDatePicker(false);
+                            }}
+                            className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                          >
+                            Cerrar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <select
@@ -492,15 +688,61 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                   }}
                   className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
                 >
-                  {/* <option value="numero">Nº Factura (desc)</option> */}
                   <option value="reciente">Más reciente</option>
                   <option value="antigua">Más antigua</option>
                 </select>
+
+                {/* Botón para limpiar todos los filtros */}
+                {hayFiltros && (
+                  <button
+                    onClick={limpiarFiltros}
+                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+                    title="Limpiar todos los filtros"
+                  >
+                    <FaSync className="inline mr-1" />
+                    Limpiar
+                  </button>
+                )}
               </div>
+
+              {/* Mostrar filtros activos */}
+              {(fechaInicio || fechaFin) && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <span className="text-sm text-gray-600">Filtros activos:</span>
+                  {fechaInicio && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                      Desde: {new Date(fechaInicio).toLocaleDateString()}
+                      <button
+                        onClick={() => {
+                          setFechaInicio("");
+                          setCurrentPage(1);
+                        }}
+                        className="ml-1 hover:text-green-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {fechaFin && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                      Hasta: {new Date(fechaFin).toLocaleDateString()}
+                      <button
+                        onClick={() => {
+                          setFechaFin("");
+                          setCurrentPage(1);
+                        }}
+                        className="ml-1 hover:text-green-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Listado en formato tarjeta-factura */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {currentItems.map((factura) => (
+                {facturasAMostrar.map((factura) => (
                   <div
                     key={factura.iddtefactura}
                     className="bg-white rounded-lg shadow-md overflow-hidden border border-green-100 hover:shadow-lg transition-all duration-200"
@@ -513,9 +755,6 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                           </div>
                           <div>
                             <span className="font-semibold text-xs block">FACTURA EXCLUIDA</span>
-                            {/* <span className="text-xs font-light opacity-90">
-                              #{factura.numerofacturausuario?.toString().padStart(4, '0')}
-                            </span> */}
                           </div>
                         </div>
                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${factura.estado === 'TRANSMITIDO' ? 'bg-green-500/30 text-green-100' :
@@ -625,8 +864,6 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                           </button>
                         )}
 
-                        {/* Botón de Re-transmitir */}
-
                         {/* Botón de Ver JSON */}
                         <button
                           onClick={() => handleViewJSON(factura.iddtefactura)}
@@ -696,7 +933,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                           )}
                         </button>
 
-                        {/* Botón de Descargar JSON - NUEVO */}
+                        {/* Botón de Descargar JSON */}
                         <button
                           onClick={() => handleDownloadJSON(factura.iddtefactura)}
                           disabled={jsonLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
@@ -726,8 +963,8 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                 ))}
               </div>
 
-              {/* Paginación */}
-              {facturasOrdenadas.length > itemsPerPage && (
+              {/* Paginación - SOLO cuando NO hay filtros activos */}
+              {!hayFiltros && facturasOrdenadas.length > itemsPerPage && (
                 <div className="flex justify-center mt-6">
                   <nav className="inline-flex rounded-md shadow">
                     {/* Botón Anterior */}
@@ -837,8 +1074,16 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
                     {facturas.length === 0 ? 'No hay facturas de sujeto excluido registradas' : 'No se encontraron coincidencias'}
                   </h3>
                   <p className="text-gray-500 mt-1">
-                    {facturas.length === 0 ? 'Comienza creando tu primera factura de sujeto excluido' : 'Intenta con otros términos de búsqueda'}
+                    {facturas.length === 0 ? 'Comienza creando tu primera factura de sujeto excluido' : 'Intenta con otros términos de búsqueda o rango de fechas'}
                   </p>
+                  {hayFiltros && (
+                    <button
+                      onClick={limpiarFiltros}
+                      className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      Limpiar todos los filtros
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -849,13 +1094,13 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
         <Footer />
       </div>
 
-       {/* Modal del Visualizador JSON */}
-            {jsonViewerData && (
-              <JsonViewer 
-                data={jsonViewerData} 
-                onClose={() => setJsonViewerData(null)} 
-              />
-            )}
+      {/* Modal del Visualizador JSON */}
+      {jsonViewerData && (
+        <JsonViewer 
+          data={jsonViewerData} 
+          onClose={() => setJsonViewerData(null)} 
+        />
+      )}
     </div>
   );
 }
