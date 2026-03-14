@@ -1,441 +1,465 @@
 "use client";
-import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaCalendarAlt, FaFileExcel, FaSync, FaFilePdf, FaEdit, FaTrash } from "react-icons/fa";
+import { useState, useEffect, useCallback } from "react";
+import {
+    FaSearch, FaFileAlt, FaCalendarAlt, FaFileExcel,
+    FaSync, FaFilePdf, FaEdit, FaTrash, FaTimes
+} from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import EditarCompraModal from "./components/EditarCompraModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import ExcelJS from 'exceljs';
+import ExcelJS from "exceljs";
 import { API_BASE_URL } from "@/lib/api";
 
+// ─── Períodos rápidos ────────────────────────────────────────────────────────
+const QUICK_PERIODS = [
+    {
+        label: "Hoy",
+        get: () => {
+            const iso = new Date().toISOString().split("T")[0];
+            return { fi: iso, ff: iso };
+        },
+    },
+    {
+        label: "Esta semana",
+        get: () => {
+            const d = new Date();
+            const day = d.getDay();
+            const mon = new Date(d);
+            mon.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+            const sun = new Date(mon);
+            sun.setDate(mon.getDate() + 6);
+            return { fi: mon.toISOString().split("T")[0], ff: sun.toISOString().split("T")[0] };
+        },
+    },
+    {
+        label: "Este mes",
+        get: () => {
+            const d = new Date();
+            const fi = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
+            const ff = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split("T")[0];
+            return { fi, ff };
+        },
+    },
+    {
+        label: "Mes anterior",
+        get: () => {
+            const d = new Date();
+            const fi = new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split("T")[0];
+            const ff = new Date(d.getFullYear(), d.getMonth(), 0).toISOString().split("T")[0];
+            return { fi, ff };
+        },
+    },
+    {
+        label: "Este año",
+        get: () => {
+            const y = new Date().getFullYear();
+            return { fi: `${y}-01-01`, ff: `${y}-12-31` };
+        },
+    },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const formatCurrency = (amount) => {
+    const val = parseFloat(amount) || 0;
+    return new Intl.NumberFormat("es-SV", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+    }).format(val);
+};
+
+const formatDate = (dateString) => {
+    if (!dateString || dateString === "-") return "-";
+    if (dateString.includes("/")) return dateString;
+    try {
+        const fecha = new Date(dateString + "T00:00:00");
+        return fecha.toLocaleDateString("es-SV", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+        });
+    } catch {
+        return dateString;
+    }
+};
+
+const mapItem = (item) => ({
+    ...item,
+    id: item.id,
+    fecha_emision_doc: item.fecha_emision_doc || item.fecha_emision || "-",
+    fecha_registro_sistema: item.fecha_registro_sistema || item.fecha_registro || "-",
+    numero_registro: item.nrc || item.nit_dui || item.numero_registro || "",
+    exentas: item.exentas_internas ?? item.exentas ?? 0,
+    locales: item.gravadas_internas ?? item.locales ?? 0,
+    importaciones: item.gravadas_importaciones ?? item.importaciones ?? 0,
+    iva: item.credito_fiscal ?? item.iva ?? 0,
+    anticipo_iva: item.anticipo_iva_percibido ?? item.anticipo_iva ?? 0,
+    sujetos_excluidos: item.compras_sujetos_excluidos ?? item.sujetos_excluidos ?? 0,
+    monto: item.total_compras ?? item.monto ?? 0,
+    exentas_importaciones: item.exentas_importaciones || "0.00",
+    fovial: item.fovial || "0.00",
+    cotrans: item.cotrans || "0.00",
+    cesc: item.cesc || "0.00",
+});
+
+const COLUMNS = [
+    { key: "no",                    label: "No.",           width: "50px",  align: "center" },
+    { key: "fecha_emision_doc",     label: "F. EMISIÓN",    width: "100px", align: "center" },
+    { key: "fecha_registro_sistema",label: "F. REGISTRO",   width: "100px", align: "center" },
+    { key: "tipo_documento",        label: "TIPO DOC",      width: "100px", align: "center" },
+    { key: "numero_documento",      label: "NÚMERO",        width: "120px", align: "center" },
+    { key: "numero_registro",       label: "NIT/NRC",       width: "120px", align: "center" },
+    { key: "nombre_proveedor",      label: "PROVEEDOR",     width: "250px", align: "left"   },
+    { key: "exentas",               label: "EXENTAS INT.",  width: "120px", align: "right"  },
+    { key: "exentas_importaciones", label: "EXENTAS IMP.",  width: "120px", align: "right"  },
+    { key: "locales",               label: "GRAVADAS INT.", width: "120px", align: "right"  },
+    { key: "importaciones",         label: "GRAVADAS IMP.", width: "120px", align: "right"  },
+    { key: "iva",                   label: "CRÉD. FISCAL",  width: "120px", align: "right"  },
+    { key: "fovial",                label: "FOVIAL",        width: "100px", align: "right"  },
+    { key: "cotrans",               label: "COTRANS",       width: "100px", align: "right"  },
+    { key: "cesc",                  label: "CESC",          width: "100px", align: "right"  },
+    { key: "anticipo_iva",          label: "ANT. IVA",      width: "100px", align: "right"  },
+    { key: "retencion",             label: "RETENCIÓN",     width: "100px", align: "right"  },
+    { key: "percepcion",            label: "PERCEPCIÓN",    width: "100px", align: "right"  },
+    { key: "sujetos_excluidos",     label: "SUJ. EXCL.",    width: "100px", align: "right"  },
+    { key: "monto",                 label: "TOTAL",         width: "120px", align: "right"  },
+    { key: "acciones",              label: "ACCIONES",      width: "100px", align: "center" },
+];
+
+const CURRENCY_KEYS = [
+    "exentas","exentas_importaciones","locales","importaciones","iva",
+    "fovial","cotrans","cesc","anticipo_iva","retencion","percepcion",
+    "sujetos_excluidos","monto",
+];
+
+const ITEMS_PER_PAGE = 10;
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatus }) {
-    const [isMobile, setIsMobile] = useState(false);
+    const [isMobile,    setIsMobile]    = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+
+    // Fechas (estado "pendiente" hasta que el usuario presione Buscar)
     const [fechaInicio, setFechaInicio] = useState("");
-    const [fechaFin, setFechaFin] = useState("");
-    const [libro, setLibro] = useState([]);
-    const [resumenData, setResumenData] = useState({});
-    const [searchTerm, setSearchTerm] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [fechaFin,    setFechaFin]    = useState("");
+
+    // Datos
+    const [libro,       setLibro]       = useState([]);
+    const [loading,     setLoading]     = useState(false);
+    const [refreshing,  setRefreshing]  = useState(false);
+
+    // Búsqueda local (sin llamada API)
+    const [searchTerm,  setSearchTerm]  = useState("");
+
+    // Paginación
     const [currentPage, setCurrentPage] = useState(1);
-    const [exporting, setExporting] = useState(false);
+
+    // Exportación
+    const [exporting,    setExporting]    = useState(false);
     const [exportingPDF, setExportingPDF] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
-    
-    // Estados para edición
-    const [modalOpen, setModalOpen] = useState(false);
-    const [selectedCompraId, setSelectedCompraId] = useState(null);
-    const [deletingId, setDeletingId] = useState(null);
 
-    const itemsPerPage = 10;
+    // Modal de edición / eliminación
+    const [modalOpen,       setModalOpen]       = useState(false);
+    const [selectedCompraId,setSelectedCompraId]= useState(null);
+    const [deletingId,      setDeletingId]      = useState(false);
 
-    // Función para obtener la fecha actual
-    const getCurrentDate = () => {
-        return new Date();
-    };
-
+    // ── Inicialización: poner "este mes" y cargar datos solo una vez ──────────
     useEffect(() => {
-        const date = getCurrentDate();
-        const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-        const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0); 
-        
-        setFechaInicio(firstDay.toISOString().split("T")[0]);
-        setFechaFin(lastDay.toISOString().split("T")[0]);
+        const { fi, ff } = QUICK_PERIODS[2].get(); // "Este mes"
+        setFechaInicio(fi);
+        setFechaFin(ff);
+        fetchLibroConFechas(fi, ff);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // ── Responsivo ────────────────────────────────────────────────────────────
     useEffect(() => {
-        const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768);
-            if (window.innerWidth < 768) {
-                setSidebarOpen(false);
-            } else {
-                setSidebarOpen(true);
-            }
+        const check = () => {
+            const mobile = window.innerWidth < 768;
+            setIsMobile(mobile);
+            setSidebarOpen(!mobile);
         };
-        
-        checkMobile();
-        window.addEventListener("resize", checkMobile);
-        
-        return () => {
-            window.removeEventListener("resize", checkMobile);
-        };
+        check();
+        window.addEventListener("resize", check);
+        return () => window.removeEventListener("resize", check);
     }, []);
 
-    useEffect(() => {
-        if (fechaInicio && fechaFin) {
-            fetchLibro();
-        }
-    }, [fechaInicio, fechaFin]);
-
-    const fetchLibro = async () => {
+    // ── Fetch principal ───────────────────────────────────────────────────────
+    const fetchLibroConFechas = useCallback(async (fi, ff) => {
         try {
             setLoading(true);
-            const response = await fetch(
-                `${API_BASE_URL}/libro-compras?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
-                {
-                    credentials: "include",
-                }
+            const res = await fetch(
+                `${API_BASE_URL}/libro-compras?fechaInicio=${fi}&fechaFin=${ff}`,
+                { credentials: "include" }
             );
-            
-            if (!response.ok) throw new Error("Error al cargar registro de compras");
-            const data = await response.json();
-            
-            const rawData = Array.isArray(data) ? data : (Array.isArray(data.libro) ? data.libro : []);
-            
-            console.log("Datos recibidos:", rawData); // Para verificar que viene el ID
-            
-            // Mapeo con AMBAS FECHAS
-            const mappedData = rawData.map(item => ({
-                ...item,
-                id: item.id, // El ID viene del backend ahora
-                fecha_emision_doc: item.fecha_emision_doc || item.fecha_emision || "-",
-                fecha_registro_sistema: item.fecha_registro_sistema || item.fecha_registro || "-",
-                numero_registro: item.nrc || item.nit_dui || item.numero_registro || "",
-                exentas: item.exentas_internas ?? item.exentas ?? 0,
-                locales: item.gravadas_internas ?? item.locales ?? 0,
-                importaciones: item.gravadas_importaciones ?? item.importaciones ?? 0,
-                iva: item.credito_fiscal ?? item.iva ?? 0,
-                anticipo_iva: item.anticipo_iva_percibido ?? item.anticipo_iva ?? 0,
-                sujetos_excluidos: item.compras_sujetos_excluidos ?? item.sujetos_excluidos ?? 0,
-                monto: item.total_compras ?? item.monto ?? 0,
-                exentas_internas: item.exentas_internas || "0.00",
-                exentas_importaciones: item.exentas_importaciones || "0.00",
-                gravadas_internas: item.gravadas_internas || "0.00",
-                gravadas_importaciones: item.gravadas_importaciones || "0.00",
-                credito_fiscal: item.credito_fiscal || "0.00",
-                fovial: item.fovial || "0.00",
-                cotrans: item.cotrans || "0.00",
-                cesc: item.cesc || "0.00"
-            }));
-            
-            setLibro(mappedData);
-            setResumenData(data.resumen || {});
-        } catch (error) {
-            console.error("Error:", error);
+            if (!res.ok) throw new Error("Error al cargar registro de compras");
+            const data = await res.json();
+            const raw = Array.isArray(data)
+                ? data
+                : Array.isArray(data.libro)
+                ? data.libro
+                : [];
+            setLibro(raw.map(mapItem));
+        } catch (err) {
+            console.error(err);
             setLibro([]);
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
+    }, []);
+
+    const handleBuscar = () => {
+        if (!fechaInicio || !fechaFin) return;
+        setCurrentPage(1);
+        fetchLibroConFechas(fechaInicio, fechaFin);
     };
 
     const handleRefresh = () => {
         setRefreshing(true);
-        fetchLibro();
+        fetchLibroConFechas(fechaInicio, fechaFin);
     };
 
+    // Aplicar período rápido: actualiza fechas Y busca inmediatamente
+    const applyQuickPeriod = (period) => {
+        const { fi, ff } = period.get();
+        setFechaInicio(fi);
+        setFechaFin(ff);
+        setCurrentPage(1);
+        fetchLibroConFechas(fi, ff);
+    };
+
+    const handleLimpiar = () => {
+        const { fi, ff } = QUICK_PERIODS[2].get();
+        setFechaInicio(fi);
+        setFechaFin(ff);
+        setSearchTerm("");
+        setCurrentPage(1);
+        fetchLibroConFechas(fi, ff);
+    };
+
+    // ── Detectar período activo ───────────────────────────────────────────────
+    const activePeriodLabel = QUICK_PERIODS.find((p) => {
+        const { fi, ff } = p.get();
+        return fi === fechaInicio && ff === fechaFin;
+    })?.label ?? null;
+
+    // ── Editar / Eliminar ─────────────────────────────────────────────────────
     const handleEdit = (id) => {
-        if (!id) {
-            alert("No se puede editar este registro porque no tiene un ID válido");
-            return;
-        }
+        if (!id) return alert("Registro sin ID válido");
         setSelectedCompraId(id);
         setModalOpen(true);
     };
 
     const handleDelete = async (id) => {
-        if (!id) {
-            alert("No se puede eliminar este registro porque no tiene un ID válido");
-            return;
-        }
-
-        if (!confirm("¿Estás seguro de eliminar esta compra? Esta acción no se puede deshacer.")) {
-            return;
-        }
-
+        if (!id) return alert("Registro sin ID válido");
+        if (!confirm("¿Eliminar esta compra? La acción no se puede deshacer.")) return;
         setDeletingId(id);
         try {
-            const response = await fetch(`${API_BASE_URL}/compras/delete/${id}`, {
+            const res = await fetch(`${API_BASE_URL}/compras/delete/${id}`, {
                 method: "DELETE",
-                credentials: "include"
+                credentials: "include",
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || "Error al eliminar");
-            }
-
-            // Recargar la lista
-            fetchLibro();
-        } catch (error) {
-            console.error("Error eliminando:", error);
-            alert("Error al eliminar la compra: " + error.message);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Error al eliminar");
+            fetchLibroConFechas(fechaInicio, fechaFin);
+        } catch (err) {
+            alert("Error: " + err.message);
         } finally {
             setDeletingId(null);
         }
     };
 
-    const handleModalSuccess = () => {
-        fetchLibro(); // Recargar después de editar/eliminar
-    };
+    // ── Filtrado local (búsqueda de texto) ────────────────────────────────────
+    const libroFiltrado = libro.filter((item) => {
+        if (!item) return false;
+        const q = searchTerm.toLowerCase();
+        return (
+            (item.nombre_proveedor?.toLowerCase() || "").includes(q) ||
+            (item.numero_documento?.toLowerCase()  || "").includes(q) ||
+            (item.numero_registro?.toLowerCase()   || "").includes(q) ||
+            (item.fecha_emision_doc?.toString()    || "").includes(searchTerm) ||
+            (item.fecha_registro_sistema?.toString()|| "").includes(searchTerm)
+        );
+    });
 
-    const formatCurrency = (amount) => {
-        const val = parseFloat(amount) || 0;
-        return new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(val);
-    };
-
-    const formatDate = (dateString) => {
-        if (!dateString || dateString === "-") return "-";
-        if (dateString.includes('/')) return dateString;
-        
-        try {
-            const fecha = new Date(dateString + 'T00:00:00');
-            return fecha.toLocaleDateString('es-SV', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
-        } catch (e) {
-            return dateString;
+    // ── Totales ───────────────────────────────────────────────────────────────
+    const totales = libroFiltrado.reduce(
+        (acc, item) => ({
+            exentas_internas:      acc.exentas_internas      + (parseFloat(item.exentas)              || 0),
+            exentas_importaciones: acc.exentas_importaciones + (parseFloat(item.exentas_importaciones)|| 0),
+            gravadas_internas:     acc.gravadas_internas     + (parseFloat(item.locales)              || 0),
+            gravadas_importaciones:acc.gravadas_importaciones+ (parseFloat(item.importaciones)        || 0),
+            credito_fiscal:        acc.credito_fiscal        + (parseFloat(item.iva)                  || 0),
+            fovial:                acc.fovial                + (parseFloat(item.fovial)               || 0),
+            cotrans:               acc.cotrans               + (parseFloat(item.cotrans)              || 0),
+            cesc:                  acc.cesc                  + (parseFloat(item.cesc)                 || 0),
+            anticipo_iva:          acc.anticipo_iva          + (parseFloat(item.anticipo_iva)         || 0),
+            retencion:             acc.retencion             + (parseFloat(item.retencion)            || 0),
+            percepcion:            acc.percepcion            + (parseFloat(item.percepcion)           || 0),
+            sujetos_excluidos:     acc.sujetos_excluidos     + (parseFloat(item.sujetos_excluidos)    || 0),
+            monto:                 acc.monto                 + (parseFloat(item.monto)               || 0),
+        }),
+        {
+            exentas_internas:0, exentas_importaciones:0, gravadas_internas:0,
+            gravadas_importaciones:0, credito_fiscal:0, fovial:0, cotrans:0,
+            cesc:0, anticipo_iva:0, retencion:0, percepcion:0,
+            sujetos_excluidos:0, monto:0,
         }
-    };
+    );
 
-    // Filtrado de datos
-    const libroFiltrado = Array.isArray(libro)
-        ? libro.filter((item) => {
-            if (!item) return false;
+    // ── Paginación ────────────────────────────────────────────────────────────
+    const totalPages     = Math.ceil(libroFiltrado.length / ITEMS_PER_PAGE);
+    const indexOfFirst   = (currentPage - 1) * ITEMS_PER_PAGE;
+    const indexOfLast    = indexOfFirst + ITEMS_PER_PAGE;
+    const currentItems   = libroFiltrado.slice(indexOfFirst, indexOfLast);
 
-            const searchLower = searchTerm.toLowerCase();
-            return (
-                (item.nombre_proveedor?.toLowerCase() || "").includes(searchLower) ||
-                (item.numero_documento?.toLowerCase() || "").includes(searchLower) ||
-                (item.numero_registro?.toLowerCase() || "").includes(searchLower) ||
-                (item.fecha_emision_doc?.toString() || "").includes(searchTerm) ||
-                (item.fecha_registro_sistema?.toString() || "").includes(searchTerm)
-            );
-        })
-        : [];
-
-    // Cálculo de totales basado en los datos filtrados
-    const getTotales = () => {
-        return libroFiltrado.reduce((acc, item) => ({
-            exentas_internas: acc.exentas_internas + (parseFloat(item.exentas) || 0),
-            exentas_importaciones: acc.exentas_importaciones + (parseFloat(item.exentas_importaciones) || 0),
-            gravadas_internas: acc.gravadas_internas + (parseFloat(item.locales) || 0),
-            gravadas_importaciones: acc.gravadas_importaciones + (parseFloat(item.importaciones) || 0),
-            credito_fiscal: acc.credito_fiscal + (parseFloat(item.iva) || 0),
-            fovial: acc.fovial + (parseFloat(item.fovial) || 0),
-            cotrans: acc.cotrans + (parseFloat(item.cotrans) || 0),
-            cesc: acc.cesc + (parseFloat(item.cesc) || 0),
-            anticipo_iva: acc.anticipo_iva + (parseFloat(item.anticipo_iva) || 0),
-            retencion: acc.retencion + (parseFloat(item.retencion) || 0),
-            percepcion: acc.percepcion + (parseFloat(item.percepcion) || 0),
-            sujetos_excluidos: acc.sujetos_excluidos + (parseFloat(item.sujetos_excluidos) || 0),
-            monto: acc.monto + (parseFloat(item.monto) || 0)
-        }), {
-            exentas_internas: 0,
-            exentas_importaciones: 0,
-            gravadas_internas: 0,
-            gravadas_importaciones: 0,
-            credito_fiscal: 0,
-            fovial: 0,
-            cotrans: 0,
-            cesc: 0,
-            anticipo_iva: 0,
-            retencion: 0,
-            percepcion: 0,
-            sujetos_excluidos: 0,
-            monto: 0
-        });
-    };
-
-    const totales = getTotales();
-
-    // Paginación
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = libroFiltrado.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(libroFiltrado.length / itemsPerPage);
-    const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-    // Columnas para la tabla
-    const columns = [
-        { key: 'no', label: 'No.', width: '50px', align: 'center' },
-        { key: 'fecha_emision_doc', label: 'F. EMISIÓN', width: '100px', align: 'center' },
-        { key: 'fecha_registro_sistema', label: 'F. REGISTRO', width: '100px', align: 'center' },
-        { key: 'tipo_documento', label: 'TIPO DOC', width: '100px', align: 'center' },
-        { key: 'numero_documento', label: 'NUMERO', width: '120px', align: 'center' },
-        { key: 'numero_registro', label: 'NIT/NRC', width: '120px', align: 'center' },
-        { key: 'nombre_proveedor', label: 'PROVEEDOR', width: '250px', align: 'left' },
-        { key: 'exentas', label: 'EXENTAS INT.', width: '120px', align: 'right' },
-        { key: 'exentas_importaciones', label: 'EXENTAS IMP.', width: '120px', align: 'right' },
-        { key: 'locales', label: 'GRAVADAS INT.', width: '120px', align: 'right' },
-        { key: 'importaciones', label: 'GRAVADAS IMP.', width: '120px', align: 'right' },
-        { key: 'iva', label: 'CRÉDITO FISCAL', width: '120px', align: 'right' },
-        { key: 'fovial', label: 'FOVIAL', width: '100px', align: 'right' },
-        { key: 'cotrans', label: 'COTRANS', width: '100px', align: 'right' },
-        { key: 'cesc', label: 'CESC', width: '100px', align: 'right' },
-        { key: 'anticipo_iva', label: 'ANT. IVA', width: '100px', align: 'right' },
-        { key: 'retencion', label: 'RETENCION', width: '100px', align: 'right' },
-        { key: 'percepcion', label: 'PERCEPCION', width: '100px', align: 'right' },
-        { key: 'sujetos_excluidos', label: 'SUJ. EXCL.', width: '100px', align: 'right' },
-        { key: 'monto', label: 'TOTAL', width: '120px', align: 'right' },
-        { key: 'acciones', label: 'ACCIONES', width: '100px', align: 'center' },
-    ];
-
-    const toggleSidebar = () => {
-        setSidebarOpen(!sidebarOpen);
-    };
-
-    // Exportar a Excel
+    // ── Exportar Excel ────────────────────────────────────────────────────────
     const handleExportExcel = async () => {
+        if (!libroFiltrado.length) return alert("No hay datos para exportar");
         setExporting(true);
         try {
-            if (libroFiltrado.length === 0) {
-                alert("No hay datos para exportar");
-                return;
-            }
-
-            const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet('Registro de Compras');
-
-            worksheet.columns = [
-                { header: 'F. EMISIÓN', key: 'fecha_emision_doc', width: 12 },
-                { header: 'F. REGISTRO', key: 'fecha_registro_sistema', width: 12 },
-                { header: 'TIPO DOC', key: 'tipo_documento', width: 10 },
-                { header: 'NUMERO', key: 'numero_documento', width: 15 },
-                { header: 'NIT/NRC', key: 'numero_registro', width: 15 },
-                { header: 'PROVEEDOR', key: 'nombre_proveedor', width: 30 },
-                { header: 'EXENTAS INT.', key: 'exentas_internas', width: 12 },
-                { header: 'EXENTAS IMP.', key: 'exentas_importaciones', width: 12 },
-                { header: 'GRAVADAS INT.', key: 'gravadas_internas', width: 12 },
-                { header: 'GRAVADAS IMP.', key: 'gravadas_importaciones', width: 12 },
-                { header: 'CRÉDITO FISCAL', key: 'credito_fiscal', width: 12 },
-                { header: 'FOVIAL', key: 'fovial', width: 10 },
-                { header: 'COTRANS', key: 'cotrans', width: 10 },
-                { header: 'CESC', key: 'cesc', width: 10 },
-                { header: 'ANTICIPO IVA', key: 'anticipo_iva', width: 12 },
-                { header: 'RETENCION', key: 'retencion', width: 12 },
-                { header: 'PERCEPCION', key: 'percepcion', width: 12 },
-                { header: 'SUJ. EXCLUIDOS', key: 'sujetos_excluidos', width: 15 },
-                { header: 'TOTAL', key: 'monto', width: 15 }
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet("Registro de Compras");
+            ws.columns = [
+                { header: "F. EMISIÓN",      key: "fecha_emision_doc",      width: 12 },
+                { header: "F. REGISTRO",     key: "fecha_registro_sistema", width: 12 },
+                { header: "TIPO DOC",        key: "tipo_documento",         width: 10 },
+                { header: "NÚMERO",          key: "numero_documento",       width: 15 },
+                { header: "NIT/NRC",         key: "numero_registro",        width: 15 },
+                { header: "PROVEEDOR",       key: "nombre_proveedor",       width: 30 },
+                { header: "EXENTAS INT.",    key: "exentas",                width: 12 },
+                { header: "EXENTAS IMP.",    key: "exentas_importaciones",  width: 12 },
+                { header: "GRAVADAS INT.",   key: "locales",                width: 12 },
+                { header: "GRAVADAS IMP.",   key: "importaciones",          width: 12 },
+                { header: "CRÉD. FISCAL",    key: "iva",                    width: 12 },
+                { header: "FOVIAL",          key: "fovial",                 width: 10 },
+                { header: "COTRANS",         key: "cotrans",                width: 10 },
+                { header: "CESC",            key: "cesc",                   width: 10 },
+                { header: "ANTICIPO IVA",    key: "anticipo_iva",           width: 12 },
+                { header: "RETENCIÓN",       key: "retencion",              width: 12 },
+                { header: "PERCEPCIÓN",      key: "percepcion",             width: 12 },
+                { header: "SUJ. EXCLUIDOS",  key: "sujetos_excluidos",      width: 15 },
+                { header: "TOTAL",           key: "monto",                  width: 15 },
             ];
 
-            const headerRow = worksheet.getRow(1);
-            headerRow.eachCell((cell) => {
-                cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            const hdr = ws.getRow(1);
+            hdr.eachCell((cell) => {
+                cell.font  = { color: { argb: "FFFFFFFF" }, bold: true };
+                cell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
+                cell.alignment = { vertical: "middle", horizontal: "center" };
             });
 
-            libroFiltrado.forEach((item, index) => {
-                const row = worksheet.addRow({
-                    fecha_emision_doc: item.fecha_emision_doc,
+            libroFiltrado.forEach((item, i) => {
+                const row = ws.addRow({
+                    fecha_emision_doc:      item.fecha_emision_doc,
                     fecha_registro_sistema: item.fecha_registro_sistema,
-                    tipo_documento: item.tipo_documento,
-                    numero_documento: item.numero_documento,
-                    numero_registro: item.numero_registro,
-                    nombre_proveedor: item.nombre_proveedor,
-                    exentas_internas: parseFloat(item.exentas) || 0,
-                    exentas_importaciones: parseFloat(item.exentas_importaciones) || 0,
-                    gravadas_internas: parseFloat(item.locales) || 0,
-                    gravadas_importaciones: parseFloat(item.importaciones) || 0,
-                    credito_fiscal: parseFloat(item.iva) || 0,
-                    fovial: parseFloat(item.fovial) || 0,
-                    cotrans: parseFloat(item.cotrans) || 0,
-                    cesc: parseFloat(item.cesc) || 0,
-                    anticipo_iva: parseFloat(item.anticipo_iva) || 0,
-                    retencion: parseFloat(item.retencion) || 0,
-                    percepcion: parseFloat(item.percepcion) || 0,
-                    sujetos_excluidos: parseFloat(item.sujetos_excluidos) || 0,
-                    monto: parseFloat(item.monto) || 0
+                    tipo_documento:         item.tipo_documento,
+                    numero_documento:       item.numero_documento,
+                    numero_registro:        item.numero_registro,
+                    nombre_proveedor:       item.nombre_proveedor,
+                    exentas:                parseFloat(item.exentas)              || 0,
+                    exentas_importaciones:  parseFloat(item.exentas_importaciones)|| 0,
+                    locales:                parseFloat(item.locales)              || 0,
+                    importaciones:          parseFloat(item.importaciones)        || 0,
+                    iva:                    parseFloat(item.iva)                  || 0,
+                    fovial:                 parseFloat(item.fovial)               || 0,
+                    cotrans:                parseFloat(item.cotrans)              || 0,
+                    cesc:                   parseFloat(item.cesc)                 || 0,
+                    anticipo_iva:           parseFloat(item.anticipo_iva)         || 0,
+                    retencion:              parseFloat(item.retencion)            || 0,
+                    percepcion:             parseFloat(item.percepcion)           || 0,
+                    sujetos_excluidos:      parseFloat(item.sujetos_excluidos)    || 0,
+                    monto:                  parseFloat(item.monto)               || 0,
                 });
-
-                const fillColor = index % 2 === 0 ? 'FFD9E1F2' : 'FFFFFFFF';
-                row.eachCell((cell, colNumber) => {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+                const fill = i % 2 === 0 ? "FFf1f5f9" : "FFFFFFFF";
+                row.eachCell((cell, col) => {
+                    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } };
                     cell.border = {
-                        top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+                        top: { style: "thin" }, left: { style: "thin" },
+                        bottom: { style: "thin" }, right: { style: "thin" },
                     };
-                    if (colNumber >= 7) {
-                        cell.numFmt = '#,##0.00';
-                        cell.alignment = { horizontal: 'right' };
-                    }
+                    if (col >= 7) { cell.numFmt = "#,##0.00"; cell.alignment = { horizontal: "right" }; }
                 });
             });
 
-            const totalRow = worksheet.addRow({
-                nombre_proveedor: 'TOTALES',
-                exentas_internas: totales.exentas_internas,
+            const totRow = ws.addRow({
+                nombre_proveedor:      "TOTALES",
+                exentas:               totales.exentas_internas,
                 exentas_importaciones: totales.exentas_importaciones,
-                gravadas_internas: totales.gravadas_internas,
-                gravadas_importaciones: totales.gravadas_importaciones,
-                credito_fiscal: totales.credito_fiscal,
-                fovial: totales.fovial,
-                cotrans: totales.cotrans,
-                cesc: totales.cesc,
-                anticipo_iva: totales.anticipo_iva,
-                retencion: totales.retencion,
-                percepcion: totales.percepcion,
-                sujetos_excluidos: totales.sujetos_excluidos,
-                monto: totales.monto
+                locales:               totales.gravadas_internas,
+                importaciones:         totales.gravadas_importaciones,
+                iva:                   totales.credito_fiscal,
+                fovial:                totales.fovial,
+                cotrans:               totales.cotrans,
+                cesc:                  totales.cesc,
+                anticipo_iva:          totales.anticipo_iva,
+                retencion:             totales.retencion,
+                percepcion:            totales.percepcion,
+                sujetos_excluidos:     totales.sujetos_excluidos,
+                monto:                 totales.monto,
             });
-            totalRow.font = { bold: true };
-            totalRow.eachCell((cell, colNumber) => {
-                if (colNumber >= 7) {
-                    cell.numFmt = '#,##0.00';
-                    cell.alignment = { horizontal: 'right' };
-                }
+            totRow.font = { bold: true };
+            totRow.eachCell((cell, col) => {
+                if (col >= 7) { cell.numFmt = "#,##0.00"; cell.alignment = { horizontal: "right" }; }
             });
 
-            const buffer = await workbook.xlsx.writeBuffer();
-            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `registro-compras-${fechaInicio}-a-${fechaFin}.xlsx`;
-            link.click();
+            const buf  = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement("a");
+            a.href = url;
+            a.download = `registro-compras-${fechaInicio}-a-${fechaFin}.xlsx`;
+            a.click();
             URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error("Error exportando Excel:", error);
+        } catch (err) {
+            console.error(err);
             alert("Error al exportar Excel");
         } finally {
             setExporting(false);
         }
     };
 
-    // Exportar a PDF
+    // ── Exportar PDF ──────────────────────────────────────────────────────────
     const handleExportPDF = () => {
         setExportingPDF(true);
         try {
-            const doc = new jsPDF('landscape');
-            const fechaGeneracion = new Date().toLocaleDateString('es-SV');
-
+            const doc = new jsPDF("landscape");
             doc.setFontSize(16);
             doc.text("REGISTRO DE COMPRAS", 14, 15);
             doc.setFontSize(10);
-            doc.text(`Período: ${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`, 14, 22);
-            doc.text(`Generado: ${fechaGeneracion}`, 14, 27);
+            doc.text(`Período: ${formatDate(fechaInicio)} – ${formatDate(fechaFin)}`, 14, 22);
+            doc.text(`Generado: ${new Date().toLocaleDateString("es-SV")}`, 14, 27);
 
-            const tableColumn = ["No.", "F. Emisión", "F. Registro", "Tipo", "Número", "NIT/NRC", "Proveedor", "Ex. Int", "Ex. Imp", "Gr. Int", "Gr. Imp", "CF IVA", "FOVIAL", "COTRANS", "CESC", "Ant. IVA", "Ret", "Perc", "Suj. Ex", "Total"];
-            const tableRows = libroFiltrado.map((item, index) => [
-                item.no || index + 1,
+            const cols = ["No.","F. Emisión","F. Registro","Tipo","Número","NIT/NRC","Proveedor","Ex. Int","Ex. Imp","Gr. Int","Gr. Imp","CF IVA","FOVIAL","COTRANS","CESC","Ant. IVA","Ret","Perc","Suj. Ex","Total"];
+            const rows = libroFiltrado.map((item, i) => [
+                item.no || i + 1,
                 item.fecha_emision_doc,
                 item.fecha_registro_sistema,
                 item.tipo_documento,
                 item.numero_documento,
                 item.numero_registro,
                 item.nombre_proveedor,
-                formatCurrency(item.exentas || 0),
-                formatCurrency(item.exentas_importaciones || 0),
-                formatCurrency(item.locales || 0),
-                formatCurrency(item.importaciones || 0),
-                formatCurrency(item.iva || 0),
-                formatCurrency(item.fovial || 0),
-                formatCurrency(item.cotrans || 0),
-                formatCurrency(item.cesc || 0),
-                formatCurrency(item.anticipo_iva || 0),
-                formatCurrency(item.retencion || 0),
-                formatCurrency(item.percepcion || 0),
-                formatCurrency(item.sujetos_excluidos || 0),
-                formatCurrency(item.monto)
+                formatCurrency(item.exentas              || 0),
+                formatCurrency(item.exentas_importaciones|| 0),
+                formatCurrency(item.locales              || 0),
+                formatCurrency(item.importaciones        || 0),
+                formatCurrency(item.iva                  || 0),
+                formatCurrency(item.fovial               || 0),
+                formatCurrency(item.cotrans              || 0),
+                formatCurrency(item.cesc                 || 0),
+                formatCurrency(item.anticipo_iva         || 0),
+                formatCurrency(item.retencion            || 0),
+                formatCurrency(item.percepcion           || 0),
+                formatCurrency(item.sujetos_excluidos    || 0),
+                formatCurrency(item.monto),
             ]);
 
-            tableRows.push([
-                "", "", "", "", "", "TOTALES", "",
+            rows.push([
+                "","","","","","TOTALES","",
                 formatCurrency(totales.exentas_internas),
                 formatCurrency(totales.exentas_importaciones),
                 formatCurrency(totales.gravadas_internas),
@@ -448,256 +472,410 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 formatCurrency(totales.retencion),
                 formatCurrency(totales.percepcion),
                 formatCurrency(totales.sujetos_excluidos),
-                formatCurrency(totales.monto)
+                formatCurrency(totales.monto),
             ]);
 
             autoTable(doc, {
-                head: [tableColumn],
-                body: tableRows,
+                head: [cols],
+                body: rows,
                 startY: 35,
-                theme: 'grid',
+                theme: "grid",
                 styles: { fontSize: 6, cellPadding: 1 },
-                headStyles: { fillColor: [66, 139, 202] },
+                headStyles: { fillColor: [30, 41, 59] },
                 columnStyles: {
-                    0: { halign: 'center' },
-                    7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' }, 10: { halign: 'right' },
-                    11: { halign: 'right' }, 12: { halign: 'right' }, 13: { halign: 'right' }, 14: { halign: 'right' },
-                    15: { halign: 'right' }, 16: { halign: 'right' }, 17: { halign: 'right' }, 18: { halign: 'right' },
-                    19: { halign: 'right', fontStyle: 'bold' }
-                }
+                    0: { halign: "center" },
+                    ...[7,8,9,10,11,12,13,14,15,16,17,18,19].reduce((a,k) => ({...a,[k]:{halign:"right"}}),{}),
+                    19: { halign: "right", fontStyle: "bold" },
+                },
             });
 
             doc.save(`registro-compras-${fechaInicio}-a-${fechaFin}.pdf`);
-        } catch (error) {
-            console.error("Error exportando PDF:", error);
+        } catch (err) {
+            console.error(err);
             alert("Error al exportar PDF");
         } finally {
             setExportingPDF(false);
         }
     };
 
+    // ── Loading inicial ───────────────────────────────────────────────────────
     if (loading && !libro.length) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-50">
+            <div className="flex items-center justify-center min-h-screen bg-slate-50">
                 <div className="text-center">
-                    <div className="animate-spin h-12 w-12 border-4 border-gray-600 rounded-full border-t-transparent mx-auto mb-4"></div>
-                    <p className="text-black font-medium">Cargando registro de compras...</p>
+                    <div className="animate-spin h-12 w-12 border-4 border-slate-700 rounded-full border-t-transparent mx-auto mb-4" />
+                    <p className="text-slate-600 font-medium">Cargando registro de compras…</p>
                 </div>
             </div>
         );
     }
 
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
-        <div className="flex h-screen text-black bg-gray-50 overflow-hidden">
+        <div className="flex h-screen text-slate-800 bg-slate-50 overflow-hidden">
             {/* Modal de edición */}
-            <EditarCompraModal 
+            <EditarCompraModal
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
                 compraId={selectedCompraId}
-                onSuccess={handleModalSuccess}
+                onSuccess={() => fetchLibroConFechas(fechaInicio, fechaFin)}
             />
 
-            <div className={`fixed md:relative z-20 h-screen ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}>
+            {/* Sidebar */}
+            <div
+                className={`fixed md:relative z-20 h-screen transition-transform duration-200 ${
+                    sidebarOpen ? "translate-x-0" : "-translate-x-full"
+                } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}
+            >
                 <Sidebar />
             </div>
-
-            {sidebarOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden" onClick={() => setSidebarOpen(!sidebarOpen)}></div>
+            {sidebarOpen && isMobile && (
+                <div
+                    className="fixed inset-0 bg-black/40 z-10"
+                    onClick={() => setSidebarOpen(false)}
+                />
             )}
 
+            {/* Contenido principal */}
             <div className="flex-1 flex flex-col min-w-0">
-                <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-                    <Navbar 
+                {/* Navbar */}
+                <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
+                    <Navbar
                         user={user}
                         hasHaciendaToken={hasHaciendaToken}
                         haciendaStatus={haciendaStatus}
-                        onToggleSidebar={toggleSidebar}
+                        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
                         sidebarOpen={sidebarOpen}
                     />
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
-                    <div className="p-6">
-                        <div className="max-w-full mx-auto">
-                            {/* Header y Botones */}
-                            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6">
-                                <div>
-                                    <h1 className="text-2xl md:text-3xl font-bold text-black mb-2">Registro de Compras</h1>
-                                </div>
-                                <div className="flex flex-wrap gap-3 mt-4 lg:mt-0">
-                                    <button onClick={handleRefresh} disabled={refreshing} className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-black hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                                        <FaSync className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                                        {refreshing ? 'Actualizando...' : 'Actualizar'}
-                                    </button>
-                                    <button onClick={handleExportExcel} disabled={exporting} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors">
-                                        <FaFileExcel className="mr-2" />
-                                        {exporting ? 'Exportando...' : 'Excel'}
-                                    </button>
-                                    <button onClick={handleExportPDF} disabled={exportingPDF} className="flex items-center px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
-                                        <FaFilePdf className="mr-2" />
-                                        {exportingPDF ? 'Generando...' : 'PDF'}
-                                    </button>
-                                </div>
-                            </div>
+                    <div className="p-6 max-w-full mx-auto">
 
-                            {/* Tarjetas de Resumen */}
-                            <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-gray-200 p-4 mb-6">
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
-                                    <div>
-                                        <div className="text-sm text-black font-medium">Total Compras</div>
-                                        <div className="text-xl font-bold text-black">{formatCurrency(totales.monto)}</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-sm text-black font-medium">Compras Locales</div>
-                                        <div className="text-xl font-bold text-blue-600">{formatCurrency(totales.gravadas_internas)}</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-sm text-black font-medium">Crédito Fiscal (IVA)</div>
-                                        <div className="text-xl font-bold text-green-600">{formatCurrency(totales.credito_fiscal)}</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-sm text-black font-medium">Retención</div>
-                                        <div className="text-xl font-bold text-orange-600">{formatCurrency(totales.retencion)}</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-sm text-black font-medium">Percepción</div>
-                                        <div className="text-xl font-bold text-purple-600">{formatCurrency(totales.percepcion)}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Filtros */}
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-black mb-2">Fecha Inicio</label>
-                                        <div className="relative">
-                                            <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black" />
-                                            <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-black mb-2">Fecha Fin</label>
-                                        <div className="relative">
-                                            <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black" />
-                                            <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-black mb-2">Buscar</label>
-                                        <div className="relative">
-                                            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black" />
-                                            <input type="text" placeholder="Proveedor, documento, NRC..." className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Tabla */}
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
-                                            <tr>
-                                                {columns.map((column) => (
-                                                    <th 
-                                                        key={column.key}
-                                                        className={`px-3 py-3 text-xs font-medium text-black uppercase tracking-wider whitespace-nowrap ${
-                                                            column.align === 'right' ? 'text-right' : 
-                                                            column.align === 'center' ? 'text-center' : 'text-left'
-                                                        }`}
-                                                        style={{ width: column.width }}
-                                                    >
-                                                        {column.label}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
-                                            {currentItems.map((item, idx) => (
-                                                <tr key={item.id || idx} className="hover:bg-gray-50 transition-colors">
-                                                    {columns.map((column) => (
-                                                        <td 
-                                                            key={column.key}
-                                                            className={`px-3 py-3 text-sm text-black whitespace-nowrap ${
-                                                                column.align === 'right' ? 'text-right' : 
-                                                                column.align === 'center' ? 'text-center' : 'text-left'
-                                                            } ${
-                                                                ['numero_documento', 'numero_registro'].includes(column.key) ? 'font-mono' : ''
-                                                            }`}
-                                                        >
-                                                            {column.key === 'acciones' ? (
-                                                                <div className="flex justify-center space-x-2">
-                                                                    {item.id ? (
-                                                                        <>
-                                                                            <button 
-                                                                                onClick={() => handleEdit(item.id)}
-                                                                                className="text-blue-600 hover:text-blue-800 p-1"
-                                                                                title="Editar"
-                                                                            >
-                                                                                <FaEdit size={16} />
-                                                                            </button>
-                                                                            <button 
-                                                                                onClick={() => handleDelete(item.id)}
-                                                                                disabled={deletingId === item.id}
-                                                                                className="text-red-600 hover:text-red-800 p-1 disabled:opacity-50"
-                                                                                title="Eliminar"
-                                                                            >
-                                                                                {deletingId === item.id ? (
-                                                                                    <div className="animate-spin h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full"></div>
-                                                                                ) : (
-                                                                                    <FaTrash size={16} />
-                                                                                )}
-                                                                            </button>
-                                                                        </>
-                                                                    ) : (
-                                                                        <span className="text-gray-400 text-xs">-</span>
-                                                                    )}
-                                                                </div>
-                                                            ) : ['exentas', 'exentas_importaciones', 'locales', 'importaciones', 'iva', 'fovial', 'cotrans', 'cesc', 'anticipo_iva', 'retencion', 'percepcion', 'sujetos_excluidos', 'monto'].includes(column.key) ? (
-                                                                formatCurrency(item[column.key] || 0)
-                                                            ) : ['fecha_emision_doc', 'fecha_registro_sistema'].includes(column.key) ? (
-                                                                formatDate(item[column.key])
-                                                            ) : column.key === 'no' ? (
-                                                                item.no || (indexOfFirstItem + idx + 1)
-                                                            ) : (
-                                                                item[column.key] || '-'
-                                                            )}
-                                                        </td>
-                                                    ))}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {/* Paginación */}
-                                {libroFiltrado.length > itemsPerPage && (
-                                    <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-                                        <div className="flex items-center justify-between">
-                                            <div className="text-sm text-black">
-                                                Mostrando {indexOfFirstItem + 1} a {Math.min(indexOfLastItem, libroFiltrado.length)} de {libroFiltrado.length} registros
-                                            </div>
-                                            <div className="flex space-x-2">
-                                                <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 rounded border border-gray-300 bg-white text-black hover:bg-gray-50 disabled:opacity-50 transition-colors">Anterior</button>
-                                                <span className="px-3 py-1 text-sm text-black">Página {currentPage} de {totalPages}</span>
-                                                <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 rounded border border-gray-300 bg-white text-black hover:bg-gray-50 disabled:opacity-50 transition-colors">Siguiente</button>
-                                            </div>
-                                        </div>
-                                    </div>
+                        {/* ── Header ───────────────────────────────────────── */}
+                        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+                            <div>
+                                <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
+                                    Registro de Compras
+                                </h1>
+                                {fechaInicio && fechaFin && (
+                                    <p className="text-sm text-slate-500 mt-1">
+                                        {formatDate(fechaInicio)} — {formatDate(fechaFin)}
+                                        {" · "}
+                                        <span className="font-medium text-slate-700">
+                                            {libroFiltrado.length} registro{libroFiltrado.length !== 1 ? "s" : ""}
+                                        </span>
+                                    </p>
                                 )}
-
-                                {libroFiltrado.length === 0 && (
-                                    <div className="text-center py-12">
-                                        <div className="text-black mb-3"><FaFileAlt className="inline-block text-4xl" /></div>
-                                        <h3 className="text-lg font-medium text-black mb-2">No se encontraron registros</h3>
-                                        <p className="text-black text-sm">Intenta ajustar los filtros o el rango de fechas</p>
-                                    </div>
-                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={handleRefresh}
+                                    disabled={refreshing || loading}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors text-sm"
+                                >
+                                    <FaSync className={refreshing ? "animate-spin" : ""} size={12} />
+                                    {refreshing ? "Actualizando…" : "Actualizar"}
+                                </button>
+                                <button
+                                    onClick={handleExportExcel}
+                                    disabled={exporting}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors text-sm"
+                                >
+                                    <FaFileExcel size={12} />
+                                    {exporting ? "Exportando…" : "Excel"}
+                                </button>
+                                <button
+                                    onClick={handleExportPDF}
+                                    disabled={exportingPDF}
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors text-sm"
+                                >
+                                    <FaFilePdf size={12} />
+                                    {exportingPDF ? "Generando…" : "PDF"}
+                                </button>
                             </div>
                         </div>
+
+                        {/* ── Tarjetas resumen ──────────────────────────────── */}
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+                            {[
+                                { label: "Total Compras",      value: totales.monto,              color: "text-slate-900"   },
+                                { label: "Gravadas Locales",   value: totales.gravadas_internas,  color: "text-blue-600"    },
+                                { label: "Crédito Fiscal IVA", value: totales.credito_fiscal,     color: "text-emerald-600" },
+                                { label: "Retención",          value: totales.retencion,          color: "text-amber-600"   },
+                                { label: "Percepción",         value: totales.percepcion,         color: "text-violet-600"  },
+                            ].map(({ label, value, color }) => (
+                                <div
+                                    key={label}
+                                    className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"
+                                >
+                                    <p className="text-xs text-slate-500 font-medium mb-1">{label}</p>
+                                    <p className={`text-lg font-bold ${color}`}>{formatCurrency(value)}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* ── Panel de Filtros MEJORADO ─────────────────────── */}
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+                            {/* Header del panel */}
+                            <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+                                <FaCalendarAlt className="text-slate-400" size={13} />
+                                <span className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
+                                    Filtros
+                                </span>
+                            </div>
+
+                            <div className="p-5">
+                                {/* Períodos rápidos */}
+                                <div className="mb-5">
+                                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">
+                                        Período rápido
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {QUICK_PERIODS.map((period) => {
+                                            const active = activePeriodLabel === period.label;
+                                            return (
+                                                <button
+                                                    key={period.label}
+                                                    onClick={() => applyQuickPeriod(period)}
+                                                    className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all duration-150 ${
+                                                        active
+                                                            ? "bg-slate-800 text-white border-slate-800 shadow-sm"
+                                                            : "bg-white text-slate-600 border-slate-300 hover:border-slate-500 hover:text-slate-800 hover:bg-slate-50"
+                                                    }`}
+                                                >
+                                                    {period.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="relative flex items-center gap-3 mb-5">
+                                    <div className="flex-1 h-px bg-slate-200" />
+                                    <span className="text-xs text-slate-400 font-medium">o rango personalizado</span>
+                                    <div className="flex-1 h-px bg-slate-200" />
+                                </div>
+
+                                {/* Inputs + Buscar */}
+                                <div className="flex flex-col md:flex-row gap-4 items-end">
+                                    {/* Fechas */}
+                                    <div className="flex flex-1 gap-3 items-end">
+                                        <div className="flex-1">
+                                            <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                                                Desde
+                                            </label>
+                                            <div className="relative">
+                                                <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+                                                <input
+                                                    type="date"
+                                                    value={fechaInicio}
+                                                    onChange={(e) => setFechaInicio(e.target.value)}
+                                                    className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400 transition-colors bg-slate-50"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-end pb-2.5 text-slate-400 shrink-0">
+                                            <span className="text-lg leading-none">→</span>
+                                        </div>
+
+                                        <div className="flex-1">
+                                            <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                                                Hasta
+                                            </label>
+                                            <div className="relative">
+                                                <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+                                                <input
+                                                    type="date"
+                                                    value={fechaFin}
+                                                    onChange={(e) => setFechaFin(e.target.value)}
+                                                    className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400 transition-colors bg-slate-50"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Buscador de texto */}
+                                    <div className="flex-1 md:max-w-xs">
+                                        <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                                            Buscar
+                                        </label>
+                                        <div className="relative">
+                                            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+                                            <input
+                                                type="text"
+                                                placeholder="Proveedor, documento, NRC…"
+                                                value={searchTerm}
+                                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                                className="w-full pl-8 pr-8 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400 transition-colors bg-slate-50"
+                                            />
+                                            {searchTerm && (
+                                                <button
+                                                    onClick={() => { setSearchTerm(""); setCurrentPage(1); }}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                                >
+                                                    <FaTimes size={11} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Botones de acción */}
+                                    <div className="flex gap-2 shrink-0">
+                                        <button
+                                            onClick={handleBuscar}
+                                            disabled={loading || !fechaInicio || !fechaFin}
+                                            className="flex items-center gap-2 px-5 py-2 bg-slate-800 text-white text-sm font-semibold rounded-lg hover:bg-slate-900 disabled:opacity-50 transition-colors shadow-sm"
+                                        >
+                                            <FaSearch size={11} />
+                                            {loading ? "Buscando…" : "Buscar"}
+                                        </button>
+                                        <button
+                                            onClick={handleLimpiar}
+                                            title="Limpiar filtros"
+                                            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-500 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                                        >
+                                            <FaTimes size={11} />
+                                            Limpiar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── Tabla ─────────────────────────────────────────── */}
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-slate-200">
+                                    <thead className="bg-slate-50">
+                                        <tr>
+                                            {COLUMNS.map((col) => (
+                                                <th
+                                                    key={col.key}
+                                                    style={{ width: col.width }}
+                                                    className={`px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap ${
+                                                        col.align === "right"  ? "text-right"  :
+                                                        col.align === "center" ? "text-center" : "text-left"
+                                                    }`}
+                                                >
+                                                    {col.label}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-slate-100">
+                                        {currentItems.map((item, idx) => (
+                                            <tr key={item.id || idx} className="hover:bg-slate-50 transition-colors">
+                                                {COLUMNS.map((col) => (
+                                                    <td
+                                                        key={col.key}
+                                                        className={`px-3 py-2.5 text-sm text-slate-700 whitespace-nowrap ${
+                                                            col.align === "right"  ? "text-right"  :
+                                                            col.align === "center" ? "text-center" : "text-left"
+                                                        } ${
+                                                            ["numero_documento","numero_registro"].includes(col.key)
+                                                                ? "font-mono text-xs"
+                                                                : ""
+                                                        }`}
+                                                    >
+                                                        {col.key === "acciones" ? (
+                                                            <div className="flex justify-center gap-1">
+                                                                {item.id ? (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => handleEdit(item.id)}
+                                                                            className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                                                                            title="Editar"
+                                                                        >
+                                                                            <FaEdit size={13} />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDelete(item.id)}
+                                                                            disabled={deletingId === item.id}
+                                                                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors disabled:opacity-50"
+                                                                            title="Eliminar"
+                                                                        >
+                                                                            {deletingId === item.id ? (
+                                                                                <div className="animate-spin h-3 w-3 border-2 border-rose-500 border-t-transparent rounded-full" />
+                                                                            ) : (
+                                                                                <FaTrash size={13} />
+                                                                            )}
+                                                                        </button>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-slate-300 text-xs">—</span>
+                                                                )}
+                                                            </div>
+                                                        ) : CURRENCY_KEYS.includes(col.key) ? (
+                                                            formatCurrency(item[col.key] || 0)
+                                                        ) : ["fecha_emision_doc","fecha_registro_sistema"].includes(col.key) ? (
+                                                            formatDate(item[col.key])
+                                                        ) : col.key === "no" ? (
+                                                            item.no || (indexOfFirst + idx + 1)
+                                                        ) : (
+                                                            item[col.key] || "—"
+                                                        )}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Empty state */}
+                            {libroFiltrado.length === 0 && !loading && (
+                                <div className="text-center py-16">
+                                    <FaFileAlt className="mx-auto text-slate-300 mb-3" size={40} />
+                                    <h3 className="text-base font-semibold text-slate-500 mb-1">
+                                        No se encontraron registros
+                                    </h3>
+                                    <p className="text-sm text-slate-400">
+                                        Ajusta el rango de fechas y presiona <strong>Buscar</strong>
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Paginación */}
+                            {libroFiltrado.length > ITEMS_PER_PAGE && (
+                                <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                                    <p className="text-sm text-slate-500">
+                                        Mostrando{" "}
+                                        <span className="font-medium text-slate-700">
+                                            {indexOfFirst + 1}–{Math.min(indexOfLast, libroFiltrado.length)}
+                                        </span>{" "}
+                                        de{" "}
+                                        <span className="font-medium text-slate-700">{libroFiltrado.length}</span>{" "}
+                                        registros
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={() => setCurrentPage((p) => p - 1)}
+                                            disabled={currentPage === 1}
+                                            className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                                        >
+                                            ← Anterior
+                                        </button>
+                                        <span className="px-3 py-1.5 text-sm text-slate-600 font-medium">
+                                            {currentPage} / {totalPages}
+                                        </span>
+                                        <button
+                                            onClick={() => setCurrentPage((p) => p + 1)}
+                                            disabled={currentPage === totalPages}
+                                            className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                                        >
+                                            Siguiente →
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        {/* fin tabla */}
                     </div>
                 </div>
+
                 <Footer />
             </div>
         </div>
