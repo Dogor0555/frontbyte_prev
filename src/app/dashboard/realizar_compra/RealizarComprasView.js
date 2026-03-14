@@ -316,6 +316,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 }
             }
 
+            // ⚠️ IMPORTANTE: NO MODIFICAR 'fecha', SOLO 'fecha_emision'
             setFormData(prev => {
                 const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
                 
@@ -329,9 +330,14 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     "14": "FSE"
                 };
                 
+                console.log("Cargando DTE - Fechas:", {
+                    fecha_registro: prev.fecha, // Se mantiene la fecha actual
+                    fecha_emision_dte: dteData.identificacion.fecEmi // Fecha del documento
+                });
+
                 return {
                     ...prev,
-                    fecha_emision: dteData.identificacion.fecEmi,
+                    fecha_emision: dteData.identificacion.fecEmi, // SOLO actualizar fecha_emision
                     numero_documento: dteData.identificacion.numeroControl,
                     nrc: dteData.emisor.nrc,
                     nombre_proveedor: dteData.emisor.nombre,
@@ -466,6 +472,13 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         if (!formData.proveedor_id) return setError("Seleccione un proveedor.");
         if (!formData.numero_documento) return setError("Ingrese el número de documento.");
 
+        // Verificar fechas antes de enviar
+        console.log("Enviando compra - Fechas:", {
+            fecha_registro_sistema: formData.fecha,
+            fecha_emision_documento: formData.fecha_emision,
+            son_diferentes: formData.fecha !== formData.fecha_emision
+        });
+
         setIsLoading(true);
 
         try {
@@ -528,9 +541,10 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 const nextIndex = currentDteIndex + 1;
                 setCurrentDteIndex(nextIndex);
                 
+                // Resetear SOLO fecha_emision, mantener fecha actual
                 setFormData({
-                    fecha: new Date().toISOString().split('T')[0],
-                    fecha_emision: new Date().toISOString().split('T')[0],
+                    fecha: new Date().toISOString().split('T')[0], // ← NUEVA fecha de registro
+                    fecha_emision: new Date().toISOString().split('T')[0], // ← Temporal
                     proveedor_id: "",
                     nombre_proveedor: "",
                     numero_documento: "",
@@ -564,8 +578,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 
             } else {
                 setFormData({
-                    fecha: new Date().toISOString().split('T')[0],
-                    fecha_emision: new Date().toISOString().split('T')[0],
+                    fecha: new Date().toISOString().split('T')[0], // ← NUEVA fecha de registro
+                    fecha_emision: new Date().toISOString().split('T')[0], // ← Se resetea
                     proveedor_id: "",
                     nombre_proveedor: "",
                     numero_documento: "",
@@ -866,7 +880,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                     <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Datos Generales</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Registro</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Registro en Sistema</label>
                                             <input 
                                                 type="date" 
                                                 name="fecha" 
@@ -877,7 +891,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Emisión Doc.</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Emisión del Documento</label>
                                             <input 
                                                 type="date" 
                                                 name="fecha_emision" 

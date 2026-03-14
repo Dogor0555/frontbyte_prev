@@ -28,6 +28,16 @@ import {
   FaBars,
   FaTimes,
   FaBriefcase,
+  FaTimesCircle,
+  FaRegCalendarAlt,
+  FaRegClock,
+  FaRegFileAlt,
+  FaTag,
+  FaPercent,
+  FaStore,
+  FaUserTie,
+  FaChevronDown,
+  FaChevronUp,
 } from "react-icons/fa";
 
 /* --------------------------------- Utils --------------------------------- */
@@ -128,9 +138,9 @@ function LineChart({ data = [], xKey = "fecha", yKey = "monto", height = 200 }) 
       <svg width={width} height={height} className="rounded-xl">
         <defs>
           <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#3b82f6" /> {/* blue-500 */}
-            <stop offset="50%" stopColor="#6366f1" /> {/* indigo-500 */}
-            <stop offset="100%" stopColor="#06b6d4" /> {/* cyan-500 */}
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="50%" stopColor="#6366f1" />
+            <stop offset="100%" stopColor="#06b6d4" />
           </linearGradient>
           <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
@@ -272,11 +282,6 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
   const today = useMemo(() => toISO(new Date()), []);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const startMonth = useMemo(() => {
-    const d = new Date();
-    d.setDate(1);
-    return toISO(d);
-  }, []);
 
   // Datos de empresa y empleado del localStorage
   const [empresa, setEmpresa] = useState(null);
@@ -288,14 +293,43 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
     expiresIn: haciendaStatus?.seconds_left ?? 0,
   });
 
-  const [desde, setDesde] = useState(startMonth);
+  // ========== FILTROS MEJORADOS CON MES ==========
+  // Filtro por mes/año
+  const [mesSeleccionado, setMesSeleccionado] = useState(() => {
+    const ahora = new Date();
+    return `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`;
+  });
+  
+  // Filtros principales
+  const [tipoFiltroFecha, setTipoFiltroFecha] = useState("mes"); // "mes" o "rango"
+  const [desde, setDesde] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return toISO(d);
+  });
   const [hasta, setHasta] = useState(today);
+  const [busquedaRapida, setBusquedaRapida] = useState("");
+  
+  // Filtros avanzados
+  const [mostrarFiltrosAvanzados, setMostrarFiltrosAvanzados] = useState(false);
   const [usuarioId, setUsuarioId] = useState("");
   const [clienteId, setClienteId] = useState("");
   const [estado, setEstado] = useState("");
   const [tipoventa, setTipoventa] = useState("");
-  const [search, setSearch] = useState("");
-  const debouncedSearch = useDebouncedValue(search, 500);
+  
+  const debouncedBusqueda = useDebouncedValue(busquedaRapida, 500);
+
+  // Actualizar fechas cuando cambia el mes seleccionado
+  useEffect(() => {
+    if (tipoFiltroFecha === "mes" && mesSeleccionado) {
+      const [year, month] = mesSeleccionado.split('-').map(Number);
+      const primerDia = new Date(year, month - 1, 1);
+      const ultimoDia = new Date(year, month, 0);
+      
+      setDesde(toISO(primerDia));
+      setHasta(toISO(ultimoDia));
+    }
+  }, [mesSeleccionado, tipoFiltroFecha]);
 
   const filters = useMemo(
     () => ({
@@ -305,9 +339,9 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
       clienteId,
       estado,
       tipoventa,
-      search: debouncedSearch,
+      search: debouncedBusqueda,
     }),
-    [desde, hasta, usuarioId, clienteId, estado, tipoventa, debouncedSearch]
+    [desde, hasta, usuarioId, clienteId, estado, tipoventa, debouncedBusqueda]
   );
 
   const [loading, setLoading] = useState(false);
@@ -422,6 +456,41 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
     return `${hours}h ${minutes}m`;
   };
 
+  // Limpiar todos los filtros
+  const limpiarFiltros = () => {
+    const ahora = new Date();
+    setMesSeleccionado(`${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`);
+    setTipoFiltroFecha("mes");
+    setBusquedaRapida("");
+    setUsuarioId("");
+    setClienteId("");
+    setEstado("");
+    setTipoventa("");
+    setMostrarFiltrosAvanzados(false);
+  };
+
+  // Contar filtros activos
+  const filtrosActivos = () => {
+    let count = 0;
+    if (tipoFiltroFecha === "rango") count++;
+    if (busquedaRapida) count++;
+    if (usuarioId) count++;
+    if (clienteId) count++;
+    if (estado) count++;
+    if (tipoventa) count++;
+    return count;
+  };
+
+  // Obtener nombre del mes en español
+  const getNombreMes = (fecha) => {
+    const meses = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    const [year, month] = fecha.split('-').map(Number);
+    return `${meses[month - 1]} ${year}`;
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
       {/* Overlay para mobile */}
@@ -453,7 +522,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
             sidebarOpen={sidebarOpen}
           />
 
-          {/* Header estilo Welcome */}
+          {/* Header con título claro */}
           <header className="bg-white shadow-md border-b border-gray-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -463,33 +532,31 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                       {empresa ? empresa.nombre : 'BYTE FUSION SOLUCIONES'}
                     </span>
                   </div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+                    <FaChartLine className="text-blue-600" />
                     Reportes y Estadísticas
                   </h1>
-                  <p className="text-sm text-gray-600 mt-1 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                    {empleado?.nombre || user?.nombre || user?.email || "Usuario"} · {new Date().toLocaleDateString('es-SV', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  <p className="text-sm text-gray-600 mt-1">
+                    <span className="font-medium">{empleado?.nombre || user?.nombre || "Usuario"}</span> · {new Date().toLocaleDateString('es-SV', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
                 </div>
                 
                 <div className="flex items-center gap-3">
                   <a
                     href={csvHref}
-                    className="group relative px-5 py-2.5 rounded-xl bg-white border-2 border-blue-200 text-blue-700 font-semibold text-sm hover:border-blue-400 hover:shadow-lg transition-all duration-300 flex items-center gap-2"
+                    className="px-5 py-2.5 rounded-xl bg-white border-2 border-blue-200 text-blue-700 font-semibold text-sm hover:border-blue-400 hover:shadow-lg transition-all duration-300 flex items-center gap-2"
                   >
                     <FaFileCsv className="text-blue-600" />
-                    <span>CSV</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl -z-10"></div>
+                    <span>Exportar CSV</span>
                   </a>
                   <a
                     href={pdfHref}
-                    className="group relative px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold text-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold text-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
                     target="_blank"
                     rel="noreferrer"
                   >
                     <FaFilePdf className="text-white" />
-                    <span>PDF</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"></div>
+                    <span>Exportar PDF</span>
                   </a>
                 </div>
               </div>
@@ -499,308 +566,297 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
           <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto w-full space-y-6 lg:space-y-8">
               
-              {/* Información de empresa y empleado estilo Welcome */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Empresa Card */}
+              {/* Información de empresa y empleado - simplificado */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {empresa && (
-                  <div className="group">
-                    <div className="relative bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/30 border-2 border-blue-200/50 rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden">
-                      <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
-                      
-                      <div className="absolute top-4 right-4 w-2 h-2 bg-blue-400 rounded-full animate-ping opacity-75" />
-                      <div className="absolute bottom-6 right-8 w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
-                      
-                      <div className="relative z-10">
-                        <div className="flex items-start justify-between mb-5">
-                          <div className="flex items-center gap-3">
-                            <div className="relative">
-                              <div className="absolute inset-0 bg-blue-400 rounded-xl blur-md opacity-50 group-hover:opacity-75 transition-opacity duration-300 animate-pulse" />
-                              <div className="relative w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                                <FaBuilding className="text-white text-xl" />
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-blue-600 text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-2">
-                                <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                                Empresa Activa
-                              </p>
-                              <h2 className="text-xl font-black text-gray-900 group-hover:text-blue-700 transition-colors duration-300">
-                                {empresa.nombre}
-                              </h2>
-                            </div>
-                          </div>
-                          
-                          <div className="relative">
-                            <div className={`absolute inset-0 blur-sm opacity-60 rounded-lg animate-pulse ${empresa.ambiente === '00' ? 'bg-yellow-300' : 'bg-green-300'}`} />
-                            <span className={`relative px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transform hover:scale-105 transition-all duration-300 ${empresa.ambiente === '00' ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-yellow-900' : 'bg-gradient-to-r from-green-400 to-emerald-500 text-green-900'}`}>
-                              {empresa.ambiente === '00' ? 'Pruebas' : 'Producción'}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-100 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-300 transform hover:-translate-y-1 group/item">
-                            <div className="flex items-center gap-2 mb-1">
-                              <FaIdCard className="text-blue-500 text-sm group-hover/item:scale-110 transition-transform duration-300" />
-                              <p className="text-blue-600 text-xs font-bold uppercase tracking-wider">NIT</p>
-                            </div>
-                            <p className="font-black text-gray-900 text-lg">{empresa.nit}</p>
-                          </div>
-                          
-                          {empresa.nrc && (
-                            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-indigo-100 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-300 transform hover:-translate-y-1 group/item">
-                              <div className="flex items-center gap-2 mb-1">
-                                <FaCertificate className="text-indigo-500 text-sm group-hover/item:scale-110 transition-transform duration-300" />
-                                <p className="text-indigo-600 text-xs font-bold uppercase tracking-wider">NRC</p>
-                              </div>
-                              <p className="font-black text-gray-900 text-lg">{empresa.nrc}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                  <div className="bg-white rounded-xl p-4 shadow-md border border-gray-100 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                      <FaBuilding className="text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Empresa</p>
+                      <p className="font-semibold text-gray-900">{empresa.nombre}</p>
+                      <p className="text-xs text-gray-500">NIT: {empresa.nit}</p>
                     </div>
                   </div>
                 )}
+                
+                {empleado && (
+                  <div className="bg-white rounded-xl p-4 shadow-md border border-gray-100 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-lg flex items-center justify-center">
+                      <FaUserTie className="text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Usuario</p>
+                      <p className="font-semibold text-gray-900">{empleado.nombre}</p>
+                      <p className="text-xs text-gray-500">{empleado.rol}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
 
-                {/* Empleado y Hacienda Card */}
-                <div className="space-y-4">
-                  {/* Empleado Card */}
-                  {empleado && (
-                    <div className="group">
-                      <div className="relative bg-gradient-to-r from-white via-gray-50 to-white border-2 border-gray-200 rounded-2xl p-5 shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden">
-                        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-                        
-                        <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                          <div className="absolute inset-0 rounded-2xl border-2 border-blue-400 animate-pulse" />
+              {/* ========== FILTROS CON SELECCIÓN DE MES ========== */}
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                {/* Cabecera de filtros */}
+                <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <FaFilter className="text-white text-sm" />
+                      </div>
+                      <div>
+                        <h2 className="font-semibold text-gray-900">Filtros de búsqueda</h2>
+                        <p className="text-xs text-gray-600">
+                          {filtrosActivos() > 0 
+                            ? `${filtrosActivos()} filtro${filtrosActivos() > 1 ? 's' : ''} aplicado${filtrosActivos() > 1 ? 's' : ''}`
+                            : 'Mostrando datos del período seleccionado'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {filtrosActivos() > 0 && (
+                      <button
+                        onClick={limpiarFiltros}
+                        className="text-sm text-red-600 hover:text-red-800 font-medium flex items-center gap-1"
+                      >
+                        <FaTimesCircle />
+                        Limpiar filtros
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  {/* Fila 1: Filtro de fecha principal - MES como opción destacada */}
+                  <div className="mb-4">
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Período</label>
+                    
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={() => setTipoFiltroFecha("mes")}
+                        className={`px-4 py-2 rounded-xl font-medium text-sm transition-all ${
+                          tipoFiltroFecha === "mes"
+                            ? "bg-blue-600 text-white shadow-md"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        Por mes
+                      </button>
+                      <button
+                        onClick={() => setTipoFiltroFecha("rango")}
+                        className={`px-4 py-2 rounded-xl font-medium text-sm transition-all ${
+                          tipoFiltroFecha === "rango"
+                            ? "bg-blue-600 text-white shadow-md"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        Rango personalizado
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Controles de fecha según selección */}
+                  {tipoFiltroFecha === "mes" ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Seleccionar mes</label>
+                        <input
+                          type="month"
+                          value={mesSeleccionado}
+                          onChange={(e) => setMesSeleccionado(e.target.value)}
+                          className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Período seleccionado</label>
+                        <div className="px-3 py-2.5 bg-blue-50 border-2 border-blue-200 rounded-xl text-blue-700 font-medium">
+                          {getNombreMes(mesSeleccionado)}
                         </div>
-                        
-                        <div className="relative z-10 flex items-center gap-4">
-                          <div className="relative">
-                            <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl blur-md opacity-0 group-hover:opacity-60 transition-opacity duration-300" />
-                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-500 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-spin" style={{animationDuration: '3s'}} />
-                            
-                            <div className="relative w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center border-2 border-white shadow-lg transform group-hover:scale-110 transition-all duration-300">
-                              <span className="text-gray-700 font-black text-2xl">
-                                {empleado.nombre.charAt(0)}
-                              </span>
-                            </div>
-                            
-                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white shadow-md">
-                              <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-75" />
-                            </div>
-                          </div>
-                          
-                          <div className="flex-1">
-                            <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-2">
-                              <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                              Usuario Activo
-                            </p>
-                            <p className="font-black text-gray-900 text-lg mb-2 group-hover:text-blue-700 transition-colors duration-300">
-                              {empleado.nombre}
-                            </p>
-                            
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <div className="relative overflow-hidden">
-                                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-                                <span className="relative inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg text-xs font-bold shadow-md transform group-hover:scale-105 transition-all duration-300">
-                                  <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                                  {empleado.rol}
-                                </span>
-                              </div>
-                              <span className="text-xs text-gray-400 font-bold">•</span>
-                              <span className="text-xs text-gray-600 font-medium group-hover:text-blue-600 transition-colors duration-300">
-                                {empleado.correo}
-                              </span>
-                            </div>
-                          </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Desde</label>
+                        <div className="relative">
+                          <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                          <input 
+                            type="date" 
+                            value={desde} 
+                            onChange={(e) => setDesde(e.target.value)} 
+                            className="w-full pl-9 pr-3 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Hasta</label>
+                        <div className="relative">
+                          <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                          <input 
+                            type="date" 
+                            value={hasta} 
+                            onChange={(e) => setHasta(e.target.value)} 
+                            className="w-full pl-9 pr-3 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                          />
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Hacienda Connection Status */}
-                  <div className={`p-4 rounded-xl shadow-md ${
-                    haciendaConnection.connected
-                      ? "bg-green-50 border-2 border-green-200"
-                      : "bg-yellow-50 border-2 border-yellow-200"
-                  }`}>
-                    <div className="flex items-start gap-3">
-                      {haciendaConnection.connected ? (
-                        <FaCheckCircle className="text-green-500 flex-shrink-0 mt-0.5 text-lg" />
-                      ) : (
-                        <FaExclamationTriangle className="text-yellow-500 flex-shrink-0 mt-0.5 text-lg" />
-                      )}
-                      <span className={`text-sm font-medium ${
-                        haciendaConnection.connected ? "text-green-700" : "text-yellow-700"
-                      }`}>
-                        {haciendaConnection.connected
-                          ? `Conectado a Hacienda (expira en ${formatTimeLeft(haciendaConnection.expiresIn)})`
-                          : "Advertencia: No hay conexión activa con Hacienda. Algunas funciones pueden estar limitadas."}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Filtros estilo corporativo */}
-              <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-                    <FaFilter className="text-white text-sm" />
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-900">Filtros de búsqueda</h2>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                  <div className="lg:col-span-1">
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">Desde</label>
+                  {/* Búsqueda rápida */}
+                  <div className="mb-4">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Búsqueda rápida
+                      <span className="text-gray-400 ml-1">(factura #, cliente, NIT)</span>
+                    </label>
                     <div className="relative">
-                      <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
-                      <input 
-                        type="date" 
-                        value={desde} 
-                        onChange={(e) => setDesde(e.target.value)} 
-                        className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="lg:col-span-1">
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">Hasta</label>
-                    <div className="relative">
-                      <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
-                      <input 
-                        type="date" 
-                        value={hasta} 
-                        onChange={(e) => setHasta(e.target.value)} 
-                        className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="lg:col-span-1">
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">Tipo venta</label>
-                    <select 
-                      value={tipoventa} 
-                      onChange={(e) => setTipoventa(e.target.value)} 
-                      className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
-                    >
-                      <option value="">Todos</option>
-                      <option value="contado">Contado</option>
-                      <option value="crédito">Crédito</option>
-                    </select>
-                  </div>
-                  
-                  <div className="lg:col-span-1">
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">Estado</label>
-                    <select 
-                      value={estado} 
-                      onChange={(e) => setEstado(e.target.value)} 
-                      className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
-                    >
-                      <option value="">Todos</option>
-                      <option value="emitido">Emitido</option>
-                      <option value="anulado">Anulado</option>
-                    </select>
-                  </div>
-                  
-                  <div className="lg:col-span-2">
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">Buscar</label>
-                    <div className="relative">
-                      <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                      <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="N° control o código generación..."
-                        className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
+                        value={busquedaRapida}
+                        onChange={(e) => setBusquedaRapida(e.target.value)}
+                        placeholder="Ej: F001-123 o Juan Pérez..."
+                        className="w-full pl-9 pr-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
                       />
                     </div>
                   </div>
+                  
+                  {/* Botón para mostrar/ocultar filtros avanzados */}
+                  <button
+                    onClick={() => setMostrarFiltrosAvanzados(!mostrarFiltrosAvanzados)}
+                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium mb-4"
+                  >
+                    {mostrarFiltrosAvanzados ? <FaChevronUp /> : <FaChevronDown />}
+                    {mostrarFiltrosAvanzados ? 'Ocultar filtros avanzados' : 'Mostrar filtros avanzados'}
+                    {(usuarioId || clienteId || estado || tipoventa) && (
+                      <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        {[usuarioId, clienteId, estado, tipoventa].filter(Boolean).length} activos
+                      </span>
+                    )}
+                  </button>
+                  
+                  {/* Filtros avanzados (colapsables) */}
+                  {mostrarFiltrosAvanzados && (
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 pt-4 border-t border-gray-100 animate-fade-in">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Tipo de venta</label>
+                        <select 
+                          value={tipoventa} 
+                          onChange={(e) => setTipoventa(e.target.value)} 
+                          className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                        >
+                          <option value="">Todos</option>
+                          <option value="contado">Contado</option>
+                          <option value="crédito">Crédito</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Estado</label>
+                        <select 
+                          value={estado} 
+                          onChange={(e) => setEstado(e.target.value)} 
+                          className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                        >
+                          <option value="">Todos</option>
+                          <option value="emitido">Emitido</option>
+                          <option value="anulado">Anulado</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">ID Usuario</label>
+                        <input
+                          type="number"
+                          className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                          placeholder="Ej: 1"
+                          value={usuarioId}
+                          onChange={(e) => setUsuarioId(e.target.value.replace(/\D+/g, ""))}
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">ID Cliente</label>
+                        <input
+                          type="number"
+                          className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                          placeholder="Ej: 5"
+                          value={clienteId}
+                          onChange={(e) => setClienteId(e.target.value.replace(/\D+/g, ""))}
+                        />
+                      </div>
+                      
+                      <div className="flex items-end">
+                        <button
+                          onClick={() => {
+                            setUsuarioId("");
+                            setClienteId("");
+                            setEstado("");
+                            setTipoventa("");
+                          }}
+                          className="w-full px-4 py-2.5 rounded-xl bg-gray-100 border-2 border-gray-200 text-gray-700 font-medium text-sm hover:bg-gray-200 transition-all"
+                        >
+                          Limpiar avanzados
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mt-4">
-                  <div className="md:col-span-1">
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">Usuario ID</label>
-                    <input
-                      type="number"
-                      className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
-                      placeholder="ID"
-                      value={usuarioId}
-                      onChange={(e) => setUsuarioId(e.target.value.replace(/\D+/g, ""))}
-                    />
+                {/* Barra de estado de carga */}
+                {loading && (
+                  <div className="px-6 py-2 bg-blue-50 border-t border-blue-100 flex items-center gap-2 text-sm text-blue-700">
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    Actualizando datos...
                   </div>
-                  
-                  <div className="md:col-span-1">
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">Cliente ID</label>
-                    <input
-                      type="number"
-                      className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none"
-                      placeholder="ID"
-                      value={clienteId}
-                      onChange={(e) => setClienteId(e.target.value.replace(/\D+/g, ""))}
-                    />
-                  </div>
-                  
-                  <div className="md:col-span-1 flex items-end">
-                    <button
-                      onClick={() => {
-                        setUsuarioId("");
-                        setClienteId("");
-                        setEstado("");
-                        setTipoventa("");
-                        setSearch("");
-                        setDesde(startMonth);
-                        setHasta(today);
-                      }}
-                      className="w-full px-5 py-2.5 rounded-xl bg-gray-100 border-2 border-gray-200 text-gray-700 font-semibold text-sm hover:bg-gray-200 hover:border-gray-300 transition-all h-[42px]"
-                    >
-                      Limpiar
-                    </button>
-                  </div>
-                  
-                  <div className="md:col-span-3 flex items-center justify-end">
-                    {loading && (
-                      <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-blue-50">
-                        <div className="w-5 h-5 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                        <span className="text-sm font-semibold text-blue-700">Cargando datos...</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
 
-              {/* Cards de resumen estilo corporativo */}
+              {/* Resumen del período */}
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FaCalendarAlt className="text-blue-600" />
+                  <span className="text-sm text-blue-800">
+                    <strong>Período actual:</strong> {new Date(desde).toLocaleDateString()} al {new Date(hasta).toLocaleDateString()}
+                  </span>
+                </div>
+                <span className="text-sm text-blue-600 font-medium">
+                  {Math.ceil((new Date(hasta) - new Date(desde)) / (1000 * 60 * 60 * 24)) + 1} días
+                </span>
+              </div>
+
+              {/* Cards de resumen con títulos claros */}
               <section className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <MetricCard 
-                  title="Total facturas" 
+                  title="Total Facturas" 
                   value={fmtInt(resumen?.totalFacturas)} 
                   loading={loading}
                   icon={<FaFileInvoice />}
                   gradient="from-blue-500 to-cyan-500"
                 />
                 <MetricCard 
-                  title="Clientes únicos" 
+                  title="Clientes Atendidos" 
                   value={fmtInt(resumen?.clientesUnicos)} 
                   loading={loading}
                   icon={<FaUsers />}
                   gradient="from-indigo-500 to-blue-500"
                 />
                 <MetricCard 
-                  title="Total monto" 
+                  title="Ventas Totales" 
                   value={fmtMoney(resumen?.totalMonto)} 
                   loading={loading}
                   icon={<FaChartLine />}
                   gradient="from-cyan-500 to-teal-500"
                 />
                 <MetricCard 
-                  title="Contado" 
+                  title="Ventas al Contado" 
                   value={fmtMoney(resumen?.totalContado)} 
                   loading={loading}
                   icon={<FaCheckCircle />}
                   gradient="from-emerald-500 to-teal-500"
                 />
                 <MetricCard 
-                  title="Crédito" 
+                  title="Ventas a Crédito" 
                   value={fmtMoney(resumen?.totalCredito)} 
                   loading={loading}
                   icon={<FaClock />}
@@ -820,7 +876,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">Tendencia de ventas</h3>
                         <p className="text-xs text-gray-600 mt-0.5">
-                          {ventas?.length || 0} días de actividad
+                          {new Date(desde).toLocaleDateString()} al {new Date(hasta).toLocaleDateString()} · {ventas?.length || 0} días con ventas
                         </p>
                       </div>
                     </div>
@@ -852,18 +908,18 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
               {/* Tablas: Productos y Tributos */}
               <section className="grid lg:grid-cols-2 gap-6">
                 <GlassTable
-                  title="Top productos"
-                  subtitle="Los más vendidos del período"
+                  title="Top 10 Productos más vendidos"
+                  subtitle="Por cantidad y monto"
                   icon={<FaBoxes />}
-                  headers={["Código", "Descripción", "Cant.", "Monto"]}
+                  headers={["Código", "Descripción", "Cantidad", "Monto Total"]}
                   rows={topProd?.map((r) => [r.codigo, r.descripcion, fmtInt(r.cantidad), fmtMoney(r.monto)])}
                   loading={loading}
                 />
                 <GlassTable
-                  title="Tributos"
-                  subtitle="Resumen por código fiscal"
+                  title="Resumen de Impuestos"
+                  subtitle="Tributos aplicados"
                   icon={<FaCertificate />}
-                  headers={["Código", "Descripción", "Total"]}
+                  headers={["Código", "Descripción", "Total Recaudado"]}
                   rows={trib?.map((r) => [r.codigo, r.descripcion, fmtMoney(r.valor_total)])}
                   loading={loading}
                 />
@@ -877,9 +933,10 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                       <FaFileInvoice className="text-white text-sm" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">Gestión de Facturas</h3>
+                      <h3 className="text-lg font-bold text-gray-900">Listado de Facturas</h3>
                       <p className="text-xs text-gray-600 mt-0.5">
-                        {fmtInt(facturas?.meta?.total)} registros · Página {facturas?.meta?.p} de {facturas?.meta?.pages}
+                        {fmtInt(facturas?.meta?.total)} resultados encontrados
+                        {facturas?.meta?.pages > 1 && ` · Página ${facturas?.meta?.p} de ${facturas?.meta?.pages}`}
                       </p>
                     </div>
                   </div>
@@ -903,10 +960,10 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                       {facturas?.data?.map((f, idx) => (
                         <tr key={f.iddtefactura} className="hover:bg-blue-50/50 transition-colors animate-fade-in" style={{ animationDelay: `${idx * 30}ms` }}>
                           <td className="px-4 py-3 text-sm font-bold text-blue-700">{f.iddtefactura}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{new Date(f.fechaemision).toISOString().slice(0, 10)}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{f.horaemision?.slice?.(0, 8) || ""}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">{new Date(f.fechaemision).toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{f.horaemision?.slice?.(0, 5) || ""}</td>
                           <td className="px-4 py-3 text-xs font-mono text-gray-900">{f.ncontrol}</td>
-                          <td className="px-4 py-3 text-xs font-mono text-gray-900">{f.codigogen}</td>
+                          <td className="px-4 py-3 text-xs font-mono text-gray-500">{f.codigogen?.substring(0, 15)}...</td>
                           <td className="px-4 py-3">
                             <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 capitalize">
                               {f.tipoventa}
@@ -914,82 +971,90 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                           </td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold capitalize
-                              ${f.estado === 'aprobado' ? 'bg-green-100 text-green-700' : 
-                                f.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-700' : 
+                              ${f.estado === 'emitido' ? 'bg-green-100 text-green-700' : 
                                 f.estado === 'anulado' ? 'bg-red-100 text-red-700' : 
                                 'bg-gray-100 text-gray-700'}`}>
                               {f.estado}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-900 max-w-[200px] truncate font-medium">
-                            {f.cliente?.nombre || f.cliente?.nombrecomercial || ""}
+                            {f.cliente?.nombre || f.cliente?.nombrecomercial || "Sin nombre"}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{f.sucursal?.nombre || ""}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{f.sucursal?.nombre || "Principal"}</td>
                           <td className="px-4 py-3 text-sm text-gray-700 max-w-[150px] truncate">
                             {f.usuario?.nombre || f.usuario?.correo || ""}
                           </td>
                           <td className="px-4 py-3 text-sm font-bold text-blue-700">
                             {fmtMoney(f.total)}
                           </td>
-                          <td className="px-4 py-3">
-                            <button className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-700 text-white text-xs font-bold hover:shadow-lg transition-all hover:scale-105">
-                              Ver
-                            </button>
-                          </td>
+                         
                         </tr>
                       ))}
+                      
+                      {facturas?.data?.length === 0 && (
+                        <tr>
+                          <td colSpan="12" className="px-4 py-12 text-center text-gray-500">
+                            <FaFileInvoice className="mx-auto text-4xl text-gray-300 mb-3" />
+                            No se encontraron facturas con los filtros aplicados
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
 
-                {/* Paginación moderna */}
-                <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-                  <div className="text-sm text-gray-700">
-                    <span className="font-semibold">{(facturas?.meta?.p - 1) * 20 + 1}</span> a <span className="font-semibold">
-                      {Math.min((facturas?.meta?.p - 1) * 20 + facturas?.data?.length, facturas?.meta?.total)}
-                    </span> de <span className="font-semibold">{fmtInt(facturas?.meta?.total)}</span>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <button
-                      className="px-4 py-2 rounded-xl bg-white border-2 border-gray-200 text-gray-700 font-semibold text-sm hover:border-blue-400 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                      disabled={facturas?.meta?.p <= 1 || loading}
-                      onClick={() => onPage(facturas?.meta?.p - 1)}
-                    >
-                      <FaArrowLeft className="text-xs" />
-                      Anterior
-                    </button>
-                    
-                    <div className="flex gap-1">
-                      {Array.from({ length: Math.min(5, facturas?.meta?.pages) }, (_, i) => {
-                        const pageNum = i + 1;
-                        return (
-                          <button
-                            key={pageNum}
-                            className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${
-                              facturas?.meta?.p === pageNum 
-                                ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md' 
-                                : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-400 hover:text-blue-700'
-                            }`}
-                            onClick={() => onPage(pageNum)}
-                            disabled={loading}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
+                {/* Paginación */}
+                {facturas?.meta?.pages > 1 && (
+                  <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+                    <div className="text-sm text-gray-700">
+                      Mostrando <span className="font-semibold">{(facturas?.meta?.p - 1) * 20 + 1}</span> a{" "}
+                      <span className="font-semibold">
+                        {Math.min((facturas?.meta?.p - 1) * 20 + facturas?.data?.length, facturas?.meta?.total)}
+                      </span>{" "}
+                      de <span className="font-semibold">{fmtInt(facturas?.meta?.total)}</span> resultados
                     </div>
                     
-                    <button
-                      className="px-4 py-2 rounded-xl bg-white border-2 border-gray-200 text-gray-700 font-semibold text-sm hover:border-blue-400 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                      disabled={facturas?.meta?.p >= facturas?.meta?.pages || loading}
-                      onClick={() => onPage(facturas?.meta?.p + 1)}
-                    >
-                      Siguiente
-                      <FaArrowRight className="text-xs" />
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        className="px-4 py-2 rounded-xl bg-white border-2 border-gray-200 text-gray-700 font-semibold text-sm hover:border-blue-400 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                        disabled={facturas?.meta?.p <= 1 || loading}
+                        onClick={() => onPage(facturas?.meta?.p - 1)}
+                      >
+                        <FaArrowLeft className="text-xs" />
+                        Anterior
+                      </button>
+                      
+                      <div className="flex gap-1">
+                        {Array.from({ length: Math.min(5, facturas?.meta?.pages) }, (_, i) => {
+                          const pageNum = i + 1;
+                          return (
+                            <button
+                              key={pageNum}
+                              className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${
+                                facturas?.meta?.p === pageNum 
+                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md' 
+                                  : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-400 hover:text-blue-700'
+                              }`}
+                              onClick={() => onPage(pageNum)}
+                              disabled={loading}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      
+                      <button
+                        className="px-4 py-2 rounded-xl bg-white border-2 border-gray-200 text-gray-700 font-semibold text-sm hover:border-blue-400 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                        disabled={facturas?.meta?.p >= facturas?.meta?.pages || loading}
+                        onClick={() => onPage(facturas?.meta?.p + 1)}
+                      >
+                        Siguiente
+                        <FaArrowRight className="text-xs" />
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </section>
             </div>
           </main>
@@ -1020,11 +1085,6 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
           to { transform: translateX(0); opacity: 1; }
         }
         
-        @keyframes slide-in-right {
-          from { transform: translateX(20px); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        
         @keyframes fade-in {
           from { opacity: 0; }
           to { opacity: 1; }
@@ -1045,10 +1105,6 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
         
         .animate-slide-in-left {
           animation: slide-in-left 0.5s ease-out forwards;
-        }
-        
-        .animate-slide-in-right {
-          animation: slide-in-right 0.5s ease-out forwards;
         }
         
         .animate-fade-in {
@@ -1154,7 +1210,7 @@ function GlassTable({ title, subtitle, icon, headers = [], rows = [], loading = 
                     <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
                       <FaBoxes className="text-blue-300 text-lg" />
                     </div>
-                    <span className="text-sm">Sin datos</span>
+                    <span className="text-sm">Sin datos para mostrar</span>
                   </div>
                 </td>
               </tr>

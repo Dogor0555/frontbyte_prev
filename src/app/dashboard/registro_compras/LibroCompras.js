@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaCalendarAlt, FaFileExcel, FaSync, FaFilePdf } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaCalendarAlt, FaFileExcel, FaSync, FaFilePdf, FaEdit, FaTrash } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
+import EditarCompraModal from "./components/EditarCompraModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from 'exceljs';
@@ -22,6 +23,11 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     const [exporting, setExporting] = useState(false);
     const [exportingPDF, setExportingPDF] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    
+    // Estados para edición
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedCompraId, setSelectedCompraId] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
 
     const itemsPerPage = 10;
 
@@ -33,7 +39,6 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     useEffect(() => {
         const date = getCurrentDate();
         const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-        // Ajuste para obtener el último día del mes actual correctamente
         const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0); 
         
         setFechaInicio(firstDay.toISOString().split("T")[0]);
@@ -79,17 +84,30 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             
             const rawData = Array.isArray(data) ? data : (Array.isArray(data.libro) ? data.libro : []);
             
+            console.log("Datos recibidos:", rawData); // Para verificar que viene el ID
+            
+            // Mapeo con AMBAS FECHAS
             const mappedData = rawData.map(item => ({
                 ...item,
-                fecha: item.fecha ? item.fecha.split('T')[0] : item.fecha,
-                numero_registro: item.nrc || item.nit_dui_sujeto_excluido || item.numero_registro || "",
+                id: item.id, // El ID viene del backend ahora
+                fecha_emision_doc: item.fecha_emision_doc || item.fecha_emision || "-",
+                fecha_registro_sistema: item.fecha_registro_sistema || item.fecha_registro || "-",
+                numero_registro: item.nrc || item.nit_dui || item.numero_registro || "",
                 exentas: item.exentas_internas ?? item.exentas ?? 0,
                 locales: item.gravadas_internas ?? item.locales ?? 0,
                 importaciones: item.gravadas_importaciones ?? item.importaciones ?? 0,
                 iva: item.credito_fiscal ?? item.iva ?? 0,
                 anticipo_iva: item.anticipo_iva_percibido ?? item.anticipo_iva ?? 0,
                 sujetos_excluidos: item.compras_sujetos_excluidos ?? item.sujetos_excluidos ?? 0,
-                monto: item.total_compras ?? item.monto ?? 0
+                monto: item.total_compras ?? item.monto ?? 0,
+                exentas_internas: item.exentas_internas || "0.00",
+                exentas_importaciones: item.exentas_importaciones || "0.00",
+                gravadas_internas: item.gravadas_internas || "0.00",
+                gravadas_importaciones: item.gravadas_importaciones || "0.00",
+                credito_fiscal: item.credito_fiscal || "0.00",
+                fovial: item.fovial || "0.00",
+                cotrans: item.cotrans || "0.00",
+                cesc: item.cesc || "0.00"
             }));
             
             setLibro(mappedData);
@@ -108,14 +126,59 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
         fetchLibro();
     };
 
+    const handleEdit = (id) => {
+        if (!id) {
+            alert("No se puede editar este registro porque no tiene un ID válido");
+            return;
+        }
+        setSelectedCompraId(id);
+        setModalOpen(true);
+    };
+
+    const handleDelete = async (id) => {
+        if (!id) {
+            alert("No se puede eliminar este registro porque no tiene un ID válido");
+            return;
+        }
+
+        if (!confirm("¿Estás seguro de eliminar esta compra? Esta acción no se puede deshacer.")) {
+            return;
+        }
+
+        setDeletingId(id);
+        try {
+            const response = await fetch(`${API_BASE_URL}/compras/delete/${id}`, {
+                method: "DELETE",
+                credentials: "include"
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Error al eliminar");
+            }
+
+            // Recargar la lista
+            fetchLibro();
+        } catch (error) {
+            console.error("Error eliminando:", error);
+            alert("Error al eliminar la compra: " + error.message);
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    const handleModalSuccess = () => {
+        fetchLibro(); // Recargar después de editar/eliminar
+    };
+
     const formatCurrency = (amount) => {
         const val = parseFloat(amount) || 0;
         return new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(val);
     };
 
     const formatDate = (dateString) => {
-        if (!dateString) return "-";
-        // Si la fecha ya viene formateada como DD/MM/YYYY, la devolvemos tal cual
+        if (!dateString || dateString === "-") return "-";
         if (dateString.includes('/')) return dateString;
         
         try {
@@ -135,19 +198,13 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
         ? libro.filter((item) => {
             if (!item) return false;
 
-            if (fechaInicio && fechaFin && item.fecha) {
-                const itemDate = item.fecha;
-                if (itemDate < fechaInicio || itemDate > fechaFin) {
-                    return false;
-                }
-            }
-
             const searchLower = searchTerm.toLowerCase();
             return (
                 (item.nombre_proveedor?.toLowerCase() || "").includes(searchLower) ||
                 (item.numero_documento?.toLowerCase() || "").includes(searchLower) ||
                 (item.numero_registro?.toLowerCase() || "").includes(searchLower) ||
-                (item.fecha?.toString() || "").includes(searchTerm)
+                (item.fecha_emision_doc?.toString() || "").includes(searchTerm) ||
+                (item.fecha_registro_sistema?.toString() || "").includes(searchTerm)
             );
         })
         : [];
@@ -197,7 +254,8 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     // Columnas para la tabla
     const columns = [
         { key: 'no', label: 'No.', width: '50px', align: 'center' },
-        { key: 'fecha', label: 'FECHA', width: '100px', align: 'center' },
+        { key: 'fecha_emision_doc', label: 'F. EMISIÓN', width: '100px', align: 'center' },
+        { key: 'fecha_registro_sistema', label: 'F. REGISTRO', width: '100px', align: 'center' },
         { key: 'tipo_documento', label: 'TIPO DOC', width: '100px', align: 'center' },
         { key: 'numero_documento', label: 'NUMERO', width: '120px', align: 'center' },
         { key: 'numero_registro', label: 'NIT/NRC', width: '120px', align: 'center' },
@@ -215,6 +273,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
         { key: 'percepcion', label: 'PERCEPCION', width: '100px', align: 'right' },
         { key: 'sujetos_excluidos', label: 'SUJ. EXCL.', width: '100px', align: 'right' },
         { key: 'monto', label: 'TOTAL', width: '120px', align: 'right' },
+        { key: 'acciones', label: 'ACCIONES', width: '100px', align: 'center' },
     ];
 
     const toggleSidebar = () => {
@@ -234,7 +293,8 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             const worksheet = workbook.addWorksheet('Registro de Compras');
 
             worksheet.columns = [
-                { header: 'FECHA', key: 'fecha', width: 12 },
+                { header: 'F. EMISIÓN', key: 'fecha_emision_doc', width: 12 },
+                { header: 'F. REGISTRO', key: 'fecha_registro_sistema', width: 12 },
                 { header: 'TIPO DOC', key: 'tipo_documento', width: 10 },
                 { header: 'NUMERO', key: 'numero_documento', width: 15 },
                 { header: 'NIT/NRC', key: 'numero_registro', width: 15 },
@@ -254,7 +314,6 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 { header: 'TOTAL', key: 'monto', width: 15 }
             ];
 
-            // Estilo del encabezado
             const headerRow = worksheet.getRow(1);
             headerRow.eachCell((cell) => {
                 cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
@@ -262,10 +321,10 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 cell.alignment = { vertical: 'middle', horizontal: 'center' };
             });
 
-            // Agregar datos
             libroFiltrado.forEach((item, index) => {
                 const row = worksheet.addRow({
-                    fecha: item.fecha,
+                    fecha_emision_doc: item.fecha_emision_doc,
+                    fecha_registro_sistema: item.fecha_registro_sistema,
                     tipo_documento: item.tipo_documento,
                     numero_documento: item.numero_documento,
                     numero_registro: item.numero_registro,
@@ -285,21 +344,19 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                     monto: parseFloat(item.monto) || 0
                 });
 
-                // Estilo alternado
                 const fillColor = index % 2 === 0 ? 'FFD9E1F2' : 'FFFFFFFF';
                 row.eachCell((cell, colNumber) => {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
                     cell.border = {
                         top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
                     };
-                    if (colNumber >= 6) { // Columnas numéricas
+                    if (colNumber >= 7) {
                         cell.numFmt = '#,##0.00';
                         cell.alignment = { horizontal: 'right' };
                     }
                 });
             });
 
-            // Agregar fila de totales
             const totalRow = worksheet.addRow({
                 nombre_proveedor: 'TOTALES',
                 exentas_internas: totales.exentas_internas,
@@ -318,7 +375,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             });
             totalRow.font = { bold: true };
             totalRow.eachCell((cell, colNumber) => {
-                if (colNumber >= 6) {
+                if (colNumber >= 7) {
                     cell.numFmt = '#,##0.00';
                     cell.alignment = { horizontal: 'right' };
                 }
@@ -353,10 +410,11 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             doc.text(`Período: ${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`, 14, 22);
             doc.text(`Generado: ${fechaGeneracion}`, 14, 27);
 
-            const tableColumn = ["No.", "Fecha", "Tipo", "Número", "NIT/NRC", "Proveedor", "Ex. Int", "Ex. Imp", "Gr. Int", "Gr. Imp", "CF IVA", "FOVIAL", "COTRANS", "CESC", "Ant. IVA", "Ret", "Perc", "Suj. Ex", "Total"];
+            const tableColumn = ["No.", "F. Emisión", "F. Registro", "Tipo", "Número", "NIT/NRC", "Proveedor", "Ex. Int", "Ex. Imp", "Gr. Int", "Gr. Imp", "CF IVA", "FOVIAL", "COTRANS", "CESC", "Ant. IVA", "Ret", "Perc", "Suj. Ex", "Total"];
             const tableRows = libroFiltrado.map((item, index) => [
                 item.no || index + 1,
-                item.fecha,
+                item.fecha_emision_doc,
+                item.fecha_registro_sistema,
                 item.tipo_documento,
                 item.numero_documento,
                 item.numero_registro,
@@ -376,9 +434,8 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 formatCurrency(item.monto)
             ]);
 
-            // Agregar fila de totales
             tableRows.push([
-                "", "", "", "TOTALES",
+                "", "", "", "", "", "TOTALES", "",
                 formatCurrency(totales.exentas_internas),
                 formatCurrency(totales.exentas_importaciones),
                 formatCurrency(totales.gravadas_internas),
@@ -403,11 +460,10 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 headStyles: { fillColor: [66, 139, 202] },
                 columnStyles: {
                     0: { halign: 'center' },
-                    // Align numeric columns right
-                    6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' },
-                    10: { halign: 'right' }, 11: { halign: 'right' }, 12: { halign: 'right' }, 13: { halign: 'right' },
-                    14: { halign: 'right' }, 15: { halign: 'right' }, 16: { halign: 'right' }, 17: { halign: 'right' },
-                    18: { halign: 'right', fontStyle: 'bold' }
+                    7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' }, 10: { halign: 'right' },
+                    11: { halign: 'right' }, 12: { halign: 'right' }, 13: { halign: 'right' }, 14: { halign: 'right' },
+                    15: { halign: 'right' }, 16: { halign: 'right' }, 17: { halign: 'right' }, 18: { halign: 'right' },
+                    19: { halign: 'right', fontStyle: 'bold' }
                 }
             });
 
@@ -433,6 +489,14 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
 
     return (
         <div className="flex h-screen text-black bg-gray-50 overflow-hidden">
+            {/* Modal de edición */}
+            <EditarCompraModal 
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                compraId={selectedCompraId}
+                onSuccess={handleModalSuccess}
+            />
+
             <div className={`fixed md:relative z-20 h-screen ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}>
                 <Sidebar />
             </div>
@@ -551,7 +615,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
                                             {currentItems.map((item, idx) => (
-                                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                <tr key={item.id || idx} className="hover:bg-gray-50 transition-colors">
                                                     {columns.map((column) => (
                                                         <td 
                                                             key={column.key}
@@ -562,10 +626,42 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                                                                 ['numero_documento', 'numero_registro'].includes(column.key) ? 'font-mono' : ''
                                                             }`}
                                                         >
-                                                            {['exentas', 'exentas_importaciones', 'locales', 'importaciones', 'iva', 'fovial', 'cotrans', 'cesc', 'anticipo_iva', 'retencion', 'percepcion', 'sujetos_excluidos', 'monto'].includes(column.key) ? (
+                                                            {column.key === 'acciones' ? (
+                                                                <div className="flex justify-center space-x-2">
+                                                                    {item.id ? (
+                                                                        <>
+                                                                            <button 
+                                                                                onClick={() => handleEdit(item.id)}
+                                                                                className="text-blue-600 hover:text-blue-800 p-1"
+                                                                                title="Editar"
+                                                                            >
+                                                                                <FaEdit size={16} />
+                                                                            </button>
+                                                                            <button 
+                                                                                onClick={() => handleDelete(item.id)}
+                                                                                disabled={deletingId === item.id}
+                                                                                className="text-red-600 hover:text-red-800 p-1 disabled:opacity-50"
+                                                                                title="Eliminar"
+                                                                            >
+                                                                                {deletingId === item.id ? (
+                                                                                    <div className="animate-spin h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full"></div>
+                                                                                ) : (
+                                                                                    <FaTrash size={16} />
+                                                                                )}
+                                                                            </button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <span className="text-gray-400 text-xs">-</span>
+                                                                    )}
+                                                                </div>
+                                                            ) : ['exentas', 'exentas_importaciones', 'locales', 'importaciones', 'iva', 'fovial', 'cotrans', 'cesc', 'anticipo_iva', 'retencion', 'percepcion', 'sujetos_excluidos', 'monto'].includes(column.key) ? (
                                                                 formatCurrency(item[column.key] || 0)
+                                                            ) : ['fecha_emision_doc', 'fecha_registro_sistema'].includes(column.key) ? (
+                                                                formatDate(item[column.key])
+                                                            ) : column.key === 'no' ? (
+                                                                item.no || (indexOfFirstItem + idx + 1)
                                                             ) : (
-                                                                column.key === 'no' ? (item.no || (indexOfFirstItem + idx + 1)) : (item[column.key] || '-')
+                                                                item[column.key] || '-'
                                                             )}
                                                         </td>
                                                     ))}
