@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 import { API_BASE_URL } from "@/lib/api";
-import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaPlusCircle, FaMinusCircle, FaExchangeAlt, FaInfoCircle, FaTicketAlt } from "react-icons/fa";
+import { FaSpinner, FaFilePdf, FaArrowLeft, FaFileAlt, FaCalendarAlt, FaUser, FaPlusCircle, FaMinusCircle, FaExchangeAlt, FaInfoCircle, FaTicketAlt, FaEye } from "react-icons/fa";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
+import JsonViewer from "../../components/JsonViewer";
 
 export default function NotaDetallePage() {
   const params = useParams();
@@ -18,6 +19,8 @@ export default function NotaDetallePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tipoNota, setTipoNota] = useState("");
   const [documentoFirmadoData, setDocumentoFirmadoData] = useState(null);
+  const [jsonViewerData, setJsonViewerData] = useState(null);
+  const [loadingJson, setLoadingJson] = useState(false);
   const router = useRouter();
 
   const configNota = {
@@ -76,6 +79,28 @@ export default function NotaDetallePage() {
     } catch (error) {
       console.error("Error extrayendo documento firmado:", error);
       return null;
+    }
+  };
+
+  const handleViewJSON = async () => {
+    setLoadingJson(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/${numeroNota}/descargar-json`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setJsonViewerData(data);
+    } catch (error) {
+      console.error('Error cargando JSON:', error);
+      alert(`Error al cargar JSON: ${error.message}`);
+    } finally {
+      setLoadingJson(false);
     }
   };
 
@@ -415,6 +440,31 @@ export default function NotaDetallePage() {
                 </div>
                 
                 <div className="flex gap-2">
+                  {/* Botón Ver JSON */}
+                  <button
+                    onClick={handleViewJSON}
+                    disabled={loadingJson || !notaData?.documentofirmado}
+                    className={`flex items-center px-4 py-2 rounded text-white ${
+                      loadingJson ? 'bg-gray-400 cursor-not-allowed' : 
+                      !notaData?.documentofirmado ? 'bg-gray-500 cursor-not-allowed' : 
+                      'bg-purple-600 hover:bg-purple-700'
+                    }`}
+                  >
+                    {loadingJson ? (
+                      <>
+                        <FaSpinner className="animate-spin mr-2" /> Cargando...
+                      </>
+                    ) : !notaData?.documentofirmado ? (
+                      <>
+                        <FaEye className="mr-2" /> JSON no disponible
+                      </>
+                    ) : (
+                      <>
+                        <FaEye className="mr-2" /> Ver JSON
+                      </>
+                    )}
+                  </button>
+
                   {/* Botón Generar Ticket */}
                   <button
                     onClick={handleGenerateTicket}
@@ -671,6 +721,14 @@ export default function NotaDetallePage() {
 
         <Footer />
       </div>
+
+      {/* Modal del Visualizador JSON */}
+      {jsonViewerData && (
+        <JsonViewer 
+          data={jsonViewerData} 
+          onClose={() => setJsonViewerData(null)} 
+        />
+      )}
     </div>
   );
 }

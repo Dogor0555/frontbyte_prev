@@ -1,12 +1,13 @@
 // src/app/dashboard/notas-debito/nota_debito.js
 "use client";
 import { useState, useEffect } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFileInvoice, FaFilePdf, FaChevronLeft, FaChevronRight, FaExchangeAlt, FaExclamationTriangle, FaFileCode, FaPaperPlane, FaMoneyBillWave, FaPlusCircle, FaMinusCircle } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaFileInvoice, FaFilePdf, FaChevronLeft, FaChevronRight, FaExchangeAlt, FaExclamationTriangle, FaFileCode, FaPaperPlane, FaMoneyBillWave, FaPlusCircle, FaMinusCircle, FaEye } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import JsonViewer from "../components/JsonViewer";
 
 export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -27,13 +28,14 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
   const [enviando, setEnviando] = useState(null);
   const [motivoNota, setMotivoNota] = useState("");
   const [montoNota, setMontoNota] = useState("");
-  const [tipoNota, setTipoNota] = useState("debito"); // 'debito' o 'credito'
+  const [tipoNota, setTipoNota] = useState("debito");
   const [facturaSeleccionada, setFacturaSeleccionada] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(null);
+  const [jsonViewerData, setJsonViewerData] = useState(null);
+  const [loadingJson, setLoadingJson] = useState(null);
   const itemsPerPage = 6;
   const router = useRouter();
-
 
   useEffect(() => {
     const fetchData = async () => {
@@ -55,7 +57,6 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
           credentials: "include"
         });
 
-        
         let notasDebitoData = [];
         if (notasDebitoResponse.ok) {
           notasDebitoData = await notasDebitoResponse.json();
@@ -87,7 +88,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         
         setFacturas(facturasParaNota);
         setNotasDebito(Array.isArray(notasDebitoData) ? notasDebitoData : []);
-        setNotasCredito(notasCreditoData);
+        setNotasCredito(Array.isArray(notasCreditoData) ? notasCreditoData : []);
         
       } catch (error) {
         console.error("Error:", error);
@@ -151,7 +152,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
           (factura.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
           (factura.numerofacturausuario?.toString() || "").includes(searchTerm) ||
           (factura.iddtefactura?.toString() || "").includes(searchTerm) ||
-          (factura.ncontrol?.toString() || "").includes(searchTerm); // ← Agregar número de control
+          (factura.ncontrol?.toString() || "").includes(searchTerm);
 
         return matchSearch;
       })
@@ -169,7 +170,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
           (nota.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
           (nota.numerofacturausuario?.toString() || "").includes(searchTermNotas) ||
           (nota.iddtefactura?.toString() || "").includes(searchTermNotas) ||
-          (nota.ncontrol?.toString() || "").includes(searchTermNotas); // ← Agregar número de control
+          (nota.ncontrol?.toString() || "").includes(searchTermNotas);
 
         return matchSearch;
       })
@@ -187,7 +188,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
           (nota.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
           (nota.numerofacturausuario?.toString() || "").includes(searchTermNotasCredito) ||
           (nota.iddtefactura?.toString() || "").includes(searchTermNotasCredito) ||
-          (nota.ncontrol?.toString() || "").includes(searchTermNotasCredito); // ← Agregar número de control
+          (nota.ncontrol?.toString() || "").includes(searchTermNotasCredito);
 
         return matchSearch;
       })
@@ -218,6 +219,28 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
 
   const handleGenerarNota = (factura, tipo) => {
     router.push(`/dashboard/nota_debito/emitir/${factura.iddtefactura}?tipo=${tipo}`);
+  };
+
+  const handleViewJSON = async (iddtefactura) => {
+    setLoadingJson(iddtefactura);
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/descargar-json`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setJsonViewerData(data);
+    } catch (error) {
+      console.error('Error cargando JSON:', error);
+      alert(`Error al cargar JSON: ${error.message}`);
+    } finally {
+      setLoadingJson(null);
+    }
   };
 
   const handleGeneratePDF = async (notaId) => {
@@ -265,7 +288,6 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
     }
   };
 
-
   const handleDownloadJSON = async (iddtefactura) => {
     setPdfLoading(iddtefactura);
     try {
@@ -304,7 +326,6 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
       setPdfLoading(null);
     }
   };
-
 
   const openNotaModal = (factura, tipo) => {
     setFacturaSeleccionada(factura);
@@ -586,6 +607,31 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
 
                       {esNota && (
                           <>
+                              <button
+                                  onClick={() => handleViewJSON(factura.iddtefactura)}
+                                  disabled={loadingJson === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
+                                  className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                      loadingJson === factura.iddtefactura
+                                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                                          : (!(factura.documentofirmado && factura.documentofirmado !== "null"))
+                                              ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                                              : `bg-purple-500 hover:bg-purple-600 text-white`
+                                  }`}
+                                  title={!(factura.documentofirmado && factura.documentofirmado !== "null") ? "No se puede ver: Nota no firmada" : "Ver JSON formateado"}
+                              >
+                                  {loadingJson === factura.iddtefactura ? (
+                                      <>
+                                          <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-1"></div>
+                                          Cargando
+                                      </>
+                                  ) : (
+                                      <>
+                                          <FaEye className="mr-1 text-xs" />
+                                          Ver JSON
+                                      </>
+                                  )}
+                              </button>
+
                               <button
                                   onClick={() => handleGeneratePDF(factura.iddtefactura)}
                                   disabled={pdfLoading === factura.iddtefactura || !(factura.documentofirmado && factura.documentofirmado !== "null")}
@@ -991,6 +1037,14 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
         <Footer />
       </div>
 
+      {/* Modal del Visualizador JSON */}
+      {jsonViewerData && (
+        <JsonViewer 
+          data={jsonViewerData} 
+          onClose={() => setJsonViewerData(null)} 
+        />
+      )}
+
       {/* Modal para generar nota */}
       {showModal && facturaSeleccionada && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1027,7 +1081,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                     Cliente: {facturaSeleccionada.nombrecibe || 'No especificado'}
                   </div>
                   <div className="text-sm font-medium">
-                    Total: {formatCurrency(facturaSeleccionada.totalpagar || facturaSeleccionada.montototaloperacion || 0)}
+                    Total: {formatCurrency(facturaSeleccionada.totalapagar || facturaSeleccionada.montototaloperacion || 0)}
                   </div>
                 </div>
               </div>
@@ -1056,11 +1110,11 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                   placeholder="0.00"
                   step="0.01"
                   min="0.01"
-                  max={facturaSeleccionada.totalpagar || facturaSeleccionada.montototaloperacion || 0}
+                  max={facturaSeleccionada.totalapagar || facturaSeleccionada.montototaloperacion || 0}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Monto máximo: {formatCurrency(facturaSeleccionada.totalpagar || facturaSeleccionada.montototaloperacion || 0)}
+                  Monto máximo: {formatCurrency(facturaSeleccionada.totalapagar || facturaSeleccionada.montototaloperacion || 0)}
                 </p>
               </div>
 
