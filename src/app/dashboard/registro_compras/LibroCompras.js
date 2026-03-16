@@ -103,6 +103,9 @@ const mapItem = (item) => ({
     fovial: item.fovial || "0.00",
     cotrans: item.cotrans || "0.00",
     cesc: item.cesc || "0.00",
+    // ========== NUEVOS CAMPOS ==========
+    codigo_generacion: item.codigo_generacion || "N/A",
+    sello_recepcion: item.sello_recepcion || "N/A",
 });
 
 const COLUMNS = [
@@ -113,6 +116,9 @@ const COLUMNS = [
     { key: "numero_documento",      label: "NÚMERO",        width: "120px", align: "center" },
     { key: "numero_registro",       label: "NIT/NRC",       width: "120px", align: "center" },
     { key: "nombre_proveedor",      label: "PROVEEDOR",     width: "250px", align: "left"   },
+    // ========== NUEVAS COLUMNAS ==========
+    { key: "codigo_generacion",      label: "CÓD. GENERACIÓN", width: "150px", align: "center" },
+    { key: "sello_recepcion",        label: "SELLO RECEPCIÓN", width: "150px", align: "center" },
     { key: "exentas",               label: "EXENTAS INT.",  width: "120px", align: "right"  },
     { key: "exentas_importaciones", label: "EXENTAS IMP.",  width: "120px", align: "right"  },
     { key: "locales",               label: "GRAVADAS INT.", width: "120px", align: "right"  },
@@ -281,6 +287,8 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             (item.nombre_proveedor?.toLowerCase() || "").includes(q) ||
             (item.numero_documento?.toLowerCase()  || "").includes(q) ||
             (item.numero_registro?.toLowerCase()   || "").includes(q) ||
+            (item.codigo_generacion?.toLowerCase() || "").includes(q) ||
+            (item.sello_recepcion?.toLowerCase()   || "").includes(q) ||
             (item.fecha_emision_doc?.toString()    || "").includes(searchTerm) ||
             (item.fecha_registro_sistema?.toString()|| "").includes(searchTerm)
         );
@@ -331,6 +339,9 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 { header: "NÚMERO",          key: "numero_documento",       width: 15 },
                 { header: "NIT/NRC",         key: "numero_registro",        width: 15 },
                 { header: "PROVEEDOR",       key: "nombre_proveedor",       width: 30 },
+                // ========== NUEVAS COLUMNAS EXCEL ==========
+                { header: "CÓD. GENERACIÓN", key: "codigo_generacion",      width: 20 },
+                { header: "SELLO RECEPCIÓN", key: "sello_recepcion",        width: 20 },
                 { header: "EXENTAS INT.",    key: "exentas",                width: 12 },
                 { header: "EXENTAS IMP.",    key: "exentas_importaciones",  width: 12 },
                 { header: "GRAVADAS INT.",   key: "locales",                width: 12 },
@@ -361,6 +372,9 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                     numero_documento:       item.numero_documento,
                     numero_registro:        item.numero_registro,
                     nombre_proveedor:       item.nombre_proveedor,
+                    // ========== NUEVOS CAMPOS EXCEL ==========
+                    codigo_generacion:       item.codigo_generacion,
+                    sello_recepcion:         item.sello_recepcion,
                     exentas:                parseFloat(item.exentas)              || 0,
                     exentas_importaciones:  parseFloat(item.exentas_importaciones)|| 0,
                     locales:                parseFloat(item.locales)              || 0,
@@ -382,7 +396,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                         top: { style: "thin" }, left: { style: "thin" },
                         bottom: { style: "thin" }, right: { style: "thin" },
                     };
-                    if (col >= 7) { cell.numFmt = "#,##0.00"; cell.alignment = { horizontal: "right" }; }
+                    if (col >= 9) { cell.numFmt = "#,##0.00"; cell.alignment = { horizontal: "right" }; }
                 });
             });
 
@@ -404,7 +418,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             });
             totRow.font = { bold: true };
             totRow.eachCell((cell, col) => {
-                if (col >= 7) { cell.numFmt = "#,##0.00"; cell.alignment = { horizontal: "right" }; }
+                if (col >= 9) { cell.numFmt = "#,##0.00"; cell.alignment = { horizontal: "right" }; }
             });
 
             const buf  = await wb.xlsx.writeBuffer();
@@ -434,7 +448,14 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             doc.text(`Período: ${formatDate(fechaInicio)} – ${formatDate(fechaFin)}`, 14, 22);
             doc.text(`Generado: ${new Date().toLocaleDateString("es-SV")}`, 14, 27);
 
-            const cols = ["No.","F. Emisión","F. Registro","Tipo","Número","NIT/NRC","Proveedor","Ex. Int","Ex. Imp","Gr. Int","Gr. Imp","CF IVA","FOVIAL","COTRANS","CESC","Ant. IVA","Ret","Perc","Suj. Ex","Total"];
+            const cols = [
+                "No.","F. Emisión","F. Registro","Tipo","Número","NIT/NRC","Proveedor",
+                // ========== NUEVAS COLUMNAS PDF ==========
+                "Cód. Generación","Sello Recepción",
+                "Ex. Int","Ex. Imp","Gr. Int","Gr. Imp","CF IVA",
+                "FOVIAL","COTRANS","CESC","Ant. IVA","Ret","Perc","Suj. Ex","Total"
+            ];
+            
             const rows = libroFiltrado.map((item, i) => [
                 item.no || i + 1,
                 item.fecha_emision_doc,
@@ -443,6 +464,9 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 item.numero_documento,
                 item.numero_registro,
                 item.nombre_proveedor,
+                // ========== NUEVOS CAMPOS PDF ==========
+                item.codigo_generacion,
+                item.sello_recepcion,
                 formatCurrency(item.exentas              || 0),
                 formatCurrency(item.exentas_importaciones|| 0),
                 formatCurrency(item.locales              || 0),
@@ -459,7 +483,9 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             ]);
 
             rows.push([
-                "","","","","","TOTALES","",
+                "","","","","","","TOTALES",
+                // ========== NUEVOS CAMPOS PDF EN TOTALES ==========
+                "","",
                 formatCurrency(totales.exentas_internas),
                 formatCurrency(totales.exentas_importaciones),
                 formatCurrency(totales.gravadas_internas),
@@ -480,12 +506,14 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 body: rows,
                 startY: 35,
                 theme: "grid",
-                styles: { fontSize: 6, cellPadding: 1 },
+                styles: { fontSize: 5.5, cellPadding: 1 },
                 headStyles: { fillColor: [30, 41, 59] },
                 columnStyles: {
                     0: { halign: "center" },
-                    ...[7,8,9,10,11,12,13,14,15,16,17,18,19].reduce((a,k) => ({...a,[k]:{halign:"right"}}),{}),
-                    19: { halign: "right", fontStyle: "bold" },
+                    7: { halign: "center", fontStyle: "bold" }, // Código Generación
+                    8: { halign: "center", fontStyle: "bold" }, // Sello Recepción
+                    ...[9,10,11,12,13,14,15,16,17,18,19,20,21].reduce((a,k) => ({...a,[k]:{halign:"right"}}),{}),
+                    22: { halign: "right", fontStyle: "bold" },
                 },
             });
 
@@ -706,7 +734,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                                             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
                                             <input
                                                 type="text"
-                                                placeholder="Proveedor, documento, NRC…"
+                                                placeholder="Proveedor, documento, NRC, código…"
                                                 value={searchTerm}
                                                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                                                 className="w-full pl-8 pr-8 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400 transition-colors bg-slate-50"
@@ -775,7 +803,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                                                             col.align === "right"  ? "text-right"  :
                                                             col.align === "center" ? "text-center" : "text-left"
                                                         } ${
-                                                            ["numero_documento","numero_registro"].includes(col.key)
+                                                            ["numero_documento","numero_registro","codigo_generacion","sello_recepcion"].includes(col.key)
                                                                 ? "font-mono text-xs"
                                                                 : ""
                                                         }`}

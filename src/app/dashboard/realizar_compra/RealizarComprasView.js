@@ -222,145 +222,149 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     };
 
     const procesarDteActual = async (dteData) => {
-        setIsLoading(true);
-        try {
-            const emisorNit = dteData.emisor.nit;
-            const emisorNrc = dteData.emisor.nrc;
-            
-            let foundProv = proveedores.find(p => 
-                (p.nit && p.nit === emisorNit) || 
-                (p.nrc && p.nrc === emisorNrc) ||
-                (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor.nombre.toLowerCase()))
-            );
+    setIsLoading(true);
+    try {
+        const emisorNit = dteData.emisor.nit;
+        const emisorNrc = dteData.emisor.nrc;
+        
+        let foundProv = proveedores.find(p => 
+            (p.nit && p.nit === emisorNit) || 
+            (p.nrc && p.nrc === emisorNrc) ||
+            (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor.nombre.toLowerCase()))
+        );
 
-            if (!foundProv) {
-                try {
-                    const newProvData = {
-                        nombre: dteData.emisor.nombre,
-                        codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
-                        descripcion: dteData.emisor.descActividad || "Creado automáticamente desde DTE"
-                    };
-
-                    const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify(newProvData),
-                    });
-
-                    if (response.ok) {
-                        const resJson = await response.json();
-                        foundProv = resJson.proveedor;
-                        setProveedores(prev => [...prev, foundProv]);
-                    }
-                } catch (err) {
-                    console.error("Error creando proveedor automático:", err);
-                }
-            }
-
-            const currentProveedorId = foundProv ? foundProv.id : null;
-
-            const productosNoEncontrados = [];
-            const productosACrear = [];
-            let currentProductos = [...productos];
-
-            for (const item of dteData.cuerpoDocumento) {
-                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-                
-                if (!foundProd) {
-                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-                }
-
-                if (!foundProd) {
-                    productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
-                    productosACrear.push({
-                        item,
-                        nombre: item.descripcion,
-                        codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                        unidad: item.uniMedida || "Unidad",
-                        precio: item.precioUni,
-                        preciooferta: 0,
-                        stock: 0,
-                        es_servicio: item.tipoItem === 2,
-                        idproveedor: currentProveedorId
-                    });
-                }
-            }
-
-            if (productosNoEncontrados.length > 0) {
-                setProductosNoEncontradosMsg(productosNoEncontrados);
-                setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
-                setShowDialog(true);
-                setIsLoading(false);
-                return;
-            }
-
-            const nuevosDetalles = [];
-
-            for (const item of dteData.cuerpoDocumento) {
-                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-                
-                if (!foundProd) {
-                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-                }
-
-                if (foundProd) {
-                    nuevosDetalles.push({
-                        producto_id: foundProd.id,
-                        producto_nombre: foundProd.nombre,
-                        producto_codigo: foundProd.codigo,
-                        cantidad: item.cantidad,
-                        precio_unitario: item.precioUni,
-                        subtotal: item.ventaGravada
-                    });
-                }
-            }
-
-            // ⚠️ IMPORTANTE: NO MODIFICAR 'fecha', SOLO 'fecha_emision'
-            setFormData(prev => {
-                const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-                
-                const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
-                
-                const tipoMap = {
-                    "01": "FCF",
-                    "03": "CCF",
-                    "05": "NC",
-                    "06": "ND",
-                    "14": "FSE"
+        if (!foundProv) {
+            try {
+                const newProvData = {
+                    nombre: dteData.emisor.nombre,
+                    codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
+                    descripcion: dteData.emisor.descActividad || "Creado automáticamente desde DTE"
                 };
-                
-                console.log("Cargando DTE - Fechas:", {
-                    fecha_registro: prev.fecha, // Se mantiene la fecha actual
-                    fecha_emision_dte: dteData.identificacion.fecEmi // Fecha del documento
+
+                const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify(newProvData),
                 });
 
-                return {
-                    ...prev,
-                    fecha_emision: dteData.identificacion.fecEmi, // SOLO actualizar fecha_emision
-                    numero_documento: dteData.identificacion.numeroControl,
-                    nrc: dteData.emisor.nrc,
-                    nombre_proveedor: dteData.emisor.nombre,
-                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                    tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                    
-                    gravadas_internas: dteData.resumen.totalGravada,
-                    credito_fiscal: iva,
-                    total_compras: dteData.resumen.totalPagar
-                };
-            });
+                if (response.ok) {
+                    const resJson = await response.json();
+                    foundProv = resJson.proveedor;
+                    setProveedores(prev => [...prev, foundProv]);
+                }
+            } catch (err) {
+                console.error("Error creando proveedor automático:", err);
+            }
+        }
 
-            if (nuevosDetalles.length > 0) {
-                setDetalles(prev => [...prev, ...nuevosDetalles]);
+        const currentProveedorId = foundProv ? foundProv.id : null;
+
+        // ========== EXTRAER CÓDIGO DE GENERACIÓN Y SELLO DE RECEPCIÓN ==========
+        const codigoGeneracion = dteData.identificacion?.codigoGeneracion;
+        const selloRecepcion = dteData.selloRecibido;
+
+        console.log("DTE - Código Generación:", codigoGeneracion);
+        console.log("DTE - Sello Recepción:", selloRecepcion);
+
+        const productosNoEncontrados = [];
+        const productosACrear = [];
+        let currentProductos = [...productos];
+
+        for (const item of dteData.cuerpoDocumento) {
+            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            
+            if (!foundProd) {
+                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
             }
 
-            setIsLoading(false);
-        } catch (error) {
-            console.error("Error procesando DTE:", error);
-            setError("Error al procesar el archivo DTE.");
-            setIsLoading(false);
+            if (!foundProd) {
+                productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
+                productosACrear.push({
+                    item,
+                    nombre: item.descripcion,
+                    codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                    unidad: item.uniMedida || "Unidad",
+                    precio: item.precioUni,
+                    preciooferta: 0,
+                    stock: 0,
+                    es_servicio: item.tipoItem === 2,
+                    idproveedor: currentProveedorId
+                });
+            }
         }
-    };
+
+        if (productosNoEncontrados.length > 0) {
+            setProductosNoEncontradosMsg(productosNoEncontrados);
+            setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
+            setShowDialog(true);
+            setIsLoading(false);
+            return;
+        }
+
+        const nuevosDetalles = [];
+
+        for (const item of dteData.cuerpoDocumento) {
+            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            
+            if (!foundProd) {
+                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+            }
+
+            if (foundProd) {
+                nuevosDetalles.push({
+                    producto_id: foundProd.id,
+                    producto_nombre: foundProd.nombre,
+                    producto_codigo: foundProd.codigo,
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precioUni,
+                    subtotal: item.ventaGravada
+                });
+            }
+        }
+
+        setFormData(prev => {
+            const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
+            
+            const tipoMap = {
+                "01": "FCF",
+                "03": "CCF",
+                "05": "NC",
+                "06": "ND",
+                "14": "FSE"
+            };
+            
+            return {
+                ...prev,
+                fecha_emision: dteData.identificacion.fecEmi,
+                numero_documento: dteData.identificacion.numeroControl,
+                
+                // ========== GUARDAR LOS NUEVOS CAMPOS ==========
+                codigo_generacion: codigoGeneracion,
+                sello_recepcion: selloRecepcion,
+                
+                nrc: dteData.emisor.nrc,
+                nombre_proveedor: dteData.emisor.nombre,
+                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte).padStart(2, '0')] || "CCF",
+                
+                gravadas_internas: dteData.resumen.totalGravada,
+                credito_fiscal: iva,
+                total_compras: dteData.resumen.totalPagar
+            };
+        });
+
+        if (nuevosDetalles.length > 0) {
+            setDetalles(prev => [...prev, ...nuevosDetalles]);
+        }
+
+        setIsLoading(false);
+    } catch (error) {
+        console.error("Error procesando DTE:", error);
+        setError("Error al procesar el archivo DTE.");
+        setIsLoading(false);
+    }
+};
 
     const procesarDte = async (dteData, foundProv) => {
         try {
