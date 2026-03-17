@@ -1,65 +1,120 @@
 // components/Header.jsx
 "use client";
 import { useEffect, useState } from 'react';
-import './Header.css'; // Importa los estilos
+import './Header.css';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState('home');
 
+  // Smooth scroll + cleanup
   useEffect(() => {
-    // Smooth scrolling for navigation links
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href'));
-        if (target) {
-          target.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-          });
-        }
-      });
-    });
+    const anchors = document.querySelectorAll('a[href^="#"]');
+
+    const handleClick = function (e) {
+      e.preventDefault();
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+    };
+
+    anchors.forEach(anchor => anchor.addEventListener('click', handleClick));
+
+    return () => {
+      anchors.forEach(anchor => anchor.removeEventListener('click', handleClick));
+    };
   }, []);
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  // Detect scroll (shrink navbar)
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
 
-  const closeMenu = () => {
-    setIsMenuOpen(false);
-  };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Active section observer
+  useEffect(() => {
+    const sections = document.querySelectorAll('section');
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.id);
+          }
+        });
+      },
+      { threshold: 0.6 }
+    );
+
+    sections.forEach(section => observer.observe(section));
+
+    return () => observer.disconnect();
+  }, []);
+
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  const closeMenu = () => setIsMenuOpen(false);
 
   return (
-    <header>
+    <header className={scrolled ? 'scrolled' : ''}>
       <nav>
         <div className="logo">
           <div className="logo-icon">BF</div>
           <span>Byte Fusion</span>
         </div>
-        
-        {/* Hamburger Menu Button */}
-        <button 
+
+        {/* Hamburger */}
+        <button
           className={`hamburger ${isMenuOpen ? 'active' : ''}`}
           onClick={toggleMenu}
-          aria-label="Toggle menu"
         >
           <span></span>
           <span></span>
           <span></span>
         </button>
 
-        {/* Navigation Links - ACTUALIZADO */}
+        {/* Links */}
         <ul className={`nav-links ${isMenuOpen ? 'nav-active' : ''}`}>
-          <li><a href="#home" onClick={closeMenu}><span>Inicio</span></a></li>
-          <li><a href="#servicesit" onClick={closeMenu}><span>Servicios</span></a></li>
-          <li><a href="#services" onClick={closeMenu}><span>Funciones Facturador</span></a></li>
-          <li><a href="#product" onClick={closeMenu}><span>Facturador</span></a></li>
-          <li><a href="#tech" onClick={closeMenu}><span>Tecnologías</span></a></li>
-          <li><a href="#contact" onClick={closeMenu}><span>Contacto</span></a></li>
+          <li>
+            <a href="#home" onClick={closeMenu} className={activeSection === 'home' ? 'active' : ''}>
+              <span>Inicio</span>
+            </a>
+          </li>
+          <li>
+            <a href="#servicesit" onClick={closeMenu} className={activeSection === 'servicesit' ? 'active' : ''}>
+              <span>Servicios</span>
+            </a>
+          </li>
+          <li>
+            <a href="#services" onClick={closeMenu} className={activeSection === 'services' ? 'active' : ''}>
+              <span>Funciones Facturador</span>
+            </a>
+          </li>
+          <li>
+            <a href="#product" onClick={closeMenu} className={activeSection === 'product' ? 'active' : ''}>
+              <span>Facturador</span>
+            </a>
+          </li>
+          <li>
+            <a href="#tech" onClick={closeMenu} className={activeSection === 'tech' ? 'active' : ''}>
+              <span>Tecnologías</span>
+            </a>
+          </li>
+          <li>
+            <a href="#contact" onClick={closeMenu} className={activeSection === 'contact' ? 'active' : ''}>
+              <span>Contacto</span>
+            </a>
+          </li>
         </ul>
 
-        {/* Overlay for mobile */}
         {isMenuOpen && <div className="nav-overlay" onClick={closeMenu}></div>}
       </nav>
     </header>
