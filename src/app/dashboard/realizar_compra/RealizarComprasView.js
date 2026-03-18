@@ -18,6 +18,74 @@ import {
     FaMoneyBillWave
 } from "react-icons/fa";
 
+// ========== MODAL DE ÉXITO ==========
+const SuccessModal = ({ message, onClose }) => {
+    const [countdown, setCountdown] = useState(5);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCountdown(prev => {
+                if (prev <= 1) {
+                    clearInterval(interval);
+                    onClose();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [onClose]);
+
+    const lines = message.split('\n').filter(Boolean);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" style={{ backdropFilter: 'blur(4px)' }}>
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+                {/* Header verde */}
+                <div className="bg-gradient-to-br from-green-500 to-emerald-600 px-8 py-8 text-center">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                        <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">¡Compra Registrada!</h2>
+                    <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.85)' }}>La compra se guardó exitosamente</p>
+                </div>
+
+                {/* Detalle */}
+                <div className="px-8 py-6 space-y-3">
+                    {lines.map((line, i) => (
+                        <div key={i} className="flex items-center text-gray-700 text-sm bg-gray-50 rounded-lg px-4 py-2">
+                            <span>{line}</span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Botón */}
+                <div className="px-8 pb-6">
+                    <button
+                        onClick={onClose}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+                    >
+                        Aceptar ({countdown}s)
+                    </button>
+                </div>
+
+                {/* Barra de progreso */}
+                <div className="h-1 w-full bg-green-100">
+                    <div
+                        className="h-full bg-green-500"
+                        style={{
+                            width: `${(countdown / 5) * 100}%`,
+                            transition: 'width 1s linear'
+                        }}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function RealizarComprasView({ user, hasHaciendaToken, haciendaStatus }) {
     const router = useRouter();
     
@@ -30,6 +98,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
     const [proveedores, setProveedores] = useState([]);
     const [productos, setProductos] = useState([]);
+    
+    const [currentDteData, setCurrentDteData] = useState(null);
     
     const [formData, setFormData] = useState({
         fecha: new Date().toISOString().split('T')[0],
@@ -57,7 +127,9 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         retencion: 0,
         percepcion: 0,
         retencion_terceros: 0,
-        total_compras: 0
+        total_compras: 0,
+        codigo_generacion: null,
+        sello_recepcion: null
     });
 
     const [detalles, setDetalles] = useState([]);
@@ -212,7 +284,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         setIsProcessingMultiple(true);
         
         const dtes = Array.isArray(dtesData) ? dtesData : [dtesData];
-        
 
         if (dtes.length > 0) {
             setPendingDtes(dtes);
@@ -222,149 +293,157 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     };
 
     const procesarDteActual = async (dteData) => {
-    setIsLoading(true);
-    try {
-        const emisorNit = dteData.emisor.nit;
-        const emisorNrc = dteData.emisor.nrc;
-        
-        let foundProv = proveedores.find(p => 
-            (p.nit && p.nit === emisorNit) || 
-            (p.nrc && p.nrc === emisorNrc) ||
-            (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor.nombre.toLowerCase()))
-        );
+        setIsLoading(true);
+        try {
+            setCurrentDteData(dteData);
+            
+            const emisorNit = dteData.emisor.nit;
+            const emisorNrc = dteData.emisor.nrc;
+            
+            let foundProv = proveedores.find(p => 
+                (p.nit && p.nit === emisorNit) || 
+                (p.nrc && p.nrc === emisorNrc) ||
+                (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor.nombre.toLowerCase()))
+            );
 
-        if (!foundProv) {
-            try {
-                const newProvData = {
-                    nombre: dteData.emisor.nombre,
-                    codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
-                    descripcion: dteData.emisor.descActividad || "Creado automáticamente desde DTE"
-                };
+            if (!foundProv) {
+                try {
+                    const newProvData = {
+                        nombre: dteData.emisor.nombre,
+                        codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
+                        descripcion: dteData.emisor.descActividad || "Creado automáticamente desde DTE"
+                    };
 
-                const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify(newProvData),
-                });
+                    const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify(newProvData),
+                    });
 
-                if (response.ok) {
-                    const resJson = await response.json();
-                    foundProv = resJson.proveedor;
-                    setProveedores(prev => [...prev, foundProv]);
+                    if (response.ok) {
+                        const resJson = await response.json();
+                        foundProv = resJson.proveedor;
+                        setProveedores(prev => [...prev, foundProv]);
+                    }
+                } catch (err) {
+                    console.error("Error creando proveedor automático:", err);
                 }
-            } catch (err) {
-                console.error("Error creando proveedor automático:", err);
-            }
-        }
-
-        const currentProveedorId = foundProv ? foundProv.id : null;
-
-        // ========== EXTRAER CÓDIGO DE GENERACIÓN Y SELLO DE RECEPCIÓN ==========
-        const codigoGeneracion = dteData.identificacion?.codigoGeneracion;
-        const selloRecepcion = dteData.selloRecibido;
-
-        console.log("DTE - Código Generación:", codigoGeneracion);
-        console.log("DTE - Sello Recepción:", selloRecepcion);
-
-        const productosNoEncontrados = [];
-        const productosACrear = [];
-        let currentProductos = [...productos];
-
-        for (const item of dteData.cuerpoDocumento) {
-            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-            
-            if (!foundProd) {
-                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
             }
 
-            if (!foundProd) {
-                productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
-                productosACrear.push({
-                    item,
-                    nombre: item.descripcion,
-                    codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                    unidad: item.uniMedida || "Unidad",
-                    precio: item.precioUni,
-                    preciooferta: 0,
-                    stock: 0,
-                    es_servicio: item.tipoItem === 2,
-                    idproveedor: currentProveedorId
-                });
-            }
-        }
+            const currentProveedorId = foundProv ? foundProv.id : null;
 
-        if (productosNoEncontrados.length > 0) {
-            setProductosNoEncontradosMsg(productosNoEncontrados);
-            setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
-            setShowDialog(true);
+            let codigoGeneracion = null;
+            let selloRecepcion = null;
+
+            if (dteData.identificacion?.codigoGeneracion) {
+                codigoGeneracion = dteData.identificacion.codigoGeneracion;
+            } else if (dteData.codigoGeneracion) {
+                codigoGeneracion = dteData.codigoGeneracion;
+            }
+
+            if (dteData.respuestaHacienda?.selloRecibido) {
+                selloRecepcion = dteData.respuestaHacienda.selloRecibido;
+            } else if (dteData.selloRecibido) {
+                selloRecepcion = dteData.selloRecibido;
+            } else if (dteData.sello_recepcion) {
+                selloRecepcion = dteData.sello_recepcion;
+            }
+
+            const productosNoEncontrados = [];
+            const productosACrear = [];
+            let currentProductos = [...productos];
+
+            for (const item of dteData.cuerpoDocumento) {
+                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+                
+                if (!foundProd) {
+                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+                }
+
+                if (!foundProd) {
+                    productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
+                    productosACrear.push({
+                        item,
+                        nombre: item.descripcion,
+                        codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                        unidad: item.uniMedida || "Unidad",
+                        precio: item.precioUni,
+                        preciooferta: 0,
+                        stock: 0,
+                        es_servicio: item.tipoItem === 2,
+                        idproveedor: currentProveedorId
+                    });
+                }
+            }
+
+            if (productosNoEncontrados.length > 0) {
+                setProductosNoEncontradosMsg(productosNoEncontrados);
+                setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
+                setShowDialog(true);
+                setIsLoading(false);
+                return;
+            }
+
+            const nuevosDetalles = [];
+
+            for (const item of dteData.cuerpoDocumento) {
+                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+                
+                if (!foundProd) {
+                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+                }
+
+                if (foundProd) {
+                    nuevosDetalles.push({
+                        producto_id: foundProd.id,
+                        producto_nombre: foundProd.nombre,
+                        producto_codigo: foundProd.codigo,
+                        cantidad: item.cantidad,
+                        precio_unitario: item.precioUni,
+                        subtotal: item.ventaGravada
+                    });
+                }
+            }
+
+            setFormData(prev => {
+                const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
+                
+                const tipoMap = {
+                    "01": "FCF",
+                    "03": "CCF",
+                    "05": "NC",
+                    "06": "ND",
+                    "14": "FSE"
+                };
+                
+                return {
+                    ...prev,
+                    fecha_emision: dteData.identificacion.fecEmi,
+                    numero_documento: dteData.identificacion.numeroControl,
+                    codigo_generacion: codigoGeneracion,
+                    sello_recepcion: selloRecepcion,
+                    nrc: dteData.emisor.nrc,
+                    nombre_proveedor: dteData.emisor.nombre,
+                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                    tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte).padStart(2, '0')] || "CCF",
+                    gravadas_internas: dteData.resumen.totalGravada,
+                    credito_fiscal: iva,
+                    total_compras: dteData.resumen.totalPagar
+                };
+            });
+
+            if (nuevosDetalles.length > 0) {
+                setDetalles(prev => [...prev, ...nuevosDetalles]);
+            }
+
             setIsLoading(false);
-            return;
+        } catch (error) {
+            console.error("Error procesando DTE:", error);
+            setError("Error al procesar el archivo DTE.");
+            setIsLoading(false);
         }
-
-        const nuevosDetalles = [];
-
-        for (const item of dteData.cuerpoDocumento) {
-            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-            
-            if (!foundProd) {
-                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-            }
-
-            if (foundProd) {
-                nuevosDetalles.push({
-                    producto_id: foundProd.id,
-                    producto_nombre: foundProd.nombre,
-                    producto_codigo: foundProd.codigo,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precioUni,
-                    subtotal: item.ventaGravada
-                });
-            }
-        }
-
-        setFormData(prev => {
-            const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-            
-            const tipoMap = {
-                "01": "FCF",
-                "03": "CCF",
-                "05": "NC",
-                "06": "ND",
-                "14": "FSE"
-            };
-            
-            return {
-                ...prev,
-                fecha_emision: dteData.identificacion.fecEmi,
-                numero_documento: dteData.identificacion.numeroControl,
-                
-                // ========== GUARDAR LOS NUEVOS CAMPOS ==========
-                codigo_generacion: codigoGeneracion,
-                sello_recepcion: selloRecepcion,
-                
-                nrc: dteData.emisor.nrc,
-                nombre_proveedor: dteData.emisor.nombre,
-                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte).padStart(2, '0')] || "CCF",
-                
-                gravadas_internas: dteData.resumen.totalGravada,
-                credito_fiscal: iva,
-                total_compras: dteData.resumen.totalPagar
-            };
-        });
-
-        if (nuevosDetalles.length > 0) {
-            setDetalles(prev => [...prev, ...nuevosDetalles]);
-        }
-
-        setIsLoading(false);
-    } catch (error) {
-        console.error("Error procesando DTE:", error);
-        setError("Error al procesar el archivo DTE.");
-        setIsLoading(false);
-    }
-};
+    };
 
     const procesarDte = async (dteData, foundProv) => {
         try {
@@ -411,7 +490,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     nombre_proveedor: dteData.emisor.nombre,
                     proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
                     tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                    
                     gravadas_internas: dteData.resumen.totalGravada,
                     credito_fiscal: iva,
                     total_compras: dteData.resumen.totalPagar
@@ -468,6 +546,14 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         }
     };
 
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('es-SV', { 
+            style: 'currency', 
+            currency: 'USD',
+            minimumFractionDigits: 2
+        }).format(amount);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
@@ -475,13 +561,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
         if (!formData.proveedor_id) return setError("Seleccione un proveedor.");
         if (!formData.numero_documento) return setError("Ingrese el número de documento.");
-
-        // Verificar fechas antes de enviar
-        console.log("Enviando compra - Fechas:", {
-            fecha_registro_sistema: formData.fecha,
-            fecha_emision_documento: formData.fecha_emision,
-            son_diferentes: formData.fecha !== formData.fecha_emision
-        });
 
         setIsLoading(true);
 
@@ -509,7 +588,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 retencion: parseFloat(formData.retencion || 0),
                 percepcion: parseFloat(formData.percepcion || 0),
                 retencion_terceros: parseFloat(formData.retencion_terceros || 0),
-                detalles: detalles
+                detalles: detalles,
+                dteData: currentDteData
             };
 
             const response = await fetch(`${API_BASE_URL}/compras/add`, {
@@ -536,19 +616,28 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 });
             }
 
-            setSuccessMessage("Compra registrada exitosamente.");
-            
-            window.scrollTo(0, 0);
-            
+            const fechaActual = new Date().toLocaleDateString('es-SV', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            setSuccessMessage(
+                `📄 Documento: ${data.numero_documento}\n` +
+                `💰 Total: ${formatCurrency(data.monto)}\n` +
+                `📦 Productos: ${detalles.length}\n` +
+                `🕐 ${fechaActual}`
+            );
 
             if (isProcessingMultiple && currentDteIndex < pendingDtes.length - 1) {
                 const nextIndex = currentDteIndex + 1;
                 setCurrentDteIndex(nextIndex);
                 
-                // Resetear SOLO fecha_emision, mantener fecha actual
                 setFormData({
-                    fecha: new Date().toISOString().split('T')[0], // ← NUEVA fecha de registro
-                    fecha_emision: new Date().toISOString().split('T')[0], // ← Temporal
+                    fecha: new Date().toISOString().split('T')[0],
+                    fecha_emision: new Date().toISOString().split('T')[0],
                     proveedor_id: "",
                     nombre_proveedor: "",
                     numero_documento: "",
@@ -572,9 +661,12 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     retencion: 0,
                     percepcion: 0,
                     retencion_terceros: 0,
-                    total_compras: 0
+                    total_compras: 0,
+                    codigo_generacion: null,
+                    sello_recepcion: null
                 });
                 setDetalles([]);
+                setCurrentDteData(null);
                 
                 setTimeout(() => {
                     procesarDteActual(pendingDtes[nextIndex]);
@@ -582,8 +674,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 
             } else {
                 setFormData({
-                    fecha: new Date().toISOString().split('T')[0], // ← NUEVA fecha de registro
-                    fecha_emision: new Date().toISOString().split('T')[0], // ← Se resetea
+                    fecha: new Date().toISOString().split('T')[0],
+                    fecha_emision: new Date().toISOString().split('T')[0],
                     proveedor_id: "",
                     nombre_proveedor: "",
                     numero_documento: "",
@@ -607,15 +699,16 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     retencion: 0,
                     percepcion: 0,
                     retencion_terceros: 0,
-                    total_compras: 0
+                    total_compras: 0,
+                    codigo_generacion: null,
+                    sello_recepcion: null
                 });
                 setDetalles([]);
                 setPendingDtes([]);
                 setCurrentDteIndex(0);
                 setIsProcessingMultiple(false);
+                setCurrentDteData(null);
             }
-            
-            setTimeout(() => setSuccessMessage(""), 3000);
 
         } catch (err) {
             console.error(err);
@@ -708,9 +801,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
             setFormData(prev => {
                 const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-                
                 const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
-                
                 const tipoMap = {
                     "01": "FCF",
                     "03": "CCF",
@@ -718,7 +809,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     "06": "ND",
                     "14": "FSE"
                 };
-                
                 return {
                     ...prev,
                     fecha_emision: dteData.identificacion.fecEmi,
@@ -727,7 +817,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     nombre_proveedor: dteData.emisor.nombre,
                     proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
                     tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                    
                     gravadas_internas: dteData.resumen.totalGravada,
                     credito_fiscal: iva,
                     total_compras: dteData.resumen.totalPagar
@@ -787,9 +876,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
         setFormData(prev => {
             const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-            
             const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
-            
             const tipoMap = {
                 "01": "FCF",
                 "03": "CCF",
@@ -797,7 +884,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 "06": "ND",
                 "14": "FSE"
             };
-            
             return {
                 ...prev,
                 fecha_emision: dteData.identificacion.fecEmi,
@@ -806,7 +892,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 nombre_proveedor: dteData.emisor.nombre,
                 proveedor_id: pendingDteData.foundProv ? pendingDteData.foundProv.id : prev.proveedor_id,
                 tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                
                 gravadas_internas: dteData.resumen.totalGravada,
                 credito_fiscal: iva,
                 total_compras: dteData.resumen.totalPagar
@@ -828,6 +913,14 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         <div className="text-black flex flex-col h-screen bg-gray-50">
             {isMobile && sidebarOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-30" onClick={() => setSidebarOpen(false)}></div>
+            )}
+
+            {/* ========== MODAL DE ÉXITO ========== */}
+            {successMessage && (
+                <SuccessModal
+                    message={successMessage}
+                    onClose={() => setSuccessMessage("")}
+                />
             )}
 
             <div className="flex flex-1 h-full overflow-hidden">
@@ -864,13 +957,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                 <div className="mb-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded shadow-sm">
                                     <p className="font-medium">Error</p>
                                     <p>{error}</p>
-                                </div>
-                            )}
-
-                            {successMessage && (
-                                <div className="mb-4 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded shadow-sm">
-                                    <p className="font-medium">Éxito</p>
-                                    <p>{successMessage}</p>
                                 </div>
                             )}
 
