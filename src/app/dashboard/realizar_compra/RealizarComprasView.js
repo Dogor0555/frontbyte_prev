@@ -293,157 +293,200 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     };
 
     const procesarDteActual = async (dteData) => {
-        setIsLoading(true);
-        try {
-            setCurrentDteData(dteData);
-            
-            const emisorNit = dteData.emisor.nit;
-            const emisorNrc = dteData.emisor.nrc;
-            
-            let foundProv = proveedores.find(p => 
-                (p.nit && p.nit === emisorNit) || 
-                (p.nrc && p.nrc === emisorNrc) ||
-                (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor.nombre.toLowerCase()))
-            );
+    setIsLoading(true);
+    try {
+        setCurrentDteData(dteData);
+        
+        const emisorNit = dteData.emisor.nit;
+        const emisorNrc = dteData.emisor.nrc;
+        
+        let foundProv = proveedores.find(p => 
+            (p.nit && p.nit === emisorNit) || 
+            (p.nrc && p.nrc === emisorNrc) ||
+            (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor.nombre.toLowerCase()))
+        );
 
-            if (!foundProv) {
-                try {
-                    const newProvData = {
-                        nombre: dteData.emisor.nombre,
-                        codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
-                        descripcion: dteData.emisor.descActividad || "Creado automáticamente desde DTE"
-                    };
-
-                    const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify(newProvData),
-                    });
-
-                    if (response.ok) {
-                        const resJson = await response.json();
-                        foundProv = resJson.proveedor;
-                        setProveedores(prev => [...prev, foundProv]);
-                    }
-                } catch (err) {
-                    console.error("Error creando proveedor automático:", err);
-                }
-            }
-
-            const currentProveedorId = foundProv ? foundProv.id : null;
-
-            let codigoGeneracion = null;
-            let selloRecepcion = null;
-
-            if (dteData.identificacion?.codigoGeneracion) {
-                codigoGeneracion = dteData.identificacion.codigoGeneracion;
-            } else if (dteData.codigoGeneracion) {
-                codigoGeneracion = dteData.codigoGeneracion;
-            }
-
-            if (dteData.respuestaHacienda?.selloRecibido) {
-                selloRecepcion = dteData.respuestaHacienda.selloRecibido;
-            } else if (dteData.selloRecibido) {
-                selloRecepcion = dteData.selloRecibido;
-            } else if (dteData.sello_recepcion) {
-                selloRecepcion = dteData.sello_recepcion;
-            }
-
-            const productosNoEncontrados = [];
-            const productosACrear = [];
-            let currentProductos = [...productos];
-
-            for (const item of dteData.cuerpoDocumento) {
-                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-                
-                if (!foundProd) {
-                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-                }
-
-                if (!foundProd) {
-                    productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
-                    productosACrear.push({
-                        item,
-                        nombre: item.descripcion,
-                        codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                        unidad: item.uniMedida || "Unidad",
-                        precio: item.precioUni,
-                        preciooferta: 0,
-                        stock: 0,
-                        es_servicio: item.tipoItem === 2,
-                        idproveedor: currentProveedorId
-                    });
-                }
-            }
-
-            if (productosNoEncontrados.length > 0) {
-                setProductosNoEncontradosMsg(productosNoEncontrados);
-                setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
-                setShowDialog(true);
-                setIsLoading(false);
-                return;
-            }
-
-            const nuevosDetalles = [];
-
-            for (const item of dteData.cuerpoDocumento) {
-                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-                
-                if (!foundProd) {
-                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-                }
-
-                if (foundProd) {
-                    nuevosDetalles.push({
-                        producto_id: foundProd.id,
-                        producto_nombre: foundProd.nombre,
-                        producto_codigo: foundProd.codigo,
-                        cantidad: item.cantidad,
-                        precio_unitario: item.precioUni,
-                        subtotal: item.ventaGravada
-                    });
-                }
-            }
-
-            setFormData(prev => {
-                const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-                
-                const tipoMap = {
-                    "01": "FCF",
-                    "03": "CCF",
-                    "05": "NC",
-                    "06": "ND",
-                    "14": "FSE"
+        if (!foundProv) {
+            try {
+                const newProvData = {
+                    nombre: dteData.emisor.nombre,
+                    codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
+                    descripcion: dteData.emisor.descActividad || "Creado automáticamente desde DTE"
                 };
-                
-                return {
-                    ...prev,
-                    fecha_emision: dteData.identificacion.fecEmi,
-                    numero_documento: dteData.identificacion.numeroControl,
-                    codigo_generacion: codigoGeneracion,
-                    sello_recepcion: selloRecepcion,
-                    nrc: dteData.emisor.nrc,
-                    nombre_proveedor: dteData.emisor.nombre,
-                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                    tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte).padStart(2, '0')] || "CCF",
-                    gravadas_internas: dteData.resumen.totalGravada,
-                    credito_fiscal: iva,
-                    total_compras: dteData.resumen.totalPagar
-                };
-            });
 
-            if (nuevosDetalles.length > 0) {
-                setDetalles(prev => [...prev, ...nuevosDetalles]);
+                const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify(newProvData),
+                });
+
+                if (response.ok) {
+                    const resJson = await response.json();
+                    foundProv = resJson.proveedor;
+                    setProveedores(prev => [...prev, foundProv]);
+                }
+            } catch (err) {
+                console.error("Error creando proveedor automático:", err);
             }
-
-            setIsLoading(false);
-        } catch (error) {
-            console.error("Error procesando DTE:", error);
-            setError("Error al procesar el archivo DTE.");
-            setIsLoading(false);
         }
-    };
+
+        const currentProveedorId = foundProv ? foundProv.id : null;
+
+        // ========== EXTRAER CÓDIGO DE GENERACIÓN Y SELLO DE RECEPCIÓN ==========
+        let codigoGeneracion = null;
+        let selloRecepcion = null;
+
+        if (dteData.identificacion?.codigoGeneracion) {
+            codigoGeneracion = dteData.identificacion.codigoGeneracion;
+        } else if (dteData.codigoGeneracion) {
+            codigoGeneracion = dteData.codigoGeneracion;
+        }
+
+        if (dteData.respuestaHacienda?.selloRecibido) {
+            selloRecepcion = dteData.respuestaHacienda.selloRecibido;
+        } else if (dteData.selloRecibido) {
+            selloRecepcion = dteData.selloRecibido;
+        } else if (dteData.sello_recepcion) {
+            selloRecepcion = dteData.sello_recepcion;
+        }
+
+        // ========== EXTRAER IMPUESTOS (FOVIAL, COTRANS, IVA) ==========
+        let fovial = 0;
+        let cotrans = 0;
+        let iva = 0;
+
+        if (dteData.resumen?.tributos && Array.isArray(dteData.resumen.tributos)) {
+            dteData.resumen.tributos.forEach(tributo => {
+                const valor = parseFloat(tributo.valor) || 0;
+                
+                // IMPRIMIR PARA DEPURACIÓN
+                console.log(`🔍 Procesando tributo: ${tributo.codigo} = ${valor}`);
+                
+                switch(tributo.codigo) {
+                    case 'D1': // FOVIAL
+                        fovial = valor;
+                        console.log("✅ FOVIAL encontrado:", valor);
+                        break;
+                    case 'C8': // COTRANS
+                        cotrans = valor;
+                        console.log("✅ COTRANS encontrado:", valor);
+                        break;
+                    case '20': // IVA
+                        iva = valor;
+                        console.log("✅ IVA encontrado:", valor);
+                        break;
+                    default:
+                        console.log("ℹ️ Otro impuesto:", tributo.codigo, valor);
+                }
+            });
+        }
+
+        console.log("📊 Impuestos finales:", { 
+            fovial, 
+            cotrans, 
+            iva,
+            totalGravada: dteData.resumen.totalGravada,
+            totalPagar: dteData.resumen.totalPagar 
+        });
+
+        const productosNoEncontrados = [];
+        const productosACrear = [];
+        let currentProductos = [...productos];
+
+        for (const item of dteData.cuerpoDocumento) {
+            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            
+            if (!foundProd) {
+                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+            }
+
+            if (!foundProd) {
+                productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
+                productosACrear.push({
+                    item,
+                    nombre: item.descripcion,
+                    codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                    unidad: item.uniMedida || "Unidad",
+                    precio: item.precioUni,
+                    preciooferta: 0,
+                    stock: 0,
+                    es_servicio: item.tipoItem === 2,
+                    idproveedor: currentProveedorId
+                });
+            }
+        }
+
+        if (productosNoEncontrados.length > 0) {
+            setProductosNoEncontradosMsg(productosNoEncontrados);
+            setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
+            setShowDialog(true);
+            setIsLoading(false);
+            return;
+        }
+
+        const nuevosDetalles = [];
+
+        for (const item of dteData.cuerpoDocumento) {
+            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            
+            if (!foundProd) {
+                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+            }
+
+            if (foundProd) {
+                nuevosDetalles.push({
+                    producto_id: foundProd.id,
+                    producto_nombre: foundProd.nombre,
+                    producto_codigo: foundProd.codigo,
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precioUni,
+                    subtotal: item.ventaGravada
+                });
+            }
+        }
+
+        setFormData(prev => {
+            const tipoMap = {
+                "01": "FCF",
+                "03": "CCF",
+                "05": "NC",
+                "06": "ND",
+                "14": "FSE"
+            };
+            
+            const newData = {
+                ...prev,
+                fecha_emision: dteData.identificacion.fecEmi,
+                numero_documento: dteData.identificacion.numeroControl,
+                codigo_generacion: codigoGeneracion,
+                sello_recepcion: selloRecepcion,
+                nrc: dteData.emisor.nrc,
+                nombre_proveedor: dteData.emisor.nombre,
+                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte).padStart(2, '0')] || "CCF",
+                gravadas_internas: dteData.resumen.totalGravada || 0,
+                credito_fiscal: iva,
+                fovial: fovial,
+                cotrans: cotrans,
+                total_compras: dteData.resumen.totalPagar || 0
+            };
+            
+            console.log("📝 FormData actualizado:", newData);
+            return newData;
+        });
+
+        if (nuevosDetalles.length > 0) {
+            setDetalles(prev => [...prev, ...nuevosDetalles]);
+        }
+
+        setIsLoading(false);
+    } catch (error) {
+        console.error("Error procesando DTE:", error);
+        setError("Error al procesar el archivo DTE.");
+        setIsLoading(false);
+    }
+};
 
     const procesarDte = async (dteData, foundProv) => {
         try {
@@ -591,6 +634,13 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 detalles: detalles,
                 dteData: currentDteData
             };
+
+            console.log("📤 Enviando payload al backend:", {
+                fovial: payload.fovial,
+                cotrans: payload.cotrans,
+                credito_fiscal: payload.credito_fiscal,
+                total_compras: payload.total_compras
+            });
 
             const response = await fetch(`${API_BASE_URL}/compras/add`, {
                 method: "POST",
@@ -1192,9 +1242,12 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                     </div>
                                 </div>
 
+                                {/* ========== APARTADO DE TOTALES Y RETENCIONES (CORREGIDO) ========== */}
                                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                                     <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Totales y Retenciones</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        
+                                        {/* Columna 1: Compras Gravadas */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Compras Gravadas</h3>
                                             <div>
@@ -1241,6 +1294,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             </div>
                                         </div>
 
+                                        {/* Columna 2: Compras Exentas */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Compras Exentas</h3>
                                             <div>
@@ -1287,6 +1341,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             </div>
                                         </div>
 
+                                        {/* Columna 3: Impuestos (FOVIAL, COTRANS, IVA) */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Impuestos</h3>
                                             <div>
@@ -1318,79 +1373,100 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">COTRANS / CESC</label>
-                                                <div className="flex space-x-2">
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">COTRANS</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="cotrans"
                                                         value={formData.cotrans} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="COTRANS"
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
                                                     />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">CESC</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="cesc"
                                                         value={formData.cesc} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="CESC"
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
                                                     />
                                                 </div>
                                             </div>
                                         </div>
 
+                                        {/* Columna 4: Retenciones / Percepciones + Total */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Retenciones / Percepciones</h3>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Anticipo IVA / Percepción</label>
-                                                <div className="flex space-x-2">
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Anticipo IVA</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="anticipo_iva_percibido"
                                                         value={formData.anticipo_iva_percibido} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="Anticipo"
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
+                                                        placeholder="Anticipo"
                                                     />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Percepción</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="percepcion"
                                                         value={formData.percepcion} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="Percep."
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
+                                                        placeholder="Percep."
                                                     />
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Retención (1% / Terceros)</label>
-                                                <div className="flex space-x-2">
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Retención (1%)</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="retencion"
                                                         value={formData.retencion} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="Ret. 1%"
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
+                                                        placeholder="Ret. 1%"
                                                     />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Retención Terceros</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="retencion_terceros"
                                                         value={formData.retencion_terceros} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="Terceros"
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
+                                                        placeholder="Terceros"
                                                     />
                                                 </div>
                                             </div>
 
+                                            {/* Total */}
                                             <div className="pt-6">
                                                 <div className="text-right">
                                                     <span className="text-sm text-gray-500">Total Compras:</span>
