@@ -34,7 +34,20 @@ export default function Home() {
       window.removeEventListener('scroll', animateOnScroll);
     };
   }, []);
+useEffect(() => {
+  // Ocultar scrollbar pero permitir scroll
+  const style = document.createElement('style');
+  style.innerHTML = `
+    ::-webkit-scrollbar { display: none; }
+    html { scrollbar-width: none; }
+    body { -ms-overflow-style: none; }
+  `;
+  document.head.appendChild(style);
 
+  return () => {
+    document.head.removeChild(style);
+  };
+}, []);
   return (
     <>
       <Particles />
