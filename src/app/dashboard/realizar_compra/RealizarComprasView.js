@@ -18,6 +18,74 @@ import {
     FaMoneyBillWave
 } from "react-icons/fa";
 
+// ========== MODAL DE ÉXITO ==========
+const SuccessModal = ({ message, onClose }) => {
+    const [countdown, setCountdown] = useState(5);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCountdown(prev => {
+                if (prev <= 1) {
+                    clearInterval(interval);
+                    onClose();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [onClose]);
+
+    const lines = message.split('\n').filter(Boolean);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" style={{ backdropFilter: 'blur(4px)' }}>
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+                {/* Header verde */}
+                <div className="bg-gradient-to-br from-green-500 to-emerald-600 px-8 py-8 text-center">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                        <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">¡Compra Registrada!</h2>
+                    <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.85)' }}>La compra se guardó exitosamente</p>
+                </div>
+
+                {/* Detalle */}
+                <div className="px-8 py-6 space-y-3">
+                    {lines.map((line, i) => (
+                        <div key={i} className="flex items-center text-gray-700 text-sm bg-gray-50 rounded-lg px-4 py-2">
+                            <span>{line}</span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Botón */}
+                <div className="px-8 pb-6">
+                    <button
+                        onClick={onClose}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+                    >
+                        Aceptar ({countdown}s)
+                    </button>
+                </div>
+
+                {/* Barra de progreso */}
+                <div className="h-1 w-full bg-green-100">
+                    <div
+                        className="h-full bg-green-500"
+                        style={{
+                            width: `${(countdown / 5) * 100}%`,
+                            transition: 'width 1s linear'
+                        }}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function RealizarComprasView({ user, hasHaciendaToken, haciendaStatus }) {
     const router = useRouter();
     
@@ -30,6 +98,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
     const [proveedores, setProveedores] = useState([]);
     const [productos, setProductos] = useState([]);
+    
+    const [currentDteData, setCurrentDteData] = useState(null);
     
     const [formData, setFormData] = useState({
         fecha: new Date().toISOString().split('T')[0],
@@ -57,7 +127,9 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         retencion: 0,
         percepcion: 0,
         retencion_terceros: 0,
-        total_compras: 0
+        total_compras: 0,
+        codigo_generacion: null,
+        sello_recepcion: null
     });
 
     const [detalles, setDetalles] = useState([]);
@@ -212,7 +284,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         setIsProcessingMultiple(true);
         
         const dtes = Array.isArray(dtesData) ? dtesData : [dtesData];
-        
 
         if (dtes.length > 0) {
             setPendingDtes(dtes);
@@ -224,6 +295,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const procesarDteActual = async (dteData) => {
     setIsLoading(true);
     try {
+        setCurrentDteData(dteData);
+        
         const emisorNit = dteData.emisor.nit;
         const emisorNrc = dteData.emisor.nrc;
         
@@ -261,11 +334,61 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         const currentProveedorId = foundProv ? foundProv.id : null;
 
         // ========== EXTRAER CÓDIGO DE GENERACIÓN Y SELLO DE RECEPCIÓN ==========
-        const codigoGeneracion = dteData.identificacion?.codigoGeneracion;
-        const selloRecepcion = dteData.selloRecibido;
+        let codigoGeneracion = null;
+        let selloRecepcion = null;
 
-        console.log("DTE - Código Generación:", codigoGeneracion);
-        console.log("DTE - Sello Recepción:", selloRecepcion);
+        if (dteData.identificacion?.codigoGeneracion) {
+            codigoGeneracion = dteData.identificacion.codigoGeneracion;
+        } else if (dteData.codigoGeneracion) {
+            codigoGeneracion = dteData.codigoGeneracion;
+        }
+
+        if (dteData.respuestaHacienda?.selloRecibido) {
+            selloRecepcion = dteData.respuestaHacienda.selloRecibido;
+        } else if (dteData.selloRecibido) {
+            selloRecepcion = dteData.selloRecibido;
+        } else if (dteData.sello_recepcion) {
+            selloRecepcion = dteData.sello_recepcion;
+        }
+
+        // ========== EXTRAER IMPUESTOS (FOVIAL, COTRANS, IVA) ==========
+        let fovial = 0;
+        let cotrans = 0;
+        let iva = 0;
+
+        if (dteData.resumen?.tributos && Array.isArray(dteData.resumen.tributos)) {
+            dteData.resumen.tributos.forEach(tributo => {
+                const valor = parseFloat(tributo.valor) || 0;
+                
+                // IMPRIMIR PARA DEPURACIÓN
+                console.log(`🔍 Procesando tributo: ${tributo.codigo} = ${valor}`);
+                
+                switch(tributo.codigo) {
+                    case 'D1': // FOVIAL
+                        fovial = valor;
+                        console.log("✅ FOVIAL encontrado:", valor);
+                        break;
+                    case 'C8': // COTRANS
+                        cotrans = valor;
+                        console.log("✅ COTRANS encontrado:", valor);
+                        break;
+                    case '20': // IVA
+                        iva = valor;
+                        console.log("✅ IVA encontrado:", valor);
+                        break;
+                    default:
+                        console.log("ℹ️ Otro impuesto:", tributo.codigo, valor);
+                }
+            });
+        }
+
+        console.log("📊 Impuestos finales:", { 
+            fovial, 
+            cotrans, 
+            iva,
+            totalGravada: dteData.resumen.totalGravada,
+            totalPagar: dteData.resumen.totalPagar 
+        });
 
         const productosNoEncontrados = [];
         const productosACrear = [];
@@ -324,8 +447,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         }
 
         setFormData(prev => {
-            const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-            
             const tipoMap = {
                 "01": "FCF",
                 "03": "CCF",
@@ -334,24 +455,25 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 "14": "FSE"
             };
             
-            return {
+            const newData = {
                 ...prev,
                 fecha_emision: dteData.identificacion.fecEmi,
                 numero_documento: dteData.identificacion.numeroControl,
-                
-                // ========== GUARDAR LOS NUEVOS CAMPOS ==========
                 codigo_generacion: codigoGeneracion,
                 sello_recepcion: selloRecepcion,
-                
                 nrc: dteData.emisor.nrc,
                 nombre_proveedor: dteData.emisor.nombre,
                 proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
                 tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte).padStart(2, '0')] || "CCF",
-                
-                gravadas_internas: dteData.resumen.totalGravada,
+                gravadas_internas: dteData.resumen.totalGravada || 0,
                 credito_fiscal: iva,
-                total_compras: dteData.resumen.totalPagar
+                fovial: fovial,
+                cotrans: cotrans,
+                total_compras: dteData.resumen.totalPagar || 0
             };
+            
+            console.log("📝 FormData actualizado:", newData);
+            return newData;
         });
 
         if (nuevosDetalles.length > 0) {
@@ -411,7 +533,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     nombre_proveedor: dteData.emisor.nombre,
                     proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
                     tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                    
                     gravadas_internas: dteData.resumen.totalGravada,
                     credito_fiscal: iva,
                     total_compras: dteData.resumen.totalPagar
@@ -468,6 +589,14 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         }
     };
 
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('es-SV', { 
+            style: 'currency', 
+            currency: 'USD',
+            minimumFractionDigits: 2
+        }).format(amount);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
@@ -475,13 +604,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
         if (!formData.proveedor_id) return setError("Seleccione un proveedor.");
         if (!formData.numero_documento) return setError("Ingrese el número de documento.");
-
-        // Verificar fechas antes de enviar
-        console.log("Enviando compra - Fechas:", {
-            fecha_registro_sistema: formData.fecha,
-            fecha_emision_documento: formData.fecha_emision,
-            son_diferentes: formData.fecha !== formData.fecha_emision
-        });
 
         setIsLoading(true);
 
@@ -509,8 +631,16 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 retencion: parseFloat(formData.retencion || 0),
                 percepcion: parseFloat(formData.percepcion || 0),
                 retencion_terceros: parseFloat(formData.retencion_terceros || 0),
-                detalles: detalles
+                detalles: detalles,
+                dteData: currentDteData
             };
+
+            console.log("📤 Enviando payload al backend:", {
+                fovial: payload.fovial,
+                cotrans: payload.cotrans,
+                credito_fiscal: payload.credito_fiscal,
+                total_compras: payload.total_compras
+            });
 
             const response = await fetch(`${API_BASE_URL}/compras/add`, {
                 method: "POST",
@@ -536,19 +666,28 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 });
             }
 
-            setSuccessMessage("Compra registrada exitosamente.");
-            
-            window.scrollTo(0, 0);
-            
+            const fechaActual = new Date().toLocaleDateString('es-SV', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            setSuccessMessage(
+                `📄 Documento: ${data.numero_documento}\n` +
+                `💰 Total: ${formatCurrency(data.monto)}\n` +
+                `📦 Productos: ${detalles.length}\n` +
+                `🕐 ${fechaActual}`
+            );
 
             if (isProcessingMultiple && currentDteIndex < pendingDtes.length - 1) {
                 const nextIndex = currentDteIndex + 1;
                 setCurrentDteIndex(nextIndex);
                 
-                // Resetear SOLO fecha_emision, mantener fecha actual
                 setFormData({
-                    fecha: new Date().toISOString().split('T')[0], // ← NUEVA fecha de registro
-                    fecha_emision: new Date().toISOString().split('T')[0], // ← Temporal
+                    fecha: new Date().toISOString().split('T')[0],
+                    fecha_emision: new Date().toISOString().split('T')[0],
                     proveedor_id: "",
                     nombre_proveedor: "",
                     numero_documento: "",
@@ -572,9 +711,12 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     retencion: 0,
                     percepcion: 0,
                     retencion_terceros: 0,
-                    total_compras: 0
+                    total_compras: 0,
+                    codigo_generacion: null,
+                    sello_recepcion: null
                 });
                 setDetalles([]);
+                setCurrentDteData(null);
                 
                 setTimeout(() => {
                     procesarDteActual(pendingDtes[nextIndex]);
@@ -582,8 +724,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 
             } else {
                 setFormData({
-                    fecha: new Date().toISOString().split('T')[0], // ← NUEVA fecha de registro
-                    fecha_emision: new Date().toISOString().split('T')[0], // ← Se resetea
+                    fecha: new Date().toISOString().split('T')[0],
+                    fecha_emision: new Date().toISOString().split('T')[0],
                     proveedor_id: "",
                     nombre_proveedor: "",
                     numero_documento: "",
@@ -607,15 +749,16 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     retencion: 0,
                     percepcion: 0,
                     retencion_terceros: 0,
-                    total_compras: 0
+                    total_compras: 0,
+                    codigo_generacion: null,
+                    sello_recepcion: null
                 });
                 setDetalles([]);
                 setPendingDtes([]);
                 setCurrentDteIndex(0);
                 setIsProcessingMultiple(false);
+                setCurrentDteData(null);
             }
-            
-            setTimeout(() => setSuccessMessage(""), 3000);
 
         } catch (err) {
             console.error(err);
@@ -708,9 +851,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
             setFormData(prev => {
                 const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-                
                 const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
-                
                 const tipoMap = {
                     "01": "FCF",
                     "03": "CCF",
@@ -718,7 +859,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     "06": "ND",
                     "14": "FSE"
                 };
-                
                 return {
                     ...prev,
                     fecha_emision: dteData.identificacion.fecEmi,
@@ -727,7 +867,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     nombre_proveedor: dteData.emisor.nombre,
                     proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
                     tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                    
                     gravadas_internas: dteData.resumen.totalGravada,
                     credito_fiscal: iva,
                     total_compras: dteData.resumen.totalPagar
@@ -787,9 +926,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
         setFormData(prev => {
             const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-            
             const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
-            
             const tipoMap = {
                 "01": "FCF",
                 "03": "CCF",
@@ -797,7 +934,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 "06": "ND",
                 "14": "FSE"
             };
-            
             return {
                 ...prev,
                 fecha_emision: dteData.identificacion.fecEmi,
@@ -806,7 +942,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 nombre_proveedor: dteData.emisor.nombre,
                 proveedor_id: pendingDteData.foundProv ? pendingDteData.foundProv.id : prev.proveedor_id,
                 tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                
                 gravadas_internas: dteData.resumen.totalGravada,
                 credito_fiscal: iva,
                 total_compras: dteData.resumen.totalPagar
@@ -828,6 +963,14 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         <div className="text-black flex flex-col h-screen bg-gray-50">
             {isMobile && sidebarOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-30" onClick={() => setSidebarOpen(false)}></div>
+            )}
+
+            {/* ========== MODAL DE ÉXITO ========== */}
+            {successMessage && (
+                <SuccessModal
+                    message={successMessage}
+                    onClose={() => setSuccessMessage("")}
+                />
             )}
 
             <div className="flex flex-1 h-full overflow-hidden">
@@ -864,13 +1007,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                 <div className="mb-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded shadow-sm">
                                     <p className="font-medium">Error</p>
                                     <p>{error}</p>
-                                </div>
-                            )}
-
-                            {successMessage && (
-                                <div className="mb-4 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded shadow-sm">
-                                    <p className="font-medium">Éxito</p>
-                                    <p>{successMessage}</p>
                                 </div>
                             )}
 
@@ -1106,9 +1242,12 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                     </div>
                                 </div>
 
+                                {/* ========== APARTADO DE TOTALES Y RETENCIONES (CORREGIDO) ========== */}
                                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                                     <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Totales y Retenciones</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        
+                                        {/* Columna 1: Compras Gravadas */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Compras Gravadas</h3>
                                             <div>
@@ -1155,6 +1294,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             </div>
                                         </div>
 
+                                        {/* Columna 2: Compras Exentas */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Compras Exentas</h3>
                                             <div>
@@ -1201,6 +1341,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             </div>
                                         </div>
 
+                                        {/* Columna 3: Impuestos (FOVIAL, COTRANS, IVA) */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Impuestos</h3>
                                             <div>
@@ -1232,79 +1373,100 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">COTRANS / CESC</label>
-                                                <div className="flex space-x-2">
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">COTRANS</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="cotrans"
                                                         value={formData.cotrans} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="COTRANS"
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
                                                     />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">CESC</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="cesc"
                                                         value={formData.cesc} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="CESC"
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
                                                     />
                                                 </div>
                                             </div>
                                         </div>
 
+                                        {/* Columna 4: Retenciones / Percepciones + Total */}
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Retenciones / Percepciones</h3>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Anticipo IVA / Percepción</label>
-                                                <div className="flex space-x-2">
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Anticipo IVA</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="anticipo_iva_percibido"
                                                         value={formData.anticipo_iva_percibido} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="Anticipo"
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
+                                                        placeholder="Anticipo"
                                                     />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Percepción</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="percepcion"
                                                         value={formData.percepcion} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="Percep."
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
+                                                        placeholder="Percep."
                                                     />
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Retención (1% / Terceros)</label>
-                                                <div className="flex space-x-2">
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Retención (1%)</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="retencion"
                                                         value={formData.retencion} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="Ret. 1%"
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
+                                                        placeholder="Ret. 1%"
                                                     />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Retención Terceros</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
                                                     <input 
                                                         type="number" 
                                                         name="retencion_terceros"
                                                         value={formData.retencion_terceros} 
                                                         onChange={handleChange}
-                                                        className="w-1/2 px-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="Terceros"
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                         min="0" step="0.01"
+                                                        placeholder="Terceros"
                                                     />
                                                 </div>
                                             </div>
 
+                                            {/* Total */}
                                             <div className="pt-6">
                                                 <div className="text-right">
                                                     <span className="text-sm text-gray-500">Total Compras:</span>
