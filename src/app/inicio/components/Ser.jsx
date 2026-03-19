@@ -273,32 +273,46 @@ const Services = () => {
           padding: 0 20px;
         }
 
-        .tab-button {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          padding: 15px 25px;
-          border: 2px solid transparent;
-          border-radius: 50px;
-          background: white;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          font-weight: 600;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-          font-size: 1rem;
-        }
+.tab-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 
-        .tab-button:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        }
+  padding: 15px 25px;
+  border-radius: 50px;
 
-        .tab-button.active {
-          background: white;
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        }
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(8px);
+
+  border: 1px solid rgba(255,255,255,0.1);
+
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  font-weight: 600;
+  font-size: 1rem;
+
+  color: #94a3b8;
+}
+
+.tab-button:hover {
+  transform: translateY(-2px);
+  border-color: var(--tab-color);
+  color: var(--tab-color);
+
+  box-shadow: 0 0 15px var(--tab-color);
+}
+.tab-button.active {
+  color: var(--tab-color);
+  border-color: var(--tab-color);
+
+  background: rgba(255,255,255,0.08);
+
+  box-shadow: 
+    0 0 20px var(--tab-color),
+    inset 0 0 10px rgba(255,255,255,0.05);
+}
 
         .tab-icon {
           font-size: 1.5rem;
