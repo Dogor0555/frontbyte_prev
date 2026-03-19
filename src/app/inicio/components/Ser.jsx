@@ -232,8 +232,10 @@ const Services = () => {
         .services {
           width: 100%;
           padding: 80px 20px;
-          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        }
+          background: radial-gradient(circle at top left, rgba(0, 212, 255, 0.15), transparent 40%),
+                      linear-gradient(135deg, #020617 0%, #0f172a 100%);
+          color: #e2e8f0;        
+  }
 
         .container {
           max-width: 1200px;
@@ -332,23 +334,49 @@ const Services = () => {
         }
 
         .service-card {
-          background: white;
+          position: relative;
           border-radius: 20px;
           padding: 30px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-          transition: all 0.3s ease;
-          position: relative;
-          border: 2px solid transparent;
           display: flex;
           flex-direction: column;
+          overflow: hidden;
+
+          background: rgba(2, 6, 23, 0.9);
+          backdrop-filter: blur(12px);
+
+          border: 1px solid rgba(255,255,255,0.08);
+
+          transition: all 0.4s ease;
         }
 
         .service-card:hover {
           transform: translateY(-5px);
           box-shadow: 0 20px 40px rgba(0,0,0,0.15);
           border-color: var(--card-color);
+          transform: translateY(-8px) scale(1.02);
+          box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
+          .btn-primary {
+          background: var(--card-color);
+          color: #020617;
+          box-shadow: 0 0 20px var(--card-color);
+        }
+
+        .btn-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 0 30px var(--card-color);
+        }
+
+        .btn-secondary {
+          border: 1px solid var(--card-color);
+          color: var(--card-color);
+        }
+
+        .btn-secondary:hover {
+          background: var(--card-color);
+          color: #020617;
+        }
         .service-card.featured {
           border-color: var(--card-color);
           background: linear-gradient(135deg, rgba(0, 212, 255, 0.05), rgba(0, 123, 255, 0.05));
@@ -372,17 +400,20 @@ const Services = () => {
           margin-bottom: 20px;
           display: block;
           line-height: 1;
+          font-size: 3rem;
+          margin-bottom: 20px;
+          filter: drop-shadow(0 0 10px var(--card-color));
         }
 
         .service-card h4 {
           font-size: 1.4rem;
           font-weight: 600;
-          color: #333;
+          color: #e2e8f0;
           margin: 0 0 15px 0;
         }
 
         .service-card p {
-          color: #666;
+          color: #94a3b8;
           line-height: 1.6;
           margin: 0 0 20px 0;
           flex-grow: 1;
@@ -395,14 +426,12 @@ const Services = () => {
           margin-bottom: 25px;
         }
 
-        .feature-tag {
-          background: var(--card-color);
-          color: white;
-          padding: 4px 12px;
-          border-radius: 15px;
-          font-size: 0.8rem;
-          font-weight: 500;
-        }
+.feature-tag {
+  background: rgba(255,255,255,0.05);
+  color: var(--card-color);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(6px);
+}
 
         .service-actions {
           display: flex;
@@ -420,10 +449,7 @@ const Services = () => {
           font-size: 0.9rem;
         }
 
-        .btn-primary {
-          background: var(--card-color);
-          color: white;
-        }
+
 
         .btn-primary:hover {
           opacity: 0.9;
