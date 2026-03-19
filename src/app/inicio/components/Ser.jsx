@@ -467,27 +467,38 @@ const Services = () => {
           color: white;
         }
 
-        .services-cta {
-          background: linear-gradient(135deg, #333, #555);
-          border-radius: 25px;
-          padding: 50px;
-          color: white;
-          display: grid;
-          grid-template-columns: 2fr 1fr;
-          gap: 40px;
-          align-items: center;
-        }
+.services-cta {
+  position: relative;
+  overflow: hidden;
+
+  background: rgba(2, 6, 23, 0.9);
+  backdrop-filter: blur(12px);
+
+  border-radius: 25px;
+  padding: 50px;
+
+  border: 1px solid rgba(255,255,255,0.08);
+
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 40px;
+  align-items: center;
+    animation: floatCard 6s ease-in-out infinite;
+
+}
+  
 
         .cta-content h3 {
-          font-size: 2rem;
-          margin: 0 0 15px 0;
+  font-size: 2rem;
+  margin: 0 0 15px 0;
+  color: #e2e8f0;
         }
 
         .cta-content p {
-          font-size: 1.1rem;
-          line-height: 1.6;
-          margin: 0 0 30px 0;
-          opacity: 0.9;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 0 0 30px 0;
+  color: #94a3b8;
         }
 
         .cta-buttons {
@@ -505,13 +516,14 @@ const Services = () => {
         }
 
         .cta-button.primary {
-          background: #00d4ff;
-          color: white;
+  background: #00d4ff;
+  color: #020617;
+  box-shadow: 0 0 25px #00d4ff;
         }
 
         .cta-button:hover {
-          transform: translateY(-2px);
-        }
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px #00d4ff;        }
 
         .cta-stats {
           display: flex;
@@ -519,20 +531,27 @@ const Services = () => {
           gap: 20px;
         }
 
-        .stat-item {
-          text-align: center;
-          padding: 20px;
-          background: rgba(255,255,255,0.1);
-          border-radius: 15px;
-        }
+.stat-item {
+  padding: 20px;
+  border-radius: 15px;
 
-        .stat-number {
-          font-size: 2.5rem;
-          font-weight: bold;
-          color: #00d4ff;
-          margin: 0;
-          line-height: 1;
-        }
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(8px);
+
+  border: 1px solid rgba(255,255,255,0.1);
+
+  transition: 0.3s;
+}
+  .stat-item:hover {
+  transform: translateY(-5px);
+  border-color: #00d4ff;
+}
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #00d4ff;
+  text-shadow: 0 0 15px #00d4ff;
+}
 
         .stat-label {
           font-size: 0.9rem;
@@ -604,6 +623,25 @@ const Services = () => {
           .stat-label {
             font-size: 0.8rem;
           }
+            @keyframes floatCard {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+  @keyframes rotateBorder {
+  0% {
+    transform: rotate(0deg) scale(1.5);
+  }
+  100% {
+    transform: rotate(360deg) scale(1.5);
+  }
+}
         }
       `}</style>
     </section>
