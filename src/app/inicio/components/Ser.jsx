@@ -500,7 +500,9 @@ const Services = () => {
     animation: floatCard 6s ease-in-out infinite;
 
 }
-  
+  .services-cta:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 40px #00d4ff;  }
 
         .cta-content h3 {
   font-size: 2rem;
@@ -536,8 +538,9 @@ const Services = () => {
         }
 
         .cta-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 40px #00d4ff;        }
+        transform: translateY(-2px);
+        box-shadow: 0 0 40px #00d4ff;        
+        }
 
         .cta-stats {
           display: flex;
