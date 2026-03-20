@@ -582,6 +582,15 @@ export default function Sidebar({ onOpenPerfil }) {
       });
     }
 
+    if (tienePermiso("Proveedores")) {
+      adminSubMenu.push({
+        name: "Proveedores",
+        icon: <FaTruck />,
+        href: "/dashboard/proveedores",
+        permiso: "Proveedores"
+      });
+    }
+
     if (tienePermiso("Registro de eventos")) {
       adminSubMenu.push({
         name: "Registro de eventos",
@@ -846,21 +855,21 @@ export default function Sidebar({ onOpenPerfil }) {
                 </div>
 
                {/* Información del empleado - SOLO nombre y rol */}
-<div className="flex-1 min-w-0">
-  <h3 className="font-bold text-white text-xs sm:text-sm break-words leading-tight line-clamp-2">
-    {empleado.nombre}
-  </h3>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-white text-xs sm:text-sm break-words leading-tight line-clamp-2">
+                  {empleado.nombre}
+                </h3>
 
-  <div className="flex items-center gap-2 mt-1">
-    <span className="px-2.5 py-1 bg-blue-700/60 rounded-full text-blue-100 text-xs font-medium border border-blue-500/30 whitespace-nowrap">
-      {empleado.rol}
-    </span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="px-2.5 py-1 bg-blue-700/60 rounded-full text-blue-100 text-xs font-medium border border-blue-500/30 whitespace-nowrap">
+                    {empleado.rol}
+                  </span>
 
-    <span className="text-xs text-blue-200 bg-blue-800/30 px-2 py-1 rounded-lg border border-blue-500/20 whitespace-nowrap">
-      ● Activo
-    </span>
-  </div>
-</div>
+                  <span className="text-xs text-blue-200 bg-blue-800/30 px-2 py-1 rounded-lg border border-blue-500/20 whitespace-nowrap">
+                    ● Activo
+                  </span>
+                </div>
+              </div>
 
               </div>
             </div>
