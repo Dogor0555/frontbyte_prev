@@ -41,7 +41,8 @@ import {
   FaCartPlus,
   FaBriefcase,
   FaStore,
-  FaMapMarkerAlt
+  FaMapMarkerAlt,
+  FaHeadset
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin } from "../../services/auth";
@@ -71,6 +72,7 @@ export default function Sidebar({ onOpenPerfil }) {
     contribuyentes: false,
     exportacion: false,
     compras: false,
+    soporte: false,
   });
 
   useEffect(() => {
@@ -90,7 +92,6 @@ export default function Sidebar({ onOpenPerfil }) {
       console.log('Empresa cargada:', empresaParsed.nombre);
     }
     
-    // 🟢 CORREGIDO: SOLO USA LA SUCURSAL DEL LOCALSTORAGE, NUNCA LA CREES GENÉRICA
     if (sucursalData) {
       const sucursalParsed = JSON.parse(sucursalData);
       setSucursal(sucursalParsed);
@@ -98,23 +99,19 @@ export default function Sidebar({ onOpenPerfil }) {
       console.log('📦 Datos completos sucursal:', sucursalParsed);
     } else {
       console.warn('⚠️ No hay sucursal en localStorage. El backend no la envió o no se guardó correctamente.');
-      // NO CREES UNA SUCURSAL GENÉRICA AQUÍ
     }
     
     cargarPermisos();
   }, []);
 
-  // 👇 MEJORADO: Determinar qué menú abrir basado en la ruta actual
   useEffect(() => {
     const determineOpenMenu = () => {
       const newOpenMenus = { ...openMenus };
       
-      // Resetear todos los menús a false
       Object.keys(newOpenMenus).forEach(key => {
         newOpenMenus[key] = false;
       });
 
-      // DTE y sus variantes
       if (pathname.includes('/dte_factura') || 
           pathname.includes('/dte_credito') || 
           pathname.includes('/dte_nota_remision') || 
@@ -123,47 +120,40 @@ export default function Sidebar({ onOpenPerfil }) {
         newOpenMenus.dtes = true;
       }
       
-      // Facturas
       else if (pathname.includes('/facturas') && 
                !pathname.includes('sujeto_excluido') && 
                !pathname.includes('exportacion')) {
         newOpenMenus.facturas = true;
       }
       
-      // Créditos
       else if (pathname.includes('/creditos') || 
                pathname.includes('/nota_debito')) {
         newOpenMenus.creditos = true;
       }
       
-      // Notas de Remisión
       else if (pathname.includes('/notas_remision') || 
                pathname.includes('/anular_nota_remision')) {
         newOpenMenus.remision = true;
       }
       
-      // Sujeto Excluido
       else if (pathname.includes('/facturas_sujeto_excluido') || 
                pathname.includes('/anular_facturas_sujeto_excluido') ||
                pathname.includes('/sujeto_excluido')) {
         newOpenMenus.sujeto_excluido = true;
       }
       
-      // Liquidación
       else if (pathname.includes('/liquidacion') || 
                pathname.includes('/comprobantes_liquidacion') ||
                pathname.includes('/anular_liquidacion')) {
         newOpenMenus.liquidacion = true;
       }
       
-      // Exportación
       else if (pathname.includes('/exportacion') || 
                pathname.includes('/facturas_exportacion') ||
                pathname.includes('/anular_factura_exportacion')) {
         newOpenMenus.exportacion = true;
       }
       
-      // Contribuyentes
       else if (pathname.includes('/contribuyente') || 
                pathname.includes('/libro_contribuyente') ||
                pathname.includes('/anexo_contribuyente') ||
@@ -171,7 +161,6 @@ export default function Sidebar({ onOpenPerfil }) {
         newOpenMenus.contribuyentes = true;
       }
       
-      // Consumidor Final
       else if (pathname.includes('/consumidor_final') || 
                pathname.includes('/libro_consumidor_final') ||
                pathname.includes('/anexo_consumidor_final') ||
@@ -179,14 +168,16 @@ export default function Sidebar({ onOpenPerfil }) {
         newOpenMenus.consumidorfinal = true;
       }
       
-      // Compras
       else if (pathname.includes('/compras') || 
                pathname.includes('/realizar_compra') ||
                pathname.includes('/registro_compras')) {
         newOpenMenus.compras = true;
       }
       
-      // Administración
+      else if (pathname.includes('/soporte')) {
+        newOpenMenus.soporte = true;
+      }
+      
       else if (pathname.includes('/empleados') || 
                pathname.includes('/productos') || 
                pathname.includes('/clientes') ||
@@ -255,6 +246,11 @@ export default function Sidebar({ onOpenPerfil }) {
 
   const isActive = (href) => {
     return pathname === href;
+  };
+
+  // Función para abrir el chat flotante
+  const openFloatingChat = () => {
+    window.dispatchEvent(new CustomEvent('openFloatingChat'));
   };
 
   const todosLosMenuItems = [
@@ -528,6 +524,12 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "compras",
       permiso: "Compras"
     },
+   // { 
+    //  name: "Soporte Técnico", 
+    //  icon: <FaHeadset />, 
+    //  onClick: openFloatingChat,  // Usamos onClick en lugar de href
+    //  permiso: "Soporte" 
+    //},
     { 
       name: "Reportes", 
       icon: <FaChartLine />, 
@@ -636,7 +638,6 @@ export default function Sidebar({ onOpenPerfil }) {
     <aside className="bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 h-full w-64 shadow-2xl">
       <div className="flex flex-col h-full">
 
-        {/* ✨ HEADER EXPANDIBLE - CON SUCURSAL */}
         <div 
           className={`
             bg-gradient-to-br from-blue-800 via-blue-700 to-blue-800 
@@ -648,7 +649,6 @@ export default function Sidebar({ onOpenPerfil }) {
           onMouseEnter={() => setHeaderExpanded(true)}
           onMouseLeave={() => setHeaderExpanded(false)}
         >
-          {/* Logo con animación */}
           <div 
             className={`
               bg-white relative rounded-full overflow-hidden 
@@ -665,7 +665,6 @@ export default function Sidebar({ onOpenPerfil }) {
             />
           </div>
           
-          {/* Nombre de la empresa - Siempre visible */}
           <div className="text-center w-full">
             <div className="flex items-center justify-center gap-2 mb-1">
               <FaBriefcase 
@@ -685,7 +684,6 @@ export default function Sidebar({ onOpenPerfil }) {
               </h1>
             </div>
             
-            {/* 🟢 CORREGIDO: SOLO MUESTRA SUCURSAL SI EXISTE Y USA SU NOMBRE REAL */}
             {sucursal && (
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <FaStore className="text-blue-300 text-xs" />
@@ -695,7 +693,6 @@ export default function Sidebar({ onOpenPerfil }) {
               </div>
             )}
             
-            {/* Información expandible - Solo visible en hover */}
             <div 
               className={`
                 transition-all duration-500 ease-in-out space-y-2
@@ -705,14 +702,12 @@ export default function Sidebar({ onOpenPerfil }) {
                 }
               `}
             >
-              {/* NIT */}
               {empresa?.nit && (
                 <div className="text-blue-100 text-xs font-medium bg-blue-800/60 px-3 py-1.5 rounded-full inline-block backdrop-blur-sm border border-blue-600/30">
                   <span className="text-blue-300">NIT:</span> {empresa.nit}
                 </div>
               )}
               
-              {/* Ambiente */}
               {empresa?.ambiente && (
                 <div 
                   className={`
@@ -732,14 +727,12 @@ export default function Sidebar({ onOpenPerfil }) {
           </div>
         </div>
 
-        {/* 📱 Navigation */}
         <nav className="flex-1 py-5 px-3 overflow-y-auto custom-scrollbar">
           <ul className="space-y-1.5">
-            {menuItems.map(({ name, icon, href, subMenu, menuKey }) => (
+            {menuItems.map(({ name, icon, href, onClick, subMenu, menuKey }) => (
               <li key={name}>
                 {subMenu ? (
                   <div className="group">
-                    {/* Parent Menu Item */}
                     <button
                       className={`
                         w-full flex items-center justify-between px-4 py-3 
@@ -765,7 +758,6 @@ export default function Sidebar({ onOpenPerfil }) {
                       </span>
                     </button>
                     
-                    {/* Submenu */}
                     <div className={`
                       overflow-hidden transition-all duration-400 ease-out
                       ${openMenus[menuKey] ? 'max-h-[500px] opacity-100 mt-2 mb-2' : 'max-h-0 opacity-0 mt-0'}
@@ -813,6 +805,22 @@ export default function Sidebar({ onOpenPerfil }) {
                       </div>
                     </div>
                   </div>
+                ) : onClick ? (
+                  // Si tiene onClick, usar botón en lugar de Link
+                  <button
+                    onClick={onClick}
+                    className={`
+                      w-full flex items-center gap-3 px-4 py-3 text-blue-100 
+                      rounded-xl transition-all duration-300 ease-out relative group/item
+                      hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]
+                    `}
+                  >
+                    <span className="text-lg">
+                      {icon}
+                    </span>
+                    <span className="font-medium text-sm flex-1 text-left">{name}</span>
+                    <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                  </button>
                 ) : (
                   <Link
                     href={href}
@@ -841,12 +849,10 @@ export default function Sidebar({ onOpenPerfil }) {
           </ul>
         </nav>
 
-        {/* 👤 Employee Info - SIN SUCURSAL DUPLICADA */}
         {empleado && (
           <div className="p-4 border-t border-blue-600/50 bg-gradient-to-br from-blue-800/90 to-blue-700/90 backdrop-blur-sm">
             <div className="bg-gradient-to-r from-blue-900/40 to-blue-800/40 rounded-xl p-4 border border-blue-600/30 shadow-lg hover:shadow-xl hover:border-blue-500/50 transition-all duration-300">
               <div className="flex items-center gap-4">
-                {/* Avatar con gradiente y status */}
                 <div className="relative flex-shrink-0">
                   <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
                     <FaUserAlt className="text-white text-lg" />
@@ -854,7 +860,6 @@ export default function Sidebar({ onOpenPerfil }) {
                   <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-blue-800 animate-pulse shadow-lg shadow-green-400/50"></div>
                 </div>
 
-               {/* Información del empleado - SOLO nombre y rol */}
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-white text-xs sm:text-sm break-words leading-tight line-clamp-2">
                   {empleado.nombre}
@@ -876,7 +881,6 @@ export default function Sidebar({ onOpenPerfil }) {
           </div>
         )}
 
-        {/* 👤 Profile Button */}
         {empleado && (
           <div className="bg-gradient-to-br from-blue-800/90 to-blue-700/90 p-4 border-t border-blue-600/50">
             <Link
@@ -901,7 +905,6 @@ export default function Sidebar({ onOpenPerfil }) {
           </div>
         )}
 
-        {/* 🚪 Logout Button */}
         <div className="bg-gradient-to-br from-blue-800/90 to-blue-700/90 p-4 border-t border-blue-600/50">
           <button
             onClick={handleLogout}
@@ -921,7 +924,6 @@ export default function Sidebar({ onOpenPerfil }) {
         </div>
       </div>
 
-      {/* Custom Scrollbar Styles */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
