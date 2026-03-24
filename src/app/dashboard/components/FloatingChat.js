@@ -7,9 +7,10 @@ import {
   FaInfoCircle, FaQuestionCircle, FaBug, FaFileInvoice, FaChartLine, FaUsers,
   FaBox, FaSearch, FaRobot,
   FaRegClock, FaCheck, FaCircle, FaAngleLeft, FaChevronDown, FaChevronUp,
-  FaPaperPlane as FaSend, FaHistory, FaEye, FaBell, FaVolumeUp, FaVolumeMute
+  FaPaperPlane as FaSend, FaHistory, FaEye, FaBell, FaVolumeUp, FaVolumeMute, FaVideo
 } from "react-icons/fa";
 import { API_BASE_URL } from "../../../lib/api";
+import VideoCall from "./VideoCall";
 
 export default function FloatingChat({ user }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -36,6 +37,8 @@ export default function FloatingChat({ user }) {
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [notificacionPermiso, setNotificacionPermiso] = useState(null);
   const [sonidoActivo, setSonidoActivo] = useState(true);
+  const [videoCallOpen, setVideoCallOpen] = useState(false);
+  const [roomId, setRoomId] = useState("");
   const audioRef = useRef(null);
 
   // ─── Permission system (same as Sidebar) ───────────────────────────────────
@@ -66,22 +69,22 @@ export default function FloatingChat({ user }) {
   };
 
   const reproducirSonido = () => {
-  if (sonidoActivo) {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    oscillator.frequency.value = 880;
-    gainNode.gain.value = 0.3;
-    oscillator.start();
-    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
-    oscillator.stop(audioCtx.currentTime + 0.5);
-  }
-};
+    if (sonidoActivo) {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.frequency.value = 880;
+      gainNode.gain.value = 0.3;
+      oscillator.start();
+      gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+      oscillator.stop(audioCtx.currentTime + 0.5);
+    }
+  };
 
   const mostrarNotificacion = (titulo, cuerpo, ticketId, tipo = "nuevo_mensaje") => {
-    reproducirSonido();
+    //reproducirSonido();
     
     if (notificacionPermiso === "granted" && document.hidden) {
       const notification = new Notification(titulo, {
@@ -101,6 +104,11 @@ export default function FloatingChat({ user }) {
         notification.close();
       };
     }
+  };
+
+  const unirseVideoLlamada = (room) => {
+    setRoomId(room);
+    setVideoCallOpen(true);
   };
 
   const mensajesPredeterminados = [
@@ -550,6 +558,7 @@ export default function FloatingChat({ user }) {
                     </div>
                   ) : mensajes.map((msg, idx) => {
                     const esCliente = msg.remitente_tipo === "cliente";
+                    const esInvitacionVideo = msg.mensaje?.startsWith("🔴");
                     return (
                       <div key={msg.id || idx} className={`fc-msg-row ${esCliente ? "fc-msg-right" : "fc-msg-left"}`}>
                         {!esCliente && (
@@ -558,6 +567,14 @@ export default function FloatingChat({ user }) {
                         <div className="fc-msg-content">
                           <div className={`fc-bubble ${esCliente ? "fc-bubble-client" : "fc-bubble-support"}`}>
                             {msg.mensaje && <p className="fc-bubble-text">{msg.mensaje}</p>}
+                            {esInvitacionVideo && !esCliente && (
+                              <button
+                                onClick={() => unirseVideoLlamada(msg.mensaje.split(":")[1]?.trim())}
+                                className="mt-2 px-3 py-1 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors flex items-center gap-2"
+                              >
+                                <FaVideo /> Unirse a videollamada
+                              </button>
+                            )}
                             {msg.imagen_url && (
                               <img src={msg.imagen_url} alt="Adjunto" className="fc-bubble-img"
                                 onClick={() => window.open(msg.imagen_url, "_blank")} />
@@ -752,6 +769,14 @@ export default function FloatingChat({ user }) {
           </div>
         )}
       </div>
+
+      {/* Modal de videollamada */}
+      <VideoCall
+        isOpen={videoCallOpen}
+        onClose={() => setVideoCallOpen(false)}
+        roomId={roomId}
+        isInitiator={false}
+      />
     </>
   );
 }
