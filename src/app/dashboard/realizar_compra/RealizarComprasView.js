@@ -657,14 +657,10 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 throw new Error(data.error || data.message || "Error al guardar la compra");
             }
 
-            for (const detalle of detalles) {
-                await fetch(`${API_BASE_URL}/productos/incrementStock/${detalle.producto_id}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({ cantidad: detalle.cantidad }),
-                });
-            }
+            // ========== CORRECCIÓN: ELIMINADO EL INCREMENTO DE STOCK EN FRONTEND ==========
+            // El stock se actualiza ÚNICAMENTE en el backend (comprasController.js)
+            // Esto evita la duplicación que ocurría antes
+            // ==============================================================================
 
             const fechaActual = new Date().toLocaleDateString('es-SV', {
                 day: '2-digit',
