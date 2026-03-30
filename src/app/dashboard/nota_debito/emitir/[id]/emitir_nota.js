@@ -258,196 +258,194 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
     }
   };
 
-  const handleGenerarNota = async () => {
-    if (!factura || !motivoNota.trim() || !montoNota) {
-      mostrarModalMensaje(
-        "error",
-        "Datos Incompletos",
-        "Por favor complete todos los campos requeridos"
-      );
-      return;
+const handleGenerarNota = async () => {
+  if (!factura || !motivoNota.trim() || !montoNota) {
+    mostrarModalMensaje(
+      "error",
+      "Datos Incompletos",
+      "Por favor complete todos los campos requeridos"
+    );
+    return;
+  }
+
+  const validacionMonto = validarMontoNota(montoNota, tipoNota, factura);
+  if (!validacionMonto.valido) {
+    setErrorMonto(validacionMonto.mensaje);
+    mostrarModalMensaje(
+      "error",
+      "Error de Validación",
+      validacionMonto.mensaje
+    );
+    return;
+  }
+
+  setErrorMonto("");
+
+  if (parseFloat(montoNota) <= 0) {
+    mostrarModalMensaje(
+      "error",
+      "Monto Inválido",
+      "El monto debe ser mayor a 0"
+    );
+    return;
+  }
+
+  setEnviando(true);
+  try {
+    const total = parseFloat(montoNota);
+    const monto = total / 1.13;
+    const iva = total - monto;
+
+    const idCliente = factura.idcliente || factura.idcliente_factura || factura.cliente_id;
+
+    if (!idCliente) {
+      throw new Error("No se pudo identificar el cliente asociado a esta factura");
     }
 
-    // Validación del monto
-    const validacionMonto = validarMontoNota(montoNota, tipoNota, factura);
-    if (!validacionMonto.valido) {
-      setErrorMonto(validacionMonto.mensaje);
-      mostrarModalMensaje(
-        "error",
-        "Error de Validación",
-        validacionMonto.mensaje
-      );
-      return;
-    }
+    const baseEndpoint = tipoNota === "debito"
+      ? `${API_BASE_URL}/notasdebito`
+      : `${API_BASE_URL}/notascredito`;
 
-    setErrorMonto(""); // Limpiar error si la validación pasa
+    const encabezadoData = {
+      idcliente: idCliente,
+      iddte_relacionado: factura.iddtefactura,
 
-    if (parseFloat(montoNota) <= 0) {
-      mostrarModalMensaje(
-        "error",
-        "Monto Inválido",
-        "El monto debe ser mayor a 0"
-      );
-      return;
-    }
+      fechaemision: (() => {
+        const ahora = new Date();
+        const offset = -6;
+        const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+        const year = salvadorTime.getUTCFullYear();
+        const month = String(salvadorTime.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(salvadorTime.getUTCDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      })(),
 
-    setEnviando(true);
-    try {
-      const total = parseFloat(montoNota);
-      const monto = total / 1.13;
-      const iva = total - monto;
-
-      const idCliente = factura.idcliente || factura.idcliente_factura || factura.cliente_id;
-      
-      if (!idCliente) {
-        throw new Error("No se pudo identificar el cliente asociado a esta factura");
-      }
-
-      const baseEndpoint = tipoNota === "debito" 
-        ? `${API_BASE_URL}/notasdebito`
-        : `${API_BASE_URL}/notascredito`;
-
-      const encabezadoData = {
-          idcliente: idCliente,
-          iddte_relacionado: factura.iddtefactura,
-          
-          fechaemision: (() => {
-              const ahora = new Date();
-              const offset = -6;
-              const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
-              const year = salvadorTime.getUTCFullYear();
-              const month = String(salvadorTime.getUTCMonth() + 1).padStart(2, '0');
-              const day = String(salvadorTime.getUTCDate()).padStart(2, '0');
-              return `${year}-${month}-${day}`;
-          })(),
-          
-          horaemision: new Date().toTimeString().split(' ')[0].substring(0, 8),
-          subtotal: monto.toFixed(2),
-          totalapagar: total.toFixed(2), // El total a pagar es el monto ingresado
-          totalgravada: monto.toFixed(2),
-          valorletras: convertirNumeroALetras(total),
-          tipoventa: "contado",
-          formapago: "efectivo",
-          estado: 1,
-          verjson: "3.0",
-          transaccioncontable: `TRX-ND-${Date.now()}`,
-          tributos: [
-              {
-                  codigo: "20",
-                  descripcion: "IVA Débito Fiscal",
-                  valor: iva.toFixed(2)
-              }
-          ]
-      };
-
-      console.log("Enviando encabezado con cliente:", encabezadoData);
-
-      const encabezadoResponse = await fetch(`${baseEndpoint}/encabezado`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(encabezadoData),
-      });
-
-      if (!encabezadoResponse.ok) {
-        const errorText = await encabezadoResponse.text();
-        throw new Error(`Error creando encabezado: ${errorText}`);
-      }
-
-      const encabezadoResult = await encabezadoResponse.json();
-      console.log("Encabezado creado:", encabezadoResult);
-
-      const { iddtefactura } = encabezadoResult;
-
-      const detallesData = {
-        transmitir: true,
-        detalles: [
-          {
-            descripcion: `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} - ${motivoNota.trim()}`,
-            cantidad: 1,
-            precio: total.toFixed(8), // El precio unitario es el total
-            preciouni: total.toFixed(8),
-            subtotal: monto.toFixed(8),
-            ventagravada: monto.toFixed(8),
-            iva: iva.toFixed(2), // El IVA calculado
-            total: total.toFixed(8),
-            unidadmedida: "UNI",
-            tributo: "20",
-            tributos: [
-              {
-                codigo: "20",
-                descripcion: "Impuesto al Valor Agregado 13%",
-                valor: iva.toFixed(2)
-              }
-            ]
-          }
-        ]
-      };
-
-      console.log("Enviando detalles:", detallesData);
-
-      const detallesResponse = await fetch(`${baseEndpoint}/${iddtefactura}/detalles`, {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(detallesData),
-          });
-
-          if (!detallesResponse.ok) {
-            const errorText = await detallesResponse.text();
-            throw new Error(`Error enviando detalles: ${errorText}`);
-          }
-
-          const detallesResult = await detallesResponse.json();
-          console.log("Detalles procesados:", detallesResult);
-
-          let mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} Generada`;
-          let mensajeDetalles = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada exitosamente`;
-          
-          if (detallesResult.hacienda && detallesResult.hacienda.estado) {
-            if (detallesResult.hacienda.estado === "PROCESADO" && detallesResult.hacienda.descripcionMsg === "RECIBIDO") {
-              mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} Transmitida`;
-              mensajeDetalles = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada y transmitida exitosamente a Hacienda`;
-            } else {
-              throw new Error(detallesResult.hacienda.descripcionMsg || `Error en Hacienda: ${detallesResult.hacienda.estado}`);
-            }
-          } 
-          
-          if (detallesResult.contingencia && detallesResult.aviso) {
-            mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} en Contingencia`;
-            mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message || "La nota se ha generado en modo de contingencia."}`;
-          } 
-
-          else if (detallesResult.transmitido) {
-            mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} Transmitida`;
-            mensajeDetalles = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} transmitida exitosamente`;
-          }
-
-          // Mostrar mensaje de éxito en el modal
-          mostrarModalMensaje(
-            "exito",
-            mensajeTitulo,
-            `La nota de ${tipoNota === "debito" ? "débito" : "crédito"} se ha procesado correctamente.`,
-            mensajeDetalles,
-            iddtefactura
-          );
-
-        } catch (error) {
-          console.error(`Error al generar nota de ${tipoNota}:`, error);
-          mostrarModalMensaje(
-            "error",
-            "Error al Generar Nota",
-            `No se pudo generar la nota de ${tipoNota === "debito" ? "débito" : "crédito"}.`,
-            error.message
-          );
-        } finally {
-          setEnviando(false);
+      horaemision: new Date().toTimeString().split(' ')[0].substring(0, 8),
+      subtotal: monto.toFixed(2),
+      totalapagar: total.toFixed(2),
+      totalgravada: monto.toFixed(2),
+      valorletras: convertirNumeroALetras(total),
+      tipoventa: "contado",
+      formapago: "efectivo",
+      estado: 1,
+      verjson: "3.0",
+      transaccioncontable: `TRX-ND-${Date.now()}`,
+      tributos: [
+        {
+          codigo: "20",
+          descripcion: "IVA Débito Fiscal",
+          valor: iva.toFixed(2)
         }
-      };
+      ]
+    };
+
+    console.log("📦 [ENCABEZADO] Payload enviado a " + baseEndpoint + "/encabezado:");
+    console.log(JSON.stringify(encabezadoData, null, 2));
+
+    const encabezadoResponse = await fetch(`${baseEndpoint}/encabezado`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(encabezadoData),
+    });
+
+    if (!encabezadoResponse.ok) {
+      const errorText = await encabezadoResponse.text();
+      throw new Error(`Error creando encabezado: ${errorText}`);
+    }
+
+    const encabezadoResult = await encabezadoResponse.json();
+    console.log("✅ [ENCABEZADO] Respuesta del servidor:", encabezadoResult);
+
+    const { iddtefactura } = encabezadoResult;
+
+    const detallesData = {
+      transmitir: true,
+      detalles: [
+        {
+          descripcion: `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} - ${motivoNota.trim()}`,
+          cantidad: 1,
+          precio: total.toFixed(8),
+          preciouni: total.toFixed(8),
+          subtotal: monto.toFixed(8),
+          ventagravada: monto.toFixed(8),
+          iva: iva.toFixed(2),
+          total: total.toFixed(8),
+          unidadmedida: "UNI",
+          tributo: "20",
+          tributos: [
+            {
+              codigo: "20",
+              descripcion: "Impuesto al Valor Agregado 13%",
+              valor: iva.toFixed(2)
+            }
+          ]
+        }
+      ]
+    };
+
+    console.log(`📦 [DETALLES] Payload enviado a ${baseEndpoint}/${iddtefactura}/detalles:`);
+    console.log(JSON.stringify(detallesData, null, 2));
+
+    const detallesResponse = await fetch(`${baseEndpoint}/${iddtefactura}/detalles`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(detallesData),
+    });
+
+    if (!detallesResponse.ok) {
+      const errorText = await detallesResponse.text();
+      throw new Error(`Error enviando detalles: ${errorText}`);
+    }
+
+    const detallesResult = await detallesResponse.json();
+    console.log("✅ [DETALLES] Respuesta del servidor:", detallesResult);
+
+    let mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} Generada`;
+    let mensajeDetalles = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada exitosamente`;
+
+    if (detallesResult.hacienda && detallesResult.hacienda.estado) {
+      if (detallesResult.hacienda.estado === "PROCESADO" && detallesResult.hacienda.descripcionMsg === "RECIBIDO") {
+        mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} Transmitida`;
+        mensajeDetalles = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} generada y transmitida exitosamente a Hacienda`;
+      } else {
+        throw new Error(detallesResult.hacienda.descripcionMsg || `Error en Hacienda: ${detallesResult.hacienda.estado}`);
+      }
+    }
+
+    if (detallesResult.contingencia && detallesResult.aviso) {
+      mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} en Contingencia`;
+      mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message || "La nota se ha generado en modo de contingencia."}`;
+    } else if (detallesResult.transmitido) {
+      mensajeTitulo = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} Transmitida`;
+      mensajeDetalles = `Nota de ${tipoNota === "debito" ? "débito" : "crédito"} transmitida exitosamente`;
+    }
+
+    mostrarModalMensaje(
+      "exito",
+      mensajeTitulo,
+      `La nota de ${tipoNota === "debito" ? "débito" : "crédito"} se ha procesado correctamente.`,
+      mensajeDetalles,
+      iddtefactura
+    );
+
+  } catch (error) {
+    console.error(`❌ Error al generar nota de ${tipoNota}:`, error);
+    mostrarModalMensaje(
+      "error",
+      "Error al Generar Nota",
+      `No se pudo generar la nota de ${tipoNota === "debito" ? "débito" : "crédito"}.`,
+      error.message
+    );
+  } finally {
+    setEnviando(false);
+  }
+};
 
   const convertirNumeroALetras = (numero) => {
     const unidades = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];

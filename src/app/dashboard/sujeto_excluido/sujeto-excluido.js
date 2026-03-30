@@ -387,85 +387,86 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   };
 
   const guardarDocumento = async () => {
-    if (guardandoDocumento) return;
+  if (guardandoDocumento) return;
+  
+  if (!validarDatosDocumento()) {
+    return;
+  }
+  
+  try {
+    setGuardandoDocumento(true); 
     
-    if (!validarDatosDocumento()) {
+    const datosDocumento = prepararDatosDocumento();
+    
+    if (!datosDocumento.formapago) {
+      mostrarModalMensaje(
+        "error",
+        "Error de Validación",
+        "No se pudo determinar la forma de pago"
+      );
+      setGuardandoDocumento(false); 
       return;
     }
     
-    try {
-      setGuardandoDocumento(true); 
-      
-      const datosDocumento = prepararDatosDocumento();
-      
-      if (!datosDocumento.formapago) {
-        mostrarModalMensaje(
-          "error",
-          "Error de Validación",
-          "No se pudo determinar la forma de pago"
-        );
-        setGuardandoDocumento(false); 
-        return;
-      }
-      
-      console.log("Datos a enviar:", datosDocumento);
-      
-      const responseEncabezado = await fetch(`${API_BASE_URL}/sujeto-excluido/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(datosDocumento)
-      });
+    console.log("📦 [ENCABEZADO] Payload enviado a /sujeto-excluido/:");
+    console.log(JSON.stringify(datosDocumento, null, 2));
+    
+    const responseEncabezado = await fetch(`${API_BASE_URL}/sujeto-excluido/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify(datosDocumento)
+    });
 
-      if (responseEncabezado.ok) {
-        const result = await responseEncabezado.json();
-        
-        const detallesResult = await guardarDetallesDocumento(result.iddtefactura);
-        
-        if (detallesResult) {
-          let mensajeTitulo = "Documento Guardado";
-          let mensajeDetalles = "";
-          let idDocumentoParaDescarga = result.iddtefactura;
+    if (responseEncabezado.ok) {
+      const result = await responseEncabezado.json();
+      
+      const detallesResult = await guardarDetallesDocumento(result.iddtefactura);
+      
+      if (detallesResult) {
+        let mensajeTitulo = "Documento Guardado";
+        let mensajeDetalles = "";
+        let idDocumentoParaDescarga = result.iddtefactura;
 
-          if (detallesResult.contingencia && detallesResult.aviso) {
-            mensajeTitulo = "Documento en Contingencia";
-            mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message}`;
-          } else if (detallesResult.transmitido) {
-            mensajeTitulo = "Documento Transmitido";
-            mensajeDetalles = `Documento de Sujeto Excluido ${result.ncontrol} guardado y transmitido exitosamente`;
-          } else {
-            mensajeDetalles = `Documento de Sujeto Excluido ${result.ncontrol} guardado exitosamente`;
-          }
-          
-          mostrarModalMensaje(
-            "exito",
-            mensajeTitulo,
-            "El documento se ha procesado correctamente.",
-            mensajeDetalles,
-            idDocumentoParaDescarga
-          );
-          
-          reiniciarEstados();
-          setShowPreviewModal(false);
+        if (detallesResult.contingencia && detallesResult.aviso) {
+          mensajeTitulo = "Documento en Contingencia";
+          mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message}`;
+        } else if (detallesResult.transmitido) {
+          mensajeTitulo = "Documento Transmitido";
+          mensajeDetalles = `Documento de Sujeto Excluido ${result.ncontrol} guardado y transmitido exitosamente`;
+        } else {
+          mensajeDetalles = `Documento de Sujeto Excluido ${result.ncontrol} guardado exitosamente`;
         }
-      } else {
-        const errorText = await responseEncabezado.text();
-        throw new Error(`Error del servidor: ${errorText}`);
+        
+        mostrarModalMensaje(
+          "exito",
+          mensajeTitulo,
+          "El documento se ha procesado correctamente.",
+          mensajeDetalles,
+          idDocumentoParaDescarga
+        );
+        
+        reiniciarEstados();
+        setShowPreviewModal(false);
       }
-    } catch (error) {
-      console.error("Error:", error);
-      mostrarModalMensaje(
-        "error",
-        "Error al Guardar",
-        "No se pudo guardar el documento.",
-        error.message
-      );
-    } finally {
-      setGuardandoDocumento(false);
+    } else {
+      const errorText = await responseEncabezado.text();
+      throw new Error(`Error del servidor: ${errorText}`);
     }
-  };
+  } catch (error) {
+    console.error("Error:", error);
+    mostrarModalMensaje(
+      "error",
+      "Error al Guardar",
+      "No se pudo guardar el documento.",
+      error.message
+    );
+  } finally {
+    setGuardandoDocumento(false);
+  }
+};
 
   const reiniciarEstados = () => {
     setCliente(null);
@@ -519,42 +520,44 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   };
 
   const guardarDetallesDocumento = async (iddtefactura) => {
-    try {
-      const detalles = items.map((item, index) => {
-        const subtotalItem = item.precioUnitario * item.cantidad;
-        const descuentoItem = item.descuento || 0;
-        const baseImponible = subtotalItem - descuentoItem;
+  try {
+    const detalles = items.map((item, index) => {
+      const subtotalItem = item.precioUnitario * item.cantidad;
+      const descuentoItem = item.descuento || 0;
+      const baseImponible = subtotalItem - descuentoItem;
 
-        const esExento = item.tipo === "noAfecto";
-        const esNoSujeto = item.tipo === "noSuj"; 
+      const esExento = item.tipo === "noAfecto";
+      const esNoSujeto = item.tipo === "noSuj"; 
 
-        const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+      const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
 
-        return {
-          numitem: index + 1,
-          tipoitem: "1",
-          numerodocumento: null,
-          cantidad: parseFloat(item.cantidad.toFixed(2)),
-          codigo: codigoItem,
-          codtributo: null,
-          unimedida: item.unidadMedida || "59",
-          descripcion: item.descripcion,
-          preciouni: parseFloat(item.precioUnitario.toFixed(8)),
-          montodescu: parseFloat(descuentoItem.toFixed(8)),
-          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(8)) : 0.00,
-          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(8)) : 0.00,
-          // IMPORTANTE: NO enviar ventagravada ni ivaitem
-          tributos: item.tributos,
-          psv: 0,
-          nogravado: 0.00
-        };
-      });
+      return {
+        numitem: index + 1,
+        tipoitem: "1",
+        numerodocumento: null,
+        cantidad: parseFloat(item.cantidad.toFixed(2)),
+        codigo: codigoItem,
+        codtributo: null,
+        unimedida: item.unidadMedida || "59",
+        descripcion: item.descripcion,
+        preciouni: parseFloat(item.precioUnitario.toFixed(8)),
+        montodescu: parseFloat(descuentoItem.toFixed(8)),
+        ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+        tributos: item.tributos,
+        psv: 0,
+        nogravado: 0.00
+      };
+    });
 
     const datosDetalles = {
       transmitir: true,
       idEnvio: Math.floor(1000 + Math.random() * 9000),
       detalles: detalles,
     };
+
+    console.log(`📦 [DETALLES] Payload enviado a /sujeto-excluido/${iddtefactura}/detalles:`);
+    console.log(JSON.stringify(datosDetalles, null, 2));
 
     const responseDetalles = await fetch(`${API_BASE_URL}/sujeto-excluido/${iddtefactura}/detalles`, {
       method: "POST",
@@ -679,7 +682,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
     return {
       idcliente: idReceptor,
       sellorec: "", 
-      modelofac: "11", 
+      modelofac: "1", 
       verjson: "1.0",
       tipotran: "1",
       fechaemision: fechaEmision,
