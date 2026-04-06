@@ -138,7 +138,9 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
           (factura.numerofacturausuario?.toString() || "").includes(searchTerm) ||
           (factura.iddtefactura?.toString() || "").includes(searchTerm) ||
           (factura.ncontrol?.toString() || "").includes(searchTerm) ||
-          (factura.nombrecibe?.toLowerCase() || "").includes(searchLower);
+          (factura.nombrecibe?.toLowerCase() || "").includes(searchLower) ||
+          // También buscar por documento del cliente
+          (factura.docuentrega?.toLowerCase() || "").includes(searchLower);
 
         const matchEstado = estadoFiltro ? factura.estado === estadoFiltro : true;
         
@@ -200,6 +202,20 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
     } catch (e) {
       return "Fecha inválida";
     }
+  };
+
+  // Función para obtener el documento a mostrar (prioriza docuentrega sobre DUI)
+  const getDocumentoCliente = (factura) => {
+    // Primero intentar mostrar docuentrega (puede ser DUI, NIT, Pasaporte, etc.)
+    if (factura.docuentrega && factura.docuentrega !== "000000" && factura.docuentrega !== "000000-0") {
+      return factura.docuentrega;
+    }
+    // Si docuentrega es 000000 o está vacío, intentar con dui
+    if (factura.dui && factura.dui !== "000000-0") {
+      return factura.dui;
+    }
+    // Si no hay documento válido, mostrar "Sin documento"
+    return "Sin documento";
   };
 
   const puedeAnular = (factura) => {
@@ -487,7 +503,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                     <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Buscar por código, cliente, número o DTE..."
+                      placeholder="Buscar por código, cliente, número, documento..."
                       className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={searchTerm}
                       onChange={(e) => {
@@ -751,9 +767,10 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                         <p className="text-gray-900 text-sm font-medium truncate pl-3">
                           {factura.nombrecibe || 'Cliente no especificado'}
                         </p>
-                        {factura.docuentrega && (
-                          <p className="text-xs text-gray-500 pl-3 mt-0.5">DUI: {factura.docuentrega}</p>
-                        )}
+                        {/* Mostrar el documento del cliente (DUI, NIT, Pasaporte, etc.) */}
+                        <p className="text-xs text-gray-500 pl-3 mt-0.5">
+                          <span className="font-medium">Documento:</span> {getDocumentoCliente(factura)}
+                        </p>
                       </div>
 
                       {/* Información de control */}
