@@ -33,6 +33,7 @@ import {
   FaPercent,
   FaSortAmountDown,
   FaTruck,
+  FaHandHoldingUsd,
 } from "react-icons/fa";
 
 import { API_BASE_URL } from "@/lib/api";
@@ -433,8 +434,8 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
       "01": "Factura",
       "03": "CCF",
       "04": "N. Remisión",
-      "05": "N.Débito",
-      "06": "Retención",
+      "05": "N. Crédito",
+      "06": "N. Débito",
       "11": "Exportación",
       "14": "Exclusión"
     };
@@ -473,12 +474,23 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
       bgLight: "bg-yellow-50",
       border: "border-yellow-200",
       textColor: "text-yellow-700",
-      dataKey: "notaCredito",
+      dataKey: "notaRemision",
     },
     {
       codigo: "05",
+      nombre: "N. Crédito",
+      descripcion: "Nota de Crédito",
+      icono: FaExchangeAlt,
+      color: "#10b981",
+      bgLight: "bg-green-50",
+      border: "border-green-200",
+      textColor: "text-green-700",
+      dataKey: "notaCredito",
+    },
+    {
+      codigo: "06",
       nombre: "N. Débito",
-      descripcion: "Notas de Débito",
+      descripcion: "Nota de Débito",
       icono: FaTag,
       color: "#f97316",
       bgLight: "bg-orange-50",
@@ -491,10 +503,10 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
       nombre: "Exportación",
       descripcion: "Ventas exterior",
       icono: FaFileExport,
-      color: "#10b981",
-      bgLight: "bg-emerald-50",
-      border: "border-emerald-200",
-      textColor: "text-emerald-700",
+      color: "#06b6d4",
+      bgLight: "bg-cyan-50",
+      border: "border-cyan-200",
+      textColor: "text-cyan-700",
       dataKey: "exportacion",
     },
     {
@@ -744,7 +756,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                     </span>
                   </div>
 
-                  <div className="p-3 grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  <div className="p-3 grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-7 gap-2">
                     {tiposDTE.map((tipo) => {
                       const Icono = tipo.icono;
                       const monto = getMontoPorTipo(tipo);
