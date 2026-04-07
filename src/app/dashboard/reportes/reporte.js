@@ -32,6 +32,7 @@ import {
   FaTag,
   FaPercent,
   FaSortAmountDown,
+  FaTruck,
 } from "react-icons/fa";
 
 import { API_BASE_URL } from "@/lib/api";
@@ -94,6 +95,43 @@ function useDebouncedValue(value, delay = 450) {
   }, [value, delay]);
   return debounced;
 }
+
+// Función para formatear fecha sin conversión de zona horaria
+const formatLocalDate = (fechaStr) => {
+  if (!fechaStr) return "—";
+  
+  let fechaParte = fechaStr;
+  
+  if (typeof fechaStr === 'string') {
+    if (fechaStr.includes('T')) {
+      fechaParte = fechaStr.split('T')[0];
+    } else if (fechaStr.includes(' ')) {
+      fechaParte = fechaStr.split(' ')[0];
+    } else {
+      fechaParte = fechaStr;
+    }
+    
+    const parts = fechaParte.split('-');
+    if (parts.length === 3) {
+      const year = parts[0];
+      const month = parts[1];
+      const day = parts[2];
+      if (!isNaN(parseInt(year)) && !isNaN(parseInt(month)) && !isNaN(parseInt(day))) {
+        return `${day}/${month}/${year}`;
+      }
+    }
+  }
+  
+  const date = new Date(fechaStr);
+  if (!isNaN(date.getTime())) {
+    const day = date.getUTCDate();
+    const month = date.getUTCMonth() + 1;
+    const year = date.getUTCFullYear();
+    return `${day}/${month}/${year}`;
+  }
+  
+  return "—";
+};
 
 /* ------------------------------- Line Chart ------------------------------ */
 function LineChart({ data = [], xKey = "fecha", yKey = "monto", height = 160 }) {
@@ -394,7 +432,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
     const tipos = {
       "01": "Factura",
       "03": "CCF",
-      "04": "N.Crédito",
+      "04": "N. Remisión",
       "05": "N.Débito",
       "06": "Retención",
       "11": "Exportación",
@@ -428,9 +466,9 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
     },
     {
       codigo: "04",
-      nombre: "N. Crédito",
-      descripcion: "Notas de Crédito",
-      icono: FaExchangeAlt,
+      nombre: "N. Remisión",
+      descripcion: "Nota de Remisión",
+      icono: FaTruck,
       color: "#f59e0b",
       bgLight: "bg-yellow-50",
       border: "border-yellow-200",
@@ -852,7 +890,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                           <tr key={f.iddtefactura} className="hover:bg-blue-50/40 transition-colors">
                             <td className="px-3 py-2 font-bold text-blue-600">{f.iddtefactura}</td>
                             <td className="px-3 py-2 text-gray-700 whitespace-nowrap">
-                              {f.fechaemision ? new Date(f.fechaemision).toLocaleDateString("es-SV") : "—"}
+                              {formatLocalDate(f.fechaemision)}
                             </td>
                             <td className="px-3 py-2 font-mono text-gray-600 text-[10px] max-w-[120px] truncate">{f.ncontrol}</td>
                             <td className="px-3 py-2">
