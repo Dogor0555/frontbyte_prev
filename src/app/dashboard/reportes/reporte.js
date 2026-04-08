@@ -33,7 +33,6 @@ import {
   FaPercent,
   FaSortAmountDown,
   FaTruck,
-  FaHandHoldingUsd,
 } from "react-icons/fa";
 
 import { API_BASE_URL } from "@/lib/api";
@@ -97,41 +96,43 @@ function useDebouncedValue(value, delay = 450) {
   return debounced;
 }
 
-// Función para formatear fecha sin conversión de zona horaria
+// Función para formatear fecha - CORREGIDA
 const formatLocalDate = (fechaStr) => {
   if (!fechaStr) return "—";
   
-  let fechaParte = fechaStr;
-  
   if (typeof fechaStr === 'string') {
-    if (fechaStr.includes('T')) {
-      fechaParte = fechaStr.split('T')[0];
-    } else if (fechaStr.includes(' ')) {
-      fechaParte = fechaStr.split(' ')[0];
-    } else {
-      fechaParte = fechaStr;
+    if (fechaStr.includes('/')) {
+      return fechaStr;
     }
-    
-    const parts = fechaParte.split('-');
+    const parts = fechaStr.split('-');
     if (parts.length === 3) {
       const year = parts[0];
       const month = parts[1];
       const day = parts[2];
       if (!isNaN(parseInt(year)) && !isNaN(parseInt(month)) && !isNaN(parseInt(day))) {
-        return `${day}/${month}/${year}`;
+        return `${parseInt(day)}/${parseInt(month)}/${parseInt(year)}`;
       }
     }
   }
   
   const date = new Date(fechaStr);
   if (!isNaN(date.getTime())) {
-    const day = date.getUTCDate();
-    const month = date.getUTCMonth() + 1;
-    const year = date.getUTCFullYear();
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   }
   
   return "—";
+};
+
+const formatDateRange = (dateStr) => {
+  if (!dateStr) return "";
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parseInt(parts[2])}/${parseInt(parts[1])}/${parseInt(parts[0])}`;
+  }
+  return dateStr;
 };
 
 /* ------------------------------- Line Chart ------------------------------ */
@@ -650,13 +651,21 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <label className="block text-[10px] text-gray-500 mb-1">Desde</label>
-                            <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-900 focus:border-blue-500 outline-none" />
+                            <input 
+                              type="date" 
+                              value={desde} 
+                              onChange={(e) => setDesde(e.target.value)}
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-900 focus:border-blue-500 outline-none" 
+                            />
                           </div>
                           <div>
                             <label className="block text-[10px] text-gray-500 mb-1">Hasta</label>
-                            <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-900 focus:border-blue-500 outline-none" />
+                            <input 
+                              type="date" 
+                              value={hasta} 
+                              onChange={(e) => setHasta(e.target.value)}
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-900 focus:border-blue-500 outline-none" 
+                            />
                           </div>
                         </div>
                       )}
@@ -724,7 +733,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
 
                     <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                       <span className="text-[10px] text-gray-500">
-                        {new Date(desde).toLocaleDateString("es-SV")} – {new Date(hasta).toLocaleDateString("es-SV")}
+                        {formatDateRange(desde)} – {formatDateRange(hasta)}
                       </span>
                       <span className="text-[10px] text-blue-600 font-medium">
                         {Math.ceil((new Date(hasta) - new Date(desde)) / (1000 * 60 * 60 * 24)) + 1} días
@@ -895,7 +904,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {facturas?.data?.map((f, idx) => {
+                      {facturas?.data?.map((f) => {
                         const tipoInfo = tiposDTE.find((t) => t.codigo === (f.tipodte || f.tipo_dte)) || tiposDTE[0];
                         const Icono = tipoInfo.icono;
                         return (
