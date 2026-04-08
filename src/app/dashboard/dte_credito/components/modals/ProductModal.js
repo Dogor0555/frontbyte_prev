@@ -331,22 +331,22 @@ export default function ProductModal({
     setTributos(tributos.filter(t => t.codigo !== codigo));
   };
 
-const calcularTotal = () => {
-  if (!productoSeleccionado) return 0;
-  
-  const precioBruto = precioEditable;
-  const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(valorDescuento / cantidad, 10) : 0;
-  const precioBrutoConDescuento = calcularPreciso(precioBruto - descuentoPorUnidad, 10);
-  
-  // Para productos exentos y no sujetos, el total es simplemente precio con descuento * cantidad
-  if (tipoVenta === "3" || tipoVenta === "2") {
+  const calcularTotal = () => {
+    if (!productoSeleccionado) return 0;
+    
+    const precioBruto = precioEditable;
+    const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(valorDescuento / cantidad, 10) : 0;
+    const precioBrutoConDescuento = calcularPreciso(precioBruto - descuentoPorUnidad, 10);
+    
+    // Para productos exentos y no sujetos, el total es simplemente precio con descuento * cantidad
+    if (tipoVenta === "3" || tipoVenta === "2") {
+      return calcularPreciso(cantidad * precioBrutoConDescuento, 10);
+    }
+    
+    // Para productos gravados, el total es el precio bruto con descuento * cantidad
+    // (ya que el precio bruto incluye el IVA)
     return calcularPreciso(cantidad * precioBrutoConDescuento, 10);
-  }
-  
-  // Para productos gravados, el total es el precio bruto con descuento * cantidad
-  // (ya que el precio bruto incluye el IVA)
-  return calcularPreciso(cantidad * precioBrutoConDescuento, 10);
-};
+  };
 
   const obtenerDesglosePrecios = () => {
     if (!productoSeleccionado) {
@@ -585,10 +585,11 @@ const calcularTotal = () => {
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Cantidad</label>
                   <input
                     type="text"
-                    inputMode="numeric"
+                    inputMode="decimal"
                     value={cantidad}
                     onChange={(e) => {
                       const value = e.target.value;
+                      // Permitir números decimales con punto decimal
                       if (/^\d*\.?\d*$/.test(value)) {
                         if (value === "") {
                           setCantidad("");
@@ -605,6 +606,7 @@ const calcularTotal = () => {
                         setCantidad(1);
                       }
                     }}
+                    step="any"
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
