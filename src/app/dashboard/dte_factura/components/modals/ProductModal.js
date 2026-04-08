@@ -528,32 +528,32 @@ export default function ProductModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Cantidad</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={cantidad}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (/^\d*\.?\d*$/.test(value)) {
-                        if (value === "") {
-                          setCantidad("");
-                        } else {
-                          const numValue = parseFloat(value);
-                          if (!isNaN(numValue) && numValue > 0) {
-                            setCantidad(numValue);
-                          }
-                        }
-                      }
-                    }}
-                    onBlur={() => {
-                      if (cantidad === "" || cantidad === 0) {
-                        setCantidad(1);
-                      }
-                    }}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+  <label className="block text-sm font-semibold text-gray-900 mb-2">Cantidad</label>
+  <input
+    type="number"
+    inputMode="decimal"
+    step="any"
+    lang="en"
+    value={cantidad}
+    onChange={(e) => {
+      const value = e.target.value;
+      if (value === "") {
+        setCantidad("");
+      } else {
+        const numValue = parseFloat(value);
+        if (!isNaN(numValue) && numValue > 0) {
+          setCantidad(numValue);
+        }
+      }
+    }}
+    onBlur={() => {
+      if (cantidad === "" || cantidad === 0) {
+        setCantidad(1);
+      }
+    }}
+    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+  />
+</div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Unidad</label>
                   <input
