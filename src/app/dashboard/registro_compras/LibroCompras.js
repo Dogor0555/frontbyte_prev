@@ -12,6 +12,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import { API_BASE_URL } from "@/lib/api";
+import { Csv } from "./components/csv";
 
 // ─── Períodos rápidos ────────────────────────────────────────────────────────
 const QUICK_PERIODS = [
@@ -436,7 +437,46 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             setExporting(false);
         }
     };
+const descargarCSV = async () => {
+  try {
+    if (!fechaInicio || !fechaFin) {
+      return alert("Debes seleccionar un rango de fechas");
+    }
 
+    const params = new URLSearchParams({
+      fechaInicio,
+      fechaFin
+    });
+
+    const res = await fetch(
+      `${API_BASE_URL}/reporte/compras-csv?${params.toString()}`,
+      {
+        credentials: "include"
+      }
+    );
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(errorText);
+      throw new Error("Error al descargar CSV");
+    }
+
+    const blob = await res.blob();
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+
+    a.href = url;
+    a.download = `ANEXO_COMPRAS_${fechaInicio}_${fechaFin}.csv`;
+    a.click();
+
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error(error);
+    alert("Error al descargar CSV");
+  }
+};
     // ── Exportar PDF ──────────────────────────────────────────────────────────
     const handleExportPDF = () => {
         setExportingPDF(true);
@@ -604,6 +644,13 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                                 >
                                     <FaSync className={refreshing ? "animate-spin" : ""} size={12} />
                                     {refreshing ? "Actualizando…" : "Actualizar"}
+                                </button>
+                                <button 
+                                    onClick={descargarCSV} 
+                                    disabled={exporting}
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
+                                    <Csv size={12} />
+                                    CSV
                                 </button>
                                 <button
                                     onClick={handleExportExcel}
