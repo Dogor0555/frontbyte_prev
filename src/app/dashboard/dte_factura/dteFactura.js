@@ -311,90 +311,104 @@ const descargarTicketFactura = async (idFactura) => {
   };
 
   const guardarFactura = async () => {
-    if (guardandoFactura) return;
+  if (guardandoFactura) return;
+  
+  if (!validarDatosFactura()) {
+    return;
+  }
+  
+  try {
+    setGuardandoFactura(true); 
     
-    if (!validarDatosFactura()) {
+    const datosFactura = prepararDatosFactura();
+    
+    // ========== LOG DEL ENCABEZADO ==========
+    console.log("=========================================");
+    console.log("📤 ENCABEZADO A ENVIAR:");
+    console.log(JSON.stringify(datosFactura, null, 2));
+    console.log("=========================================");
+    // ==========================================
+    
+    if (!datosFactura.formapago) {
+      mostrarModalMensaje(
+        "error",
+        "Error de Validación",
+        "No se pudo determinar la forma de pago"
+      );
+      setGuardandoFactura(false);
       return;
     }
     
-    try {
-      setGuardandoFactura(true); 
-      
-      const datosFactura = prepararDatosFactura();
-      
-      if (!datosFactura.formapago) {
-        mostrarModalMensaje(
-          "error",
-          "Error de Validación",
-          "No se pudo determinar la forma de pago"
-        );
-        setGuardandoFactura(false);
-        return;
-      }
-      
-      console.log("Enviando encabezado:", datosFactura);
-      
-      const responseEncabezado = await fetch(`${API_BASE_URL}/facturas/encabezado`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(datosFactura)
-      });
+    console.log("Enviando encabezado:", datosFactura);
+    
+    const responseEncabezado = await fetch(`${API_BASE_URL}/facturas/encabezado`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify(datosFactura)
+    });
 
-      if (responseEncabezado.ok) {
-        const result = await responseEncabezado.json();
-        console.log("Encabezado de factura guardado:", result);
-        
-        const detallesResult = await guardarDetallesFactura(result.iddtefactura);
-        
-        if (detallesResult) {
-          setShowConfirmModal(false);
-          
-          let mensajeTitulo = "Factura Guardada";
-          let mensajeDetalles = "";
-          let idFacturaParaDescarga = result.iddtefactura;
+    // ========== LOG DE RESPUESTA ENCABEZADO ==========
+    console.log("=========================================");
+    console.log("📥 RESPUESTA ENCABEZADO:");
+    console.log("Status:", responseEncabezado.status);
+    const responseTextEncabezado = await responseEncabezado.text();
+    console.log("Body:", responseTextEncabezado);
+    console.log("=========================================");
+    // ===============================================
 
-          // Mostrar aviso si se envió en contingencia
-          if (detallesResult.contingencia && detallesResult.aviso) {
-            mensajeTitulo = "Factura en Contingencia";
-            mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message}`;
-          } else if (detallesResult.transmitido) {
-            mensajeTitulo = "Factura Transmitida";
-            mensajeDetalles = `Factura ${result.ncontrol} guardada y transmitida exitosamente`;
-          } else {
-            mensajeDetalles = `Factura ${result.ncontrol} guardada exitosamente`;
-          }
-          
-          mostrarModalMensaje(
-            "exito",
-            mensajeTitulo,
-            "La factura se ha procesado correctamente.",
-            mensajeDetalles,
-            idFacturaParaDescarga
-          );
-          
-          reiniciarEstados();
-          setShowPreviewModal(false); // Cierra el modal de vista previa al terminar
+    if (responseEncabezado.ok) {
+      const result = JSON.parse(responseTextEncabezado);
+      console.log("Encabezado de factura guardado:", result);
+      
+      const detallesResult = await guardarDetallesFactura(result.iddtefactura);
+      
+      if (detallesResult) {
+        setShowConfirmModal(false);
+        
+        let mensajeTitulo = "Factura Guardada";
+        let mensajeDetalles = "";
+        let idFacturaParaDescarga = result.iddtefactura;
+
+        if (detallesResult.contingencia && detallesResult.aviso) {
+          mensajeTitulo = "Factura en Contingencia";
+          mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message}`;
+        } else if (detallesResult.transmitido) {
+          mensajeTitulo = "Factura Transmitida";
+          mensajeDetalles = `Factura ${result.ncontrol} guardada y transmitida exitosamente`;
+        } else {
+          mensajeDetalles = `Factura ${result.ncontrol} guardada exitosamente`;
         }
-      } else {
-        const errorText = await responseEncabezado.text();
-        throw new Error(`Error del servidor: ${errorText}`);
+        
+        mostrarModalMensaje(
+          "exito",
+          mensajeTitulo,
+          "La factura se ha procesado correctamente.",
+          mensajeDetalles,
+          idFacturaParaDescarga
+        );
+        
+        reiniciarEstados();
+        setShowPreviewModal(false);
       }
-    } catch (error) {
-      console.error("Error:", error);
-      mostrarModalMensaje(
-        "error",
-        "Error al Guardar",
-        "No se pudo guardar la factura.",
-        error.message
-      );
-      setShowPreviewModal(false);
-    } finally {
-      setGuardandoFactura(false);
+    } else {
+      throw new Error(`Error del servidor: ${responseTextEncabezado}`);
     }
-  };
+  } catch (error) {
+    console.error("Error:", error);
+    mostrarModalMensaje(
+      "error",
+      "Error al Guardar",
+      "No se pudo guardar la factura.",
+      error.message
+    );
+    setShowPreviewModal(false);
+  } finally {
+    setGuardandoFactura(false);
+  }
+};
 
   useEffect(() => {
     fetch('/templates/plantilla_factura.hbs')
@@ -626,86 +640,94 @@ const descargarTicketFactura = async (idFactura) => {
   };
 
   const guardarDetallesFactura = async (iddtefactura) => {
-    try {
-      const detalles = items.map((item, index) => {
-        const subtotalItem = item.precioUnitario * item.cantidad;
-        
-        // CORRECCIÓN: Usar descuento como monto fijo, no como porcentaje
-        const descuentoItem = item.descuento || 0; // ← MONTO FIJO, no porcentaje
-        const baseImponible = subtotalItem - descuentoItem;
+  try {
+    const detalles = items.map((item, index) => {
+      const subtotalItem = item.precioUnitario * item.cantidad;
+      
+      const descuentoItem = item.descuento || 0;
+      const baseImponible = subtotalItem - descuentoItem;
 
-        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
-        const esExento = item.tipo === "noAfecto";
-        // CORRECCIÓN: Definir esNoSujeto
-        const esNoSujeto = item.tipo === "noSuj"; // Items que no son gravados ni exentos
+      const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+      const esExento = item.tipo === "noAfecto";
+      const esNoSujeto = item.tipo === "noSuj";
 
-        const tasaIVA = 13;
-        const ivaItem = esGravado ? 
-          (baseImponible * tasaIVA) / (100 + tasaIVA) : 0;
+      const tasaIVA = 13;
+      const ivaItem = esGravado ? 
+        (baseImponible * tasaIVA) / (100 + tasaIVA) : 0;
 
-        const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+      const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
 
-        return {
-          numitem: index + 1,
-          tipoitem: "1",
-          numerodocumento: null,
-          cantidad: parseFloat(item.cantidad.toFixed(2)),
-          codigo: codigoItem,
-          codtributo: null,
-          unimedida: item.unidadMedida || "59",
-          descripcion: item.descripcion,
-          preciouni: parseFloat(item.precioUnitario.toFixed(6)),
-          montodescu: parseFloat(descuentoItem.toFixed(6)), // ← MONTO FIJO del descuento
-          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(6)) : 0.00,
-          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(6)) : 0.00,
-          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(6)) : 0.00,
-          preciouni: parseFloat(item.precioUnitario.toFixed(8)),
-          montodescu: parseFloat(descuentoItem.toFixed(8)), // ← MONTO FIJO del descuento
-          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(8)) : 0.00,
-          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(8)) : 0.00,
-          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(8)) : 0.00,
-          tributos: item.tributos,
-          psv: 0,
-          nogravado: 0.00,
-          ivaitem: parseFloat(ivaItem.toFixed(2)) 
-        };
-      });
-
-      const datosDetalles = {
-        transmitir: true,
-        idEnvio: Math.floor(1000 + Math.random() * 9000),
-        detalles: detalles,
+      return {
+        numitem: index + 1,
+        tipoitem: "1",
+        numerodocumento: null,
+        cantidad: parseFloat(item.cantidad.toFixed(2)),
+        codigo: codigoItem,
+        codtributo: null,
+        unimedida: item.unidadMedida || "59",
+        descripcion: item.descripcion,
+        preciouni: parseFloat(item.precioUnitario.toFixed(6)),
+        montodescu: parseFloat(descuentoItem.toFixed(6)),
+        ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(6)) : 0.00,
+        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(6)) : 0.00,
+        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(6)) : 0.00,
+        preciouni: parseFloat(item.precioUnitario.toFixed(8)),
+        montodescu: parseFloat(descuentoItem.toFixed(8)),
+        ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+        tributos: item.tributos,
+        psv: 0,
+        nogravado: 0.00,
+        ivaitem: parseFloat(ivaItem.toFixed(2)) 
       };
+    });
 
-      console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
+    const datosDetalles = {
+      transmitir: true,
+      idEnvio: Math.floor(1000 + Math.random() * 9000),
+      detalles: detalles,
+    };
 
-      const responseDetalles = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/detalles`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(datosDetalles),
-      });
+    // ========== LOG DEL DETALLE ==========
+    console.log("=========================================");
+    console.log("📤 DETALLE A ENVIAR:");
+    console.log(JSON.stringify(datosDetalles, null, 2));
+    console.log("=========================================");
+    // =====================================
 
-      if (responseDetalles.ok) {
-        const resultDetalles = await responseDetalles.json();
-        console.log("Detalles de factura guardados:", resultDetalles);
-        
-        // ACTUALIZAR STOCK DESPUÉS DE GUARDAR LOS DETALLES
-        await actualizarStockProductos(items);
-        
-        // RETORNAR LA RESPUESTA COMPLETA EN LUGAR DE SOLO 'true'
-        return resultDetalles;
-      } else {
-        const errorText = await responseDetalles.text();
-        console.error("Error response from server:", errorText);
-        throw new Error(`Error al guardar los detalles: ${errorText}`);
-      }
-    } catch (error) {
-      console.error("Error al guardar detalles:", error);
-      throw error;
+    console.log("Enviando detalles a guardar:", JSON.stringify(datosDetalles, null, 2));
+
+    const responseDetalles = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/detalles`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(datosDetalles),
+    });
+
+    // ========== LOG DE RESPUESTA DETALLE ==========
+    console.log("=========================================");
+    console.log("📥 RESPUESTA DETALLE:");
+    console.log("Status:", responseDetalles.status);
+    const responseTextDetalles = await responseDetalles.text();
+    console.log("Body:", responseTextDetalles);
+    console.log("=========================================");
+    // =============================================
+
+    if (responseDetalles.ok) {
+      const resultDetalles = JSON.parse(responseTextDetalles);
+      console.log("Detalles de factura guardados:", resultDetalles);
+      await actualizarStockProductos(items);
+      return resultDetalles;
+    } else {
+      console.error("Error response from server:", responseTextDetalles);
+      throw new Error(`Error al guardar los detalles: ${responseTextDetalles}`);
     }
-  };
-
+  } catch (error) {
+    console.error("Error al guardar detalles:", error);
+    throw error;
+  }
+};
   const obtenerUltimoNumeroFactura = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/facturas/ultima`, {

@@ -331,22 +331,22 @@ export default function ProductModal({
     setTributos(tributos.filter(t => t.codigo !== codigo));
   };
 
-const calcularTotal = () => {
-  if (!productoSeleccionado) return 0;
-  
-  const precioBruto = precioEditable;
-  const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(valorDescuento / cantidad, 10) : 0;
-  const precioBrutoConDescuento = calcularPreciso(precioBruto - descuentoPorUnidad, 10);
-  
-  // Para productos exentos y no sujetos, el total es simplemente precio con descuento * cantidad
-  if (tipoVenta === "3" || tipoVenta === "2") {
+  const calcularTotal = () => {
+    if (!productoSeleccionado) return 0;
+    
+    const precioBruto = precioEditable;
+    const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(valorDescuento / cantidad, 10) : 0;
+    const precioBrutoConDescuento = calcularPreciso(precioBruto - descuentoPorUnidad, 10);
+    
+    // Para productos exentos y no sujetos, el total es simplemente precio con descuento * cantidad
+    if (tipoVenta === "3" || tipoVenta === "2") {
+      return calcularPreciso(cantidad * precioBrutoConDescuento, 10);
+    }
+    
+    // Para productos gravados, el total es el precio bruto con descuento * cantidad
+    // (ya que el precio bruto incluye el IVA)
     return calcularPreciso(cantidad * precioBrutoConDescuento, 10);
-  }
-  
-  // Para productos gravados, el total es el precio bruto con descuento * cantidad
-  // (ya que el precio bruto incluye el IVA)
-  return calcularPreciso(cantidad * precioBrutoConDescuento, 10);
-};
+  };
 
   const obtenerDesglosePrecios = () => {
     if (!productoSeleccionado) {
@@ -582,15 +582,32 @@ const calcularTotal = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Cantidad</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={cantidad}
-                    onChange={(e) => setCantidad(parseFloat(e.target.value) || 1)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+  <label className="block text-sm font-semibold text-gray-900 mb-2">Cantidad</label>
+  <input
+    type="number"
+    inputMode="decimal"
+    step="any"
+    lang="en"
+    value={cantidad}
+    onChange={(e) => {
+      const value = e.target.value;
+      if (value === "") {
+        setCantidad("");
+      } else {
+        const numValue = parseFloat(value);
+        if (!isNaN(numValue) && numValue > 0) {
+          setCantidad(numValue);
+        }
+      }
+    }}
+    onBlur={() => {
+      if (cantidad === "" || cantidad === 0) {
+        setCantidad(1);
+      }
+    }}
+    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+  />
+</div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Unidad</label>
                   <input
@@ -620,12 +637,28 @@ const calcularTotal = () => {
                     $
                   </span>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     className="flex-1 min-w-0 rounded-r-lg border border-gray-300 p-3 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                    value={precioEditable}
-                    onChange={(e) => setPrecioEditable(parseFloat(e.target.value) || 0)}
+                    value={precioEditable === 0 ? "" : precioEditable}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (/^\d*\.?\d*$/.test(value)) {
+                        if (value === "") {
+                          setPrecioEditable("");
+                        } else {
+                          const numValue = parseFloat(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            setPrecioEditable(numValue);
+                          }
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      if (precioEditable === "" || precioEditable === 0) {
+                        setPrecioEditable(productoSeleccionado ? parseFloat(productoSeleccionado.precio) : 0);
+                      }
+                    }}
                     disabled={!productoSeleccionado}
                   />
                 </div>
@@ -649,13 +682,26 @@ const calcularTotal = () => {
                       $
                     </span>
                     <input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       value={valorDescuento === 0 ? "" : valorDescuento}
                       onChange={(e) => {
                         const value = e.target.value;
-                        handleValorDescuentoChange(value);
+                        if (/^\d*\.?\d*$/.test(value)) {
+                          if (value === "") {
+                            handleValorDescuentoChange("");
+                          } else {
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue) && numValue >= 0) {
+                              handleValorDescuentoChange(numValue);
+                            }
+                          }
+                        }
+                      }}
+                      onBlur={() => {
+                        if (valorDescuento === "" || valorDescuento === 0) {
+                          handleValorDescuentoChange(0);
+                        }
                       }}
                       className={`flex-1 min-w-0 rounded-r-lg border p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                         errorDescuento ? 'border-red-500' : 'border-gray-300'
