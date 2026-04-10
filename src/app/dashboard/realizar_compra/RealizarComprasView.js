@@ -7,15 +7,11 @@ import Navbar from "../components/navbar";
 import Footer from "../components/footer";
 import JsonDteUploader from "./JsonDteUploader";
 import { 
-    FaCalendarAlt, 
     FaSave, 
-    FaTimes, 
     FaPlus, 
     FaTrash, 
     FaSearch, 
-    FaBox, 
-    FaShoppingCart,
-    FaMoneyBillWave
+    FaShoppingCart
 } from "react-icons/fa";
 
 // ========== MODAL DE ÉXITO ==========
@@ -86,6 +82,7 @@ const SuccessModal = ({ message, onClose }) => {
     );
 };
 
+// ========== VISTA PRINCIPAL ==========
 export default function RealizarComprasView({ user, hasHaciendaToken, haciendaStatus }) {
     const router = useRouter();
     
