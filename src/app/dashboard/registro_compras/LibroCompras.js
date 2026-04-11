@@ -2,12 +2,13 @@
 import { useState, useEffect, useCallback } from "react";
 import {
     FaSearch, FaFileAlt, FaCalendarAlt, FaFileExcel,
-    FaSync, FaFilePdf, FaEdit, FaTrash, FaTimes
+    FaSync, FaFilePdf, FaEdit, FaTrash, FaTimes, FaEye
 } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import EditarCompraModal from "./components/EditarCompraModal";
+import DetalleCompraModal from "./components/DetalleCompraModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
@@ -104,36 +105,34 @@ const mapItem = (item) => ({
     fovial: item.fovial || "0.00",
     cotrans: item.cotrans || "0.00",
     cesc: item.cesc || "0.00",
-    // ========== NUEVOS CAMPOS ==========
     codigo_generacion: item.codigo_generacion || "N/A",
     sello_recepcion: item.sello_recepcion || "N/A",
 });
 
 const COLUMNS = [
-    { key: "no",                    label: "No.",           width: "50px",  align: "center" },
-    { key: "fecha_emision_doc",     label: "F. EMISIÓN",    width: "100px", align: "center" },
-    { key: "fecha_registro_sistema",label: "F. REGISTRO",   width: "100px", align: "center" },
-    { key: "tipo_documento",        label: "TIPO DOC",      width: "100px", align: "center" },
-    { key: "numero_documento",      label: "NÚMERO",        width: "120px", align: "center" },
-    { key: "numero_registro",       label: "NIT/NRC",       width: "120px", align: "center" },
-    { key: "nombre_proveedor",      label: "PROVEEDOR",     width: "250px", align: "left"   },
-    // ========== NUEVAS COLUMNAS ==========
-    { key: "codigo_generacion",      label: "CÓD. GENERACIÓN", width: "150px", align: "center" },
-    { key: "sello_recepcion",        label: "SELLO RECEPCIÓN", width: "150px", align: "center" },
-    { key: "exentas",               label: "EXENTAS INT.",  width: "120px", align: "right"  },
-    { key: "exentas_importaciones", label: "EXENTAS IMP.",  width: "120px", align: "right"  },
-    { key: "locales",               label: "GRAVADAS INT.", width: "120px", align: "right"  },
-    { key: "importaciones",         label: "GRAVADAS IMP.", width: "120px", align: "right"  },
-    { key: "iva",                   label: "CRÉD. FISCAL",  width: "120px", align: "right"  },
-    { key: "fovial",                label: "FOVIAL",        width: "100px", align: "right"  },
-    { key: "cotrans",               label: "COTRANS",       width: "100px", align: "right"  },
-    { key: "cesc",                  label: "CESC",          width: "100px", align: "right"  },
-    { key: "anticipo_iva",          label: "ANT. IVA",      width: "100px", align: "right"  },
-    { key: "retencion",             label: "RETENCIÓN",     width: "100px", align: "right"  },
-    { key: "percepcion",            label: "PERCEPCIÓN",    width: "100px", align: "right"  },
-    { key: "sujetos_excluidos",     label: "SUJ. EXCL.",    width: "100px", align: "right"  },
-    { key: "monto",                 label: "TOTAL",         width: "120px", align: "right"  },
-    { key: "acciones",              label: "ACCIONES",      width: "100px", align: "center" },
+    { key: "no",                     label: "No.",              width: "50px",  align: "center" },
+    { key: "fecha_emision_doc",      label: "F. EMISIÓN",       width: "100px", align: "center" },
+    { key: "fecha_registro_sistema", label: "F. REGISTRO",      width: "100px", align: "center" },
+    { key: "tipo_documento",         label: "TIPO DOC",         width: "100px", align: "center" },
+    { key: "numero_documento",       label: "NÚMERO",           width: "120px", align: "center" },
+    { key: "numero_registro",        label: "NIT/NRC",          width: "120px", align: "center" },
+    { key: "nombre_proveedor",       label: "PROVEEDOR",        width: "250px", align: "left"   },
+    { key: "codigo_generacion",      label: "CÓD. GENERACIÓN",  width: "150px", align: "center" },
+    { key: "sello_recepcion",        label: "SELLO RECEPCIÓN",  width: "150px", align: "center" },
+    { key: "exentas",                label: "EXENTAS INT.",     width: "120px", align: "right"  },
+    { key: "exentas_importaciones",  label: "EXENTAS IMP.",     width: "120px", align: "right"  },
+    { key: "locales",                label: "GRAVADAS INT.",    width: "120px", align: "right"  },
+    { key: "importaciones",          label: "GRAVADAS IMP.",    width: "120px", align: "right"  },
+    { key: "iva",                    label: "CRÉD. FISCAL",     width: "120px", align: "right"  },
+    { key: "fovial",                 label: "FOVIAL",           width: "100px", align: "right"  },
+    { key: "cotrans",                label: "COTRANS",          width: "100px", align: "right"  },
+    { key: "cesc",                   label: "CESC",             width: "100px", align: "right"  },
+    { key: "anticipo_iva",           label: "ANT. IVA",         width: "100px", align: "right"  },
+    { key: "retencion",              label: "RETENCIÓN",        width: "100px", align: "right"  },
+    { key: "percepcion",             label: "PERCEPCIÓN",       width: "100px", align: "right"  },
+    { key: "sujetos_excluidos",      label: "SUJ. EXCL.",       width: "100px", align: "right"  },
+    { key: "monto",                  label: "TOTAL",            width: "120px", align: "right"  },
+    { key: "acciones",               label: "ACCIONES",         width: "120px", align: "center" },
 ];
 
 const CURRENCY_KEYS = [
@@ -149,40 +148,37 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     const [isMobile,    setIsMobile]    = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
-    // Fechas (estado "pendiente" hasta que el usuario presione Buscar)
     const [fechaInicio, setFechaInicio] = useState("");
     const [fechaFin,    setFechaFin]    = useState("");
 
-    // Datos
     const [libro,       setLibro]       = useState([]);
     const [loading,     setLoading]     = useState(false);
     const [refreshing,  setRefreshing]  = useState(false);
 
-    // Búsqueda local (sin llamada API)
     const [searchTerm,  setSearchTerm]  = useState("");
-
-    // Paginación
     const [currentPage, setCurrentPage] = useState(1);
 
-    // Exportación
     const [exporting,    setExporting]    = useState(false);
     const [exportingPDF, setExportingPDF] = useState(false);
 
-    // Modal de edición / eliminación
-    const [modalOpen,       setModalOpen]       = useState(false);
-    const [selectedCompraId,setSelectedCompraId]= useState(null);
-    const [deletingId,      setDeletingId]      = useState(false);
+    // Modal editar
+    const [modalOpen,        setModalOpen]        = useState(false);
+    const [selectedCompraId, setSelectedCompraId] = useState(null);
+    const [deletingId,       setDeletingId]       = useState(false);
 
-    // ── Inicialización: poner "este mes" y cargar datos solo una vez ──────────
+    // Modal detalle ← NUEVO
+    const [detalleOpen,       setDetalleOpen]       = useState(false);
+    const [selectedDetalleId, setSelectedDetalleId] = useState(null);
+
+    // ── Inicialización ────────────────────────────────────────────────────────
     useEffect(() => {
-        const { fi, ff } = QUICK_PERIODS[2].get(); // "Este mes"
+        const { fi, ff } = QUICK_PERIODS[2].get();
         setFechaInicio(fi);
         setFechaFin(ff);
         fetchLibroConFechas(fi, ff);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ── Responsivo ────────────────────────────────────────────────────────────
     useEffect(() => {
         const check = () => {
             const mobile = window.innerWidth < 768;
@@ -194,7 +190,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
         return () => window.removeEventListener("resize", check);
     }, []);
 
-    // ── Fetch principal ───────────────────────────────────────────────────────
+    // ── Fetch ─────────────────────────────────────────────────────────────────
     const fetchLibroConFechas = useCallback(async (fi, ff) => {
         try {
             setLoading(true);
@@ -230,7 +226,6 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
         fetchLibroConFechas(fechaInicio, fechaFin);
     };
 
-    // Aplicar período rápido: actualiza fechas Y busca inmediatamente
     const applyQuickPeriod = (period) => {
         const { fi, ff } = period.get();
         setFechaInicio(fi);
@@ -248,17 +243,22 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
         fetchLibroConFechas(fi, ff);
     };
 
-    // ── Detectar período activo ───────────────────────────────────────────────
     const activePeriodLabel = QUICK_PERIODS.find((p) => {
         const { fi, ff } = p.get();
         return fi === fechaInicio && ff === fechaFin;
     })?.label ?? null;
 
-    // ── Editar / Eliminar ─────────────────────────────────────────────────────
+    // ── Acciones ──────────────────────────────────────────────────────────────
     const handleEdit = (id) => {
         if (!id) return alert("Registro sin ID válido");
         setSelectedCompraId(id);
         setModalOpen(true);
+    };
+
+    const handleViewDetail = (id) => {
+        if (!id) return;
+        setSelectedDetalleId(id);
+        setDetalleOpen(true);
     };
 
     const handleDelete = async (id) => {
@@ -280,37 +280,37 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
         }
     };
 
-    // ── Filtrado local (búsqueda de texto) ────────────────────────────────────
+    // ── Filtrado ──────────────────────────────────────────────────────────────
     const libroFiltrado = libro.filter((item) => {
         if (!item) return false;
         const q = searchTerm.toLowerCase();
         return (
-            (item.nombre_proveedor?.toLowerCase() || "").includes(q) ||
-            (item.numero_documento?.toLowerCase()  || "").includes(q) ||
-            (item.numero_registro?.toLowerCase()   || "").includes(q) ||
-            (item.codigo_generacion?.toLowerCase() || "").includes(q) ||
-            (item.sello_recepcion?.toLowerCase()   || "").includes(q) ||
-            (item.fecha_emision_doc?.toString()    || "").includes(searchTerm) ||
-            (item.fecha_registro_sistema?.toString()|| "").includes(searchTerm)
+            (item.nombre_proveedor?.toLowerCase()    || "").includes(q) ||
+            (item.numero_documento?.toLowerCase()     || "").includes(q) ||
+            (item.numero_registro?.toLowerCase()      || "").includes(q) ||
+            (item.codigo_generacion?.toLowerCase()    || "").includes(q) ||
+            (item.sello_recepcion?.toLowerCase()      || "").includes(q) ||
+            (item.fecha_emision_doc?.toString()       || "").includes(searchTerm) ||
+            (item.fecha_registro_sistema?.toString()  || "").includes(searchTerm)
         );
     });
 
     // ── Totales ───────────────────────────────────────────────────────────────
     const totales = libroFiltrado.reduce(
         (acc, item) => ({
-            exentas_internas:      acc.exentas_internas      + (parseFloat(item.exentas)              || 0),
-            exentas_importaciones: acc.exentas_importaciones + (parseFloat(item.exentas_importaciones)|| 0),
-            gravadas_internas:     acc.gravadas_internas     + (parseFloat(item.locales)              || 0),
-            gravadas_importaciones:acc.gravadas_importaciones+ (parseFloat(item.importaciones)        || 0),
-            credito_fiscal:        acc.credito_fiscal        + (parseFloat(item.iva)                  || 0),
-            fovial:                acc.fovial                + (parseFloat(item.fovial)               || 0),
-            cotrans:               acc.cotrans               + (parseFloat(item.cotrans)              || 0),
-            cesc:                  acc.cesc                  + (parseFloat(item.cesc)                 || 0),
-            anticipo_iva:          acc.anticipo_iva          + (parseFloat(item.anticipo_iva)         || 0),
-            retencion:             acc.retencion             + (parseFloat(item.retencion)            || 0),
-            percepcion:            acc.percepcion            + (parseFloat(item.percepcion)           || 0),
-            sujetos_excluidos:     acc.sujetos_excluidos     + (parseFloat(item.sujetos_excluidos)    || 0),
-            monto:                 acc.monto                 + (parseFloat(item.monto)               || 0),
+            exentas_internas:       acc.exentas_internas       + (parseFloat(item.exentas)               || 0),
+            exentas_importaciones:  acc.exentas_importaciones  + (parseFloat(item.exentas_importaciones)  || 0),
+            gravadas_internas:      acc.gravadas_internas      + (parseFloat(item.locales)                || 0),
+            gravadas_importaciones: acc.gravadas_importaciones + (parseFloat(item.importaciones)          || 0),
+            credito_fiscal:         acc.credito_fiscal         + (parseFloat(item.iva)                    || 0),
+            fovial:                 acc.fovial                 + (parseFloat(item.fovial)                 || 0),
+            cotrans:                acc.cotrans                + (parseFloat(item.cotrans)                || 0),
+            cesc:                   acc.cesc                   + (parseFloat(item.cesc)                   || 0),
+            anticipo_iva:           acc.anticipo_iva           + (parseFloat(item.anticipo_iva)           || 0),
+            retencion:              acc.retencion              + (parseFloat(item.retencion)              || 0),
+            percepcion:             acc.percepcion             + (parseFloat(item.percepcion)             || 0),
+            sujetos_excluidos:      acc.sujetos_excluidos      + (parseFloat(item.sujetos_excluidos)      || 0),
+            monto:                  acc.monto                  + (parseFloat(item.monto)                  || 0),
         }),
         {
             exentas_internas:0, exentas_importaciones:0, gravadas_internas:0,
@@ -321,10 +321,10 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     );
 
     // ── Paginación ────────────────────────────────────────────────────────────
-    const totalPages     = Math.ceil(libroFiltrado.length / ITEMS_PER_PAGE);
-    const indexOfFirst   = (currentPage - 1) * ITEMS_PER_PAGE;
-    const indexOfLast    = indexOfFirst + ITEMS_PER_PAGE;
-    const currentItems   = libroFiltrado.slice(indexOfFirst, indexOfLast);
+    const totalPages   = Math.ceil(libroFiltrado.length / ITEMS_PER_PAGE);
+    const indexOfFirst = (currentPage - 1) * ITEMS_PER_PAGE;
+    const indexOfLast  = indexOfFirst + ITEMS_PER_PAGE;
+    const currentItems = libroFiltrado.slice(indexOfFirst, indexOfLast);
 
     // ── Exportar Excel ────────────────────────────────────────────────────────
     const handleExportExcel = async () => {
@@ -334,28 +334,27 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             const wb = new ExcelJS.Workbook();
             const ws = wb.addWorksheet("Registro de Compras");
             ws.columns = [
-                { header: "F. EMISIÓN",      key: "fecha_emision_doc",      width: 12 },
-                { header: "F. REGISTRO",     key: "fecha_registro_sistema", width: 12 },
-                { header: "TIPO DOC",        key: "tipo_documento",         width: 10 },
-                { header: "NÚMERO",          key: "numero_documento",       width: 15 },
-                { header: "NIT/NRC",         key: "numero_registro",        width: 15 },
-                { header: "PROVEEDOR",       key: "nombre_proveedor",       width: 30 },
-                // ========== NUEVAS COLUMNAS EXCEL ==========
-                { header: "CÓD. GENERACIÓN", key: "codigo_generacion",      width: 20 },
-                { header: "SELLO RECEPCIÓN", key: "sello_recepcion",        width: 20 },
-                { header: "EXENTAS INT.",    key: "exentas",                width: 12 },
-                { header: "EXENTAS IMP.",    key: "exentas_importaciones",  width: 12 },
-                { header: "GRAVADAS INT.",   key: "locales",                width: 12 },
-                { header: "GRAVADAS IMP.",   key: "importaciones",          width: 12 },
-                { header: "CRÉD. FISCAL",    key: "iva",                    width: 12 },
-                { header: "FOVIAL",          key: "fovial",                 width: 10 },
-                { header: "COTRANS",         key: "cotrans",                width: 10 },
-                { header: "CESC",            key: "cesc",                   width: 10 },
-                { header: "ANTICIPO IVA",    key: "anticipo_iva",           width: 12 },
-                { header: "RETENCIÓN",       key: "retencion",              width: 12 },
-                { header: "PERCEPCIÓN",      key: "percepcion",             width: 12 },
-                { header: "SUJ. EXCLUIDOS",  key: "sujetos_excluidos",      width: 15 },
-                { header: "TOTAL",           key: "monto",                  width: 15 },
+                { header: "F. EMISIÓN",       key: "fecha_emision_doc",      width: 12 },
+                { header: "F. REGISTRO",      key: "fecha_registro_sistema", width: 12 },
+                { header: "TIPO DOC",         key: "tipo_documento",         width: 10 },
+                { header: "NÚMERO",           key: "numero_documento",       width: 15 },
+                { header: "NIT/NRC",          key: "numero_registro",        width: 15 },
+                { header: "PROVEEDOR",        key: "nombre_proveedor",       width: 30 },
+                { header: "CÓD. GENERACIÓN",  key: "codigo_generacion",      width: 20 },
+                { header: "SELLO RECEPCIÓN",  key: "sello_recepcion",        width: 20 },
+                { header: "EXENTAS INT.",     key: "exentas",                width: 12 },
+                { header: "EXENTAS IMP.",     key: "exentas_importaciones",  width: 12 },
+                { header: "GRAVADAS INT.",    key: "locales",                width: 12 },
+                { header: "GRAVADAS IMP.",    key: "importaciones",          width: 12 },
+                { header: "CRÉD. FISCAL",     key: "iva",                    width: 12 },
+                { header: "FOVIAL",           key: "fovial",                 width: 10 },
+                { header: "COTRANS",          key: "cotrans",                width: 10 },
+                { header: "CESC",             key: "cesc",                   width: 10 },
+                { header: "ANTICIPO IVA",     key: "anticipo_iva",           width: 12 },
+                { header: "RETENCIÓN",        key: "retencion",              width: 12 },
+                { header: "PERCEPCIÓN",       key: "percepcion",             width: 12 },
+                { header: "SUJ. EXCLUIDOS",   key: "sujetos_excluidos",      width: 15 },
+                { header: "TOTAL",            key: "monto",                  width: 15 },
             ];
 
             const hdr = ws.getRow(1);
@@ -373,22 +372,21 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                     numero_documento:       item.numero_documento,
                     numero_registro:        item.numero_registro,
                     nombre_proveedor:       item.nombre_proveedor,
-                    // ========== NUEVOS CAMPOS EXCEL ==========
-                    codigo_generacion:       item.codigo_generacion,
-                    sello_recepcion:         item.sello_recepcion,
-                    exentas:                parseFloat(item.exentas)              || 0,
-                    exentas_importaciones:  parseFloat(item.exentas_importaciones)|| 0,
-                    locales:                parseFloat(item.locales)              || 0,
-                    importaciones:          parseFloat(item.importaciones)        || 0,
-                    iva:                    parseFloat(item.iva)                  || 0,
-                    fovial:                 parseFloat(item.fovial)               || 0,
-                    cotrans:                parseFloat(item.cotrans)              || 0,
-                    cesc:                   parseFloat(item.cesc)                 || 0,
-                    anticipo_iva:           parseFloat(item.anticipo_iva)         || 0,
-                    retencion:              parseFloat(item.retencion)            || 0,
-                    percepcion:             parseFloat(item.percepcion)           || 0,
-                    sujetos_excluidos:      parseFloat(item.sujetos_excluidos)    || 0,
-                    monto:                  parseFloat(item.monto)               || 0,
+                    codigo_generacion:      item.codigo_generacion,
+                    sello_recepcion:        item.sello_recepcion,
+                    exentas:                parseFloat(item.exentas)               || 0,
+                    exentas_importaciones:  parseFloat(item.exentas_importaciones)  || 0,
+                    locales:                parseFloat(item.locales)                || 0,
+                    importaciones:          parseFloat(item.importaciones)          || 0,
+                    iva:                    parseFloat(item.iva)                    || 0,
+                    fovial:                 parseFloat(item.fovial)                 || 0,
+                    cotrans:                parseFloat(item.cotrans)                || 0,
+                    cesc:                   parseFloat(item.cesc)                   || 0,
+                    anticipo_iva:           parseFloat(item.anticipo_iva)           || 0,
+                    retencion:              parseFloat(item.retencion)              || 0,
+                    percepcion:             parseFloat(item.percepcion)             || 0,
+                    sujetos_excluidos:      parseFloat(item.sujetos_excluidos)      || 0,
+                    monto:                  parseFloat(item.monto)                  || 0,
                 });
                 const fill = i % 2 === 0 ? "FFf1f5f9" : "FFFFFFFF";
                 row.eachCell((cell, col) => {
@@ -437,46 +435,26 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             setExporting(false);
         }
     };
-const descargarCSV = async () => {
-  try {
-    if (!fechaInicio || !fechaFin) {
-      return alert("Debes seleccionar un rango de fechas");
-    }
 
-    const params = new URLSearchParams({
-      fechaInicio,
-      fechaFin
-    });
+    const descargarCSV = async () => {
+        try {
+            if (!fechaInicio || !fechaFin) return alert("Debes seleccionar un rango de fechas");
+            const params = new URLSearchParams({ fechaInicio, fechaFin });
+            const res = await fetch(`${API_BASE_URL}/reporte/compras-csv?${params.toString()}`, { credentials: "include" });
+            if (!res.ok) throw new Error("Error al descargar CSV");
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `ANEXO_COMPRAS_${fechaInicio}_${fechaFin}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error(error);
+            alert("Error al descargar CSV");
+        }
+    };
 
-    const res = await fetch(
-      `${API_BASE_URL}/reporte/compras-csv?${params.toString()}`,
-      {
-        credentials: "include"
-      }
-    );
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error(errorText);
-      throw new Error("Error al descargar CSV");
-    }
-
-    const blob = await res.blob();
-
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-
-    a.href = url;
-    a.download = `ANEXO_COMPRAS_${fechaInicio}_${fechaFin}.csv`;
-    a.click();
-
-    window.URL.revokeObjectURL(url);
-
-  } catch (error) {
-    console.error(error);
-    alert("Error al descargar CSV");
-  }
-};
     // ── Exportar PDF ──────────────────────────────────────────────────────────
     const handleExportPDF = () => {
         setExportingPDF(true);
@@ -490,12 +468,11 @@ const descargarCSV = async () => {
 
             const cols = [
                 "No.","F. Emisión","F. Registro","Tipo","Número","NIT/NRC","Proveedor",
-                // ========== NUEVAS COLUMNAS PDF ==========
                 "Cód. Generación","Sello Recepción",
                 "Ex. Int","Ex. Imp","Gr. Int","Gr. Imp","CF IVA",
                 "FOVIAL","COTRANS","CESC","Ant. IVA","Ret","Perc","Suj. Ex","Total"
             ];
-            
+
             const rows = libroFiltrado.map((item, i) => [
                 item.no || i + 1,
                 item.fecha_emision_doc,
@@ -504,28 +481,25 @@ const descargarCSV = async () => {
                 item.numero_documento,
                 item.numero_registro,
                 item.nombre_proveedor,
-                // ========== NUEVOS CAMPOS PDF ==========
                 item.codigo_generacion,
                 item.sello_recepcion,
-                formatCurrency(item.exentas              || 0),
-                formatCurrency(item.exentas_importaciones|| 0),
-                formatCurrency(item.locales              || 0),
-                formatCurrency(item.importaciones        || 0),
-                formatCurrency(item.iva                  || 0),
-                formatCurrency(item.fovial               || 0),
-                formatCurrency(item.cotrans              || 0),
-                formatCurrency(item.cesc                 || 0),
-                formatCurrency(item.anticipo_iva         || 0),
-                formatCurrency(item.retencion            || 0),
-                formatCurrency(item.percepcion           || 0),
-                formatCurrency(item.sujetos_excluidos    || 0),
+                formatCurrency(item.exentas               || 0),
+                formatCurrency(item.exentas_importaciones  || 0),
+                formatCurrency(item.locales                || 0),
+                formatCurrency(item.importaciones          || 0),
+                formatCurrency(item.iva                    || 0),
+                formatCurrency(item.fovial                 || 0),
+                formatCurrency(item.cotrans                || 0),
+                formatCurrency(item.cesc                   || 0),
+                formatCurrency(item.anticipo_iva           || 0),
+                formatCurrency(item.retencion              || 0),
+                formatCurrency(item.percepcion             || 0),
+                formatCurrency(item.sujetos_excluidos      || 0),
                 formatCurrency(item.monto),
             ]);
 
             rows.push([
-                "","","","","","","TOTALES",
-                // ========== NUEVOS CAMPOS PDF EN TOTALES ==========
-                "","",
+                "","","","","","","TOTALES","","",
                 formatCurrency(totales.exentas_internas),
                 formatCurrency(totales.exentas_importaciones),
                 formatCurrency(totales.gravadas_internas),
@@ -550,8 +524,8 @@ const descargarCSV = async () => {
                 headStyles: { fillColor: [30, 41, 59] },
                 columnStyles: {
                     0: { halign: "center" },
-                    7: { halign: "center", fontStyle: "bold" }, // Código Generación
-                    8: { halign: "center", fontStyle: "bold" }, // Sello Recepción
+                    7: { halign: "center", fontStyle: "bold" },
+                    8: { halign: "center", fontStyle: "bold" },
                     ...[9,10,11,12,13,14,15,16,17,18,19,20,21].reduce((a,k) => ({...a,[k]:{halign:"right"}}),{}),
                     22: { halign: "right", fontStyle: "bold" },
                 },
@@ -581,12 +555,20 @@ const descargarCSV = async () => {
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <div className="flex h-screen text-slate-800 bg-slate-50 overflow-hidden">
-            {/* Modal de edición */}
+
+            {/* Modal editar */}
             <EditarCompraModal
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
                 compraId={selectedCompraId}
                 onSuccess={() => fetchLibroConFechas(fechaInicio, fechaFin)}
+            />
+
+            {/* Modal detalle ← NUEVO */}
+            <DetalleCompraModal
+                isOpen={detalleOpen}
+                onClose={() => setDetalleOpen(false)}
+                compraId={selectedDetalleId}
             />
 
             {/* Sidebar */}
@@ -598,15 +580,11 @@ const descargarCSV = async () => {
                 <Sidebar />
             </div>
             {sidebarOpen && isMobile && (
-                <div
-                    className="fixed inset-0 bg-black/40 z-10"
-                    onClick={() => setSidebarOpen(false)}
-                />
+                <div className="fixed inset-0 bg-black/40 z-10" onClick={() => setSidebarOpen(false)} />
             )}
 
             {/* Contenido principal */}
             <div className="flex-1 flex flex-col min-w-0">
-                {/* Navbar */}
                 <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
                     <Navbar
                         user={user}
@@ -645,10 +623,11 @@ const descargarCSV = async () => {
                                     <FaSync className={refreshing ? "animate-spin" : ""} size={12} />
                                     {refreshing ? "Actualizando…" : "Actualizar"}
                                 </button>
-                                <button 
-                                    onClick={descargarCSV} 
+                                <button
+                                    onClick={descargarCSV}
                                     disabled={exporting}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm"
+                                >
                                     <Csv size={12} />
                                     CSV
                                 </button>
@@ -674,25 +653,21 @@ const descargarCSV = async () => {
                         {/* ── Tarjetas resumen ──────────────────────────────── */}
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
                             {[
-                                { label: "Total Compras",      value: totales.monto,              color: "text-slate-900"   },
-                                { label: "Gravadas Locales",   value: totales.gravadas_internas,  color: "text-blue-600"    },
-                                { label: "Crédito Fiscal IVA", value: totales.credito_fiscal,     color: "text-emerald-600" },
-                                { label: "Retención",          value: totales.retencion,          color: "text-amber-600"   },
-                                { label: "Percepción",         value: totales.percepcion,         color: "text-violet-600"  },
+                                { label: "Total Compras",      value: totales.monto,             color: "text-slate-900"   },
+                                { label: "Gravadas Locales",   value: totales.gravadas_internas, color: "text-blue-600"    },
+                                { label: "Crédito Fiscal IVA", value: totales.credito_fiscal,    color: "text-emerald-600" },
+                                { label: "Retención",          value: totales.retencion,         color: "text-amber-600"   },
+                                { label: "Percepción",         value: totales.percepcion,        color: "text-violet-600"  },
                             ].map(({ label, value, color }) => (
-                                <div
-                                    key={label}
-                                    className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"
-                                >
+                                <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
                                     <p className="text-xs text-slate-500 font-medium mb-1">{label}</p>
                                     <p className={`text-lg font-bold ${color}`}>{formatCurrency(value)}</p>
                                 </div>
                             ))}
                         </div>
 
-                        {/* ── Panel de Filtros MEJORADO ─────────────────────── */}
+                        {/* ── Panel de Filtros ──────────────────────────────── */}
                         <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
-                            {/* Header del panel */}
                             <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
                                 <FaCalendarAlt className="text-slate-400" size={13} />
                                 <span className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
@@ -701,7 +676,6 @@ const descargarCSV = async () => {
                             </div>
 
                             <div className="p-5">
-                                {/* Períodos rápidos */}
                                 <div className="mb-5">
                                     <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">
                                         Período rápido
@@ -726,21 +700,16 @@ const descargarCSV = async () => {
                                     </div>
                                 </div>
 
-                                {/* Divider */}
                                 <div className="relative flex items-center gap-3 mb-5">
                                     <div className="flex-1 h-px bg-slate-200" />
                                     <span className="text-xs text-slate-400 font-medium">o rango personalizado</span>
                                     <div className="flex-1 h-px bg-slate-200" />
                                 </div>
 
-                                {/* Inputs + Buscar */}
                                 <div className="flex flex-col md:flex-row gap-4 items-end">
-                                    {/* Fechas */}
                                     <div className="flex flex-1 gap-3 items-end">
                                         <div className="flex-1">
-                                            <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                                                Desde
-                                            </label>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1.5">Desde</label>
                                             <div className="relative">
                                                 <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
                                                 <input
@@ -751,15 +720,11 @@ const descargarCSV = async () => {
                                                 />
                                             </div>
                                         </div>
-
                                         <div className="flex items-end pb-2.5 text-slate-400 shrink-0">
                                             <span className="text-lg leading-none">→</span>
                                         </div>
-
                                         <div className="flex-1">
-                                            <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                                                Hasta
-                                            </label>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1.5">Hasta</label>
                                             <div className="relative">
                                                 <FaCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
                                                 <input
@@ -772,11 +737,8 @@ const descargarCSV = async () => {
                                         </div>
                                     </div>
 
-                                    {/* Buscador de texto */}
                                     <div className="flex-1 md:max-w-xs">
-                                        <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                                            Buscar
-                                        </label>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1.5">Buscar</label>
                                         <div className="relative">
                                             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
                                             <input
@@ -797,7 +759,6 @@ const descargarCSV = async () => {
                                         </div>
                                     </div>
 
-                                    {/* Botones de acción */}
                                     <div className="flex gap-2 shrink-0">
                                         <button
                                             onClick={handleBuscar}
@@ -809,7 +770,6 @@ const descargarCSV = async () => {
                                         </button>
                                         <button
                                             onClick={handleLimpiar}
-                                            title="Limpiar filtros"
                                             className="flex items-center gap-2 px-4 py-2 bg-white text-slate-500 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-700 transition-colors"
                                         >
                                             <FaTimes size={11} />
@@ -859,6 +819,15 @@ const descargarCSV = async () => {
                                                             <div className="flex justify-center gap-1">
                                                                 {item.id ? (
                                                                     <>
+                                                                        {/* Ver detalle ← NUEVO */}
+                                                                        <button
+                                                                            onClick={() => handleViewDetail(item.id)}
+                                                                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
+                                                                            title="Ver detalle"
+                                                                        >
+                                                                            <FaEye size={13} />
+                                                                        </button>
+                                                                        {/* Editar */}
                                                                         <button
                                                                             onClick={() => handleEdit(item.id)}
                                                                             className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
@@ -866,6 +835,7 @@ const descargarCSV = async () => {
                                                                         >
                                                                             <FaEdit size={13} />
                                                                         </button>
+                                                                        {/* Eliminar */}
                                                                         <button
                                                                             onClick={() => handleDelete(item.id)}
                                                                             disabled={deletingId === item.id}
@@ -947,7 +917,6 @@ const descargarCSV = async () => {
                                 </div>
                             )}
                         </div>
-                        {/* fin tabla */}
                     </div>
                 </div>
 
