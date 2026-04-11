@@ -72,10 +72,8 @@ export default function ProductModal({
     }
   }, [productoSeleccionado]);
 
-  // CORRECCIÓN: Manejar tributos según tipo de venta
   useEffect(() => {
     if (tipoVenta === "1") {
-      // Gravado - Agregar IVA automáticamente si no existe
       const ivaExiste = tributos.some(t => t.codigo === "20");
       
       if (!ivaExiste && productoSeleccionado) {
@@ -93,7 +91,6 @@ export default function ProductModal({
         setTributos([ivaTributo]);
       }
     } else {
-      // Exento o No Sujeto - Remover IVA si existe
       setTributos(tributos.filter(t => t.codigo !== "20"));
     }
   }, [tipoVenta, productoSeleccionado, cantidad, descuentoAplicado, precioEditable]);
@@ -127,7 +124,6 @@ export default function ProductModal({
     const subtotalSinDescuento = (cantidad * precio);
     const descuento = parseFloat(valorDescuento) || 0;
     
-    // Validar que el descuento no sea mayor al subtotal
     if (descuento > subtotalSinDescuento) {
       setDescuentoAplicado(0);
       return;
@@ -141,7 +137,6 @@ export default function ProductModal({
     const numericValue = value === "" ? "" : parseFloat(value);
     setValorDescuento(numericValue);
     
-    // Validar en tiempo real
     if (productoSeleccionado) {
       validarDescuento(numericValue, productoSeleccionado, cantidad);
     }
@@ -150,7 +145,6 @@ export default function ProductModal({
   useEffect(() => {
     if (productoSeleccionado) {
       calcularDescuento();
-      // Validar el descuento actual cuando cambia el producto o cantidad
       validarDescuento(valorDescuento, productoSeleccionado, cantidad, precioEditable);
     } else {
       setDescuentoAplicado(0);
@@ -256,13 +250,11 @@ export default function ProductModal({
   const agregarTributo = () => {
     if (!productoSeleccionado) return;
     
-    // CORRECCIÓN: No permitir agregar tributos para No Sujeto
     if (tipoVenta === "3") {
       alert("No puede agregar tributos a un producto No Sujeto");
       return;
     }
     
-    // CORRECCIÓN: No permitir agregar IVA a productos exentos
     if (tipoVenta === "2" && impuestoSeleccionado === "20") {
       alert("No puede agregar IVA a un producto exento");
       return;
@@ -289,7 +281,6 @@ export default function ProductModal({
   };
 
   const eliminarTributo = (codigo) => {
-    // CORRECCIÓN: No permitir eliminar IVA de productos gravados
     if (tipoVenta === "1" && codigo === "20") {
       alert("No puede eliminar el IVA de un producto gravado");
       return;
@@ -305,17 +296,14 @@ export default function ProductModal({
     const subtotal = cantidad * precio;
     const subtotalConDescuento = Math.max(0, subtotal - descuentoAplicado);
     
-    // CORRECCIÓN: Para No Sujeto, solo retornar el subtotal con descuento
     if (tipoVenta === "3") {
       return subtotalConDescuento;
     }
     
     if (tipoVenta === "2") {
-      // Exento - sin impuestos
       return subtotalConDescuento;
     }
     
-    // Gravado - sumar tributos (incluye IVA automático)
     const totalImpuestos = tributos.reduce((sum, tributo) => sum + tributo.valor, 0);
     
     return subtotalConDescuento + totalImpuestos;
@@ -327,7 +315,6 @@ export default function ProductModal({
       return;
     }
 
-    // Validar descuento antes de agregar
     if (!validarDescuento(valorDescuento, productoSeleccionado, cantidad, precioEditable)) {
       alert("El descuento no puede ser mayor al precio del item");
       return;
@@ -368,12 +355,10 @@ export default function ProductModal({
     
     const total = calcularTotal();
     
-    // Calcular montos por tipo de venta
     let ventaGravada = 0;
     let ventaExenta = 0;
     let ventaNoSujeta = 0;
     
-    // Calcular descuentos por tipo de venta
     let descuentoGravado = 0;
     let descuentoExento = 0;
     let descuentoNoSujeto = 0;
@@ -382,15 +367,15 @@ export default function ProductModal({
     const subtotalSinDescuento = cantidad * precioUnitario;
     
     switch (tipoVenta) {
-      case "1": // Gravado
+      case "1":
         ventaGravada = subtotalSinDescuento;
         descuentoGravado = descuentoAplicado;
         break;
-      case "2": // Exento
+      case "2":
         ventaExenta = subtotalSinDescuento;
         descuentoExento = descuentoAplicado;
         break;
-      case "3": // No sujeto
+      case "3":
         ventaNoSujeta = subtotalSinDescuento;
         descuentoNoSujeto = descuentoAplicado;
         break;
@@ -405,16 +390,14 @@ export default function ProductModal({
       valorDescuento: valorDescuento,
       unidadMedida: productoSeleccionado.unidad || "59",
       tipo: tipoItem,
-      tributos: tipoVenta === "3" ? [] : tributos, // CORRECCIÓN: No Sujeto no lleva tributos
+      tributos: tipoVenta === "3" ? [] : tributos,
       productoId: !esServicio ? productoSeleccionado.id : null,
       actualizarStock: necesitaActualizarStock,
       stockAnterior: !esServicio ? productoSeleccionado.stock : null,
-      esServicio: esServicio, // Este campo ya existía
-      // Nuevos campos para tipos de venta
+      esServicio: esServicio,
       ventaGravada: (ventaGravada - descuentoGravado),
       ventaExenta: (ventaExenta - descuentoExento),
       ventaNoSujeta: (ventaNoSujeta - descuentoNoSujeto),
-      // Nuevos campos para descuentos por tipo
       descuentoGravado: descuentoGravado,
       descuentoExento: descuentoExento,
       descuentoNoSujeto: descuentoNoSujeto
@@ -528,32 +511,31 @@ export default function ProductModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-  <label className="block text-sm font-semibold text-gray-900 mb-2">Cantidad</label>
-  <input
-    type="number"
-    inputMode="decimal"
-    step="any"
-    lang="en"
-    value={cantidad}
-    onChange={(e) => {
-      const value = e.target.value;
-      if (value === "") {
-        setCantidad("");
-      } else {
-        const numValue = parseFloat(value);
-        if (!isNaN(numValue) && numValue > 0) {
-          setCantidad(numValue);
-        }
-      }
-    }}
-    onBlur={() => {
-      if (cantidad === "" || cantidad === 0) {
-        setCantidad(1);
-      }
-    }}
-    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-  />
-</div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Cantidad</label>
+                  <input
+                    type="number"
+                    step="any"
+                    lang="en"
+                    value={cantidad}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === "") {
+                        setCantidad("");
+                      } else {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue) && numValue > 0) {
+                          setCantidad(numValue);
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      if (cantidad === "" || cantidad === 0) {
+                        setCantidad(1);
+                      }
+                    }}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Unidad</label>
                   <input
@@ -583,20 +565,19 @@ export default function ProductModal({
                     $
                   </span>
                   <input
-                    type="text"
-                    inputMode="decimal"
+                    type="number"
+                    step="any"
+                    lang="en"
                     className="flex-1 min-w-0 rounded-r-lg border border-gray-300 p-3 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                     value={precioEditable === 0 ? "" : precioEditable}
                     onChange={(e) => {
                       const value = e.target.value;
-                      if (/^\d*\.?\d*$/.test(value)) {
-                        if (value === "") {
-                          setPrecioEditable("");
-                        } else {
-                          const numValue = parseFloat(value);
-                          if (!isNaN(numValue) && numValue >= 0) {
-                            setPrecioEditable(numValue);
-                          }
+                      if (value === "") {
+                        setPrecioEditable("");
+                      } else {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue) && numValue >= 0) {
+                          setPrecioEditable(numValue);
                         }
                       }
                     }}
@@ -613,7 +594,6 @@ export default function ProductModal({
                 )}
               </div>
 
-              {/* SECCIÓN DE DESCUENTO CON VALIDACIÓN */}
               <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                   <FaPercent className="mr-2 text-gray-600" />
@@ -629,19 +609,18 @@ export default function ProductModal({
                       $
                     </span>
                     <input
-                      type="text"
-                      inputMode="decimal"
+                      type="number"
+                      step="any"
+                      lang="en"
                       value={valorDescuento === 0 ? "" : valorDescuento}
                       onChange={(e) => {
                         const value = e.target.value;
-                        if (/^\d*\.?\d*$/.test(value)) {
-                          if (value === "") {
-                            handleValorDescuentoChange("");
-                          } else {
-                            const numValue = parseFloat(value);
-                            if (!isNaN(numValue) && numValue >= 0) {
-                              handleValorDescuentoChange(numValue);
-                            }
+                        if (value === "") {
+                          handleValorDescuentoChange("");
+                        } else {
+                          const numValue = parseFloat(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            handleValorDescuentoChange(numValue);
                           }
                         }
                       }}
@@ -880,7 +859,6 @@ export default function ProductModal({
                   </div>
                 )}
 
-                {/* CORRECCIÓN: Mensaje informativo para No Sujeto */}
                 {esNoSujeto && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-2">
                     <p className="text-sm text-yellow-800">

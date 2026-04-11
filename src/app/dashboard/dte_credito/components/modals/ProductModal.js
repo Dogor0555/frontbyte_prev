@@ -32,7 +32,6 @@ export default function ProductModal({
     return parseFloat(operacion.toFixed(decimales));
   };
 
-  // Función para mostrar con 2 decimales
   const mostrarDecimales = (valor, decimales = 2) => {
     return parseFloat(valor).toFixed(decimales);
   };
@@ -338,13 +337,10 @@ export default function ProductModal({
     const descuentoPorUnidad = cantidad > 0 ? calcularPreciso(valorDescuento / cantidad, 10) : 0;
     const precioBrutoConDescuento = calcularPreciso(precioBruto - descuentoPorUnidad, 10);
     
-    // Para productos exentos y no sujetos, el total es simplemente precio con descuento * cantidad
     if (tipoVenta === "3" || tipoVenta === "2") {
       return calcularPreciso(cantidad * precioBrutoConDescuento, 10);
     }
     
-    // Para productos gravados, el total es el precio bruto con descuento * cantidad
-    // (ya que el precio bruto incluye el IVA)
     return calcularPreciso(cantidad * precioBrutoConDescuento, 10);
   };
 
@@ -460,7 +456,7 @@ export default function ProductModal({
       precioUnitario: precioBrutoOriginal, 
       precioUnitarioConDescuento: precioBrutoConDescuento, 
       precioNeto: tipoVenta === "1" ? calcularPreciso(precioBrutoConDescuento / 1.13, 10) : precioBrutoConDescuento,
-      descuento: descuentoTotal, // Descuento total del item
+      descuento: descuentoTotal,
       valorDescuento: valorDescuento,
       unidadMedida: productoSeleccionado.unidad || "59",
       tipo: tipoItem,
@@ -582,32 +578,31 @@ export default function ProductModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-  <label className="block text-sm font-semibold text-gray-900 mb-2">Cantidad</label>
-  <input
-    type="number"
-    inputMode="decimal"
-    step="any"
-    lang="en"
-    value={cantidad}
-    onChange={(e) => {
-      const value = e.target.value;
-      if (value === "") {
-        setCantidad("");
-      } else {
-        const numValue = parseFloat(value);
-        if (!isNaN(numValue) && numValue > 0) {
-          setCantidad(numValue);
-        }
-      }
-    }}
-    onBlur={() => {
-      if (cantidad === "" || cantidad === 0) {
-        setCantidad(1);
-      }
-    }}
-    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-  />
-</div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Cantidad</label>
+                  <input
+                    type="number"
+                    step="any"
+                    lang="en"
+                    value={cantidad}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === "") {
+                        setCantidad("");
+                      } else {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue) && numValue > 0) {
+                          setCantidad(numValue);
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      if (cantidad === "" || cantidad === 0) {
+                        setCantidad(1);
+                      }
+                    }}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Unidad</label>
                   <input
@@ -637,20 +632,19 @@ export default function ProductModal({
                     $
                   </span>
                   <input
-                    type="text"
-                    inputMode="decimal"
+                    type="number"
+                    step="any"
+                    lang="en"
                     className="flex-1 min-w-0 rounded-r-lg border border-gray-300 p-3 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                     value={precioEditable === 0 ? "" : precioEditable}
                     onChange={(e) => {
                       const value = e.target.value;
-                      if (/^\d*\.?\d*$/.test(value)) {
-                        if (value === "") {
-                          setPrecioEditable("");
-                        } else {
-                          const numValue = parseFloat(value);
-                          if (!isNaN(numValue) && numValue >= 0) {
-                            setPrecioEditable(numValue);
-                          }
+                      if (value === "") {
+                        setPrecioEditable("");
+                      } else {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue) && numValue >= 0) {
+                          setPrecioEditable(numValue);
                         }
                       }
                     }}
@@ -682,19 +676,18 @@ export default function ProductModal({
                       $
                     </span>
                     <input
-                      type="text"
-                      inputMode="decimal"
+                      type="number"
+                      step="any"
+                      lang="en"
                       value={valorDescuento === 0 ? "" : valorDescuento}
                       onChange={(e) => {
                         const value = e.target.value;
-                        if (/^\d*\.?\d*$/.test(value)) {
-                          if (value === "") {
-                            handleValorDescuentoChange("");
-                          } else {
-                            const numValue = parseFloat(value);
-                            if (!isNaN(numValue) && numValue >= 0) {
-                              handleValorDescuentoChange(numValue);
-                            }
+                        if (value === "") {
+                          handleValorDescuentoChange("");
+                        } else {
+                          const numValue = parseFloat(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            handleValorDescuentoChange(numValue);
                           }
                         }
                       }}
