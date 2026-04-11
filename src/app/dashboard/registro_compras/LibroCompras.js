@@ -13,7 +13,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import { API_BASE_URL } from "@/lib/api";
-import { Csv } from "./components/csv";
+import { Csv } from "./components/Csv";
 
 // ─── Períodos rápidos ────────────────────────────────────────────────────────
 const QUICK_PERIODS = [
