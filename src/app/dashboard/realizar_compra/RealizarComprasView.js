@@ -150,6 +150,14 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [addQuantity, setAddQuantity] = useState(1);
     const [addPrice, setAddPrice] = useState("");
 
+    // ========== ESTADOS PARA GASTOS SIN INVENTARIO ==========
+    const [showGastoModal, setShowGastoModal] = useState(false);
+    const [gastoData, setGastoData] = useState({
+        descripcion: "",
+        cantidad: 1,
+        precio_unitario: 0
+    });
+
     const [showDialog, setShowDialog] = useState(false);
     const [dialogClosing, setDialogClosing] = useState(false);
     const [productosNoEncontradosMsg, setProductosNoEncontradosMsg] = useState([]);
@@ -247,6 +255,44 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         setProductSearch("");
         setAddQuantity(1);
         setAddPrice("");
+    };
+
+    // ========== FUNCIÓN PARA AGREGAR GASTO SIN INVENTARIO ==========
+    const handleAddGasto = () => {
+        if (!gastoData.descripcion.trim()) {
+            addToast({ type: 'error', message: 'Ingrese una descripción para el gasto/servicio' });
+            return;
+        }
+        if (gastoData.cantidad <= 0) {
+            addToast({ type: 'error', message: 'La cantidad debe ser mayor a 0' });
+            return;
+        }
+        if (gastoData.precio_unitario < 0) {
+            addToast({ type: 'error', message: 'El precio no puede ser negativo' });
+            return;
+        }
+
+        const subtotal = gastoData.cantidad * gastoData.precio_unitario;
+        
+        const newDetail = {
+            producto_id: null,
+            producto_codigo: null,
+            producto_nombre: null,
+            descripcion: gastoData.descripcion,
+            cantidad: gastoData.cantidad,
+            precio_unitario: gastoData.precio_unitario,
+            subtotal: subtotal,
+            sin_inventario: true
+        };
+
+        const newDetalles = [...detalles, newDetail];
+        setDetalles(newDetalles);
+        updateTotals(newDetalles, formData.tipo_compra);
+        
+        setGastoData({ descripcion: "", cantidad: 1, precio_unitario: 0 });
+        setShowGastoModal(false);
+        
+        addToast({ type: 'success', message: 'Gasto/Servicio agregado correctamente' });
     };
 
     const handleRemoveDetail = (index) => {
@@ -701,137 +747,158 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         }));
     };
 
-    const handleDialogYes = async () => {
-        if (!pendingDteData) return;
-
-        setIsLoading(true);
-        try {
-            const { dteData, productosACrear, foundProv, currentProveedorId } = pendingDteData;
-            let currentProductos = [...productos];
-            const nuevosDetalles = [];
-
-            for (let i = 0; i < productosACrear.length; i++) {
-                if (selectedProductosToCreate[i]) {
-                    const prodData = productosACrear[i];
-                    try {
-                        const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            credentials: "include",
-                            body: JSON.stringify({
-                                nombre: prodData.nombre,
-                                codigo: prodData.codigo,
-                                unidad: prodData.unidad,
-                                precio: prodData.precio,
-                                preciooferta: prodData.preciooferta,
-                                stock: prodData.stock,
-                                es_servicio: prodData.es_servicio,
-                                idproveedor: currentProveedorId
-                            }),
-                        });
-
-                        if (response.ok) {
-                            const resJson = await response.json();
-                            const newProd = resJson.producto;
-                            currentProductos.push(newProd);
-                            setProductos(prev => [...prev, newProd]);
-
-                            nuevosDetalles.push({
-                                producto_id: newProd.id,
-                                producto_nombre: newProd.nombre,
-                                producto_codigo: newProd.codigo,
-                                cantidad: prodData.item.cantidad,
-                                precio_unitario: prodData.item.precioUni,
-                                subtotal: prodData.item.ventaGravada
-                            });
-                        }
-                    } catch (err) {
-                        console.error("Error creando producto:", err);
-                    }
-                }
-            }
-
-            for (const item of dteData.cuerpoDocumento) {
-                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-                if (!foundProd) {
-                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-                }
-                if (foundProd) {
-                    const yaExiste = nuevosDetalles.some(d => d.producto_id === foundProd.id);
-                    if (!yaExiste) {
-                        nuevosDetalles.push({
-                            producto_id: foundProd.id,
-                            producto_nombre: foundProd.nombre,
-                            producto_codigo: foundProd.codigo,
-                            cantidad: item.cantidad,
-                            precio_unitario: item.precioUni,
-                            subtotal: item.ventaGravada
-                        });
-                    }
-                }
-            }
-
-            setFormData(prev => {
-                const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-                const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
-                const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
-                return {
-                    ...prev,
-                    fecha_emision: dteData.identificacion.fecEmi,
-                    numero_documento: dteData.identificacion.numeroControl,
-                    nrc: dteData.emisor.nrc,
-                    nombre_proveedor: dteData.emisor.nombre,
-                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                    tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                    gravadas_internas: dteData.resumen.totalGravada,
-                    credito_fiscal: iva,
-                    total_compras: dteData.resumen.totalPagar
-                };
-            });
-
-            if (nuevosDetalles.length > 0) {
-                setDetalles(prev => [...prev, ...nuevosDetalles]);
-            }
-
-            closeDialog(() => {
-                setPendingDteData(null);
-                setProductosNoEncontradosMsg([]);
-                setSelectedProductosToCreate({});
-                setIsLoading(false);
-            });
-
-        } catch (error) {
-            console.error("Error:", error);
-            setError("Error al crear los productos.");
-            setIsLoading(false);
-        }
-    };
-
     const handleDialogNo = () => {
-        if (!pendingDteData) return;
+    if (!pendingDteData) return;
 
-        const { dteData } = pendingDteData;
+    const { dteData, foundProv, currentProveedorId } = pendingDteData;
+    const nuevosDetalles = [];
+
+    console.log("🔄 Procesando productos NO agregados al inventario como GASTOS");
+
+    for (const item of dteData.cuerpoDocumento) {
+        let foundProd = productos.find(p => p.codigo === item.codigo);
+        if (!foundProd) {
+            foundProd = productos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+        }
+        
+        if (foundProd) {
+            nuevosDetalles.push({
+                producto_id: foundProd.id,
+                producto_nombre: foundProd.nombre,
+                producto_codigo: foundProd.codigo,
+                cantidad: item.cantidad,
+                precio_unitario: item.precioUni,
+                subtotal: item.ventaGravada
+            });
+        } else {
+            nuevosDetalles.push({
+                producto_id: null,
+                producto_codigo: null,
+                producto_nombre: null,
+                descripcion: item.descripcion,
+                cantidad: item.cantidad,
+                precio_unitario: item.precioUni,
+                subtotal: item.ventaGravada,
+                sin_inventario: true
+            });
+        }
+    }
+
+    if (nuevosDetalles.length > 0) {
+        setDetalles(prev => [...prev, ...nuevosDetalles]);
+        addToast({ 
+            type: 'success', 
+            title: 'Productos cargados', 
+            message: `Se cargaron ${nuevosDetalles.filter(d => d.producto_id).length} productos y ${nuevosDetalles.filter(d => !d.producto_id).length} gastos.` 
+        });
+    }
+
+    setFormData(prev => {
+        const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
+        const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
+        const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
+        return {
+            ...prev,
+            fecha_emision: dteData.identificacion.fecEmi,
+            numero_documento: dteData.identificacion.numeroControl,
+            nrc: dteData.emisor.nrc,
+            nombre_proveedor: dteData.emisor.nombre,
+            proveedor_id: pendingDteData.foundProv ? pendingDteData.foundProv.id : prev.proveedor_id,
+            tipo_documento: tipoMap[tipoDteValue] || "CCF",
+            gravadas_internas: dteData.resumen.totalGravada,
+            credito_fiscal: iva,
+            total_compras: dteData.resumen.totalPagar
+        };
+    });
+
+    closeDialog(() => {
+        setPendingDteData(null);
+        setProductosNoEncontradosMsg([]);
+        setSelectedProductosToCreate({});
+        setIsLoading(false);
+    });
+};
+
+const handleDialogYes = async () => {
+    if (!pendingDteData) return;
+
+    setIsLoading(true);
+    try {
+        const { dteData, productosACrear, foundProv, currentProveedorId } = pendingDteData;
+        let currentProductos = [...productos];
         const nuevosDetalles = [];
 
-        for (const item of dteData.cuerpoDocumento) {
-            let foundProd = productos.find(p => p.codigo === item.codigo);
-            if (!foundProd) {
-                foundProd = productos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-            }
-            if (foundProd) {
-                nuevosDetalles.push({
-                    producto_id: foundProd.id,
-                    producto_nombre: foundProd.nombre,
-                    producto_codigo: foundProd.codigo,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precioUni,
-                    subtotal: item.ventaGravada
-                });
+        for (let i = 0; i < productosACrear.length; i++) {
+            if (selectedProductosToCreate[i]) {
+                const prodData = productosACrear[i];
+                try {
+                    const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            nombre: prodData.nombre,
+                            codigo: prodData.codigo,
+                            unidad: prodData.unidad,
+                            precio: prodData.precio,
+                            preciooferta: prodData.preciooferta,
+                            stock: prodData.stock,
+                            es_servicio: prodData.es_servicio,
+                            idproveedor: currentProveedorId
+                        }),
+                    });
+
+                    if (response.ok) {
+                        const resJson = await response.json();
+                        const newProd = resJson.producto;
+                        currentProductos.push(newProd);
+                        setProductos(prev => [...prev, newProd]);
+
+                        nuevosDetalles.push({
+                            producto_id: newProd.id,
+                            producto_nombre: newProd.nombre,
+                            producto_codigo: newProd.codigo,
+                            cantidad: prodData.item.cantidad,
+                            precio_unitario: prodData.item.precioUni,
+                            subtotal: prodData.item.ventaGravada
+                        });
+                    }
+                } catch (err) {
+                    console.error("Error creando producto:", err);
+                }
             }
         }
 
-        if (nuevosDetalles.length > 0) {
-            setDetalles(prev => [...prev, ...nuevosDetalles]);
+        for (const item of dteData.cuerpoDocumento) {
+            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            if (!foundProd) {
+                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+            }
+            
+            if (foundProd) {
+                const yaExiste = nuevosDetalles.some(d => d.producto_id === foundProd.id);
+                if (!yaExiste) {
+                    nuevosDetalles.push({
+                        producto_id: foundProd.id,
+                        producto_nombre: foundProd.nombre,
+                        producto_codigo: foundProd.codigo,
+                        cantidad: item.cantidad,
+                        precio_unitario: item.precioUni,
+                        subtotal: item.ventaGravada
+                    });
+                }
+            } else {
+                nuevosDetalles.push({
+                    producto_id: null,
+                    producto_codigo: null,
+                    producto_nombre: null,
+                    descripcion: item.descripcion,
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precioUni,
+                    subtotal: item.ventaGravada,
+                    sin_inventario: true
+                });
+            }
         }
 
         setFormData(prev => {
@@ -844,7 +911,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 numero_documento: dteData.identificacion.numeroControl,
                 nrc: dteData.emisor.nrc,
                 nombre_proveedor: dteData.emisor.nombre,
-                proveedor_id: pendingDteData.foundProv ? pendingDteData.foundProv.id : prev.proveedor_id,
+                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
                 tipo_documento: tipoMap[tipoDteValue] || "CCF",
                 gravadas_internas: dteData.resumen.totalGravada,
                 credito_fiscal: iva,
@@ -852,13 +919,23 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             };
         });
 
+        if (nuevosDetalles.length > 0) {
+            setDetalles(prev => [...prev, ...nuevosDetalles]);
+        }
+
         closeDialog(() => {
             setPendingDteData(null);
             setProductosNoEncontradosMsg([]);
             setSelectedProductosToCreate({});
             setIsLoading(false);
         });
-    };
+
+    } catch (error) {
+        console.error("Error:", error);
+        setError("Error al crear los productos.");
+        setIsLoading(false);
+    }
+};
 
     if (isLoadingData) {
         return (
@@ -874,7 +951,6 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-30" onClick={() => setSidebarOpen(false)}></div>
             )}
 
-            {/* ========== TOAST NOTIFICATIONS ========== */}
             <Toast toasts={toasts} removeToast={removeToast} />
 
             <div className="flex flex-1 h-full overflow-hidden">
@@ -1061,13 +1137,22 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                 min="0" step="0.01" placeholder="0.00"
                                             />
                                         </div>
-                                        <div className="md:col-span-2">
+                                        <div className="md:col-span-1">
                                             <button 
                                                 type="button" onClick={handleAddDetail}
                                                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center"
                                                 disabled={!selectedProduct}
                                             >
                                                 <FaPlus className="mr-2" /> Agregar
+                                            </button>
+                                        </div>
+                                        <div className="md:col-span-1">
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setShowGastoModal(true)}
+                                                className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center"
+                                            >
+                                                <FaMoneyBillWave className="mr-2" /> Gasto
                                             </button>
                                         </div>
                                     </div>
@@ -1077,7 +1162,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             <thead className="bg-gray-50">
                                                 <tr>
                                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto / Descripción</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cant.</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Costo Unit.</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
@@ -1094,8 +1179,18 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                 ) : (
                                                     detalles.map((item, idx) => (
                                                         <tr key={idx}>
-                                                            <td className="px-4 py-3 text-sm text-gray-900">{item.producto_codigo}</td>
-                                                            <td className="px-4 py-3 text-sm text-gray-900">{item.producto_nombre}</td>
+                                                            <td className="px-4 py-3 text-sm">
+                                                                {item.producto_id ? (
+                                                                    <span className="text-gray-900 font-mono text-xs">{item.producto_codigo || "—"}</span>
+                                                                ) : (
+                                                                    <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full font-sans">
+                                                                        Gasto
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-sm text-gray-900">
+                                                                {item.producto_nombre || item.descripcion || "Sin descripción"}
+                                                            </td>
                                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">{item.cantidad}</td>
                                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">${item.precio_unitario.toFixed(2)}</td>
                                                             <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">${item.subtotal.toFixed(2)}</td>
@@ -1236,7 +1331,67 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 </div>
             </div>
 
-            {/* ========== DIALOG PRODUCTOS NO ENCONTRADOS (con animación suave) ========== */}
+            {/* ========== MODAL PARA AGREGAR GASTO/SERVICIO SIN INVENTARIO ========== */}
+            {showGastoModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+                        <div className="flex items-center justify-between px-6 py-4 border-b">
+                            <h2 className="text-lg font-semibold text-gray-800">Agregar Gasto / Servicio</h2>
+                            <button onClick={() => setShowGastoModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+                                <input 
+                                    type="text"
+                                    value={gastoData.descripcion}
+                                    onChange={(e) => setGastoData({...gastoData, descripcion: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    placeholder="Ej: Gasolina Super, Servicio de Internet, Luz, Agua..."
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+                                <input 
+                                    type="number"
+                                    value={gastoData.cantidad}
+                                    onChange={(e) => setGastoData({...gastoData, cantidad: parseFloat(e.target.value) || 0})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    step="0.01"
+                                    min="0.01"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Precio Unitario ($)</label>
+                                <input 
+                                    type="number"
+                                    value={gastoData.precio_unitario}
+                                    onChange={(e) => setGastoData({...gastoData, precio_unitario: parseFloat(e.target.value) || 0})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    step="0.01"
+                                    min="0"
+                                />
+                            </div>
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                                <p className="text-sm text-gray-600">Subtotal: <span className="font-bold text-gray-900">${(gastoData.cantidad * gastoData.precio_unitario).toFixed(2)}</span></p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
+                            <button onClick={() => setShowGastoModal(false)} className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">
+                                Cancelar
+                            </button>
+                            <button onClick={handleAddGasto} className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700">
+                                Agregar Gasto
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ========== DIALOG PRODUCTOS NO ENCONTRADOS ========== */}
             {showDialog && (
                 <div
                     className="fixed inset-0 bg-black flex items-center justify-center z-50"
