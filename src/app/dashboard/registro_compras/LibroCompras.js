@@ -13,7 +13,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import { API_BASE_URL } from "@/lib/api";
-import { Csv } from "./components/Csv";
+import ExportarAnexoCompras from "./components/ExportarAnexoCompras.jsx";
 
 // ─── Períodos rápidos ────────────────────────────────────────────────────────
 const QUICK_PERIODS = [
@@ -455,6 +455,148 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
         }
     };
 
+
+const descargarExcel = async () => {
+    if (!libroFiltrado.length) return alert("No hay datos");
+
+    setExporting(true);
+
+    try {
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet("Anexo Compras");
+
+        // 🧾 TÍTULO
+        ws.mergeCells("A1:S1");
+        ws.getCell("A1").value = "ANEXO DE COMPRAS";
+        ws.getCell("A1").font = { bold: true, size: 14 };
+        ws.getCell("A1").alignment = { horizontal: "center" };
+
+        // 📅 PERÍODO
+        ws.mergeCells("A2:S2");
+        ws.getCell("A2").value = `PERÍODO: ${fechaInicio} AL ${fechaFin}`;
+        ws.getCell("A2").alignment = { horizontal: "center" };
+
+        // 🧱 ENCABEZADOS OFICIALES
+        const headers = [
+            "F. EMISIÓN",
+            "F. REGISTRO",
+            "TIPO DOC",
+            "NÚMERO",
+            "NIT/NRC",
+            "PROVEEDOR",
+            "EXENTAS INT.",
+            "EXENTAS IMP.",
+            "GRAVADAS INT.",
+            "GRAVADAS IMP.",
+            "CRÉDITO FISCAL",
+            "FOVIAL",
+            "COTRANS",
+            "CESC",
+            "ANTICIPO IVA",
+            "RETENCIÓN",
+            "PERCEPCIÓN",
+            "SUJETOS EXCLUIDOS",
+            "TOTAL",
+        ];
+
+        const headerRow = ws.addRow(headers);
+
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+            cell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FF1E293B" },
+            };
+            cell.alignment = { horizontal: "center" };
+        });
+
+        // 📊 DATA EXACTA
+        libroFiltrado.forEach((item) => {
+            ws.addRow([
+                item.fecha_emision_doc,
+                item.fecha_registro_sistema,
+                item.tipo_documento,
+                item.numero_documento,
+                item.numero_registro,
+                item.nombre_proveedor,
+                parseFloat(item.exentas) || 0,
+                parseFloat(item.exentas_importaciones) || 0,
+                parseFloat(item.locales) || 0,
+                parseFloat(item.importaciones) || 0,
+                parseFloat(item.iva) || 0,
+                parseFloat(item.fovial) || 0,
+                parseFloat(item.cotrans) || 0,
+                parseFloat(item.cesc) || 0,
+                parseFloat(item.anticipo_iva) || 0,
+                parseFloat(item.retencion) || 0,
+                parseFloat(item.percepcion) || 0,
+                parseFloat(item.sujetos_excluidos) || 0,
+                parseFloat(item.monto) || 0,
+            ]);
+        });
+
+        // 📐 ANCHOS
+        ws.columns = [
+            { width: 12 }, { width: 12 }, { width: 10 }, { width: 18 },
+            { width: 18 }, { width: 30 }, { width: 14 }, { width: 14 },
+            { width: 14 }, { width: 14 }, { width: 16 }, { width: 10 },
+            { width: 10 }, { width: 10 }, { width: 14 }, { width: 12 },
+            { width: 12 }, { width: 16 }, { width: 16 },
+        ];
+
+        // 💰 FORMATO NUMÉRICO
+        ws.eachRow((row, rowNumber) => {
+            if (rowNumber > 3) {
+                row.eachCell((cell, colNumber) => {
+                    if (colNumber >= 7) {
+                        cell.numFmt = "#,##0.00";
+                        cell.alignment = { horizontal: "right" };
+                    }
+                });
+            }
+        });
+
+        // 📊 TOTALES (IMPORTANTE HACIENDA)
+        const totalRow = ws.addRow([
+            "", "", "", "", "", "TOTALES",
+            totales.exentas_internas,
+            totales.exentas_importaciones,
+            totales.gravadas_internas,
+            totales.gravadas_importaciones,
+            totales.credito_fiscal,
+            totales.fovial,
+            totales.cotrans,
+            totales.cesc,
+            totales.anticipo_iva,
+            totales.retencion,
+            totales.percepcion,
+            totales.sujetos_excluidos,
+            totales.monto,
+        ]);
+
+        totalRow.font = { bold: true };
+
+        // 📥 DESCARGA
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer]);
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `ANEXO_COMPRAS_HACIENDA_${fechaInicio}_${fechaFin}.xlsx`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error(error);
+        alert("Error al exportar Excel");
+    } finally {
+        setExporting(false);
+    }
+};
+
     // ── Exportar PDF ──────────────────────────────────────────────────────────
     const handleExportPDF = () => {
         setExportingPDF(true);
@@ -623,14 +765,11 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                                     <FaSync className={refreshing ? "animate-spin" : ""} size={12} />
                                     {refreshing ? "Actualizando…" : "Actualizar"}
                                 </button>
-                                <button
-                                    onClick={descargarCSV}
-                                    disabled={exporting}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm"
-                                >
-                                    <Csv size={12} />
-                                    CSV
-                                </button>
+<ExportarAnexoCompras
+    descargarCSV={descargarCSV}
+    descargarExcel={descargarExcel}
+    exporting={exporting}
+/>
                                 <button
                                     onClick={handleExportExcel}
                                     disabled={exporting}
