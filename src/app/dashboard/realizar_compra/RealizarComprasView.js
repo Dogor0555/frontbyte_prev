@@ -125,7 +125,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         tipo_compra: "local",
         descripcion: "",
         exentas_internas: 0,
-        exentas_internaciones: 0,
+//        exentas_internaciones: 0,
         exentas_importaciones: 0,
         gravadas_internas: 0,
         gravadas_internaciones: 0,
@@ -682,10 +682,19 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 retencion: parseFloat(formData.retencion || 0),
                 percepcion: parseFloat(formData.percepcion || 0),
                 retencion_terceros: parseFloat(formData.retencion_terceros || 0),
-                detalles: detalles,
+detalles: detalles.map(d => ({
+    producto_id: d.producto_id || null,
+    producto_codigo: d.producto_codigo || "",
+    producto_nombre: d.producto_nombre || "",
+    descripcion: d.descripcion || "",
+    cantidad: parseFloat(d.cantidad || 0),
+    precio_unitario: parseFloat(d.precio_unitario || 0),
+    subtotal: parseFloat(d.subtotal || 0),
+    sin_inventario: d.sin_inventario || false
+})),
                 dteData: currentDteData
             };
-
+console.log("📦 PAYLOAD:", payload);
             const response = await fetch(`${API_BASE_URL}/compras/add`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
