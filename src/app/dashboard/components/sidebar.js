@@ -592,7 +592,14 @@ export default function Sidebar({ onOpenPerfil }) {
         permiso: "Proveedores"
       });
     }
-
+    if (tienePermiso("Inventario")) {
+      adminSubMenu.push({
+        name: "Inventario",
+        icon: <FaBoxOpen />,
+        href: "/dashboard/inventario",
+        permiso: "Inventario"
+      });
+    }
     if (tienePermiso("Registro de eventos")) {
       adminSubMenu.push({
         name: "Registro de eventos",
