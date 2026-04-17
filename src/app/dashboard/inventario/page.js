@@ -185,68 +185,94 @@ export default function InventarioMP() {
         <Footer />
       </div>
 
-      {/* MODAL */}
-      {openModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+{/* MODAL */}
+{openModal && (
+  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
 
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-lg p-6">
+    <div className="bg-white/90 backdrop-blur-xl w-full max-w-md rounded-3xl shadow-2xl border border-gray-200 p-6 animate-fadeIn">
 
-            <h2 className="text-xl font-bold mb-4">
-              Nueva Materia Prima
-            </h2>
+      {/* HEADER */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="bg-blue-100 text-blue-600 p-3 rounded-xl">
+          <FaBoxOpen />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-800">
+            Nueva Materia Prima
+          </h2>
+          <p className="text-sm text-gray-500">
+            Agrega un nuevo insumo al inventario
+          </p>
+        </div>
+      </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+      {/* FORM */}
+      <form onSubmit={handleSubmit} className="space-y-5">
 
-              <input
-                name="nombre"
-                value={form.nombre}
-                onChange={handleChange}
-                placeholder="Nombre"
-                className="w-full border rounded-lg p-2"
-              />
+        {/* NOMBRE */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-gray-600">Nombre</label>
+          <input
+            name="nombre"
+            value={form.nombre}
+            onChange={handleChange}
+            placeholder="Ej: Harina, Azúcar..."
+            className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+            required
+          />
+        </div>
 
-              <input
-                name="stock"
-                type="number"
-                value={form.stock}
-                onChange={handleChange}
-                placeholder="Stock"
-                className="w-full border rounded-lg p-2"
-              />
+        {/* UNIDAD */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-gray-600">Unidad de medida</label>
 
-              <input
-                name="unidad"
-                value={form.unidad}
-                onChange={handleChange}
-                placeholder="Unidad"
-                className="w-full border rounded-lg p-2"
-              />
+          <select
+            name="unidad"
+            value={form.unidad}
+            onChange={handleChange}
+            className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+            required
+          >
+            <option value="">Seleccionar unidad</option>
+            <option value="KG">Kilogramos (KG)</option>
+            <option value="LB">Libras (LB)</option>
+            <option value="G">Gramos (G)</option>
+            <option value="LT">Litros (LT)</option>
+            <option value="ML">Mililitros (ML)</option>
+            <option value="UND">Unidad (UND)</option>
+          </select>
+        </div>
 
-              <div className="flex justify-end gap-2">
+        {/* INFO BOX */}
+        <div className="bg-blue-50 text-blue-700 text-xs p-3 rounded-xl border border-blue-100">
+          El stock se calculará automáticamente mediante compras y movimientos de inventario.
+        </div>
 
-                <button
-                  type="button"
-                  onClick={() => setOpenModal(false)}
-                  className="px-4 py-2 bg-gray-200 rounded-lg"
-                >
-                  Cancelar
-                </button>
+        {/* BOTONES */}
+        <div className="flex justify-end gap-3 pt-2">
 
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-                >
-                  Guardar
-                </button>
+          <button
+            type="button"
+            onClick={() => setOpenModal(false)}
+            className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-100 transition-all"
+          >
+            Cancelar
+          </button>
 
-              </div>
-
-            </form>
-
-          </div>
+          <button
+            type="submit"
+            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white shadow-md transition-all"
+          >
+            Guardar
+          </button>
 
         </div>
-      )}
+
+      </form>
+
+    </div>
+  </div>
+)}
 
     </div>
   );

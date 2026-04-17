@@ -218,6 +218,22 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
     return "Sin documento";
   };
 
+  const getTipoDocumento = (doc) => {
+  if (!doc) return { tipo: "N/A", color: "gray" };
+
+  const limpio = doc.replace(/[^0-9]/g, "");
+
+  if (limpio.length === 9) {
+    return { tipo: "DUI", color: "blue" };
+  }
+
+  if (limpio.length === 14) {
+    return { tipo: "NIT", color: "green" };
+  }
+
+  return { tipo: "OTRO", color: "gray" };
+};
+
   const puedeAnular = (factura) => {
     if (!factura) return false;
     
@@ -768,9 +784,27 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                           {factura.nombrecibe || 'Cliente no especificado'}
                         </p>
                         {/* Mostrar el documento del cliente (DUI, NIT, Pasaporte, etc.) */}
-                        <p className="text-xs text-gray-500 pl-3 mt-0.5">
-                          <span className="font-medium">Documento:</span> {getDocumentoCliente(factura)}
-                        </p>
+{(() => {
+  const doc = getDocumentoCliente(factura);
+  const { tipo, color } = getTipoDocumento(doc);
+
+  const colorClasses = {
+    blue: "bg-blue-100 text-blue-700",
+    green: "bg-green-100 text-green-700",
+    gray: "bg-gray-100 text-gray-600"
+  };
+
+  return (
+    <div className="pl-3 mt-1 flex items-center gap-2">
+      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${colorClasses[color]}`}>
+        {tipo}
+      </span>
+      <span className="text-xs text-gray-600 font-mono">
+        {doc}
+      </span>
+    </div>
+  );
+})()}
                       </div>
 
                       {/* Información de control */}
