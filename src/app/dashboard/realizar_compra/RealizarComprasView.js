@@ -14,12 +14,14 @@ import {
     FaTrash, 
     FaSearch, 
     FaBox, 
+    FaBoxOpen,
     FaShoppingCart,
     FaMoneyBillWave,
     FaCheckCircle,
     FaExclamationCircle,
     FaInfoCircle
 } from "react-icons/fa";
+
 
 // ========== TOAST NOTIFICATION SYSTEM ==========
 const Toast = ({ toasts, removeToast }) => {
@@ -112,6 +114,16 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [productos, setProductos] = useState([]);
     
     const [currentDteData, setCurrentDteData] = useState(null);
+
+    // ========== ESTADOS PARA GASTOS SIN INVENTARIO ==========
+  const [showMateriaPrimaModal, setShowMateriaPrimaModal] = useState(false);
+  const [mpSearch, setMpSearch] = useState("");
+  const [mpSelected, setMpSelected] = useState(null);
+  const [mpCantidad, setMpCantidad] = useState("");
+  const [mpCosto, setMpCosto] = useState("");
+  const [mpUnidad, setMpUnidad] = useState("unidad");
+  const [materiasPrimas, setMateriasPrimas] = useState([]);
+
     
     const [formData, setFormData] = useState({
         fecha: new Date().toISOString().split('T')[0],
@@ -145,6 +157,20 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     });
 
     const [detalles, setDetalles] = useState([]);
+
+    // ========== FUNCIONES PARA MANEJO DE DETALLES (PRODUCTOS Y GASTOS) ==========
+    const crearDetalleBase = () => ({
+  tipo: "",
+  producto_id: null,
+  materia_prima_id: null,
+  producto_codigo: null,
+  producto_nombre: null,
+  descripcion: "",
+  cantidad: 0,
+  precio_unitario: 0,
+  subtotal: 0
+});
+
     const [productSearch, setProductSearch] = useState("");
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [addQuantity, setAddQuantity] = useState(1);
@@ -182,10 +208,11 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [provRes, prodRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/proveedores/getAll`, { credentials: "include" }),
-                    fetch(`${API_BASE_URL}/productos/getAll`, { credentials: "include" })
-                ]);
+const [provRes, prodRes, mpRes] = await Promise.all([
+    fetch(`${API_BASE_URL}/proveedores/getAll`, { credentials: "include" }),
+    fetch(`${API_BASE_URL}/productos/getAll`, { credentials: "include" }),
+    fetch(`${API_BASE_URL}/materias-primas`, { credentials: "include" })
+]);
 
                 if (provRes.ok) {
                     const provData = await provRes.json();
@@ -205,6 +232,16 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 } else {
                     setProductos([]);
                 }
+if (mpRes.ok) {
+    const mpData = await mpRes.json();
+    setMateriasPrimas(
+        Array.isArray(mpData)
+            ? mpData
+            : (mpData?.data || [])
+    );
+} else {
+    setMateriasPrimas([]);
+}
             } catch (err) {
                 console.error("Error cargando datos:", err);
                 setError("No se pudieron cargar los datos necesarios.");
@@ -214,6 +251,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         };
         fetchData();
     }, []);
+
 
     const filteredProducts = useMemo(() => {
         if (!productSearch) return [];
@@ -294,6 +332,55 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         
         addToast({ type: 'success', message: 'Gasto/Servicio agregado correctamente' });
     };
+const handleAddMateriaPrima = () => {
+    if (!mpSelected || !mpCantidad || !mpCosto) return;
+
+    setDetalles(prev => [...prev, {
+        ...crearDetalleBase(),
+        tipo: "materia_prima",
+        materia_prima_id: mpSelected.id,
+        descripcion: mpSelected.nombre,
+        cantidad: parseFloat(mpCantidad),
+        precio_unitario: parseFloat(mpCosto),
+        subtotal: parseFloat(mpCantidad) * parseFloat(mpCosto)
+    }]);
+
+    // limpiar
+    setMpSelected(null);
+    setMpSearch("");
+    setMpCantidad("");
+    setMpCosto("");
+    setMpUnidad("");
+
+    setShowMateriaPrimaModal(false);
+};
+const handleCreateMP = async () => {
+    if (!mpSearch.trim()) return;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/materias-primas`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+                nombre: mpSearch,
+                unidad: mpUnidad
+            })
+        });
+
+        const data = await res.json();
+
+        setMpSelected(data);
+        setMpSearch(data.nombre);
+        setMateriasPrimas(prev => [...prev, data]);
+
+        addToast({ type: 'success', message: 'Materia prima creada' });
+
+    } catch (error) {
+        console.error(error);
+        addToast({ type: 'error', message: 'Error creando materia prima' });
+    }
+};
 
     const handleRemoveDetail = (index) => {
         const newDetalles = detalles.filter((_, i) => i !== index);
@@ -684,13 +771,16 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 retencion_terceros: parseFloat(formData.retencion_terceros || 0),
 detalles: detalles.map(d => ({
     producto_id: d.producto_id || null,
+    materia_prima_id: d.materia_prima_id || null, // 👈 NUEVO
+    es_materia_prima: d.es_materia_prima || false, // 👈 NUEVO
+
     producto_codigo: d.producto_codigo || "",
     producto_nombre: d.producto_nombre || "",
     descripcion: d.descripcion || "",
     cantidad: parseFloat(d.cantidad || 0),
     precio_unitario: parseFloat(d.precio_unitario || 0),
     subtotal: parseFloat(d.subtotal || 0),
-    sin_inventario: d.sin_inventario || false
+    tipo: "gasto"
 })),
                 dteData: currentDteData
             };
@@ -788,7 +878,7 @@ console.log("📦 PAYLOAD:", payload);
                 cantidad: item.cantidad,
                 precio_unitario: item.precioUni,
                 subtotal: item.ventaGravada,
-                sin_inventario: true
+                tipo: "gasto"
             });
         }
     }
@@ -878,37 +968,44 @@ const handleDialogYes = async () => {
             }
         }
 
-        for (const item of dteData.cuerpoDocumento) {
-            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-            if (!foundProd) {
-                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-            }
-            
-            if (foundProd) {
-                const yaExiste = nuevosDetalles.some(d => d.producto_id === foundProd.id);
-                if (!yaExiste) {
-                    nuevosDetalles.push({
-                        producto_id: foundProd.id,
-                        producto_nombre: foundProd.nombre,
-                        producto_codigo: foundProd.codigo,
-                        cantidad: item.cantidad,
-                        precio_unitario: item.precioUni,
-                        subtotal: item.ventaGravada
-                    });
-                }
-            } else {
-                nuevosDetalles.push({
-                    producto_id: null,
-                    producto_codigo: null,
-                    producto_nombre: null,
-                    descripcion: item.descripcion,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precioUni,
-                    subtotal: item.ventaGravada,
-                    sin_inventario: true
-                });
-            }
+for (const item of dteData.cuerpoDocumento) {
+    let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+
+    if (!foundProd) {
+        foundProd = currentProductos.find(
+            p => p.nombre.toLowerCase() === item.descripcion.toLowerCase()
+        );
+    }
+
+    if (foundProd) {
+        const existente = nuevosDetalles.find(d => d.producto_id === foundProd.id);
+
+        if (existente) {
+            existente.cantidad += item.cantidad;
+            existente.subtotal += item.ventaGravada;
+        } else {
+            nuevosDetalles.push({
+                ...crearDetalleBase(),
+                tipo: "producto",
+                producto_id: foundProd.id,
+                producto_nombre: foundProd.nombre,
+                producto_codigo: foundProd.codigo,
+                cantidad: item.cantidad,
+                precio_unitario: item.precioUni,
+                subtotal: item.ventaGravada
+            });
         }
+    } else {
+        nuevosDetalles.push({
+            ...crearDetalleBase(),
+            tipo: "gasto",
+            descripcion: item.descripcion,
+            cantidad: item.cantidad,
+            precio_unitario: item.precioUni,
+            subtotal: item.ventaGravada
+        });
+    }
+}      
 
         setFormData(prev => {
             const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
@@ -1164,6 +1261,15 @@ const handleDialogYes = async () => {
                                                 <FaMoneyBillWave className="mr-2" /> Gasto
                                             </button>
                                         </div>
+                                        <div className="md:col-span-1">
+  <button 
+    type="button" 
+    onClick={() => setShowMateriaPrimaModal(true)}
+    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center"
+  >
+    <FaBoxOpen className="mr-2" /> MP
+  </button>
+</div>
                                     </div>
 
                                     <div className="mt-6 overflow-x-auto">
@@ -1189,13 +1295,23 @@ const handleDialogYes = async () => {
                                                     detalles.map((item, idx) => (
                                                         <tr key={idx}>
                                                             <td className="px-4 py-3 text-sm">
-                                                                {item.producto_id ? (
-                                                                    <span className="text-gray-900 font-mono text-xs">{item.producto_codigo || "—"}</span>
-                                                                ) : (
-                                                                    <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full font-sans">
-                                                                        Gasto
-                                                                    </span>
-                                                                )}
+{item.tipo === "producto" && (
+    <span className="text-gray-900 font-mono text-xs">
+        {item.producto_codigo || "—"}
+    </span>
+)}
+
+{item.tipo === "materia_prima" && (
+    <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">
+        MP
+    </span>
+)}
+
+{item.tipo === "gasto" && (
+    <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">
+        Gasto
+    </span>
+)}
                                                             </td>
                                                             <td className="px-4 py-3 text-sm text-gray-900">
                                                                 {item.producto_nombre || item.descripcion || "Sin descripción"}
@@ -1462,6 +1578,94 @@ const handleDialogYes = async () => {
                     </div>
                 </div>
             )}
+            {showMateriaPrimaModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 w-full max-w-lg shadow-lg">
+      
+      <h2 className="text-lg font-semibold mb-4">Agregar Materia Prima</h2>
+
+      {/* BUSCADOR */}
+      <input
+        type="text"
+        value={mpSearch}
+        onChange={(e) => setMpSearch(e.target.value)}
+        placeholder="Buscar o crear..."
+        className="w-full border px-3 py-2 rounded mb-3"
+      />
+
+      {/* RESULTADOS */}
+      {mpSearch && !mpSelected && (
+        <div className="border rounded max-h-40 overflow-y-auto mb-3">
+          {materiasPrimas
+            .filter(mp => mp.nombre.toLowerCase().includes(mpSearch.toLowerCase()))
+            .map(mp => (
+              <div
+                key={mp.id}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setMpSelected(mp);
+                  setMpSearch(mp.nombre);
+                }}
+              >
+                {mp.nombre}
+              </div>
+          ))}
+
+          {/* CREAR NUEVO */}
+          {materiasPrimas.filter(mp => mp.nombre.toLowerCase().includes(mpSearch.toLowerCase())).length === 0 && (
+            <div
+              className="p-2 text-green-600 cursor-pointer hover:bg-green-50"
+              onClick={handleCreateMP}
+            >
+              ➕ Crear "{mpSearch}"
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* CAMPOS */}
+      <div className="grid grid-cols-2 gap-3">
+        <input
+          type="number"
+          placeholder="Cantidad"
+          value={mpCantidad}
+          onChange={(e) => setMpCantidad(e.target.value)}
+          className="border px-3 py-2 rounded"
+        />
+        <input
+          type="number"
+          placeholder="Costo"
+          value={mpCosto}
+          onChange={(e) => setMpCosto(e.target.value)}
+          className="border px-3 py-2 rounded"
+        />
+      </div>
+
+      <input
+        type="text"
+        placeholder="Unidad (kg, lb, etc.)"
+        value={mpUnidad}
+        onChange={(e) => setMpUnidad(e.target.value)}
+        className="w-full border px-3 py-2 rounded mt-3"
+      />
+
+      {/* BOTONES */}
+      <div className="flex justify-end gap-2 mt-4">
+        <button onClick={() => setShowMateriaPrimaModal(false)} className="px-4 py-2 border rounded">
+          Cancelar
+        </button>
+
+        <button 
+          onClick={handleAddMateriaPrima}
+          className="px-4 py-2 bg-green-600 text-white rounded"
+        >
+          Agregar
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
         </div>
     );
 }
