@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { FaSearch, FaFileAlt, FaCalendarAlt, FaDownload, FaFilter, FaChartLine, FaFileExcel, FaPrint, FaSync, FaFilePdf, FaFileExport } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaCalendarAlt,  FaFilter,  FaFileExcel, FaSync, FaFilePdf } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
@@ -9,6 +9,8 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from 'exceljs';
 import { API_BASE_URL } from "@/lib/api";
+import ExportarLibroConsumidor from "../realizar_compra/components/ExportarLibroConsumidor";
+
 
 export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -430,6 +432,28 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
       setExportingPDF(false);
     }
   };
+ const descargarCSV = async () => {
+        try {
+            if (!fechaInicio || !fechaFin) return alert("Debes seleccionar un rango de fechas");
+            const params = new URLSearchParams({ fechaInicio, fechaFin });
+const res = await fetch(
+  `${API_BASE_URL}/consumidor-final-csv?${params.toString()}`,
+  {
+    credentials: "include",
+  }
+);            if (!res.ok) throw new Error("Error al descargar CSV");
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Libro_Ventas_Consumidores_${fechaInicio}_${fechaFin}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error(error);
+            alert("Error al descargar CSV");
+        }
+  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -582,24 +606,13 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
                     <FaSync className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                     {refreshing ? 'Actualizando...' : 'Actualizar'}
                   </button>
-                  
-                  <button
-                    onClick={handleExportExcel}
-                    disabled={exporting}
-                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                  >
-                    <FaFileExcel className="mr-2" />
-                    {exporting ? 'Exportando...' : 'Excel'}
-                  </button>
-                  
-                  <button
-                    onClick={handleExportPDF}
-                    disabled={exportingPDF}
-                    className="flex items-center px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
-                  >
-                    <FaFilePdf className="mr-2" />
-                    {exportingPDF ? 'Generando...' : 'PDF'}
-                  </button>
+<ExportarLibroConsumidor 
+ descargarCSV={descargarCSV} 
+ descargarExcel={handleExportExcel} 
+  descargarPDF={handleExportPDF}
+exporting={exporting} 
+/>
+
                 </div>
               </div>
 

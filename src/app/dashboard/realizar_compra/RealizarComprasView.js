@@ -7,13 +7,11 @@ import Navbar from "../components/navbar";
 import Footer from "../components/footer";
 import JsonDteUploader from "./JsonDteUploader";
 import { 
-    FaCalendarAlt, 
     FaSave, 
     FaTimes, 
     FaPlus, 
     FaTrash, 
     FaSearch, 
-    FaBox, 
     FaBoxOpen,
     FaShoppingCart,
     FaMoneyBillWave,
@@ -337,7 +335,7 @@ const handleAddMateriaPrima = () => {
 
     setDetalles(prev => [...prev, {
         ...crearDetalleBase(),
-        tipo: "materia_prima",
+        tipo_item: "MP", // 🔥 CLAVE
         materia_prima_id: mpSelected.id,
         descripcion: mpSelected.nombre,
         cantidad: parseFloat(mpCantidad),
@@ -345,7 +343,6 @@ const handleAddMateriaPrima = () => {
         subtotal: parseFloat(mpCantidad) * parseFloat(mpCosto)
     }]);
 
-    // limpiar
     setMpSelected(null);
     setMpSearch("");
     setMpCantidad("");
@@ -1005,7 +1002,8 @@ for (const item of dteData.cuerpoDocumento) {
             subtotal: item.ventaGravada
         });
     }
-}      
+}
+        
 
         setFormData(prev => {
             const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
@@ -1578,46 +1576,61 @@ for (const item of dteData.cuerpoDocumento) {
                     </div>
                 </div>
             )}
-            {showMateriaPrimaModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-6 w-full max-w-lg shadow-lg">
-      
-      <h2 className="text-lg font-semibold mb-4">Agregar Materia Prima</h2>
+{showMateriaPrimaModal && (
+  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+    
+    <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-gray-200 animate-fadeIn">
+
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-xl font-semibold text-gray-800">
+          Agregar Materia Prima
+        </h2>
+        <button
+          onClick={() => setShowMateriaPrimaModal(false)}
+          className="text-gray-400 hover:text-gray-600 transition"
+        >
+          ✕
+        </button>
+      </div>
 
       {/* BUSCADOR */}
-      <input
-        type="text"
-        value={mpSearch}
-        onChange={(e) => setMpSearch(e.target.value)}
-        placeholder="Buscar o crear..."
-        className="w-full border px-3 py-2 rounded mb-3"
-      />
+      <div className="mb-4">
+        <input
+          type="text"
+          value={mpSearch}
+          onChange={(e) => setMpSearch(e.target.value)}
+          placeholder="Buscar o crear materia prima..."
+          className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+        />
+      </div>
 
       {/* RESULTADOS */}
       {mpSearch && !mpSelected && (
-        <div className="border rounded max-h-40 overflow-y-auto mb-3">
+        <div className="border border-gray-200 rounded-xl max-h-44 overflow-y-auto mb-4 shadow-sm">
           {materiasPrimas
             .filter(mp => mp.nombre.toLowerCase().includes(mpSearch.toLowerCase()))
             .map(mp => (
               <div
                 key={mp.id}
-                className="p-2 hover:bg-gray-100 cursor-pointer"
+                className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm transition flex justify-between items-center"
                 onClick={() => {
                   setMpSelected(mp);
                   setMpSearch(mp.nombre);
                 }}
               >
-                {mp.nombre}
+                <span className="text-gray-800">{mp.nombre}</span>
+                <span className="text-xs text-gray-400">Seleccionar</span>
               </div>
-          ))}
+            ))}
 
           {/* CREAR NUEVO */}
           {materiasPrimas.filter(mp => mp.nombre.toLowerCase().includes(mpSearch.toLowerCase())).length === 0 && (
             <div
-              className="p-2 text-green-600 cursor-pointer hover:bg-green-50"
+              className="px-3 py-2 text-green-600 cursor-pointer hover:bg-green-50 text-sm transition"
               onClick={handleCreateMP}
             >
-              ➕ Crear "{mpSearch}"
+              ➕ Crear "<span className="font-medium">{mpSearch}</span>"
             </div>
           )}
         </div>
@@ -1630,36 +1643,56 @@ for (const item of dteData.cuerpoDocumento) {
           placeholder="Cantidad"
           value={mpCantidad}
           onChange={(e) => setMpCantidad(e.target.value)}
-          className="border px-3 py-2 rounded"
+          className="border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
         />
+
         <input
           type="number"
-          placeholder="Costo"
+          placeholder="Costo ($)"
           value={mpCosto}
           onChange={(e) => setMpCosto(e.target.value)}
-          className="border px-3 py-2 rounded"
+          className="border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
         />
       </div>
 
-      <input
-        type="text"
-        placeholder="Unidad (kg, lb, etc.)"
-        value={mpUnidad}
-        onChange={(e) => setMpUnidad(e.target.value)}
-        className="w-full border px-3 py-2 rounded mt-3"
-      />
+      {/* UNIDAD (DROPDOWN PRO) */}
+      <div className="mt-3">
+        <select
+          value={mpUnidad}
+          onChange={(e) => setMpUnidad(e.target.value)}
+          className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+        >
+            <option value="KG">Kilogramos</option>
+            <option value="LB">Libras</option>
+            <option value="G">Gramos</option>
+            <option value="LT">Litros</option>
+            <option value="ML">Mililitros</option>
+            <option value="UND">Unidad</option>
+        </select>
+      </div>
+
+      {/* PREVIEW SUBTOTAL (UX PRO) */}
+      <div className="mt-4 bg-gray-50 border rounded-xl p-3 flex justify-between text-sm">
+        <span className="text-gray-600">Subtotal:</span>
+        <span className="font-semibold text-gray-900">
+          ${((parseFloat(mpCantidad) || 0) * (parseFloat(mpCosto) || 0)).toFixed(2)}
+        </span>
+      </div>
 
       {/* BOTONES */}
-      <div className="flex justify-end gap-2 mt-4">
-        <button onClick={() => setShowMateriaPrimaModal(false)} className="px-4 py-2 border rounded">
+      <div className="flex justify-end gap-3 mt-5">
+        <button
+          onClick={() => setShowMateriaPrimaModal(false)}
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition"
+        >
           Cancelar
         </button>
 
-        <button 
+        <button
           onClick={handleAddMateriaPrima}
-          className="px-4 py-2 bg-green-600 text-white rounded"
+          className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-sm transition flex items-center gap-2"
         >
-          Agregar
+          ➕ Agregar
         </button>
       </div>
 
