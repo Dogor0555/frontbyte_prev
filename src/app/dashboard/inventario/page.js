@@ -92,6 +92,32 @@ export default function InventarioMP() {
     }
   };
 
+const handleDelete = async (id) => {
+  if (!confirm("¿Eliminar esta materia prima?")) return;
+
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(`${API_BASE_URL}/materias-primas/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+    console.log("🔥 RESPUESTA DELETE:", data);
+
+    if (!res.ok) {
+      throw new Error(data.error || "Error al eliminar");
+    }
+
+    await fetchData();
+  } catch (error) {
+    console.error("❌ DELETE ERROR:", error);
+  }
+};
+
   return (
     <div className="flex h-screen bg-blue-100">
 
@@ -138,45 +164,47 @@ export default function InventarioMP() {
           {/* TABLA */}
           <div className="bg-white/80 backdrop-blur-md border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
 
-            <table className="w-full text-sm">
+ <table className="w-full text-sm">
 
-              <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
-                <tr>
-                  <th className="px-5 py-3 text-left">Nombre</th>
-                  <th className="px-5 py-3 text-left">Stock</th>
-                  <th className="px-5 py-3 text-left">Unidad</th>
-                  <th className="px-5 py-3 text-left">Última actualización</th>
-                </tr>
-              </thead>
+  <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
+    <tr>
+      <th className="px-5 py-3 text-left">Nombre</th>
+      <th className="px-5 py-3 text-left">Stock</th>
+      <th className="px-5 py-3 text-left">Unidad</th>
+      <th className="px-5 py-3 text-left">Última actualización</th>
+    </tr>
+  </thead>
 
-              <tbody className="divide-y divide-gray-100">
+  <tbody className="divide-y divide-gray-100">
 
-                {filtered.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50/70">
+    {filtered.map((item) => (
+      <tr key={item.id} className="hover:bg-gray-50/70">
 
-                    <td className="px-5 py-4 font-medium text-gray-800">
-                      {item.nombre}
-                    </td>
+        <td className="px-5 py-4 font-medium text-gray-800">
+          {item.nombre}
+        </td>
 
-                    <td className="px-5 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStockColor(item.stock)}`}>
-                        {item.stock}
-                      </span>
-                    </td>
+        <td className="px-5 py-4">
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStockColor(item.stock)}`}>
+            {item.stock}
+          </span>
+        </td>
 
-                    <td className="px-5 py-4 text-gray-600">
-                      {item.unidad}
-                    </td>
+        <td className="px-5 py-4 text-gray-600">
+          {item.unidad}
+        </td>
 
-                    <td className="px-5 py-4 text-gray-500 text-sm">
-                      {new Date(item.updatedAt).toLocaleDateString()}
-                    </td>
+        <td className="px-5 py-4 text-gray-500 text-sm">
+          {new Date(item.updatedAt).toLocaleDateString()}
+        </td>
 
-                  </tr>
-                ))}
 
-              </tbody>
-            </table>
+
+      </tr>
+    ))}
+
+  </tbody>
+</table>
           </div>
 
         </main>

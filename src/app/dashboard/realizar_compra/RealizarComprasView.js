@@ -333,15 +333,24 @@ if (mpRes.ok) {
 const handleAddMateriaPrima = () => {
     if (!mpSelected || !mpCantidad || !mpCosto) return;
 
-    setDetalles(prev => [...prev, {
+    const nuevoDetalle = {
         ...crearDetalleBase(),
-        tipo_item: "MP", // 🔥 CLAVE
+
+        // 🔥 FORZAR ESTO
+        tipo: "materia_prima",
+        es_materia_prima: true,
+        producto_id: null,
+
         materia_prima_id: mpSelected.id,
         descripcion: mpSelected.nombre,
         cantidad: parseFloat(mpCantidad),
         precio_unitario: parseFloat(mpCosto),
         subtotal: parseFloat(mpCantidad) * parseFloat(mpCosto)
-    }]);
+    };
+
+    console.log("🧪 DETALLE MP:", nuevoDetalle); // 👈 DEBUG
+
+    setDetalles(prev => [...prev, nuevoDetalle]);
 
     setMpSelected(null);
     setMpSearch("");
@@ -768,8 +777,8 @@ const handleCreateMP = async () => {
                 retencion_terceros: parseFloat(formData.retencion_terceros || 0),
 detalles: detalles.map(d => ({
     producto_id: d.producto_id || null,
-    materia_prima_id: d.materia_prima_id || null, // 👈 NUEVO
-    es_materia_prima: d.es_materia_prima || false, // 👈 NUEVO
+    materia_prima_id: d.materia_prima_id || null,
+    es_materia_prima: d.es_materia_prima || false,
 
     producto_codigo: d.producto_codigo || "",
     producto_nombre: d.producto_nombre || "",
@@ -777,7 +786,9 @@ detalles: detalles.map(d => ({
     cantidad: parseFloat(d.cantidad || 0),
     precio_unitario: parseFloat(d.precio_unitario || 0),
     subtotal: parseFloat(d.subtotal || 0),
-    tipo: "gasto"
+
+    // ✅ RESPETAR EL TIPO REAL
+    tipo: d.tipo || "gasto"
 })),
                 dteData: currentDteData
             };
