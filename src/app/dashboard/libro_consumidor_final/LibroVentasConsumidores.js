@@ -432,28 +432,60 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
       setExportingPDF(false);
     }
   };
- const descargarCSV = async () => {
-        try {
-            if (!fechaInicio || !fechaFin) return alert("Debes seleccionar un rango de fechas");
-            const params = new URLSearchParams({ fechaInicio, fechaFin });
-const res = await fetch(
-  `${API_BASE_URL}/consumidor-final-csv?${params.toString()}`,
-  {
-    credentials: "include",
+
+const formatearFechaISO = (fecha) => {
+  if (!fecha) return "";
+
+  // Si ya viene en formato ISO (yyyy-mm-dd), no tocar
+  if (fecha.includes("-")) return fecha;
+
+  // Si viene en formato dd/mm/yyyy o mm/dd/yyyy
+  const partes = fecha.split("/");
+
+  if (partes.length !== 3) return "";
+
+  const [mes, dia, anio] = partes;
+
+  return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+};
+const descargarCSV = async () => {
+  try {
+    if (!fechaInicio || !fechaFin) {
+      return alert("Debes seleccionar un rango de fechas");
+    }
+
+    const params = new URLSearchParams({
+      fechaInicio: formatearFechaISO(fechaInicio),
+      fechaFin: formatearFechaISO(fechaFin),
+    });
+
+    const res = await fetch(
+      `${API_BASE_URL}/consumidor-final-csv?${params.toString()}`,
+      {
+        credentials: "include",
+      }
+    );
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Respuesta del servidor:", text);
+      throw new Error("Error al descargar CSV");
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Libro_Ventas_Consumidores_${fechaInicio}_${fechaFin}.csv`;
+    a.click();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(error);
+    alert("Error al descargar CSV");
   }
-);            if (!res.ok) throw new Error("Error al descargar CSV");
-            const blob = await res.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `Libro_Ventas_Consumidores_${fechaInicio}_${fechaFin}.csv`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error(error);
-            alert("Error al descargar CSV");
-        }
-  };
+};
 
   const handleRefresh = () => {
     setRefreshing(true);
