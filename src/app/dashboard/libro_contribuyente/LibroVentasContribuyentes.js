@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExcelJS from 'exceljs';
+import ExportarLibroContribuyentes from "./components/ExportarLibroContribuyentes";
 
 export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -415,6 +416,32 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
       setExportingPDF(false);
     }
   };
+  
+  const descargarCSVContribuyentes = async () => {
+  try {
+    if (!fechaInicio || !fechaFin) {
+      return alert("Debes seleccionar un rango de fechas");
+    }
+
+    const params = new URLSearchParams({ fechaInicio, fechaFin });
+const res = await fetch(
+  `${API_BASE_URL}/contribuyentes-csv?${params}`,
+  {
+    credentials: "include",
+  }
+);
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "libro_contribuyentes.csv";
+    a.click();
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -580,24 +607,12 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
                     <FaSync className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                     {refreshing ? 'Actualizando...' : 'Actualizar'}
                   </button>
-                  
-                  <button
-                    onClick={handleExportExcel}
-                    disabled={exporting}
-                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                  >
-                    <FaFileExcel className="mr-2" />
-                    {exporting ? 'Exportando...' : 'Excel'}
-                  </button>
-                  
-                  <button
-                    onClick={handleExportPDF}
-                    disabled={exportingPDF}
-                    className="flex items-center px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
-                  >
-                    <FaFilePdf className="mr-2" />
-                    {exportingPDF ? 'Generando...' : 'PDF'}
-                  </button>
+<ExportarLibroContribuyentes 
+  descargarCSV={descargarCSVContribuyentes} 
+  descargarExcel={handleExportExcel} 
+  descargarPDF={handleExportPDF}
+  exporting={exporting} 
+/>
                 </div>
               </div>
 
