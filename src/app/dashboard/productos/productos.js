@@ -61,6 +61,16 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [selectedUnidad, setSelectedUnidad] = useState("");
     const [selectedProveedor, setSelectedProveedor] = useState("");
+    
+    // Función para obtener el código real que se enviará al backend
+    // Si la unidad seleccionada es "Caja", devolvemos "99" (código de "Otra")
+    const getCodigoUnidadBackend = (unidadSeleccionada) => {
+        if (unidadSeleccionada === "Caja") {
+            return "99"; // Mismo código que "Otra"
+        }
+        return unidadSeleccionada;
+    };
+
     const [unidades, setUnidades] = useState([
         { codigo: "1", nombre: "metro" },
         { codigo: "2", nombre: "Yarda" },
@@ -102,6 +112,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         { codigo: "58", nombre: "Docena" },
         { codigo: "59", nombre: "Unidad" },
         { codigo: "99", nombre: "Otra" },
+        { codigo: "Caja", nombre: "Caja" } // "Caja" usa su propio código visible pero al backend irá como "99"
     ]);
     const [proveedores, setProveedores] = useState([]);
     const [productToDelete, setProductToDelete] = useState(null);
@@ -110,6 +121,12 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     const getNombreUnidad = (codigo) => {
         if (!codigo) return "Desconocido";
         const codigoNormalizado = codigo.toString().trim();
+        // Para mostrar "Caja" cuando el código sea "99" pero originalmente era "Caja"
+        if (codigoNormalizado === "99") {
+            // Aquí necesitaríamos saber si originalmente era "Caja" o "Otra"
+            // Por simplicidad, mostramos "Otra/Caja"
+            return "Otra/Caja";
+        }
         const unidad = unidades.find(u => u.codigo === codigoNormalizado);
         return unidad ? unidad.nombre : "Desconocido";
     };
@@ -295,53 +312,50 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         }
     };
 
-    // NUEVA FUNCIÓN: Descargar reporte
-   // Función para descargar reportes (CORREGIDA)
-const handleDownloadReport = async (format) => {
-    setShowReportMenu(false);
-    try {
-        const endpoint = format === 'pdf' 
-            ? `${API_BASE_URL}/reportes/productos/pdf`
-            : `${API_BASE_URL}/reportes/productos/excel`;
-        
-        const response = await fetch(endpoint, {
-            method: "GET",
-            headers: { Cookie: document.cookie },
-            credentials: "include",
-        });
-
-        if (!response.ok) {
-            // Primero obtenemos el texto de la respuesta
-            const errorText = await response.text();
-            let errorMsg = `Error al descargar ${format.toUpperCase()}`;
+    // Función para descargar reportes
+    const handleDownloadReport = async (format) => {
+        setShowReportMenu(false);
+        try {
+            const endpoint = format === 'pdf' 
+                ? `${API_BASE_URL}/reportes/productos/pdf`
+                : `${API_BASE_URL}/reportes/productos/excel`;
             
-            try {
-                // Intentamos parsear el texto como JSON
-                const errorData = JSON.parse(errorText);
-                errorMsg = errorData.error || errorData.mensaje || errorMsg;
-            } catch {
-                // Si no es JSON, usamos el texto directamente
-                if (errorText) errorMsg = errorText;
+            const response = await fetch(endpoint, {
+                method: "GET",
+                headers: { Cookie: document.cookie },
+                credentials: "include",
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMsg = `Error al descargar ${format.toUpperCase()}`;
+                
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMsg = errorData.error || errorData.mensaje || errorMsg;
+                } catch {
+                    if (errorText) errorMsg = errorText;
+                }
+                
+                throw new Error(errorMsg);
             }
-            
-            throw new Error(errorMsg);
-        }
 
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = format === 'pdf' ? 'productos.pdf' : 'productos.xlsx';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-    } catch (error) {
-        console.error(`Error al descargar reporte ${format}:`, error);
-        setErrorMessage(error.message || `No se pudo descargar el reporte en ${format.toUpperCase()}`);
-        setShowErrorModal(true);
-    }
-};
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = format === 'pdf' ? 'productos.pdf' : 'productos.xlsx';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error(`Error al descargar reporte ${format}:`, error);
+            setErrorMessage(error.message || `No se pudo descargar el reporte en ${format.toUpperCase()}`);
+            setShowErrorModal(true);
+        }
+    };
+
     const handleSaveNewProduct = async (e) => {
         e.preventDefault();
 
@@ -356,9 +370,12 @@ const handleDownloadReport = async (format) => {
             return;
         }
 
+        // Convertir la unidad seleccionada al código que se enviará al backend
+        const codigoUnidadBackend = getCodigoUnidadBackend(selectedUnidad);
+
         const producto = {
             ...formData,
-            unidad: selectedUnidad,
+            unidad: codigoUnidadBackend, // Enviamos el código convertido
             idproveedor: selectedProveedor || null
         };
 
@@ -411,9 +428,12 @@ const handleDownloadReport = async (format) => {
             return;
         }
 
+        // Convertir la unidad seleccionada al código que se enviará al backend
+        const codigoUnidadBackend = getCodigoUnidadBackend(selectedUnidad);
+
         const producto = {
             ...formData,
-            unidad: selectedUnidad,
+            unidad: codigoUnidadBackend, // Enviamos el código convertido
             idproveedor: selectedProveedor || null
         };
 
@@ -529,6 +549,8 @@ const handleDownloadReport = async (format) => {
 
     const handleEditClick = (producto) => {
         setFormData(producto);
+        // Para editar, necesitamos mostrar la unidad original que seleccionó el usuario
+        // Si el código es "99", mostramos "Caja" o "Otra"? Por simplicidad mostramos "Otra"
         setSelectedUnidad(producto.unidad);
         setSelectedProveedor(producto.idproveedor || "");
         setShowEditModal(true);
@@ -583,7 +605,6 @@ const handleDownloadReport = async (format) => {
             )}
 
             <div className="flex flex-1 h-full overflow-hidden">
-                {/* Sidebar fija con altura completa y scroll interno */}
                 <div
                     className={`md:static fixed z-40 h-full transition-all duration-300 ${
                         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -594,7 +615,6 @@ const handleDownloadReport = async (format) => {
                     </div>
                 </div>
 
-                {/* Contenido principal con scroll */}
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <Navbar 
                         user={user}
@@ -629,7 +649,6 @@ const handleDownloadReport = async (format) => {
                                     <FaShoppingCart className="mr-2" /> Compras
                                 </button>
                                 
-                                {/* Botón Reporte con menú desplegable */}
                                 <div className="relative" ref={reportMenuRef}>
                                     <button
                                         onClick={() => setShowReportMenu(!showReportMenu)}
@@ -677,7 +696,6 @@ const handleDownloadReport = async (format) => {
                             </div>
                         </div>
 
-                        {/* Tabla con scroll vertical */}
                         <div className="hidden md:block bg-white rounded-lg shadow border border-gray-200">
                             <div className="overflow-x-auto">
                                 <table className="min-w-full">
@@ -735,7 +753,6 @@ const handleDownloadReport = async (format) => {
                                     </tbody>
                                 </table>
                             </div>
-                            {/* Paginación */}
                             <div className="flex justify-center items-center py-4 space-x-2 border-t border-gray-200">
                                 <button
                                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -757,7 +774,6 @@ const handleDownloadReport = async (format) => {
                             </div>
                         </div>
 
-                        {/* Vista móvil con scroll */}
                         <div className="md:hidden">
                             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                                 {productosPagina && Array.isArray(productosPagina) && productosPagina.map((producto) => (
@@ -814,7 +830,6 @@ const handleDownloadReport = async (format) => {
                                     </div>
                                 ))}
                             </div>
-                            {/* Paginación móvil */}
                             <div className="flex justify-center items-center py-4 space-x-2 mt-4">
                                 <button
                                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -841,66 +856,9 @@ const handleDownloadReport = async (format) => {
                 </div>
             </div>
 
-            {/* Modales (se mantienen igual que antes) */}
-            {showSearchResultsModal && ( 
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
-                        <div className="flex items-center justify-between px-6 py-4 border-b">
-                            <h3 className="text-lg font-medium text-gray-900">Resultados de la Búsqueda</h3>
-                            <button
-                                onClick={() => setShowSearchResultsModal(false)}
-                                className="text-gray-400 hover:text-gray-500"
-                                aria-label="Cerrar"
-                            >
-                                <FaClose className="h-5 w-5" />
-                            </button>
-                        </div>
-
-                        <div className="px-6 py-4">
-                            {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.length > 0 ? (
-                                <div className="space-y-4">
-                                    {filteredProductos.map((producto) => (
-                                        <div key={producto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-                                            <div className="flex justify-between items-start">
-                                                <h3 className="text-lg font-medium text-gray-900">{producto.nombre}</h3>
-                                            </div>
-
-                                            <div className="mt-4 space-y-2">
-                                                <div className="flex justify-between">
-                                                    <span className="text-sm font-medium text-gray-500">Código:</span>
-                                                    <span className="text-sm text-gray-900">{producto.codigo}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-sm font-medium text-gray-500">Unidad:</span>
-                                                    <span className="text-sm text-gray-900">{getNombreUnidad(producto.unidad)}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-sm font-medium text-gray-500">Precio:</span>
-                                                    <span className="text-sm text-gray-900">{producto.precio}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-sm font-medium text-gray-500">Stock:</span>
-                                                    <span className="text-sm text-gray-900">{producto.stock}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-sm font-medium text-gray-500">Proveedor:</span>
-                                                    <span className="text-sm text-gray-900">{getNombreProveedor(producto.idproveedor)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-gray-700">No se encontraron resultados.</p>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
+            {/* Modal de Agregar Producto */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                    {/* Contenido del modal de agregar (igual que antes) */}
                     <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-screen overflow-y-auto">
                         <div className="flex items-center justify-between px-6 py-4 border-b">
                             <h3 className="text-lg font-medium text-gray-900">Agregar Producto</h3>
@@ -921,7 +879,6 @@ const handleDownloadReport = async (format) => {
 
                         <div className="px-6 py-4">
                             <form onSubmit={handleSaveNewProduct}>
-                                {/* Todo el contenido del formulario se mantiene igual */}
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="nombre">
                                         Nombre del Producto
@@ -1076,6 +1033,7 @@ const handleDownloadReport = async (format) => {
                 </div>
             )}
 
+            {/* Modal de Editar Producto */}
             {showEditModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-screen overflow-y-auto">
@@ -1251,6 +1209,7 @@ const handleDownloadReport = async (format) => {
                 </div>
             )}
 
+            {/* Modal de Añadir Stock */}
             {showStockModal && selectedProduct && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
@@ -1323,6 +1282,7 @@ const handleDownloadReport = async (format) => {
                 </div>
             )}
 
+            {/* Modal de Confirmar Eliminación */}
             {showDeleteConfirmModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
@@ -1363,6 +1323,7 @@ const handleDownloadReport = async (format) => {
                 </div>
             )}
 
+            {/* Modal de Confirmar Cancelación */}
             {showCancelConfirmModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
@@ -1415,6 +1376,7 @@ const handleDownloadReport = async (format) => {
                 </div>
             )}
 
+            {/* Modal de Error */}
             {showErrorModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
@@ -1439,6 +1401,63 @@ const handleDownloadReport = async (format) => {
                                     Cerrar
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Resultados de Búsqueda */}
+            {showSearchResultsModal && ( 
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
+                        <div className="flex items-center justify-between px-6 py-4 border-b">
+                            <h3 className="text-lg font-medium text-gray-900">Resultados de la Búsqueda</h3>
+                            <button
+                                onClick={() => setShowSearchResultsModal(false)}
+                                className="text-gray-400 hover:text-gray-500"
+                                aria-label="Cerrar"
+                            >
+                                <FaClose className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-4">
+                            {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.length > 0 ? (
+                                <div className="space-y-4">
+                                    {filteredProductos.map((producto) => (
+                                        <div key={producto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                                            <div className="flex justify-between items-start">
+                                                <h3 className="text-lg font-medium text-gray-900">{producto.nombre}</h3>
+                                            </div>
+
+                                            <div className="mt-4 space-y-2">
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm font-medium text-gray-500">Código:</span>
+                                                    <span className="text-sm text-gray-900">{producto.codigo}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm font-medium text-gray-500">Unidad:</span>
+                                                    <span className="text-sm text-gray-900">{getNombreUnidad(producto.unidad)}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm font-medium text-gray-500">Precio:</span>
+                                                    <span className="text-sm text-gray-900">{producto.precio}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm font-medium text-gray-500">Stock:</span>
+                                                    <span className="text-sm text-gray-900">{producto.stock}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm font-medium text-gray-500">Proveedor:</span>
+                                                    <span className="text-sm text-gray-900">{getNombreProveedor(producto.idproveedor)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-gray-700">No se encontraron resultados.</p>
+                            )}
                         </div>
                     </div>
                 </div>
