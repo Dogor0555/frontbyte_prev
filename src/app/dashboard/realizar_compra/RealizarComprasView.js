@@ -114,16 +114,16 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [currentDteData, setCurrentDteData] = useState(null);
 
     // ========== ESTADOS PARA GASTOS SIN INVENTARIO ==========
-  const [showMateriaPrimaModal, setShowMateriaPrimaModal] = useState(false);
-  const [mpSearch, setMpSearch] = useState("");
-  const [mpSelected, setMpSelected] = useState(null);
-  const [mpCantidad, setMpCantidad] = useState("");
-  const [mpCosto, setMpCosto] = useState("");
-  const [mpUnidad, setMpUnidad] = useState("unidad");
-  const [materiasPrimas, setMateriasPrimas] = useState([]);
+    const [showMateriaPrimaModal, setShowMateriaPrimaModal] = useState(false);
+    const [mpSearch, setMpSearch] = useState("");
+    const [mpSelected, setMpSelected] = useState(null);
+    const [mpCantidad, setMpCantidad] = useState("");
+    const [mpCosto, setMpCosto] = useState("");
+    const [mpUnidad, setMpUnidad] = useState("unidad");
+    const [materiasPrimas, setMateriasPrimas] = useState([]);
 
-  const [tipoInventario, setTipoInventario] = useState("producto");
-const [productosPendientesMP, setProductosPendientesMP] = useState([]);
+    const [tipoInventario, setTipoInventario] = useState("producto");
+    const [productosPendientesMP, setProductosPendientesMP] = useState([]);
     
     const [formData, setFormData] = useState({
         fecha: new Date().toISOString().split('T')[0],
@@ -137,7 +137,6 @@ const [productosPendientesMP, setProductosPendientesMP] = useState([]);
         tipo_compra: "local",
         descripcion: "",
         exentas_internas: 0,
-//        exentas_internaciones: 0,
         exentas_importaciones: 0,
         gravadas_internas: 0,
         gravadas_internaciones: 0,
@@ -158,18 +157,18 @@ const [productosPendientesMP, setProductosPendientesMP] = useState([]);
 
     const [detalles, setDetalles] = useState([]);
 
-    // ========== FUNCIONES PARA MANEJO DE DETALLES (PRODUCTOS Y GASTOS) ==========
+    // ========== FUNCIONES PARA MANEJO DE DETALLES ==========
     const crearDetalleBase = () => ({
-  tipo: "",
-  producto_id: null,
-  materia_prima_id: null,
-  producto_codigo: null,
-  producto_nombre: null,
-  descripcion: "",
-  cantidad: 0,
-  precio_unitario: 0,
-  subtotal: 0
-});
+        tipo: "",
+        producto_id: null,
+        materia_prima_id: null,
+        producto_codigo: null,
+        producto_nombre: null,
+        descripcion: "",
+        cantidad: 0,
+        precio_unitario: 0,
+        subtotal: 0
+    });
 
     const [productSearch, setProductSearch] = useState("");
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -195,83 +194,69 @@ const [productosPendientesMP, setProductosPendientesMP] = useState([]);
     const [isProcessingMultiple, setIsProcessingMultiple] = useState(false);
 
     const handleAgregarMateriaPrimaDesdeDialog = async () => {
-    const seleccionados = productosNoEncontradosMsg.filter((_, idx) => selectedProductosToCreate[idx]);
+        const seleccionados = productosNoEncontradosMsg.filter((_, idx) => selectedProductosToCreate[idx]);
 
-    try {
-        const nuevosDetalles = [];
+        try {
+            const nuevosDetalles = [];
 
-        for (const nombreProducto of seleccionados) {
+            for (const nombreProducto of seleccionados) {
+                const nombreLimpio = nombreProducto.split(" - ").pop().trim();
+                let mp = materiasPrimas.find(mp => mp.nombre.toLowerCase() === nombreLimpio.toLowerCase());
 
-            // 🔥 limpiar nombre si viene sucio
-            const nombreLimpio = nombreProducto.split(" - ").pop().trim();
+                if (!mp) {
+                    const res = await fetch(`${API_BASE_URL}/materias-primas`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            nombre: nombreLimpio,
+                            unidad: "UND"
+                        })
+                    });
 
-            // 🔍 buscar si ya existe
-            let mp = materiasPrimas.find(mp =>
-                mp.nombre.toLowerCase() === nombreLimpio.toLowerCase()
-            );
+                    const data = await res.json();
 
-            // 🔥 si no existe → crear (igual que tu botón "Crear")
-            if (!mp) {
-                const res = await fetch(`${API_BASE_URL}/materias-primas`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({
-                        nombre: nombreLimpio,
-                        unidad: "UND"
-                    })
-                });
+                    if (!data?.id) {
+                        console.error("❌ Error creando MP:", data);
+                        continue;
+                    }
 
-                const data = await res.json();
-
-                if (!data?.id) {
-                    console.error("❌ Error creando MP:", data);
-                    continue;
+                    mp = data;
+                    setMateriasPrimas(prev => [...prev, mp]);
                 }
 
-                mp = data;
-
-                // 🔥 actualizar inventario local
-                setMateriasPrimas(prev => [...prev, mp]);
+                nuevosDetalles.push({
+                    ...crearDetalleBase(),
+                    tipo: "materia_prima",
+                    es_materia_prima: true,
+                    producto_id: null,
+                    materia_prima_id: mp.id,
+                    descripcion: mp.nombre,
+                    cantidad: 1,
+                    precio_unitario: 0,
+                    subtotal: 0
+                });
             }
 
-            // 🔥 agregar al detalle de compra
-            nuevosDetalles.push({
-                ...crearDetalleBase(),
-                tipo: "materia_prima",
-                es_materia_prima: true,
-                producto_id: null,
-                materia_prima_id: mp.id,
-                descripcion: mp.nombre,
-                cantidad: 1,
-                precio_unitario: 0,
-                subtotal: 0
-            });
+            setDetalles(prev => [...prev, ...nuevosDetalles]);
+            setShowDialog(false);
+
+        } catch (error) {
+            console.error("❌ Error agregando MP:", error);
         }
-
-        // 🔥 insertar todo
-        setDetalles(prev => [...prev, ...nuevosDetalles]);
-
-        setShowDialog(false);
-
-    } catch (error) {
-        console.error("❌ Error agregando MP:", error);
-    }
-};
+    };
 
     const handleAgregarSeleccionados = () => {
-    const seleccionados = productosNoEncontradosMsg.filter((_, idx) => selectedProductosToCreate[idx]);
+        const seleccionados = productosNoEncontradosMsg.filter((_, idx) => selectedProductosToCreate[idx]);
 
-    if (tipoInventario === "producto") {
-        // 🔹 Usa tu lógica actual
-        handleDialogYes();
-    } else {
-        // 🔥 MANDAR A MATERIA PRIMA
-        setProductosPendientesMP(seleccionados);
-        setShowDialog(false);
-        setShowMateriaPrimaModal(true);
-    }
-};
+        if (tipoInventario === "producto") {
+            handleDialogYes();
+        } else {
+            setProductosPendientesMP(seleccionados);
+            setShowDialog(false);
+            setShowMateriaPrimaModal(true);
+        }
+    };
 
     useEffect(() => {
         const checkMobile = () => {
@@ -287,11 +272,11 @@ const [productosPendientesMP, setProductosPendientesMP] = useState([]);
     useEffect(() => {
         const fetchData = async () => {
             try {
-const [provRes, prodRes, mpRes] = await Promise.all([
-    fetch(`${API_BASE_URL}/proveedores/getAll`, { credentials: "include" }),
-    fetch(`${API_BASE_URL}/productos/getAll`, { credentials: "include" }),
-    fetch(`${API_BASE_URL}/materias-primas`, { credentials: "include" })
-]);
+                const [provRes, prodRes, mpRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/proveedores/getAll`, { credentials: "include" }),
+                    fetch(`${API_BASE_URL}/productos/getAll`, { credentials: "include" }),
+                    fetch(`${API_BASE_URL}/materias-primas`, { credentials: "include" })
+                ]);
 
                 if (provRes.ok) {
                     const provData = await provRes.json();
@@ -311,16 +296,12 @@ const [provRes, prodRes, mpRes] = await Promise.all([
                 } else {
                     setProductos([]);
                 }
-if (mpRes.ok) {
-    const mpData = await mpRes.json();
-    setMateriasPrimas(
-        Array.isArray(mpData)
-            ? mpData
-            : (mpData?.data || [])
-    );
-} else {
-    setMateriasPrimas([]);
-}
+                if (mpRes.ok) {
+                    const mpData = await mpRes.json();
+                    setMateriasPrimas(Array.isArray(mpData) ? mpData : (mpData?.data || []));
+                } else {
+                    setMateriasPrimas([]);
+                }
             } catch (err) {
                 console.error("Error cargando datos:", err);
                 setError("No se pudieron cargar los datos necesarios.");
@@ -330,7 +311,6 @@ if (mpRes.ok) {
         };
         fetchData();
     }, []);
-
 
     const filteredProducts = useMemo(() => {
         if (!productSearch) return [];
@@ -356,6 +336,7 @@ if (mpRes.ok) {
         const subtotal = parseFloat(addQuantity) * parseFloat(addPrice || 0);
         
         const newDetail = {
+            tipo: "producto",
             producto_id: selectedProduct.id,
             producto_nombre: selectedProduct.nombre,
             producto_codigo: selectedProduct.codigo,
@@ -374,7 +355,6 @@ if (mpRes.ok) {
         setAddPrice("");
     };
 
-    // ========== FUNCIÓN PARA AGREGAR GASTO SIN INVENTARIO ==========
     const handleAddGasto = () => {
         if (!gastoData.descripcion.trim()) {
             addToast({ type: 'error', message: 'Ingrese una descripción para el gasto/servicio' });
@@ -392,14 +372,14 @@ if (mpRes.ok) {
         const subtotal = gastoData.cantidad * gastoData.precio_unitario;
         
         const newDetail = {
+            tipo: "gasto",
             producto_id: null,
             producto_codigo: null,
             producto_nombre: null,
             descripcion: gastoData.descripcion,
             cantidad: gastoData.cantidad,
             precio_unitario: gastoData.precio_unitario,
-            subtotal: subtotal,
-            sin_inventario: true
+            subtotal: subtotal
         };
 
         const newDetalles = [...detalles, newDetail];
@@ -411,94 +391,87 @@ if (mpRes.ok) {
         
         addToast({ type: 'success', message: 'Gasto/Servicio agregado correctamente' });
     };
-const handleAddMateriaPrima = async () => {
-    if (!mpSearch || !mpCantidad || !mpCosto) return;
 
-    try {
-        let mp = mpSelected;
+    const handleAddMateriaPrima = async () => {
+        if (!mpSearch || !mpCantidad || !mpCosto) return;
 
-        // 🔥 CREAR SI NO EXISTE
-        if (!mpSelected) {
+        try {
+            let mp = mpSelected;
+
+            if (!mpSelected) {
+                const res = await fetch(`${API_BASE_URL}/materias-primas`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        nombre: mpSearch,
+                        unidad: mpUnidad || "UND"
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!data?.id) {
+                    throw new Error("Error: backend no devolvió ID");
+                }
+
+                mp = data;
+                setMateriasPrimas(prev => [...prev, mp]);
+            }
+
+            const nuevoDetalle = {
+                ...crearDetalleBase(),
+                tipo: "materia_prima",
+                es_materia_prima: true,
+                producto_id: null,
+                materia_prima_id: mp.id,
+                descripcion: mp.nombre,
+                cantidad: parseFloat(mpCantidad),
+                precio_unitario: parseFloat(mpCosto),
+                subtotal: parseFloat(mpCantidad) * parseFloat(mpCosto)
+            };
+
+            setDetalles(prev => [...prev, nuevoDetalle]);
+
+            setMpSelected(null);
+            setMpSearch("");
+            setMpCantidad("");
+            setMpCosto("");
+            setMpUnidad("");
+            setShowMateriaPrimaModal(false);
+
+        } catch (error) {
+            console.error("❌ Error creando materia prima:", error);
+        }
+    };
+
+    const handleCreateMP = async () => {
+        if (!mpSearch.trim()) return;
+
+        try {
             const res = await fetch(`${API_BASE_URL}/materias-primas`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
                 body: JSON.stringify({
                     nombre: mpSearch,
-                    unidad: mpUnidad || "UND"
+                    unidad: mpUnidad
                 })
             });
 
             const data = await res.json();
 
-            console.log("🧪 MP CREADA:", data);
+            setMpSelected(data);
+            setMpSearch(data.nombre);
+            setMateriasPrimas(prev => [...prev, data]);
 
-            if (!data?.id) {
-                throw new Error("Error: backend no devolvió ID");
-            }
+            addToast({ type: 'success', message: 'Materia prima creada' });
 
-            mp = data;
-
-            setMateriasPrimas(prev => [...prev, mp]);
+        } catch (error) {
+            console.error(error);
+            addToast({ type: 'error', message: 'Error creando materia prima' });
         }
-
-        // 🔥 CREAR DETALLE
-        const nuevoDetalle = {
-            ...crearDetalleBase(),
-            tipo: "materia_prima",
-            es_materia_prima: true,
-            producto_id: null,
-            materia_prima_id: mp.id,
-            descripcion: mp.nombre,
-            cantidad: parseFloat(mpCantidad),
-            precio_unitario: parseFloat(mpCosto),
-            subtotal: parseFloat(mpCantidad) * parseFloat(mpCosto)
-        };
-
-        console.log("🧪 DETALLE MP:", nuevoDetalle);
-
-        setDetalles(prev => [...prev, nuevoDetalle]);
-
-        // LIMPIAR
-        setMpSelected(null);
-        setMpSearch("");
-        setMpCantidad("");
-        setMpCosto("");
-        setMpUnidad("");
-
-        setShowMateriaPrimaModal(false);
-
-    } catch (error) {
-        console.error("❌ Error creando materia prima:", error);
-    }
-};
-const handleCreateMP = async () => {
-    if (!mpSearch.trim()) return;
-
-    try {
-        const res = await fetch(`${API_BASE_URL}/materias-primas`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-                nombre: mpSearch,
-                unidad: mpUnidad
-            })
-        });
-
-        const data = await res.json();
-
-        setMpSelected(data);
-        setMpSearch(data.nombre);
-        setMateriasPrimas(prev => [...prev, data]);
-
-        addToast({ type: 'success', message: 'Materia prima creada' });
-
-    } catch (error) {
-        console.error(error);
-        addToast({ type: 'error', message: 'Error creando materia prima' });
-    }
-};
+    };
 
     const handleRemoveDetail = (index) => {
         const newDetalles = detalles.filter((_, i) => i !== index);
@@ -517,7 +490,7 @@ const handleCreateMP = async () => {
                 gravadas_internas: tipo === 'local' ? totalFixed : 0,
                 gravadas_importaciones: tipo === 'importacion' ? totalFixed : 0,
                 credito_fiscal: ivaSugerido,
-                exentas_internas: 0,
+                exentas_internas: totalFixed,  // Base para luego sumar FOVIAL y COTRANS
                 exentas_importaciones: 0
             };
             return { ...newData, total_compras: calculateTotal(newData) };
@@ -527,16 +500,12 @@ const handleCreateMP = async () => {
     const calculateTotal = (data) => {
         return parseFloat((
             parseFloat(data.exentas_internas || 0) +
-            parseFloat(data.exentas_internaciones || 0) +
             parseFloat(data.exentas_importaciones || 0) +
             parseFloat(data.gravadas_internas || 0) +
             parseFloat(data.gravadas_internaciones || 0) +
             parseFloat(data.gravadas_importaciones || 0) +
             parseFloat(data.compras_sujetos_excluidos || 0) +
             parseFloat(data.credito_fiscal || 0) +
-            parseFloat(data.fovial || 0) +
-            parseFloat(data.cotrans || 0) +
-            parseFloat(data.cesc || 0) +
             parseFloat(data.anticipo_iva_percibido || 0) +
             parseFloat(data.percepcion || 0)
         ).toFixed(2));
@@ -565,162 +534,192 @@ const handleCreateMP = async () => {
     };
 
     const procesarDteActual = async (dteData) => {
-        setIsLoading(true);
-        try {
-            setCurrentDteData(dteData);
-            
-            const emisorNit = dteData.emisor.nit;
-            const emisorNrc = dteData.emisor.nrc;
-            
-            let foundProv = proveedores.find(p => 
-                (p.nit && p.nit === emisorNit) || 
-                (p.nrc && p.nrc === emisorNrc) ||
-                (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor.nombre.toLowerCase()))
-            );
+    setIsLoading(true);
+    try {
+        setCurrentDteData(dteData);
+        
+        const emisorNit = dteData.emisor.nit;
+        const emisorNrc = dteData.emisor.nrc;
+        
+        let foundProv = proveedores.find(p => 
+            (p.nit && p.nit === emisorNit) || 
+            (p.nrc && p.nrc === emisorNrc) ||
+            (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor.nombre.toLowerCase()))
+        );
 
-            if (!foundProv) {
-                try {
-                    const newProvData = {
-                        nombre: dteData.emisor.nombre,
-                        codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
-                        descripcion: dteData.emisor.descActividad || "Creado automáticamente desde DTE"
-                    };
+        if (!foundProv) {
+            try {
+                const newProvData = {
+                    nombre: dteData.emisor.nombre,
+                    codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
+                    descripcion: dteData.emisor.descActividad || "Creado automáticamente desde DTE"
+                };
 
-                    const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify(newProvData),
-                    });
+                const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify(newProvData),
+                });
 
-                    if (response.ok) {
-                        const resJson = await response.json();
-                        foundProv = resJson.proveedor;
-                        setProveedores(prev => [...prev, foundProv]);
-                    }
-                } catch (err) {
-                    console.error("Error creando proveedor automático:", err);
+                if (response.ok) {
+                    const resJson = await response.json();
+                    foundProv = resJson.proveedor;
+                    setProveedores(prev => [...prev, foundProv]);
                 }
+            } catch (err) {
+                console.error("Error creando proveedor automático:", err);
             }
+        }
 
-            const currentProveedorId = foundProv ? foundProv.id : null;
+        const currentProveedorId = foundProv ? foundProv.id : null;
 
-            let codigoGeneracion = null;
-            let selloRecepcion = null;
+        let codigoGeneracion = null;
+        let selloRecepcion = null;
 
-            if (dteData.identificacion?.codigoGeneracion) {
-                codigoGeneracion = dteData.identificacion.codigoGeneracion;
-            } else if (dteData.codigoGeneracion) {
-                codigoGeneracion = dteData.codigoGeneracion;
+        if (dteData.identificacion?.codigoGeneracion) {
+            codigoGeneracion = dteData.identificacion.codigoGeneracion;
+        } else if (dteData.codigoGeneracion) {
+            codigoGeneracion = dteData.codigoGeneracion;
+        }
+
+        if (dteData.respuestaHacienda?.selloRecibido) {
+            selloRecepcion = dteData.respuestaHacienda.selloRecibido;
+        } else if (dteData.selloRecibido) {
+            selloRecepcion = dteData.selloRecibido;
+        } else if (dteData.sello_recepcion) {
+            selloRecepcion = dteData.sello_recepcion;
+        }
+
+        // ✅ EXTRACCIÓN CORRECTA DE TRIBUTOS
+        let fovial = 0;
+        let cotrans = 0;
+        let iva = 0;
+
+        if (dteData.resumen?.tributos && Array.isArray(dteData.resumen.tributos)) {
+            console.log("📊 Tributos encontrados en DTE:", dteData.resumen.tributos);
+            dteData.resumen.tributos.forEach(tributo => {
+                const valor = parseFloat(tributo.valor) || 0;
+                console.log(`  - ${tributo.codigo}: ${tributo.descripcion} = $${valor}`);
+                switch(tributo.codigo) {
+                    case 'D1': fovial = valor; break;
+                    case 'C8': cotrans = valor; break;
+                    case '20': iva = valor; break;
+                }
+            });
+        }
+
+        console.log("✅ Valores extraídos:", { fovial, cotrans, iva });
+
+        const productosNoEncontrados = [];
+        const productosACrear = [];
+        let currentProductos = [...productos];
+
+        for (const item of dteData.cuerpoDocumento) {
+            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            if (!foundProd) {
+                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
             }
-
-            if (dteData.respuestaHacienda?.selloRecibido) {
-                selloRecepcion = dteData.respuestaHacienda.selloRecibido;
-            } else if (dteData.selloRecibido) {
-                selloRecepcion = dteData.selloRecibido;
-            } else if (dteData.sello_recepcion) {
-                selloRecepcion = dteData.sello_recepcion;
-            }
-
-            let fovial = 0;
-            let cotrans = 0;
-            let iva = 0;
-
-            if (dteData.resumen?.tributos && Array.isArray(dteData.resumen.tributos)) {
-                dteData.resumen.tributos.forEach(tributo => {
-                    const valor = parseFloat(tributo.valor) || 0;
-                    switch(tributo.codigo) {
-                        case 'D1': fovial = valor; break;
-                        case 'C8': cotrans = valor; break;
-                        case '20': iva = valor; break;
-                    }
+            if (!foundProd) {
+                productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
+                productosACrear.push({
+                    item,
+                    nombre: item.descripcion,
+                    codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                    unidad: item.uniMedida || "Unidad",
+                    precio: item.precioUni,
+                    preciooferta: 0,
+                    stock: 0,
+                    es_servicio: item.tipoItem === 2,
+                    idproveedor: currentProveedorId
                 });
             }
-
-            const productosNoEncontrados = [];
-            const productosACrear = [];
-            let currentProductos = [...productos];
-
-            for (const item of dteData.cuerpoDocumento) {
-                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-                if (!foundProd) {
-                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-                }
-                if (!foundProd) {
-                    productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
-                    productosACrear.push({
-                        item,
-                        nombre: item.descripcion,
-                        codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                        unidad: item.uniMedida || "Unidad",
-                        precio: item.precioUni,
-                        preciooferta: 0,
-                        stock: 0,
-                        es_servicio: item.tipoItem === 2,
-                        idproveedor: currentProveedorId
-                    });
-                }
-            }
-
-            if (productosNoEncontrados.length > 0) {
-                setProductosNoEncontradosMsg(productosNoEncontrados);
-                setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
-                setShowDialog(true);
-                setIsLoading(false);
-                return;
-            }
-
-            const nuevosDetalles = [];
-
-            for (const item of dteData.cuerpoDocumento) {
-                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-                if (!foundProd) {
-                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-                }
-                if (foundProd) {
-                    nuevosDetalles.push({
-                        producto_id: foundProd.id,
-                        producto_nombre: foundProd.nombre,
-                        producto_codigo: foundProd.codigo,
-                        cantidad: item.cantidad,
-                        precio_unitario: item.precioUni,
-                        subtotal: item.ventaGravada
-                    });
-                }
-            }
-
-            setFormData(prev => {
-                const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
-                const newData = {
-                    ...prev,
-                    fecha_emision: dteData.identificacion.fecEmi,
-                    numero_documento: dteData.identificacion.numeroControl,
-                    codigo_generacion: codigoGeneracion,
-                    sello_recepcion: selloRecepcion,
-                    nrc: dteData.emisor.nrc,
-                    nombre_proveedor: dteData.emisor.nombre,
-                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                    tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte).padStart(2, '0')] || "CCF",
-                    gravadas_internas: dteData.resumen.totalGravada || 0,
-                    credito_fiscal: iva,
-                    fovial: fovial,
-                    cotrans: cotrans,
-                    total_compras: dteData.resumen.totalPagar || 0
-                };
-                return newData;
-            });
-
-            if (nuevosDetalles.length > 0) {
-                setDetalles(prev => [...prev, ...nuevosDetalles]);
-            }
-
-            setIsLoading(false);
-        } catch (error) {
-            console.error("Error procesando DTE:", error);
-            setError("Error al procesar el archivo DTE.");
-            setIsLoading(false);
         }
-    };
+
+        if (productosNoEncontrados.length > 0) {
+            setProductosNoEncontradosMsg(productosNoEncontrados);
+            setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
+            setShowDialog(true);
+            setIsLoading(false);
+            return;
+        }
+
+        const nuevosDetalles = [];
+
+        for (const item of dteData.cuerpoDocumento) {
+            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            if (!foundProd) {
+                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+            }
+            if (foundProd) {
+                nuevosDetalles.push({
+                    tipo: "producto",
+                    producto_id: foundProd.id,
+                    producto_nombre: foundProd.nombre,
+                    producto_codigo: foundProd.codigo,
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precioUni,
+                    subtotal: item.ventaGravada
+                });
+            }
+        }
+
+        // ✅ EXENTAS_INTERNAS = SOLO FOVIAL + COTRANS (NO incluye productos)
+        const exentasConTributos = fovial + cotrans;
+
+        setFormData(prev => {
+            const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
+            const newData = {
+                ...prev,
+                fecha_emision: dteData.identificacion.fecEmi,
+                numero_documento: dteData.identificacion.numeroControl,
+                codigo_generacion: codigoGeneracion,
+                sello_recepcion: selloRecepcion,
+                nrc: dteData.emisor.nrc,
+                nombre_proveedor: dteData.emisor.nombre,
+                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte).padStart(2, '0')] || "CCF",
+                gravadas_internas: dteData.resumen.totalGravada || 0,
+                credito_fiscal: iva,
+                fovial: fovial,
+                cotrans: cotrans,
+                exentas_internas: exentasConTributos,  // ✅ SOLO FOVIAL + COTRANS
+                total_compras: dteData.resumen.totalPagar || 0
+            };
+            console.log("📝 FormData actualizado:", { 
+                exentas_internas: newData.exentas_internas,
+                fovial: newData.fovial, 
+                cotrans: newData.cotrans,
+                gravadas_internas: newData.gravadas_internas
+            });
+            return newData;
+        });
+
+        if (nuevosDetalles.length > 0) {
+            setDetalles(prev => [...prev, ...nuevosDetalles]);
+        }
+
+        addToast({ 
+            type: 'success', 
+            title: 'DTE Cargado', 
+            lines: [
+                `📄 Documento: ${dteData.identificacion.numeroControl}`,
+                `💰 Total: $${dteData.resumen.totalPagar}`,
+                `🚗 FOVIAL: $${fovial}`,
+                `🚛 COTRANS: $${cotrans}`,
+                `💵 IVA: $${iva}`,
+                `📊 Exentas (FOVIAL+COTRANS): $${exentasConTributos}`
+            ],
+            duration: 5000
+        });
+
+        setIsLoading(false);
+    } catch (error) {
+        console.error("Error procesando DTE:", error);
+        setError("Error al procesar el archivo DTE.");
+        setIsLoading(false);
+    }
+};
 
     const procesarDte = async (dteData, foundProv) => {
         try {
@@ -734,6 +733,7 @@ const handleCreateMP = async () => {
                 }
                 if (foundProd) {
                     nuevosDetalles.push({
+                        tipo: "producto",
                         producto_id: foundProd.id,
                         producto_nombre: foundProd.nombre,
                         producto_codigo: foundProd.codigo,
@@ -744,8 +744,13 @@ const handleCreateMP = async () => {
                 }
             }
 
+            const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
+            const fovial = dteData.resumen.tributos?.find(t => t.codigo === 'D1')?.valor || 0;
+            const cotrans = dteData.resumen.tributos?.find(t => t.codigo === 'C8')?.valor || 0;
+            const totalProductos = dteData.resumen.totalGravada || 0;
+            const exentasConTributos = fovial + cotrans;
+
             setFormData(prev => {
-                const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
                 const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
                 const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
                 return {
@@ -756,8 +761,11 @@ const handleCreateMP = async () => {
                     nombre_proveedor: dteData.emisor.nombre,
                     proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
                     tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                    gravadas_internas: dteData.resumen.totalGravada,
+                    gravadas_internas: totalProductos,
                     credito_fiscal: iva,
+                    fovial: fovial,
+                    cotrans: cotrans,
+                    exentas_internas: exentasConTributos,
                     total_compras: dteData.resumen.totalPagar
                 };
             });
@@ -775,41 +783,51 @@ const handleCreateMP = async () => {
     };
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        
-        if (name === 'proveedor_id') {
-            const prov = proveedores.find(p => p.id.toString() === value);
-            setFormData(prev => ({ 
+    const { name, value } = e.target;
+    
+    if (name === 'proveedor_id') {
+        const prov = proveedores.find(p => p.id.toString() === value);
+        setFormData(prev => ({ 
+            ...prev,
+            [name]: value,
+            nombre_proveedor: prov ? prov.nombre : ""
+        }));
+    } else if (name === 'tipo_compra') {
+        setFormData(prev => {
+            const totalGravado = prev.gravadas_internas + prev.gravadas_importaciones;
+            const newData = {
                 ...prev,
-                [name]: value,
-                nombre_proveedor: prov ? prov.nombre : ""
-            }));
-        } else if (name === 'tipo_compra') {
-            setFormData(prev => {
-                const totalGravado = prev.gravadas_internas + prev.gravadas_importaciones;
-                const newData = {
-                    ...prev,
-                    tipo_compra: value,
-                    gravadas_internas: value === 'local' ? totalGravado : 0,
-                    gravadas_importaciones: value === 'importacion' ? totalGravado : 0
-                };
-                return { ...newData, total_compras: calculateTotal(newData) };
-            });
-        } else {
-            setFormData(prev => {
-                const newData = { ...prev, [name]: value };
-                if ([
-                    'exentas_internas', 'exentas_internaciones', 'exentas_importaciones',
-                    'gravadas_internas', 'gravadas_internaciones', 'gravadas_importaciones',
-                    'compras_sujetos_excluidos', 'credito_fiscal', 'fovial', 'cotrans', 'cesc',
-                    'anticipo_iva_percibido', 'percepcion'
-                ].includes(name)) {
-                    newData.total_compras = calculateTotal(newData);
-                }
-                return newData;
-            });
-        }
-    };
+                tipo_compra: value,
+                gravadas_internas: value === 'local' ? totalGravado : 0,
+                gravadas_importaciones: value === 'importacion' ? totalGravado : 0
+            };
+            return { ...newData, total_compras: calculateTotal(newData) };
+        });
+    } else if (name === 'fovial' || name === 'cotrans') {
+        setFormData(prev => {
+            const newData = { ...prev, [name]: parseFloat(value) || 0 };
+            // ✅ EXENTAS_INTERNAS = SOLO FOVIAL + COTRANS
+            const fovialVal = parseFloat(newData.fovial) || 0;
+            const cotransVal = parseFloat(newData.cotrans) || 0;
+            newData.exentas_internas = fovialVal + cotransVal;
+            newData.total_compras = calculateTotal(newData);
+            return newData;
+        });
+    } else {
+        setFormData(prev => {
+            const newData = { ...prev, [name]: parseFloat(value) || 0 };
+            if ([
+                'exentas_internas', 'exentas_importaciones',
+                'gravadas_internas', 'gravadas_internaciones', 'gravadas_importaciones',
+                'compras_sujetos_excluidos', 'credito_fiscal', 'cesc',
+                'anticipo_iva_percibido', 'percepcion'
+            ].includes(name)) {
+                newData.total_compras = calculateTotal(newData);
+            }
+            return newData;
+        });
+    }
+};
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('es-SV', { 
@@ -832,7 +850,6 @@ const handleCreateMP = async () => {
             tipo_compra: "local",
             descripcion: "",
             exentas_internas: 0,
-            exentas_internaciones: 0,
             exentas_importaciones: 0,
             gravadas_internas: 0,
             gravadas_internaciones: 0,
@@ -873,7 +890,6 @@ const handleCreateMP = async () => {
                 locales: parseFloat(formData.gravadas_internas || 0),
                 importaciones: parseFloat(formData.gravadas_importaciones || 0),
                 exentas_internas: parseFloat(formData.exentas_internas || 0),
-                exentas_internaciones: parseFloat(formData.exentas_internaciones || 0),
                 exentas_importaciones: parseFloat(formData.exentas_importaciones || 0),
                 gravadas_internas: parseFloat(formData.gravadas_internas || 0),
                 gravadas_internaciones: parseFloat(formData.gravadas_internaciones || 0),
@@ -887,24 +903,28 @@ const handleCreateMP = async () => {
                 retencion: parseFloat(formData.retencion || 0),
                 percepcion: parseFloat(formData.percepcion || 0),
                 retencion_terceros: parseFloat(formData.retencion_terceros || 0),
-detalles: detalles.map(d => ({
-    producto_id: d.producto_id || null,
-    materia_prima_id: d.materia_prima_id || null,
-    es_materia_prima: d.es_materia_prima || false,
-
-    producto_codigo: d.producto_codigo || "",
-    producto_nombre: d.producto_nombre || "",
-    descripcion: d.descripcion || "",
-    cantidad: parseFloat(d.cantidad || 0),
-    precio_unitario: parseFloat(d.precio_unitario || 0),
-    subtotal: parseFloat(d.subtotal || 0),
-
-    // ✅ RESPETAR EL TIPO REAL
-    tipo: d.tipo || "gasto"
-})),
+                detalles: detalles.map(d => ({
+                    producto_id: d.producto_id || null,
+                    materia_prima_id: d.materia_prima_id || null,
+                    es_materia_prima: d.es_materia_prima || false,
+                    producto_codigo: d.producto_codigo || "",
+                    producto_nombre: d.producto_nombre || "",
+                    descripcion: d.descripcion || "",
+                    cantidad: parseFloat(d.cantidad || 0),
+                    precio_unitario: parseFloat(d.precio_unitario || 0),
+                    subtotal: parseFloat(d.subtotal || 0),
+                    tipo: d.tipo || "gasto"
+                })),
                 dteData: currentDteData
             };
-console.log("📦 PAYLOAD:", payload);
+
+            console.log("📦 PAYLOAD enviado:", {
+                exentas_internas: payload.exentas_internas,
+                fovial: payload.fovial,
+                cotrans: payload.cotrans,
+                gravadas_internas: payload.gravadas_internas
+            });
+
             const response = await fetch(`${API_BASE_URL}/compras/add`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -929,6 +949,8 @@ console.log("📦 PAYLOAD:", payload);
                 lines: [
                     `📄 Documento: ${data.numero_documento}`,
                     `💰 Total: ${formatCurrency(data.monto)}`,
+                    `🚗 FOVIAL: ${formatCurrency(data.fovial)}`,
+                    `🚛 COTRANS: ${formatCurrency(data.cotrans)}`,
                     `📦 Productos: ${detalles.length}`,
                     `🕐 ${fechaActual}`
                 ],
@@ -967,169 +989,57 @@ console.log("📦 PAYLOAD:", payload);
     };
 
     const handleDialogNo = () => {
-    if (!pendingDteData) return;
+        if (!pendingDteData) return;
 
-    const { dteData, foundProv, currentProveedorId } = pendingDteData;
-    const nuevosDetalles = [];
-
-    console.log("🔄 Procesando productos NO agregados al inventario como GASTOS");
-
-    for (const item of dteData.cuerpoDocumento) {
-        let foundProd = productos.find(p => p.codigo === item.codigo);
-        if (!foundProd) {
-            foundProd = productos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-        }
-        
-        if (foundProd) {
-            nuevosDetalles.push({
-                producto_id: foundProd.id,
-                producto_nombre: foundProd.nombre,
-                producto_codigo: foundProd.codigo,
-                cantidad: item.cantidad,
-                precio_unitario: item.precioUni,
-                subtotal: item.ventaGravada
-            });
-        } else {
-            nuevosDetalles.push({
-                producto_id: null,
-                producto_codigo: null,
-                producto_nombre: null,
-                descripcion: item.descripcion,
-                cantidad: item.cantidad,
-                precio_unitario: item.precioUni,
-                subtotal: item.ventaGravada,
-                tipo: "gasto"
-            });
-        }
-    }
-
-    if (nuevosDetalles.length > 0) {
-        setDetalles(prev => [...prev, ...nuevosDetalles]);
-        addToast({ 
-            type: 'success', 
-            title: 'Productos cargados', 
-            message: `Se cargaron ${nuevosDetalles.filter(d => d.producto_id).length} productos y ${nuevosDetalles.filter(d => !d.producto_id).length} gastos.` 
-        });
-    }
-
-    setFormData(prev => {
-        const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-        const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
-        const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
-        return {
-            ...prev,
-            fecha_emision: dteData.identificacion.fecEmi,
-            numero_documento: dteData.identificacion.numeroControl,
-            nrc: dteData.emisor.nrc,
-            nombre_proveedor: dteData.emisor.nombre,
-            proveedor_id: pendingDteData.foundProv ? pendingDteData.foundProv.id : prev.proveedor_id,
-            tipo_documento: tipoMap[tipoDteValue] || "CCF",
-            gravadas_internas: dteData.resumen.totalGravada,
-            credito_fiscal: iva,
-            total_compras: dteData.resumen.totalPagar
-        };
-    });
-
-    closeDialog(() => {
-        setPendingDteData(null);
-        setProductosNoEncontradosMsg([]);
-        setSelectedProductosToCreate({});
-        setIsLoading(false);
-    });
-};
-
-const handleDialogYes = async () => {
-    if (!pendingDteData) return;
-
-    setIsLoading(true);
-    try {
-        const { dteData, productosACrear, foundProv, currentProveedorId } = pendingDteData;
-        let currentProductos = [...productos];
+        const { dteData, foundProv, currentProveedorId } = pendingDteData;
         const nuevosDetalles = [];
 
-        for (let i = 0; i < productosACrear.length; i++) {
-            if (selectedProductosToCreate[i]) {
-                const prodData = productosACrear[i];
-                try {
-                    const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify({
-                            nombre: prodData.nombre,
-                            codigo: prodData.codigo,
-                            unidad: prodData.unidad,
-                            precio: prodData.precio,
-                            preciooferta: prodData.preciooferta,
-                            stock: prodData.stock,
-                            es_servicio: prodData.es_servicio,
-                            idproveedor: currentProveedorId
-                        }),
-                    });
-
-                    if (response.ok) {
-                        const resJson = await response.json();
-                        const newProd = resJson.producto;
-                        currentProductos.push(newProd);
-                        setProductos(prev => [...prev, newProd]);
-
-                        nuevosDetalles.push({
-                            producto_id: newProd.id,
-                            producto_nombre: newProd.nombre,
-                            producto_codigo: newProd.codigo,
-                            cantidad: prodData.item.cantidad,
-                            precio_unitario: prodData.item.precioUni,
-                            subtotal: prodData.item.ventaGravada
-                        });
-                    }
-                } catch (err) {
-                    console.error("Error creando producto:", err);
-                }
+        for (const item of dteData.cuerpoDocumento) {
+            let foundProd = productos.find(p => p.codigo === item.codigo);
+            if (!foundProd) {
+                foundProd = productos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+            }
+            
+            if (foundProd) {
+                nuevosDetalles.push({
+                    tipo: "producto",
+                    producto_id: foundProd.id,
+                    producto_nombre: foundProd.nombre,
+                    producto_codigo: foundProd.codigo,
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precioUni,
+                    subtotal: item.ventaGravada
+                });
+            } else {
+                nuevosDetalles.push({
+                    tipo: "gasto",
+                    producto_id: null,
+                    producto_codigo: null,
+                    producto_nombre: null,
+                    descripcion: item.descripcion,
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precioUni,
+                    subtotal: item.ventaGravada,
+                });
             }
         }
 
-for (const item of dteData.cuerpoDocumento) {
-    let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-
-    if (!foundProd) {
-        foundProd = currentProductos.find(
-            p => p.nombre.toLowerCase() === item.descripcion.toLowerCase()
-        );
-    }
-
-    if (foundProd) {
-        const existente = nuevosDetalles.find(d => d.producto_id === foundProd.id);
-
-        if (existente) {
-            existente.cantidad += item.cantidad;
-            existente.subtotal += item.ventaGravada;
-        } else {
-            nuevosDetalles.push({
-                ...crearDetalleBase(),
-                tipo: "producto",
-                producto_id: foundProd.id,
-                producto_nombre: foundProd.nombre,
-                producto_codigo: foundProd.codigo,
-                cantidad: item.cantidad,
-                precio_unitario: item.precioUni,
-                subtotal: item.ventaGravada
+        if (nuevosDetalles.length > 0) {
+            setDetalles(prev => [...prev, ...nuevosDetalles]);
+            addToast({ 
+                type: 'success', 
+                title: 'Productos cargados', 
+                message: `Se cargaron ${nuevosDetalles.filter(d => d.producto_id).length} productos y ${nuevosDetalles.filter(d => !d.producto_id).length} gastos.` 
             });
         }
-    } else {
-        nuevosDetalles.push({
-            ...crearDetalleBase(),
-            tipo: "gasto",
-            descripcion: item.descripcion,
-            cantidad: item.cantidad,
-            precio_unitario: item.precioUni,
-            subtotal: item.ventaGravada
-        });
-    }
-}
-        
+
+        const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
+        const fovial = dteData.resumen.tributos?.find(t => t.codigo === 'D1')?.valor || 0;
+        const cotrans = dteData.resumen.tributos?.find(t => t.codigo === 'C8')?.valor || 0;
+        const totalProductos = dteData.resumen.totalGravada || 0;
+        const exentasConTributos = fovial + cotrans;
 
         setFormData(prev => {
-            const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
             const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
             const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
             return {
@@ -1138,17 +1048,16 @@ for (const item of dteData.cuerpoDocumento) {
                 numero_documento: dteData.identificacion.numeroControl,
                 nrc: dteData.emisor.nrc,
                 nombre_proveedor: dteData.emisor.nombre,
-                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                proveedor_id: pendingDteData.foundProv ? pendingDteData.foundProv.id : prev.proveedor_id,
                 tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                gravadas_internas: dteData.resumen.totalGravada,
+                gravadas_internas: totalProductos,
                 credito_fiscal: iva,
+                fovial: fovial,
+                cotrans: cotrans,
+                exentas_internas: exentasConTributos,
                 total_compras: dteData.resumen.totalPagar
             };
         });
-
-        if (nuevosDetalles.length > 0) {
-            setDetalles(prev => [...prev, ...nuevosDetalles]);
-        }
 
         closeDialog(() => {
             setPendingDteData(null);
@@ -1156,13 +1065,141 @@ for (const item of dteData.cuerpoDocumento) {
             setSelectedProductosToCreate({});
             setIsLoading(false);
         });
+    };
 
-    } catch (error) {
-        console.error("Error:", error);
-        setError("Error al crear los productos.");
-        setIsLoading(false);
-    }
-};
+    const handleDialogYes = async () => {
+        if (!pendingDteData) return;
+
+        setIsLoading(true);
+        try {
+            const { dteData, productosACrear, foundProv, currentProveedorId } = pendingDteData;
+            let currentProductos = [...productos];
+            const nuevosDetalles = [];
+
+            for (let i = 0; i < productosACrear.length; i++) {
+                if (selectedProductosToCreate[i]) {
+                    const prodData = productosACrear[i];
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                                nombre: prodData.nombre,
+                                codigo: prodData.codigo,
+                                unidad: prodData.unidad,
+                                precio: prodData.precio,
+                                preciooferta: prodData.preciooferta,
+                                stock: prodData.stock,
+                                es_servicio: prodData.es_servicio,
+                                idproveedor: currentProveedorId
+                            }),
+                        });
+
+                        if (response.ok) {
+                            const resJson = await response.json();
+                            const newProd = resJson.producto;
+                            currentProductos.push(newProd);
+                            setProductos(prev => [...prev, newProd]);
+
+                            nuevosDetalles.push({
+                                tipo: "producto",
+                                producto_id: newProd.id,
+                                producto_nombre: newProd.nombre,
+                                producto_codigo: newProd.codigo,
+                                cantidad: prodData.item.cantidad,
+                                precio_unitario: prodData.item.precioUni,
+                                subtotal: prodData.item.ventaGravada
+                            });
+                        }
+                    } catch (err) {
+                        console.error("Error creando producto:", err);
+                    }
+                }
+            }
+
+            for (const item of dteData.cuerpoDocumento) {
+                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+
+                if (!foundProd) {
+                    foundProd = currentProductos.find(
+                        p => p.nombre.toLowerCase() === item.descripcion.toLowerCase()
+                    );
+                }
+
+                if (foundProd) {
+                    const existente = nuevosDetalles.find(d => d.producto_id === foundProd.id);
+
+                    if (existente) {
+                        existente.cantidad += item.cantidad;
+                        existente.subtotal += item.ventaGravada;
+                    } else {
+                        nuevosDetalles.push({
+                            ...crearDetalleBase(),
+                            tipo: "producto",
+                            producto_id: foundProd.id,
+                            producto_nombre: foundProd.nombre,
+                            producto_codigo: foundProd.codigo,
+                            cantidad: item.cantidad,
+                            precio_unitario: item.precioUni,
+                            subtotal: item.ventaGravada
+                        });
+                    }
+                } else {
+                    nuevosDetalles.push({
+                        ...crearDetalleBase(),
+                        tipo: "gasto",
+                        descripcion: item.descripcion,
+                        cantidad: item.cantidad,
+                        precio_unitario: item.precioUni,
+                        subtotal: item.ventaGravada
+                    });
+                }
+            }
+
+            const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
+            const fovial = dteData.resumen.tributos?.find(t => t.codigo === 'D1')?.valor || 0;
+            const cotrans = dteData.resumen.tributos?.find(t => t.codigo === 'C8')?.valor || 0;
+            const totalProductos = dteData.resumen.totalGravada || 0;
+            const exentasConTributos = fovial + cotrans;
+
+            setFormData(prev => {
+                const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
+                const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
+                return {
+                    ...prev,
+                    fecha_emision: dteData.identificacion.fecEmi,
+                    numero_documento: dteData.identificacion.numeroControl,
+                    nrc: dteData.emisor.nrc,
+                    nombre_proveedor: dteData.emisor.nombre,
+                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                    tipo_documento: tipoMap[tipoDteValue] || "CCF",
+                    gravadas_internas: totalProductos,
+                    credito_fiscal: iva,
+                    fovial: fovial,
+                    cotrans: cotrans,
+                    exentas_internas: exentasConTributos,
+                    total_compras: dteData.resumen.totalPagar
+                };
+            });
+
+            if (nuevosDetalles.length > 0) {
+                setDetalles(prev => [...prev, ...nuevosDetalles]);
+            }
+
+            closeDialog(() => {
+                setPendingDteData(null);
+                setProductosNoEncontradosMsg([]);
+                setSelectedProductosToCreate({});
+                setIsLoading(false);
+            });
+
+        } catch (error) {
+            console.error("Error:", error);
+            setError("Error al crear los productos.");
+            setIsLoading(false);
+        }
+    };
 
     if (isLoadingData) {
         return (
@@ -1383,21 +1420,21 @@ for (const item of dteData.cuerpoDocumento) {
                                             </button>
                                         </div>
                                         <div className="md:col-span-1">
-  <button 
-    type="button" 
-    onClick={() => setShowMateriaPrimaModal(true)}
-    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center"
-  >
-    <FaBoxOpen className="mr-2" /> MP
-  </button>
-</div>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setShowMateriaPrimaModal(true)}
+                                                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center"
+                                            >
+                                                <FaBoxOpen className="mr-2" /> MP
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="mt-6 overflow-x-auto">
                                         <table className="min-w-full divide-y divide-gray-200 border">
                                             <thead className="bg-gray-50">
                                                 <tr>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
                                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto / Descripción</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cant.</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Costo Unit.</th>
@@ -1416,23 +1453,15 @@ for (const item of dteData.cuerpoDocumento) {
                                                     detalles.map((item, idx) => (
                                                         <tr key={idx}>
                                                             <td className="px-4 py-3 text-sm">
-{item.tipo === "producto" && (
-    <span className="text-gray-900 font-mono text-xs">
-        {item.producto_codigo || "—"}
-    </span>
-)}
-
-{item.tipo === "materia_prima" && (
-    <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">
-        MP
-    </span>
-)}
-
-{item.tipo === "gasto" && (
-    <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">
-        Gasto
-    </span>
-)}
+                                                                {item.tipo === "producto" && (
+                                                                    <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">Producto</span>
+                                                                )}
+                                                                {item.tipo === "materia_prima" && (
+                                                                    <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">MP</span>
+                                                                )}
+                                                                {item.tipo === "gasto" && (
+                                                                    <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">Gasto</span>
+                                                                )}
                                                             </td>
                                                             <td className="px-4 py-3 text-sm text-gray-900">
                                                                 {item.producto_nombre || item.descripcion || "Sin descripción"}
@@ -1497,22 +1526,66 @@ for (const item of dteData.cuerpoDocumento) {
 
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Impuestos</h3>
-                                            {[
-                                                { label: 'Crédito Fiscal (IVA)', name: 'credito_fiscal' },
-                                                { label: 'FOVIAL', name: 'fovial' },
-                                                { label: 'COTRANS', name: 'cotrans' },
-                                                { label: 'CESC', name: 'cesc' }
-                                            ].map(f => (
-                                                <div key={f.name}>
-                                                    <label className="block text-xs font-medium text-gray-600 mb-1">{f.label}</label>
-                                                    <div className="relative">
-                                                        <span className="absolute left-3 top-2 text-gray-500">$</span>
-                                                        <input type="number" name={f.name} value={formData[f.name]} onChange={handleChange}
-                                                            className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                            min="0" step="0.01" />
-                                                    </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Crédito Fiscal (IVA)</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                                                    <input 
+                                                        type="number" 
+                                                        name="credito_fiscal" 
+                                                        value={formData.credito_fiscal} 
+                                                        onChange={handleChange}
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        min="0" step="0.01" 
+                                                        placeholder="IVA 13%"
+                                                    />
                                                 </div>
-                                            ))}
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">FOVIAL</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                                                    <input 
+                                                        type="number" 
+                                                        name="fovial" 
+                                                        value={formData.fovial} 
+                                                        onChange={handleChange}
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        min="0" step="0.01" 
+                                                        placeholder="Fondo de vialidad"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">COTRANS</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                                                    <input 
+                                                        type="number" 
+                                                        name="cotrans" 
+                                                        value={formData.cotrans} 
+                                                        onChange={handleChange}
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        min="0" step="0.01" 
+                                                        placeholder="Contribución transporte"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">CESC</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+                                                    <input 
+                                                        type="number" 
+                                                        name="cesc" 
+                                                        value={formData.cesc} 
+                                                        onChange={handleChange}
+                                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                        min="0" step="0.01" 
+                                                        placeholder="CESC"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div className="space-y-4">
@@ -1577,7 +1650,7 @@ for (const item of dteData.cuerpoDocumento) {
                 </div>
             </div>
 
-            {/* ========== MODAL PARA AGREGAR GASTO/SERVICIO SIN INVENTARIO ========== */}
+            {/* MODAL PARA AGREGAR GASTO/SERVICIO */}
             {showGastoModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
@@ -1637,219 +1710,200 @@ for (const item of dteData.cuerpoDocumento) {
                 </div>
             )}
 
-            {/* ========== DIALOG PRODUCTOS NO ENCONTRADOS ========== */}
-{showDialog && (
-    <div
-        className="fixed inset-0 bg-black flex items-center justify-center z-50"
-        style={{
-            backgroundColor: dialogClosing ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.5)',
-            transition: 'background-color 0.28s ease'
-        }}
-    >
-        <div
-            className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4"
-            style={{
-                opacity: dialogClosing ? 0 : 1,
-                transform: dialogClosing ? 'scale(0.96) translateY(8px)' : 'scale(1) translateY(0)',
-                transition: 'opacity 0.28s ease, transform 0.28s ease'
-            }}
-        >
-            {/* HEADER */}
-            <div className="bg-blue-50 border-b border-blue-100 px-6 py-4 rounded-t-xl flex items-center justify-between">
-                <div>
-                    <h2 className="text-base font-semibold text-blue-800">
-                        Productos no registrados
-                    </h2>
-                    <p className="text-xs text-blue-600 mt-0.5">
-                        {productosNoEncontradosMsg.length} producto(s) del DTE no están en el inventario
-                    </p>
+            {/* DIALOG PRODUCTOS NO ENCONTRADOS */}
+            {showDialog && (
+                <div
+                    className="fixed inset-0 bg-black flex items-center justify-center z-50"
+                    style={{
+                        backgroundColor: dialogClosing ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.5)',
+                        transition: 'background-color 0.28s ease'
+                    }}
+                >
+                    <div
+                        className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4"
+                        style={{
+                            opacity: dialogClosing ? 0 : 1,
+                            transform: dialogClosing ? 'scale(0.96) translateY(8px)' : 'scale(1) translateY(0)',
+                            transition: 'opacity 0.28s ease, transform 0.28s ease'
+                        }}
+                    >
+                        <div className="bg-blue-50 border-b border-blue-100 px-6 py-4 rounded-t-xl flex items-center justify-between">
+                            <div>
+                                <h2 className="text-base font-semibold text-blue-800">
+                                    Productos no registrados
+                                </h2>
+                                <p className="text-xs text-blue-600 mt-0.5">
+                                    {productosNoEncontradosMsg.length} producto(s) del DTE no están en el inventario
+                                </p>
+                            </div>
+                            <button onClick={handleDialogNo} className="text-blue-400 hover:text-blue-600 transition-colors">
+                                <FaTimes size={16} />
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-4">
+                            <p className="text-sm text-gray-600 mb-3">
+                                Selecciona cuáles deseas agregar:
+                            </p>
+
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 max-h-56 overflow-y-auto space-y-1">
+                                {productosNoEncontradosMsg.map((item, idx) => (
+                                    <label key={idx} className="flex items-center p-2 hover:bg-white rounded-lg cursor-pointer transition-colors gap-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedProductosToCreate[idx] || false}
+                                            onChange={() => handleCheckboxChange(idx)}
+                                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer flex-shrink-0"
+                                        />
+                                        <span className="text-sm text-gray-700 leading-tight">
+                                            {item}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex justify-end gap-3 rounded-b-xl">
+                            <button
+                                onClick={handleDialogNo}
+                                className="px-4 py-2 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Agregar como gasto
+                            </button>
+
+                            <button
+                                onClick={handleDialogYes}
+                                disabled={!Object.values(selectedProductosToCreate).some(v => v)}
+                                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Agregar como producto
+                            </button>
+
+                            <button
+                                onClick={handleAgregarMateriaPrimaDesdeDialog}
+                                disabled={!Object.values(selectedProductosToCreate).some(v => v)}
+                                className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Agregar como MP
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <button onClick={handleDialogNo} className="text-blue-400 hover:text-blue-600 transition-colors">
-                    <FaTimes size={16} />
-                </button>
-            </div>
+            )}
 
-            {/* BODY */}
-            <div className="px-6 py-4">
+            {/* MODAL MATERIA PRIMA */}
+            {showMateriaPrimaModal && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-gray-200">
+                        <div className="flex items-center justify-between mb-5">
+                            <h2 className="text-xl font-semibold text-gray-800">
+                                Agregar Materia Prima
+                            </h2>
+                            <button
+                                onClick={() => setShowMateriaPrimaModal(false)}
+                                className="text-gray-400 hover:text-gray-600 transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
 
-
-
-                <p className="text-sm text-gray-600 mb-3">
-                    Selecciona cuáles deseas agregar:
-                </p>
-
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 max-h-56 overflow-y-auto space-y-1">
-                    {productosNoEncontradosMsg.map((item, idx) => (
-                        <label key={idx} className="flex items-center p-2 hover:bg-white rounded-lg cursor-pointer transition-colors gap-3">
+                        <div className="mb-4">
                             <input
-                                type="checkbox"
-                                checked={selectedProductosToCreate[idx] || false}
-                                onChange={() => handleCheckboxChange(idx)}
-                                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer flex-shrink-0"
+                                type="text"
+                                value={mpSearch}
+                                onChange={(e) => setMpSearch(e.target.value)}
+                                placeholder="Buscar o crear materia prima..."
+                                className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
                             />
-                            <span className="text-sm text-gray-700 leading-tight">
-                                {item}
+                        </div>
+
+                        {mpSearch && !mpSelected && (
+                            <div className="border border-gray-200 rounded-xl max-h-44 overflow-y-auto mb-4 shadow-sm">
+                                {materiasPrimas
+                                    .filter(mp => mp.nombre.toLowerCase().includes(mpSearch.toLowerCase()))
+                                    .map(mp => (
+                                        <div
+                                            key={mp.id}
+                                            className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm transition flex justify-between items-center"
+                                            onClick={() => {
+                                                setMpSelected(mp);
+                                                setMpSearch(mp.nombre);
+                                            }}
+                                        >
+                                            <span className="text-gray-800">{mp.nombre}</span>
+                                            <span className="text-xs text-gray-400">Seleccionar</span>
+                                        </div>
+                                    ))}
+
+                                {materiasPrimas.filter(mp => mp.nombre.toLowerCase().includes(mpSearch.toLowerCase())).length === 0 && (
+                                    <div
+                                        className="px-3 py-2 text-green-600 cursor-pointer hover:bg-green-50 text-sm transition"
+                                        onClick={handleCreateMP}
+                                    >
+                                        ➕ Crear "<span className="font-medium">{mpSearch}</span>"
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <input
+                                type="number"
+                                placeholder="Cantidad"
+                                value={mpCantidad}
+                                onChange={(e) => setMpCantidad(e.target.value)}
+                                className="border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                            />
+
+                            <input
+                                type="number"
+                                placeholder="Costo ($)"
+                                value={mpCosto}
+                                onChange={(e) => setMpCosto(e.target.value)}
+                                className="border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                            />
+                        </div>
+
+                        <div className="mt-3">
+                            <select
+                                value={mpUnidad}
+                                onChange={(e) => setMpUnidad(e.target.value)}
+                                className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                            >
+                                <option value="KG">Kilogramos</option>
+                                <option value="LB">Libras</option>
+                                <option value="G">Gramos</option>
+                                <option value="LT">Litros</option>
+                                <option value="ML">Mililitros</option>
+                                <option value="UND">Unidad</option>
+                            </select>
+                        </div>
+
+                        <div className="mt-4 bg-gray-50 border rounded-xl p-3 flex justify-between text-sm">
+                            <span className="text-gray-600">Subtotal:</span>
+                            <span className="font-semibold text-gray-900">
+                                ${((parseFloat(mpCantidad) || 0) * (parseFloat(mpCosto) || 0)).toFixed(2)}
                             </span>
-                        </label>
-                    ))}
+                        </div>
+
+                        <div className="flex justify-end gap-3 mt-5">
+                            <button
+                                onClick={() => setShowMateriaPrimaModal(false)}
+                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition"
+                            >
+                                Cancelar
+                            </button>
+
+                            <button
+                                onClick={handleAddMateriaPrima}
+                                className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-sm transition flex items-center gap-2"
+                            >
+                                ➕ Agregar
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            {/* FOOTER */}
-<div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex justify-end gap-3 rounded-b-xl">
-    
-    <button
-        onClick={handleDialogNo}
-        className="px-4 py-2 text-sm bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors"
-    >
-        Agregar como gasto
-    </button>
-
-    {/* 🔵 PRODUCTOS */}
-    <button
-        onClick={handleDialogYes}
-        disabled={!Object.values(selectedProductosToCreate).some(v => v)}
-        className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors"
-    >
-        Agregar como producto
-    </button>
-
-    {/* 🟢 MATERIA PRIMA */}
-    <button
-        onClick={handleAgregarMateriaPrimaDesdeDialog}
-        disabled={!Object.values(selectedProductosToCreate).some(v => v)}
-        className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors"
-    >
-        Agregar como MP
-    </button>
-
-</div>
-        </div>
-    </div>
-)}
-{showMateriaPrimaModal && (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-    
-    <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-gray-200 animate-fadeIn">
-
-      {/* HEADER */}
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-semibold text-gray-800">
-          Agregar Materia Prima
-        </h2>
-        <button
-          onClick={() => setShowMateriaPrimaModal(false)}
-          className="text-gray-400 hover:text-gray-600 transition"
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* BUSCADOR */}
-      <div className="mb-4">
-        <input
-          type="text"
-          value={mpSearch}
-          onChange={(e) => setMpSearch(e.target.value)}
-          placeholder="Buscar o crear materia prima..."
-          className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
-        />
-      </div>
-
-      {/* RESULTADOS */}
-      {mpSearch && !mpSelected && (
-        <div className="border border-gray-200 rounded-xl max-h-44 overflow-y-auto mb-4 shadow-sm">
-          {materiasPrimas
-            .filter(mp => mp.nombre.toLowerCase().includes(mpSearch.toLowerCase()))
-            .map(mp => (
-              <div
-                key={mp.id}
-                className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm transition flex justify-between items-center"
-                onClick={() => {
-                  setMpSelected(mp);
-                  setMpSearch(mp.nombre);
-                }}
-              >
-                <span className="text-gray-800">{mp.nombre}</span>
-                <span className="text-xs text-gray-400">Seleccionar</span>
-              </div>
-            ))}
-
-          {/* CREAR NUEVO */}
-          {materiasPrimas.filter(mp => mp.nombre.toLowerCase().includes(mpSearch.toLowerCase())).length === 0 && (
-            <div
-              className="px-3 py-2 text-green-600 cursor-pointer hover:bg-green-50 text-sm transition"
-              onClick={handleCreateMP}
-            >
-              ➕ Crear "<span className="font-medium">{mpSearch}</span>"
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* CAMPOS */}
-      <div className="grid grid-cols-2 gap-3">
-        <input
-          type="number"
-          placeholder="Cantidad"
-          value={mpCantidad}
-          onChange={(e) => setMpCantidad(e.target.value)}
-          className="border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
-        />
-
-        <input
-          type="number"
-          placeholder="Costo ($)"
-          value={mpCosto}
-          onChange={(e) => setMpCosto(e.target.value)}
-          className="border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
-        />
-      </div>
-
-      {/* UNIDAD (DROPDOWN PRO) */}
-      <div className="mt-3">
-        <select
-          value={mpUnidad}
-          onChange={(e) => setMpUnidad(e.target.value)}
-          className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
-        >
-            <option value="KG">Kilogramos</option>
-            <option value="LB">Libras</option>
-            <option value="G">Gramos</option>
-            <option value="LT">Litros</option>
-            <option value="ML">Mililitros</option>
-            <option value="UND">Unidad</option>
-        </select>
-      </div>
-
-      {/* PREVIEW SUBTOTAL (UX PRO) */}
-      <div className="mt-4 bg-gray-50 border rounded-xl p-3 flex justify-between text-sm">
-        <span className="text-gray-600">Subtotal:</span>
-        <span className="font-semibold text-gray-900">
-          ${((parseFloat(mpCantidad) || 0) * (parseFloat(mpCosto) || 0)).toFixed(2)}
-        </span>
-      </div>
-
-      {/* BOTONES */}
-      <div className="flex justify-end gap-3 mt-5">
-        <button
-          onClick={() => setShowMateriaPrimaModal(false)}
-          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition"
-        >
-          Cancelar
-        </button>
-
-        <button
-          onClick={handleAddMateriaPrima}
-          className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-sm transition flex items-center gap-2"
-        >
-          ➕ Agregar
-        </button>
-      </div>
-
-    </div>
-  </div>
-)}
+            )}
         </div>
     );
 }
