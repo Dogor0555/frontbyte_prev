@@ -135,6 +135,8 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     const validateCodigo = (codigo) => {
         return codigo.length <= LIMITES.CODIGO;
     };
+// Estado para controlar la apertura del escáner
+    const [openScanner, setOpenScanner] = useState(false);
 
     const validateForm = () => {
         if (!validateNombre(formData.nombre)) {
@@ -616,6 +618,12 @@ const handleDownloadReport = async (format) => {
                                 >
                                     <FaPlus className="mr-2" /> Agregar
                                 </button>
+<button
+  onClick={() => setOpenScanner(true)}
+  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold"
+>
+  📷 Escanear
+</button>
                                 <button
                                     onClick={handleManageSuppliers}
                                     className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors shadow-sm flex items-center justify-center"

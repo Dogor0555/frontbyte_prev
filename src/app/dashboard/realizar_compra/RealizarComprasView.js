@@ -122,6 +122,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
   const [mpUnidad, setMpUnidad] = useState("unidad");
   const [materiasPrimas, setMateriasPrimas] = useState([]);
 
+  const [tipoInventario, setTipoInventario] = useState("producto");
+const [productosPendientesMP, setProductosPendientesMP] = useState([]);
     
     const [formData, setFormData] = useState({
         fecha: new Date().toISOString().split('T')[0],
@@ -191,6 +193,85 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [pendingDtes, setPendingDtes] = useState([]);
     const [currentDteIndex, setCurrentDteIndex] = useState(0);
     const [isProcessingMultiple, setIsProcessingMultiple] = useState(false);
+
+    const handleAgregarMateriaPrimaDesdeDialog = async () => {
+    const seleccionados = productosNoEncontradosMsg.filter((_, idx) => selectedProductosToCreate[idx]);
+
+    try {
+        const nuevosDetalles = [];
+
+        for (const nombreProducto of seleccionados) {
+
+            // 🔥 limpiar nombre si viene sucio
+            const nombreLimpio = nombreProducto.split(" - ").pop().trim();
+
+            // 🔍 buscar si ya existe
+            let mp = materiasPrimas.find(mp =>
+                mp.nombre.toLowerCase() === nombreLimpio.toLowerCase()
+            );
+
+            // 🔥 si no existe → crear (igual que tu botón "Crear")
+            if (!mp) {
+                const res = await fetch(`${API_BASE_URL}/materias-primas`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        nombre: nombreLimpio,
+                        unidad: "UND"
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!data?.id) {
+                    console.error("❌ Error creando MP:", data);
+                    continue;
+                }
+
+                mp = data;
+
+                // 🔥 actualizar inventario local
+                setMateriasPrimas(prev => [...prev, mp]);
+            }
+
+            // 🔥 agregar al detalle de compra
+            nuevosDetalles.push({
+                ...crearDetalleBase(),
+                tipo: "materia_prima",
+                es_materia_prima: true,
+                producto_id: null,
+                materia_prima_id: mp.id,
+                descripcion: mp.nombre,
+                cantidad: 1,
+                precio_unitario: 0,
+                subtotal: 0
+            });
+        }
+
+        // 🔥 insertar todo
+        setDetalles(prev => [...prev, ...nuevosDetalles]);
+
+        setShowDialog(false);
+
+    } catch (error) {
+        console.error("❌ Error agregando MP:", error);
+    }
+};
+
+    const handleAgregarSeleccionados = () => {
+    const seleccionados = productosNoEncontradosMsg.filter((_, idx) => selectedProductosToCreate[idx]);
+
+    if (tipoInventario === "producto") {
+        // 🔹 Usa tu lógica actual
+        handleDialogYes();
+    } else {
+        // 🔥 MANDAR A MATERIA PRIMA
+        setProductosPendientesMP(seleccionados);
+        setShowDialog(false);
+        setShowMateriaPrimaModal(true);
+    }
+};
 
     useEffect(() => {
         const checkMobile = () => {
@@ -330,35 +411,66 @@ if (mpRes.ok) {
         
         addToast({ type: 'success', message: 'Gasto/Servicio agregado correctamente' });
     };
-const handleAddMateriaPrima = () => {
-    if (!mpSelected || !mpCantidad || !mpCosto) return;
+const handleAddMateriaPrima = async () => {
+    if (!mpSearch || !mpCantidad || !mpCosto) return;
 
-    const nuevoDetalle = {
-        ...crearDetalleBase(),
+    try {
+        let mp = mpSelected;
 
-        // 🔥 FORZAR ESTO
-        tipo: "materia_prima",
-        es_materia_prima: true,
-        producto_id: null,
+        // 🔥 CREAR SI NO EXISTE
+        if (!mpSelected) {
+            const res = await fetch(`${API_BASE_URL}/materias-primas`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    nombre: mpSearch,
+                    unidad: mpUnidad || "UND"
+                })
+            });
 
-        materia_prima_id: mpSelected.id,
-        descripcion: mpSelected.nombre,
-        cantidad: parseFloat(mpCantidad),
-        precio_unitario: parseFloat(mpCosto),
-        subtotal: parseFloat(mpCantidad) * parseFloat(mpCosto)
-    };
+            const data = await res.json();
 
-    console.log("🧪 DETALLE MP:", nuevoDetalle); // 👈 DEBUG
+            console.log("🧪 MP CREADA:", data);
 
-    setDetalles(prev => [...prev, nuevoDetalle]);
+            if (!data?.id) {
+                throw new Error("Error: backend no devolvió ID");
+            }
 
-    setMpSelected(null);
-    setMpSearch("");
-    setMpCantidad("");
-    setMpCosto("");
-    setMpUnidad("");
+            mp = data;
 
-    setShowMateriaPrimaModal(false);
+            setMateriasPrimas(prev => [...prev, mp]);
+        }
+
+        // 🔥 CREAR DETALLE
+        const nuevoDetalle = {
+            ...crearDetalleBase(),
+            tipo: "materia_prima",
+            es_materia_prima: true,
+            producto_id: null,
+            materia_prima_id: mp.id,
+            descripcion: mp.nombre,
+            cantidad: parseFloat(mpCantidad),
+            precio_unitario: parseFloat(mpCosto),
+            subtotal: parseFloat(mpCantidad) * parseFloat(mpCosto)
+        };
+
+        console.log("🧪 DETALLE MP:", nuevoDetalle);
+
+        setDetalles(prev => [...prev, nuevoDetalle]);
+
+        // LIMPIAR
+        setMpSelected(null);
+        setMpSearch("");
+        setMpCantidad("");
+        setMpCosto("");
+        setMpUnidad("");
+
+        setShowMateriaPrimaModal(false);
+
+    } catch (error) {
+        console.error("❌ Error creando materia prima:", error);
+    }
 };
 const handleCreateMP = async () => {
     if (!mpSearch.trim()) return;
@@ -1526,67 +1638,95 @@ for (const item of dteData.cuerpoDocumento) {
             )}
 
             {/* ========== DIALOG PRODUCTOS NO ENCONTRADOS ========== */}
-            {showDialog && (
-                <div
-                    className="fixed inset-0 bg-black flex items-center justify-center z-50"
-                    style={{
-                        backgroundColor: dialogClosing ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.5)',
-                        transition: 'background-color 0.28s ease'
-                    }}
-                >
-                    <div
-                        className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4"
-                        style={{
-                            opacity: dialogClosing ? 0 : 1,
-                            transform: dialogClosing ? 'scale(0.96) translateY(8px)' : 'scale(1) translateY(0)',
-                            transition: 'opacity 0.28s ease, transform 0.28s ease'
-                        }}
-                    >
-                        <div className="bg-blue-50 border-b border-blue-100 px-6 py-4 rounded-t-xl flex items-center justify-between">
-                            <div>
-                                <h2 className="text-base font-semibold text-blue-800">Productos no registrados</h2>
-                                <p className="text-xs text-blue-600 mt-0.5">{productosNoEncontradosMsg.length} producto(s) del DTE no están en el inventario</p>
-                            </div>
-                            <button onClick={handleDialogNo} className="text-blue-400 hover:text-blue-600 transition-colors">
-                                <FaTimes size={16} />
-                            </button>
-                        </div>
-                        <div className="px-6 py-4">
-                            <p className="text-sm text-gray-600 mb-3">
-                                Selecciona cuáles deseas agregar al inventario:
-                            </p>
-                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 max-h-56 overflow-y-auto space-y-1">
-                                {productosNoEncontradosMsg.map((item, idx) => (
-                                    <label key={idx} className="flex items-center p-2 hover:bg-white rounded-lg cursor-pointer transition-colors gap-3">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={selectedProductosToCreate[idx] || false}
-                                            onChange={() => handleCheckboxChange(idx)}
-                                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer flex-shrink-0"
-                                        />
-                                        <span className="text-sm text-gray-700 leading-tight">{item}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex justify-end gap-3 rounded-b-xl">
-                            <button 
-                                onClick={handleDialogNo}
-                                className="px-4 py-2 text-sm bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg font-medium transition-colors"
-                            >
-                                Continuar sin agregar
-                            </button>
-                            <button 
-                                onClick={handleDialogYes}
-                                disabled={!Object.values(selectedProductosToCreate).some(v => v)}
-                                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
-                            >
-                                Agregar seleccionados
-                            </button>
-                        </div>
-                    </div>
+{showDialog && (
+    <div
+        className="fixed inset-0 bg-black flex items-center justify-center z-50"
+        style={{
+            backgroundColor: dialogClosing ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.5)',
+            transition: 'background-color 0.28s ease'
+        }}
+    >
+        <div
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4"
+            style={{
+                opacity: dialogClosing ? 0 : 1,
+                transform: dialogClosing ? 'scale(0.96) translateY(8px)' : 'scale(1) translateY(0)',
+                transition: 'opacity 0.28s ease, transform 0.28s ease'
+            }}
+        >
+            {/* HEADER */}
+            <div className="bg-blue-50 border-b border-blue-100 px-6 py-4 rounded-t-xl flex items-center justify-between">
+                <div>
+                    <h2 className="text-base font-semibold text-blue-800">
+                        Productos no registrados
+                    </h2>
+                    <p className="text-xs text-blue-600 mt-0.5">
+                        {productosNoEncontradosMsg.length} producto(s) del DTE no están en el inventario
+                    </p>
                 </div>
-            )}
+                <button onClick={handleDialogNo} className="text-blue-400 hover:text-blue-600 transition-colors">
+                    <FaTimes size={16} />
+                </button>
+            </div>
+
+            {/* BODY */}
+            <div className="px-6 py-4">
+
+
+
+                <p className="text-sm text-gray-600 mb-3">
+                    Selecciona cuáles deseas agregar:
+                </p>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 max-h-56 overflow-y-auto space-y-1">
+                    {productosNoEncontradosMsg.map((item, idx) => (
+                        <label key={idx} className="flex items-center p-2 hover:bg-white rounded-lg cursor-pointer transition-colors gap-3">
+                            <input
+                                type="checkbox"
+                                checked={selectedProductosToCreate[idx] || false}
+                                onChange={() => handleCheckboxChange(idx)}
+                                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer flex-shrink-0"
+                            />
+                            <span className="text-sm text-gray-700 leading-tight">
+                                {item}
+                            </span>
+                        </label>
+                    ))}
+                </div>
+            </div>
+
+            {/* FOOTER */}
+<div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex justify-end gap-3 rounded-b-xl">
+    
+    <button
+        onClick={handleDialogNo}
+        className="px-4 py-2 text-sm bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors"
+    >
+        Agregar como gasto
+    </button>
+
+    {/* 🔵 PRODUCTOS */}
+    <button
+        onClick={handleDialogYes}
+        disabled={!Object.values(selectedProductosToCreate).some(v => v)}
+        className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors"
+    >
+        Agregar como producto
+    </button>
+
+    {/* 🟢 MATERIA PRIMA */}
+    <button
+        onClick={handleAgregarMateriaPrimaDesdeDialog}
+        disabled={!Object.values(selectedProductosToCreate).some(v => v)}
+        className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors"
+    >
+        Agregar como MP
+    </button>
+
+</div>
+        </div>
+    </div>
+)}
 {showMateriaPrimaModal && (
   <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
     
