@@ -2,106 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 🌞 MODO CLARO */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f9fafb;
+  --foreground: #111827;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* 🌙 MODO OSCURO CONTROLADO POR TAILWIND */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
+/* BASE */
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
 
-@keyframes float {
-  0%, 100% {
-      transform: translateY(0);
+/* 🔥 INPUTS PROFESIONALES */
+@layer components {
+  .input {
+    @apply w-full bg-white text-gray-800 border border-gray-300 rounded-lg px-4 py-2
+           focus:outline-none focus:ring-2 focus:ring-blue-500 transition;
   }
-  50% {
-      transform: translateY(-15px);
+
+  .dark .input {
+    @apply bg-gray-800 text-white border-gray-600;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-md p-6;
+  }
+
+  .dark .card {
+    @apply bg-gray-900;
+  }
+
+  .btn-primary {
+    @apply bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition;
   }
 }
 
+/* ANIMACIONES */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes fadeInLeft {
-  from { 
-      opacity: 0;
-      transform: translateX(-20px);
-  }
-  to { 
-      opacity: 1;
-      transform: translateX(0);
-  }
-}
-
-@keyframes fadeInScale {
-  from { 
-      opacity: 0;
-      transform: scale(0.9);
-  }
-  to { 
-      opacity: 1;
-      transform: scale(1);
-  }
-}
-
 @keyframes slideUp {
-  from { 
-      opacity: 0;
-      transform: translateY(20px);
-  }
-  to { 
-      opacity: 1;
-      transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
 
 .animate-fade-in {
   animation: fadeIn 0.8s ease-out forwards;
 }
 
-.animate-fade-in-left {
-  animation: fadeInLeft 0.8s ease-out forwards;
-}
-
-.animate-fade-in-scale {
-  animation: fadeInScale 0.8s ease-out forwards;
-}
-
 .animate-slide-up {
   animation: slideUp 0.8s ease-out forwards;
 }
-
-.animate-progress {
-  animation: progress 1.2s ease-out forwards;
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes progress {
-  0% {
-    width: 0%;
-  }
-  100% {
-    width: 100%;
-  }
+input,
+select,
+textarea {
+  background-color: #ffffff !important;
+  color: #111827 !important;
 }
