@@ -23,6 +23,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
   const [jsonViewerData, setJsonViewerData] = useState(null);
   const [loadingJson, setLoadingJson] = useState(null);
   const [openDownloadMenu, setOpenDownloadMenu] = useState(null);
+
   
   // Estados para el filtro de fecha
   const [fechaInicio, setFechaInicio] = useState("");
@@ -437,6 +438,38 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
       setPdfLoading(null);
     }
   };
+const descargarPDFMasivo = async (tipo = "CF") => {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/pdf-masivo/${tipo}`,
+      {
+        method: "GET",
+        credentials: "include", // 🔥 ESTO ES LA CLAVE
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error(error);
+      alert(error.mensaje || "Error al descargar");
+      return;
+    }
+
+    const blob = await response.blob();
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${tipo}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+  } catch (error) {
+    console.error(error);
+    alert("Error en descarga");
+  }
+};
 
   const handleViewDetails = (facturaId) => {
     router.push(`/dashboard/facturas/${facturaId}`);
@@ -549,6 +582,12 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                         }
                       </span>
                     </button>
+<button
+  onClick={() => descargarPDFMasivo("CF")}
+  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+>
+  📄 PDF Masivo CF
+</button>
 
                     {showDatePicker && (
                       <div 
