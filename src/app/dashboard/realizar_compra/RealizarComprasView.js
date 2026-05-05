@@ -113,13 +113,13 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     
     const [currentDteData, setCurrentDteData] = useState(null);
 
-    // ========== ESTADOS PARA GASTOS SIN INVENTARIO ==========
+    // ========== ESTADOS PARA MATERIA PRIMA ==========
     const [showMateriaPrimaModal, setShowMateriaPrimaModal] = useState(false);
     const [mpSearch, setMpSearch] = useState("");
     const [mpSelected, setMpSelected] = useState(null);
     const [mpCantidad, setMpCantidad] = useState("");
     const [mpCosto, setMpCosto] = useState("");
-    const [mpUnidad, setMpUnidad] = useState("unidad");
+    const [mpUnidad, setMpUnidad] = useState("UND");
     const [materiasPrimas, setMateriasPrimas] = useState([]);
 
     const [tipoInventario, setTipoInventario] = useState("producto");
@@ -133,7 +133,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         numero_documento: "",
         tipo_documento: "CCF",
         nrc: "",
-        nit_dui_sujeto_excluido: "",
+        nit: "",
         tipo_compra: "local",
         descripcion: "",
         exentas_internas: 0,
@@ -193,11 +193,184 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [currentDteIndex, setCurrentDteIndex] = useState(0);
     const [isProcessingMultiple, setIsProcessingMultiple] = useState(false);
 
+    // Función para extraer sello de recepción del DTE
+    const extraerSelloRecepcion = (dteData) => {
+        console.log("🔍 Buscando sello de recepción en el DTE...");
+        
+        if (dteData.responseMH?.selloRecibido) {
+            console.log("✅ Sello encontrado en responseMH.selloRecibido:", dteData.responseMH.selloRecibido);
+            return dteData.responseMH.selloRecibido;
+        }
+        else if (dteData.responseMH?.selloRecepcion) {
+            console.log("✅ Sello encontrado en responseMH.selloRecepcion:", dteData.responseMH.selloRecepcion);
+            return dteData.responseMH.selloRecepcion;
+        }
+        else if (dteData.respuestaHacienda?.selloRecibido) {
+            console.log("✅ Sello encontrado en respuestaHacienda.selloRecibido:", dteData.respuestaHacienda.selloRecibido);
+            return dteData.respuestaHacienda.selloRecibido;
+        }
+        else if (dteData.respuestaHacienda?.selloRecepcion) {
+            console.log("✅ Sello encontrado en respuestaHacienda.selloRecepcion:", dteData.respuestaHacienda.selloRecepcion);
+            return dteData.respuestaHacienda.selloRecepcion;
+        }
+        else if (dteData.selloRecibido) {
+            console.log("✅ Sello encontrado en raíz como selloRecibido:", dteData.selloRecibido);
+            return dteData.selloRecibido;
+        }
+        else if (dteData.sello_recepcion) {
+            console.log("✅ Sello encontrado en raíz como sello_recepcion:", dteData.sello_recepcion);
+            return dteData.sello_recepcion;
+        }
+        else if (dteData.data?.selloRecibido) {
+            console.log("✅ Sello encontrado en data.selloRecibido:", dteData.data.selloRecibido);
+            return dteData.data.selloRecibido;
+        }
+        else if (dteData.documento?.selloRecibido) {
+            console.log("✅ Sello encontrado en documento.selloRecibido:", dteData.documento.selloRecibido);
+            return dteData.documento.selloRecibido;
+        }
+        else {
+            const buscarSello = (obj, path = "") => {
+                if (!obj || typeof obj !== "object") return null;
+                for (const key in obj) {
+                    if (key.toLowerCase().includes("sello") && typeof obj[key] === "string" && obj[key].length > 10) {
+                        console.log(`🔍 Posible sello encontrado en ${path}.${key}:`, obj[key]);
+                        return obj[key];
+                    }
+                    const resultado = buscarSello(obj[key], `${path}.${key}`);
+                    if (resultado) return resultado;
+                }
+                return null;
+            };
+            const selloEncontrado = buscarSello(dteData);
+            if (selloEncontrado) {
+                console.log("✅ Sello encontrado mediante búsqueda recursiva:", selloEncontrado);
+                return selloEncontrado;
+            }
+        }
+        
+        console.log("⚠️ No se encontró sello de recepción en ninguna ubicación");
+        return null;
+    };
+
+    // Función para extraer tributos del DTE
+    const extraerTributos = (dteData) => {
+        let fovial = 0;
+        let cotrans = 0;
+        let iva = 0;
+        let cesc = 0;
+
+        if (dteData.resumen?.tributos && Array.isArray(dteData.resumen.tributos)) {
+            console.log("📊 Tributos encontrados en DTE:", dteData.resumen.tributos);
+            dteData.resumen.tributos.forEach(tributo => {
+                const valor = parseFloat(tributo.valor) || 0;
+                console.log(`  - ${tributo.codigo}: ${tributo.descripcion} = $${valor}`);
+                switch(tributo.codigo) {
+                    case 'D1': fovial = valor; break;
+                    case 'C8': cotrans = valor; break;
+                    case '20': iva = valor; break;
+                    case '30': cesc = valor; break;
+                }
+            });
+        }
+
+        return { fovial, cotrans, iva, cesc };
+    };
+
+    // Función para procesar el resto del DTE después de crear MPs
+    const procesarRestoDteConMP = (dteData, foundProv, nombresMPCreados) => {
+        const nuevosDetalles = [];
+        let currentProductos = [...productos];
+
+        // Extraer NIT y NRC del emisor
+        const emisorNit = dteData.emisor?.nit || null;
+        const emisorNrc = dteData.emisor?.nrc || null;
+
+        const cuerpoDoc = dteData.cuerpoDocumento || [];
+        for (const item of cuerpoDoc) {
+            if (nombresMPCreados.includes(item.descripcion)) {
+                continue;
+            }
+
+            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            if (!foundProd) {
+                foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
+            }
+            
+            if (foundProd) {
+                nuevosDetalles.push({
+                    tipo: "producto",
+                    producto_id: foundProd.id,
+                    producto_nombre: foundProd.nombre,
+                    producto_codigo: foundProd.codigo,
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precioUni,
+                    subtotal: item.ventaGravada
+                });
+            }
+        }
+
+        const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
+        const selloRecepcion = extraerSelloRecepcion(dteData);
+        const codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
+        const exentasConTributos = (fovial + cotrans) || 0;
+
+        setFormData(prev => {
+            const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
+            return {
+                ...prev,
+                fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
+                numero_documento: dteData.identificacion?.numeroControl || "",
+                codigo_generacion: codigoGeneracion,
+                sello_recepcion: selloRecepcion,
+                nrc: emisorNrc || prev.nrc,
+                nit: emisorNit || prev.nit,
+                nombre_proveedor: dteData.emisor?.nombre || prev.nombre_proveedor,
+                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte || "").padStart(2, '0')] || "CCF",
+                gravadas_internas: dteData.resumen?.totalGravada || 0,
+                credito_fiscal: iva,
+                fovial: fovial,
+                cotrans: cotrans,
+                cesc: cesc,
+                exentas_internas: exentasConTributos,
+                total_compras: dteData.resumen?.totalPagar || 0
+            };
+        });
+
+        if (nuevosDetalles.length > 0) {
+            setDetalles(prev => [...prev, ...nuevosDetalles]);
+        }
+
+        addToast({ 
+            type: 'success', 
+            title: 'DTE Cargado', 
+            lines: [
+                `📄 Documento: ${dteData.identificacion?.numeroControl || "N/A"}`,
+                `🏢 Proveedor: ${dteData.emisor?.nombre || "N/A"}`,
+                `🆔 NIT: ${emisorNit || "N/A"}`,
+                `📌 NRC: ${emisorNrc || "N/A"}`,
+                `💰 Total: $${dteData.resumen?.totalPagar || 0}`,
+                `🚗 FOVIAL: $${fovial}`,
+                `🚛 COTRANS: $${cotrans}`,
+                `💵 IVA: $${iva}`,
+                `🔐 Sello: ${selloRecepcion ? '✅ Recibido' : '❌ No encontrado'}`
+            ],
+            duration: 5000
+        });
+    };
+
     const handleAgregarMateriaPrimaDesdeDialog = async () => {
         const seleccionados = productosNoEncontradosMsg.filter((_, idx) => selectedProductosToCreate[idx]);
 
+        if (seleccionados.length === 0) {
+            addToast({ type: 'error', message: 'Seleccione al menos un producto para agregar como materia prima' });
+            return;
+        }
+
         try {
             const nuevosDetalles = [];
+            const nombresMPCreados = [];
 
             for (const nombreProducto of seleccionados) {
                 const nombreLimpio = nombreProducto.split(" - ").pop().trim();
@@ -218,12 +391,21 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
                     if (!data?.id) {
                         console.error("❌ Error creando MP:", data);
+                        addToast({ type: 'error', message: `Error creando materia prima: ${nombreLimpio}` });
                         continue;
                     }
 
                     mp = data;
                     setMateriasPrimas(prev => [...prev, mp]);
                 }
+
+                const itemOriginal = pendingDteData?.dteData?.cuerpoDocumento?.find(
+                    item => item.descripcion === nombreLimpio || 
+                            `${item.codigo} - ${item.descripcion}` === nombreProducto
+                );
+                
+                const cantidad = itemOriginal?.cantidad || 1;
+                const precioUnitario = itemOriginal?.precioUni || 0;
 
                 nuevosDetalles.push({
                     ...crearDetalleBase(),
@@ -232,17 +414,38 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     producto_id: null,
                     materia_prima_id: mp.id,
                     descripcion: mp.nombre,
-                    cantidad: 1,
-                    precio_unitario: 0,
-                    subtotal: 0
+                    cantidad: parseFloat(cantidad),
+                    precio_unitario: parseFloat(precioUnitario),
+                    subtotal: parseFloat(cantidad) * parseFloat(precioUnitario)
                 });
+                
+                nombresMPCreados.push(nombreLimpio);
             }
 
             setDetalles(prev => [...prev, ...nuevosDetalles]);
-            setShowDialog(false);
+            
+            const newDetalles = [...detalles, ...nuevosDetalles];
+            updateTotals(newDetalles, formData.tipo_compra);
+
+            closeDialog(() => {
+                if (pendingDteData) {
+                    procesarRestoDteConMP(pendingDteData.dteData, pendingDteData.foundProv, nombresMPCreados);
+                }
+                setPendingDteData(null);
+                setProductosNoEncontradosMsg([]);
+                setSelectedProductosToCreate({});
+                setIsLoading(false);
+            });
+
+            addToast({ 
+                type: 'success', 
+                title: 'Materias Primas Agregadas', 
+                message: `Se agregaron ${nuevosDetalles.length} materia(s) prima(s) correctamente`
+            });
 
         } catch (error) {
             console.error("❌ Error agregando MP:", error);
+            addToast({ type: 'error', message: 'Error al agregar materia prima' });
         }
     };
 
@@ -353,6 +556,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         setProductSearch("");
         setAddQuantity(1);
         setAddPrice("");
+        
+        addToast({ type: 'success', message: 'Producto agregado correctamente' });
     };
 
     const handleAddGasto = () => {
@@ -393,7 +598,10 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     };
 
     const handleAddMateriaPrima = async () => {
-        if (!mpSearch || !mpCantidad || !mpCosto) return;
+        if (!mpSearch || !mpCantidad || !mpCosto) {
+            addToast({ type: 'error', message: 'Complete todos los campos' });
+            return;
+        }
 
         try {
             let mp = mpSelected;
@@ -419,6 +627,10 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 setMateriasPrimas(prev => [...prev, mp]);
             }
 
+            const cantidad = parseFloat(mpCantidad);
+            const costo = parseFloat(mpCosto);
+            const subtotal = cantidad * costo;
+
             const nuevoDetalle = {
                 ...crearDetalleBase(),
                 tipo: "materia_prima",
@@ -426,22 +638,28 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 producto_id: null,
                 materia_prima_id: mp.id,
                 descripcion: mp.nombre,
-                cantidad: parseFloat(mpCantidad),
-                precio_unitario: parseFloat(mpCosto),
-                subtotal: parseFloat(mpCantidad) * parseFloat(mpCosto)
+                cantidad: cantidad,
+                precio_unitario: costo,
+                subtotal: subtotal
             };
 
             setDetalles(prev => [...prev, nuevoDetalle]);
+            
+            const newDetalles = [...detalles, nuevoDetalle];
+            updateTotals(newDetalles, formData.tipo_compra);
 
             setMpSelected(null);
             setMpSearch("");
             setMpCantidad("");
             setMpCosto("");
-            setMpUnidad("");
+            setMpUnidad("UND");
             setShowMateriaPrimaModal(false);
+
+            addToast({ type: 'success', message: `Materia prima "${mp.nombre}" agregada` });
 
         } catch (error) {
             console.error("❌ Error creando materia prima:", error);
+            addToast({ type: 'error', message: 'Error al agregar materia prima' });
         }
     };
 
@@ -490,7 +708,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 gravadas_internas: tipo === 'local' ? totalFixed : 0,
                 gravadas_importaciones: tipo === 'importacion' ? totalFixed : 0,
                 credito_fiscal: ivaSugerido,
-                exentas_internas: totalFixed,  // Base para luego sumar FOVIAL y COTRANS
+                exentas_internas: totalFixed,
                 exentas_importaciones: 0
             };
             return { ...newData, total_compras: calculateTotal(newData) };
@@ -534,202 +752,98 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     };
 
     const procesarDteActual = async (dteData) => {
-    setIsLoading(true);
-    try {
-        setCurrentDteData(dteData);
-        
-        const emisorNit = dteData.emisor.nit;
-        const emisorNrc = dteData.emisor.nrc;
-        
-        let foundProv = proveedores.find(p => 
-            (p.nit && p.nit === emisorNit) || 
-            (p.nrc && p.nrc === emisorNrc) ||
-            (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor.nombre.toLowerCase()))
-        );
-
-        if (!foundProv) {
-            try {
-                const newProvData = {
-                    nombre: dteData.emisor.nombre,
-                    codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
-                    descripcion: dteData.emisor.descActividad || "Creado automáticamente desde DTE"
-                };
-
-                const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify(newProvData),
-                });
-
-                if (response.ok) {
-                    const resJson = await response.json();
-                    foundProv = resJson.proveedor;
-                    setProveedores(prev => [...prev, foundProv]);
-                }
-            } catch (err) {
-                console.error("Error creando proveedor automático:", err);
-            }
-        }
-
-        const currentProveedorId = foundProv ? foundProv.id : null;
-
-        let codigoGeneracion = null;
-        let selloRecepcion = null;
-
-        if (dteData.identificacion?.codigoGeneracion) {
-            codigoGeneracion = dteData.identificacion.codigoGeneracion;
-        } else if (dteData.codigoGeneracion) {
-            codigoGeneracion = dteData.codigoGeneracion;
-        }
-
-        if (dteData.respuestaHacienda?.selloRecibido) {
-            selloRecepcion = dteData.respuestaHacienda.selloRecibido;
-        } else if (dteData.selloRecibido) {
-            selloRecepcion = dteData.selloRecibido;
-        } else if (dteData.sello_recepcion) {
-            selloRecepcion = dteData.sello_recepcion;
-        }
-
-        // ✅ EXTRACCIÓN CORRECTA DE TRIBUTOS
-        let fovial = 0;
-        let cotrans = 0;
-        let iva = 0;
-
-        if (dteData.resumen?.tributos && Array.isArray(dteData.resumen.tributos)) {
-            console.log("📊 Tributos encontrados en DTE:", dteData.resumen.tributos);
-            dteData.resumen.tributos.forEach(tributo => {
-                const valor = parseFloat(tributo.valor) || 0;
-                console.log(`  - ${tributo.codigo}: ${tributo.descripcion} = $${valor}`);
-                switch(tributo.codigo) {
-                    case 'D1': fovial = valor; break;
-                    case 'C8': cotrans = valor; break;
-                    case '20': iva = valor; break;
-                }
-            });
-        }
-
-        console.log("✅ Valores extraídos:", { fovial, cotrans, iva });
-
-        const productosNoEncontrados = [];
-        const productosACrear = [];
-        let currentProductos = [...productos];
-
-        for (const item of dteData.cuerpoDocumento) {
-            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-            if (!foundProd) {
-                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-            }
-            if (!foundProd) {
-                productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
-                productosACrear.push({
-                    item,
-                    nombre: item.descripcion,
-                    codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                    unidad: item.uniMedida || "Unidad",
-                    precio: item.precioUni,
-                    preciooferta: 0,
-                    stock: 0,
-                    es_servicio: item.tipoItem === 2,
-                    idproveedor: currentProveedorId
-                });
-            }
-        }
-
-        if (productosNoEncontrados.length > 0) {
-            setProductosNoEncontradosMsg(productosNoEncontrados);
-            setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
-            setShowDialog(true);
-            setIsLoading(false);
-            return;
-        }
-
-        const nuevosDetalles = [];
-
-        for (const item of dteData.cuerpoDocumento) {
-            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-            if (!foundProd) {
-                foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
-            }
-            if (foundProd) {
-                nuevosDetalles.push({
-                    tipo: "producto",
-                    producto_id: foundProd.id,
-                    producto_nombre: foundProd.nombre,
-                    producto_codigo: foundProd.codigo,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precioUni,
-                    subtotal: item.ventaGravada
-                });
-            }
-        }
-
-        // ✅ EXENTAS_INTERNAS = SOLO FOVIAL + COTRANS (NO incluye productos)
-        const exentasConTributos = fovial + cotrans;
-
-        setFormData(prev => {
-            const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
-            const newData = {
-                ...prev,
-                fecha_emision: dteData.identificacion.fecEmi,
-                numero_documento: dteData.identificacion.numeroControl,
-                codigo_generacion: codigoGeneracion,
-                sello_recepcion: selloRecepcion,
-                nrc: dteData.emisor.nrc,
-                nombre_proveedor: dteData.emisor.nombre,
-                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte).padStart(2, '0')] || "CCF",
-                gravadas_internas: dteData.resumen.totalGravada || 0,
-                credito_fiscal: iva,
-                fovial: fovial,
-                cotrans: cotrans,
-                exentas_internas: exentasConTributos,  // ✅ SOLO FOVIAL + COTRANS
-                total_compras: dteData.resumen.totalPagar || 0
-            };
-            console.log("📝 FormData actualizado:", { 
-                exentas_internas: newData.exentas_internas,
-                fovial: newData.fovial, 
-                cotrans: newData.cotrans,
-                gravadas_internas: newData.gravadas_internas
-            });
-            return newData;
-        });
-
-        if (nuevosDetalles.length > 0) {
-            setDetalles(prev => [...prev, ...nuevosDetalles]);
-        }
-
-        addToast({ 
-            type: 'success', 
-            title: 'DTE Cargado', 
-            lines: [
-                `📄 Documento: ${dteData.identificacion.numeroControl}`,
-                `💰 Total: $${dteData.resumen.totalPagar}`,
-                `🚗 FOVIAL: $${fovial}`,
-                `🚛 COTRANS: $${cotrans}`,
-                `💵 IVA: $${iva}`,
-                `📊 Exentas (FOVIAL+COTRANS): $${exentasConTributos}`
-            ],
-            duration: 5000
-        });
-
-        setIsLoading(false);
-    } catch (error) {
-        console.error("Error procesando DTE:", error);
-        setError("Error al procesar el archivo DTE.");
-        setIsLoading(false);
-    }
-};
-
-    const procesarDte = async (dteData, foundProv) => {
+        setIsLoading(true);
         try {
-            const nuevosDetalles = [];
+            setCurrentDteData(dteData);
+            
+            const emisorNit = dteData.emisor?.nit;
+            const emisorNrc = dteData.emisor?.nrc;
+            
+            let foundProv = proveedores.find(p => 
+                (p.nit && p.nit === emisorNit) || 
+                (p.nrc && p.nrc === emisorNrc) ||
+                (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor?.nombre?.toLowerCase() || ""))
+            );
+
+            if (!foundProv) {
+                try {
+                    const newProvData = {
+                        nombre: dteData.emisor?.nombre || "Proveedor sin nombre",
+                        codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
+                        descripcion: dteData.emisor?.descActividad || "Creado automáticamente desde DTE",
+                        nit: emisorNit,
+                        nrc: emisorNrc
+                    };
+
+                    const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify(newProvData),
+                    });
+
+                    if (response.ok) {
+                        const resJson = await response.json();
+                        foundProv = resJson.proveedor;
+                        setProveedores(prev => [...prev, foundProv]);
+                    }
+                } catch (err) {
+                    console.error("Error creando proveedor automático:", err);
+                }
+            }
+
+            const currentProveedorId = foundProv ? foundProv.id : null;
+
+            let codigoGeneracion = null;
+            if (dteData.identificacion?.codigoGeneracion) {
+                codigoGeneracion = dteData.identificacion.codigoGeneracion;
+            } else if (dteData.codigoGeneracion) {
+                codigoGeneracion = dteData.codigoGeneracion;
+            }
+
+            const selloRecepcion = extraerSelloRecepcion(dteData);
+            const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
+
+            const productosNoEncontrados = [];
+            const productosACrear = [];
             let currentProductos = [...productos];
 
-            for (const item of dteData.cuerpoDocumento) {
+            const cuerpoDoc = dteData.cuerpoDocumento || [];
+            for (const item of cuerpoDoc) {
                 let foundProd = currentProductos.find(p => p.codigo === item.codigo);
                 if (!foundProd) {
-                    foundProd = currentProductos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+                    foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
+                }
+                if (!foundProd) {
+                    productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
+                    productosACrear.push({
+                        item,
+                        nombre: item.descripcion,
+                        codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                        unidad: item.uniMedida || "Unidad",
+                        precio: item.precioUni,
+                        preciooferta: 0,
+                        stock: 0,
+                        es_servicio: item.tipoItem === 2,
+                        idproveedor: currentProveedorId
+                    });
+                }
+            }
+
+            if (productosNoEncontrados.length > 0) {
+                setProductosNoEncontradosMsg(productosNoEncontrados);
+                setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
+                setShowDialog(true);
+                setIsLoading(false);
+                return;
+            }
+
+            const nuevosDetalles = [];
+
+            for (const item of cuerpoDoc) {
+                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+                if (!foundProd) {
+                    foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
                 }
                 if (foundProd) {
                     nuevosDetalles.push({
@@ -744,90 +858,116 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 }
             }
 
-            const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-            const fovial = dteData.resumen.tributos?.find(t => t.codigo === 'D1')?.valor || 0;
-            const cotrans = dteData.resumen.tributos?.find(t => t.codigo === 'C8')?.valor || 0;
-            const totalProductos = dteData.resumen.totalGravada || 0;
-            const exentasConTributos = fovial + cotrans;
+            const exentasConTributos = (fovial + cotrans) || 0;
 
             setFormData(prev => {
-                const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
                 const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
-                return {
+                const newData = {
                     ...prev,
-                    fecha_emision: dteData.identificacion.fecEmi,
-                    numero_documento: dteData.identificacion.numeroControl,
-                    nrc: dteData.emisor.nrc,
-                    nombre_proveedor: dteData.emisor.nombre,
+                    fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
+                    numero_documento: dteData.identificacion?.numeroControl || "",
+                    codigo_generacion: codigoGeneracion,
+                    sello_recepcion: selloRecepcion,
+                    nrc: emisorNrc || "",
+                    nit: emisorNit || "",
+                    nombre_proveedor: dteData.emisor?.nombre || "",
                     proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                    tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                    gravadas_internas: totalProductos,
+                    tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte || "").padStart(2, '0')] || "CCF",
+                    gravadas_internas: dteData.resumen?.totalGravada || 0,
                     credito_fiscal: iva,
                     fovial: fovial,
                     cotrans: cotrans,
+                    cesc: cesc,
                     exentas_internas: exentasConTributos,
-                    total_compras: dteData.resumen.totalPagar
+                    total_compras: dteData.resumen?.totalPagar || 0
                 };
+                console.log("📝 FormData actualizado:", { 
+                    nrc: newData.nrc,
+                    nit: newData.nit,
+                    nombre_proveedor: newData.nombre_proveedor,
+                    exentas_internas: newData.exentas_internas,
+                    fovial: newData.fovial, 
+                    cotrans: newData.cotrans,
+                    gravadas_internas: newData.gravadas_internas,
+                    sello_recepcion: newData.sello_recepcion
+                });
+                return newData;
             });
 
             if (nuevosDetalles.length > 0) {
                 setDetalles(prev => [...prev, ...nuevosDetalles]);
-                addToast({ type: 'success', title: 'Productos cargados', message: `Se cargaron ${nuevosDetalles.length} productos correctamente.` });
             }
+
+            addToast({ 
+                type: 'success', 
+                title: 'DTE Cargado', 
+                lines: [
+                    `📄 Documento: ${dteData.identificacion?.numeroControl || "N/A"}`,
+                    `🏢 Proveedor: ${dteData.emisor?.nombre || "N/A"}`,
+                    `🆔 NIT: ${emisorNit || "N/A"}`,
+                    `📌 NRC: ${emisorNrc || "N/A"}`,
+                    `💰 Total: $${dteData.resumen?.totalPagar || 0}`,
+                    `🚗 FOVIAL: $${fovial}`,
+                    `🚛 COTRANS: $${cotrans}`,
+                    `💵 IVA: $${iva}`,
+                    `🔐 Sello: ${selloRecepcion ? '✅ Recibido' : '❌ No encontrado'}`
+                ],
+                duration: 6000
+            });
+
+            setIsLoading(false);
         } catch (error) {
             console.error("Error procesando DTE:", error);
             setError("Error al procesar el archivo DTE.");
-        } finally {
             setIsLoading(false);
         }
     };
 
     const handleChange = (e) => {
-    const { name, value } = e.target;
-    
-    if (name === 'proveedor_id') {
-        const prov = proveedores.find(p => p.id.toString() === value);
-        setFormData(prev => ({ 
-            ...prev,
-            [name]: value,
-            nombre_proveedor: prov ? prov.nombre : ""
-        }));
-    } else if (name === 'tipo_compra') {
-        setFormData(prev => {
-            const totalGravado = prev.gravadas_internas + prev.gravadas_importaciones;
-            const newData = {
+        const { name, value } = e.target;
+        
+        if (name === 'proveedor_id') {
+            const prov = proveedores.find(p => p.id.toString() === value);
+            setFormData(prev => ({ 
                 ...prev,
-                tipo_compra: value,
-                gravadas_internas: value === 'local' ? totalGravado : 0,
-                gravadas_importaciones: value === 'importacion' ? totalGravado : 0
-            };
-            return { ...newData, total_compras: calculateTotal(newData) };
-        });
-    } else if (name === 'fovial' || name === 'cotrans') {
-        setFormData(prev => {
-            const newData = { ...prev, [name]: parseFloat(value) || 0 };
-            // ✅ EXENTAS_INTERNAS = SOLO FOVIAL + COTRANS
-            const fovialVal = parseFloat(newData.fovial) || 0;
-            const cotransVal = parseFloat(newData.cotrans) || 0;
-            newData.exentas_internas = fovialVal + cotransVal;
-            newData.total_compras = calculateTotal(newData);
-            return newData;
-        });
-    } else {
-        setFormData(prev => {
-            const newData = { ...prev, [name]: parseFloat(value) || 0 };
-            if ([
-                'exentas_internas', 'exentas_importaciones',
-                'gravadas_internas', 'gravadas_internaciones', 'gravadas_importaciones',
-                'compras_sujetos_excluidos', 'credito_fiscal', 'cesc',
-                'anticipo_iva_percibido', 'percepcion'
-            ].includes(name)) {
+                [name]: value,
+                nombre_proveedor: prov ? prov.nombre : ""
+            }));
+        } else if (name === 'tipo_compra') {
+            setFormData(prev => {
+                const totalGravado = prev.gravadas_internas + prev.gravadas_importaciones;
+                const newData = {
+                    ...prev,
+                    tipo_compra: value,
+                    gravadas_internas: value === 'local' ? totalGravado : 0,
+                    gravadas_importaciones: value === 'importacion' ? totalGravado : 0
+                };
+                return { ...newData, total_compras: calculateTotal(newData) };
+            });
+        } else if (name === 'fovial' || name === 'cotrans') {
+            setFormData(prev => {
+                const newData = { ...prev, [name]: parseFloat(value) || 0 };
+                const fovialVal = parseFloat(newData.fovial) || 0;
+                const cotransVal = parseFloat(newData.cotrans) || 0;
+                newData.exentas_internas = fovialVal + cotransVal;
                 newData.total_compras = calculateTotal(newData);
-            }
-            return newData;
-        });
-    }
-};
+                return newData;
+            });
+        } else {
+            setFormData(prev => {
+                const newData = { ...prev, [name]: parseFloat(value) || 0 };
+                if ([
+                    'exentas_internas', 'exentas_importaciones',
+                    'gravadas_internas', 'gravadas_internaciones', 'gravadas_importaciones',
+                    'compras_sujetos_excluidos', 'credito_fiscal', 'cesc',
+                    'anticipo_iva_percibido', 'percepcion'
+                ].includes(name)) {
+                    newData.total_compras = calculateTotal(newData);
+                }
+                return newData;
+            });
+        }
+    };
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('es-SV', { 
@@ -846,7 +986,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             numero_documento: "",
             tipo_documento: "CCF",
             nrc: "",
-            nit_dui_sujeto_excluido: "",
+            nit: "",
             tipo_compra: "local",
             descripcion: "",
             exentas_internas: 0,
@@ -919,10 +1059,12 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             };
 
             console.log("📦 PAYLOAD enviado:", {
+                nit: payload.nit,
+                nrc: payload.nrc,
                 exentas_internas: payload.exentas_internas,
                 fovial: payload.fovial,
                 cotrans: payload.cotrans,
-                gravadas_internas: payload.gravadas_internas
+                sello_recepcion: payload.sello_recepcion
             });
 
             const response = await fetch(`${API_BASE_URL}/compras/add`, {
@@ -992,12 +1134,17 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         if (!pendingDteData) return;
 
         const { dteData, foundProv, currentProveedorId } = pendingDteData;
+        
+        const emisorNit = dteData.emisor?.nit || null;
+        const emisorNrc = dteData.emisor?.nrc || null;
+        
         const nuevosDetalles = [];
 
-        for (const item of dteData.cuerpoDocumento) {
+        const cuerpoDoc = dteData.cuerpoDocumento || [];
+        for (const item of cuerpoDoc) {
             let foundProd = productos.find(p => p.codigo === item.codigo);
             if (!foundProd) {
-                foundProd = productos.find(p => p.nombre.toLowerCase() === item.descripcion.toLowerCase());
+                foundProd = productos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
             }
             
             if (foundProd) {
@@ -1033,29 +1180,33 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             });
         }
 
-        const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-        const fovial = dteData.resumen.tributos?.find(t => t.codigo === 'D1')?.valor || 0;
-        const cotrans = dteData.resumen.tributos?.find(t => t.codigo === 'C8')?.valor || 0;
-        const totalProductos = dteData.resumen.totalGravada || 0;
-        const exentasConTributos = fovial + cotrans;
+        const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
+        const totalProductos = dteData.resumen?.totalGravada || 0;
+        const exentasConTributos = (fovial + cotrans) || 0;
+        const selloRecepcion = extraerSelloRecepcion(dteData);
+        const codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
 
         setFormData(prev => {
-            const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
+            const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
             const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
             return {
                 ...prev,
-                fecha_emision: dteData.identificacion.fecEmi,
-                numero_documento: dteData.identificacion.numeroControl,
-                nrc: dteData.emisor.nrc,
-                nombre_proveedor: dteData.emisor.nombre,
+                fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
+                numero_documento: dteData.identificacion?.numeroControl || "",
+                codigo_generacion: codigoGeneracion,
+                sello_recepcion: selloRecepcion,
+                nrc: emisorNrc || prev.nrc,
+                nit: emisorNit || prev.nit,
+                nombre_proveedor: dteData.emisor?.nombre || prev.nombre_proveedor,
                 proveedor_id: pendingDteData.foundProv ? pendingDteData.foundProv.id : prev.proveedor_id,
                 tipo_documento: tipoMap[tipoDteValue] || "CCF",
                 gravadas_internas: totalProductos,
                 credito_fiscal: iva,
                 fovial: fovial,
                 cotrans: cotrans,
+                cesc: cesc,
                 exentas_internas: exentasConTributos,
-                total_compras: dteData.resumen.totalPagar
+                total_compras: dteData.resumen?.totalPagar || 0
             };
         });
 
@@ -1073,6 +1224,10 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         setIsLoading(true);
         try {
             const { dteData, productosACrear, foundProv, currentProveedorId } = pendingDteData;
+            
+            const emisorNit = dteData.emisor?.nit || null;
+            const emisorNrc = dteData.emisor?.nrc || null;
+            
             let currentProductos = [...productos];
             const nuevosDetalles = [];
 
@@ -1118,12 +1273,13 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 }
             }
 
-            for (const item of dteData.cuerpoDocumento) {
+            const cuerpoDoc = dteData.cuerpoDocumento || [];
+            for (const item of cuerpoDoc) {
                 let foundProd = currentProductos.find(p => p.codigo === item.codigo);
 
                 if (!foundProd) {
                     foundProd = currentProductos.find(
-                        p => p.nombre.toLowerCase() === item.descripcion.toLowerCase()
+                        p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase()
                     );
                 }
 
@@ -1157,29 +1313,33 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 }
             }
 
-            const iva = dteData.resumen.tributos?.find(t => t.codigo === '20')?.valor || 0;
-            const fovial = dteData.resumen.tributos?.find(t => t.codigo === 'D1')?.valor || 0;
-            const cotrans = dteData.resumen.tributos?.find(t => t.codigo === 'C8')?.valor || 0;
-            const totalProductos = dteData.resumen.totalGravada || 0;
-            const exentasConTributos = fovial + cotrans;
+            const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
+            const totalProductos = dteData.resumen?.totalGravada || 0;
+            const exentasConTributos = (fovial + cotrans) || 0;
+            const selloRecepcion = extraerSelloRecepcion(dteData);
+            const codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
 
             setFormData(prev => {
-                const tipoDteValue = String(dteData.identificacion.tipoDte).padStart(2, '0');
+                const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
                 const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
                 return {
                     ...prev,
-                    fecha_emision: dteData.identificacion.fecEmi,
-                    numero_documento: dteData.identificacion.numeroControl,
-                    nrc: dteData.emisor.nrc,
-                    nombre_proveedor: dteData.emisor.nombre,
+                    fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
+                    numero_documento: dteData.identificacion?.numeroControl || "",
+                    codigo_generacion: codigoGeneracion,
+                    sello_recepcion: selloRecepcion,
+                    nrc: emisorNrc || prev.nrc,
+                    nit: emisorNit || prev.nit,
+                    nombre_proveedor: dteData.emisor?.nombre || prev.nombre_proveedor,
                     proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
                     tipo_documento: tipoMap[tipoDteValue] || "CCF",
                     gravadas_internas: totalProductos,
                     credito_fiscal: iva,
                     fovial: fovial,
                     cotrans: cotrans,
+                    cesc: cesc,
                     exentas_internas: exentasConTributos,
-                    total_compras: dteData.resumen.totalPagar
+                    total_compras: dteData.resumen?.totalPagar || 0
                 };
             });
 
@@ -1192,6 +1352,12 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 setProductosNoEncontradosMsg([]);
                 setSelectedProductosToCreate({});
                 setIsLoading(false);
+            });
+
+            addToast({ 
+                type: 'success', 
+                title: 'Productos creados', 
+                message: `Se crearon ${productosACrear.filter((_, i) => selectedProductosToCreate[i]).length} productos nuevos.` 
             });
 
         } catch (error) {
@@ -1323,11 +1489,19 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">NRC / NIT</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">NRC</label>
                                             <input 
                                                 type="text" name="nrc" value={formData.nrc} onChange={handleChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                placeholder="Registro o NIT"
+                                                placeholder="NRC del proveedor"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">NIT</label>
+                                            <input 
+                                                type="text" name="nit" value={formData.nit} onChange={handleChange}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                                placeholder="NIT del proveedor"
                                             />
                                         </div>
                                         <div>
@@ -1875,7 +2049,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                 <option value="G">Gramos</option>
                                 <option value="LT">Litros</option>
                                 <option value="ML">Mililitros</option>
-                                <option value="UND">Unidad</option>
+                                <option value="UND" selected>Unidad</option>
                             </select>
                         </div>
 

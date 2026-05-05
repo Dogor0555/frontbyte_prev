@@ -88,12 +88,25 @@ const formatDate = (dateString) => {
     }
 };
 
+// Función para convertir código numérico a formato legible
+const formatTipoDocumento = (tipoCode) => {
+    const tipoMap = {
+        "01": "FCF",
+        "03": "CCF",
+        "05": "NC",
+        "06": "ND",
+        "14": "FSE"
+    };
+    return tipoMap[tipoCode] || tipoCode || "CCF";
+};
+
 const mapItem = (item) => ({
     ...item,
     id: item.id,
     fecha_emision_doc: item.fecha_emision_doc || item.fecha_emision || "-",
     fecha_registro_sistema: item.fecha_registro_sistema || item.fecha_registro || "-",
-    numero_registro: item.nrc || item.nit_dui || item.numero_registro || "",
+    tipo_documento_legible: formatTipoDocumento(item.tipo_documento),
+    numero_registro: item.numero_registro || item.nit || item.nrc || "",
     exentas: item.exentas_internas ?? item.exentas ?? 0,
     locales: item.gravadas_internas ?? item.locales ?? 0,
     importaciones: item.gravadas_importaciones ?? item.importaciones ?? 0,
@@ -113,9 +126,9 @@ const COLUMNS = [
     { key: "no",                     label: "No.",              width: "50px",  align: "center" },
     { key: "fecha_emision_doc",      label: "F. EMISIÓN",       width: "100px", align: "center" },
     { key: "fecha_registro_sistema", label: "F. REGISTRO",      width: "100px", align: "center" },
-    { key: "tipo_documento",         label: "TIPO DOC",         width: "100px", align: "center" },
+    { key: "tipo_documento_legible", label: "TIPO DOC",         width: "100px", align: "center" },
     { key: "numero_documento",       label: "NÚMERO",           width: "120px", align: "center" },
-    { key: "numero_registro",        label: "NIT/NRC",          width: "120px", align: "center" },
+    { key: "numero_registro",        label: "NIT",              width: "120px", align: "center" },
     { key: "nombre_proveedor",       label: "PROVEEDOR",        width: "250px", align: "left"   },
     { key: "codigo_generacion",      label: "CÓD. GENERACIÓN",  width: "150px", align: "center" },
     { key: "sello_recepcion",        label: "SELLO RECEPCIÓN",  width: "150px", align: "center" },
@@ -166,7 +179,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     const [selectedCompraId, setSelectedCompraId] = useState(null);
     const [deletingId,       setDeletingId]       = useState(false);
 
-    // Modal detalle ← NUEVO
+    // Modal detalle
     const [detalleOpen,       setDetalleOpen]       = useState(false);
     const [selectedDetalleId, setSelectedDetalleId] = useState(null);
 
@@ -336,9 +349,9 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             ws.columns = [
                 { header: "F. EMISIÓN",       key: "fecha_emision_doc",      width: 12 },
                 { header: "F. REGISTRO",      key: "fecha_registro_sistema", width: 12 },
-                { header: "TIPO DOC",         key: "tipo_documento",         width: 10 },
+                { header: "TIPO DOC",         key: "tipo_documento_legible", width: 10 },
                 { header: "NÚMERO",           key: "numero_documento",       width: 15 },
-                { header: "NIT/NRC",          key: "numero_registro",        width: 15 },
+                { header: "NIT",              key: "numero_registro",        width: 15 },
                 { header: "PROVEEDOR",        key: "nombre_proveedor",       width: 30 },
                 { header: "CÓD. GENERACIÓN",  key: "codigo_generacion",      width: 20 },
                 { header: "SELLO RECEPCIÓN",  key: "sello_recepcion",        width: 20 },
@@ -368,7 +381,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 const row = ws.addRow({
                     fecha_emision_doc:      item.fecha_emision_doc,
                     fecha_registro_sistema: item.fecha_registro_sistema,
-                    tipo_documento:         item.tipo_documento,
+                    tipo_documento_legible: item.tipo_documento_legible,
                     numero_documento:       item.numero_documento,
                     numero_registro:        item.numero_registro,
                     nombre_proveedor:       item.nombre_proveedor,
@@ -455,147 +468,138 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
         }
     };
 
+    const descargarExcel = async () => {
+        if (!libroFiltrado.length) return alert("No hay datos");
 
-const descargarExcel = async () => {
-    if (!libroFiltrado.length) return alert("No hay datos");
+        setExporting(true);
 
-    setExporting(true);
+        try {
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet("Anexo Compras");
 
-    try {
-        const wb = new ExcelJS.Workbook();
-        const ws = wb.addWorksheet("Anexo Compras");
+            ws.mergeCells("A1:S1");
+            ws.getCell("A1").value = "ANEXO DE COMPRAS";
+            ws.getCell("A1").font = { bold: true, size: 14 };
+            ws.getCell("A1").alignment = { horizontal: "center" };
 
-        // 🧾 TÍTULO
-        ws.mergeCells("A1:S1");
-        ws.getCell("A1").value = "ANEXO DE COMPRAS";
-        ws.getCell("A1").font = { bold: true, size: 14 };
-        ws.getCell("A1").alignment = { horizontal: "center" };
+            ws.mergeCells("A2:S2");
+            ws.getCell("A2").value = `PERÍODO: ${fechaInicio} AL ${fechaFin}`;
+            ws.getCell("A2").alignment = { horizontal: "center" };
 
-        // 📅 PERÍODO
-        ws.mergeCells("A2:S2");
-        ws.getCell("A2").value = `PERÍODO: ${fechaInicio} AL ${fechaFin}`;
-        ws.getCell("A2").alignment = { horizontal: "center" };
+            const headers = [
+                "F. EMISIÓN",
+                "F. REGISTRO",
+                "TIPO DOC",
+                "NÚMERO",
+                "NIT",
+                "PROVEEDOR",
+                "EXENTAS INT.",
+                "EXENTAS IMP.",
+                "GRAVADAS INT.",
+                "GRAVADAS IMP.",
+                "CRÉDITO FISCAL",
+                "FOVIAL",
+                "COTRANS",
+                "CESC",
+                "ANTICIPO IVA",
+                "RETENCIÓN",
+                "PERCEPCIÓN",
+                "SUJETOS EXCLUIDOS",
+                "TOTAL",
+            ];
 
-        // 🧱 ENCABEZADOS OFICIALES
-        const headers = [
-            "F. EMISIÓN",
-            "F. REGISTRO",
-            "TIPO DOC",
-            "NÚMERO",
-            "NIT/NRC",
-            "PROVEEDOR",
-            "EXENTAS INT.",
-            "EXENTAS IMP.",
-            "GRAVADAS INT.",
-            "GRAVADAS IMP.",
-            "CRÉDITO FISCAL",
-            "FOVIAL",
-            "COTRANS",
-            "CESC",
-            "ANTICIPO IVA",
-            "RETENCIÓN",
-            "PERCEPCIÓN",
-            "SUJETOS EXCLUIDOS",
-            "TOTAL",
-        ];
+            const headerRow = ws.addRow(headers);
 
-        const headerRow = ws.addRow(headers);
+            headerRow.eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+                cell.fill = {
+                    type: "pattern",
+                    pattern: "solid",
+                    fgColor: { argb: "FF1E293B" },
+                };
+                cell.alignment = { horizontal: "center" };
+            });
 
-        headerRow.eachCell((cell) => {
-            cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-            cell.fill = {
-                type: "pattern",
-                pattern: "solid",
-                fgColor: { argb: "FF1E293B" },
-            };
-            cell.alignment = { horizontal: "center" };
-        });
+            libroFiltrado.forEach((item) => {
+                ws.addRow([
+                    item.fecha_emision_doc,
+                    item.fecha_registro_sistema,
+                    item.tipo_documento_legible,
+                    item.numero_documento,
+                    item.numero_registro,
+                    item.nombre_proveedor,
+                    parseFloat(item.exentas) || 0,
+                    parseFloat(item.exentas_importaciones) || 0,
+                    parseFloat(item.locales) || 0,
+                    parseFloat(item.importaciones) || 0,
+                    parseFloat(item.iva) || 0,
+                    parseFloat(item.fovial) || 0,
+                    parseFloat(item.cotrans) || 0,
+                    parseFloat(item.cesc) || 0,
+                    parseFloat(item.anticipo_iva) || 0,
+                    parseFloat(item.retencion) || 0,
+                    parseFloat(item.percepcion) || 0,
+                    parseFloat(item.sujetos_excluidos) || 0,
+                    parseFloat(item.monto) || 0,
+                ]);
+            });
 
-        // 📊 DATA EXACTA
-        libroFiltrado.forEach((item) => {
-            ws.addRow([
-                item.fecha_emision_doc,
-                item.fecha_registro_sistema,
-                item.tipo_documento,
-                item.numero_documento,
-                item.numero_registro,
-                item.nombre_proveedor,
-                parseFloat(item.exentas) || 0,
-                parseFloat(item.exentas_importaciones) || 0,
-                parseFloat(item.locales) || 0,
-                parseFloat(item.importaciones) || 0,
-                parseFloat(item.iva) || 0,
-                parseFloat(item.fovial) || 0,
-                parseFloat(item.cotrans) || 0,
-                parseFloat(item.cesc) || 0,
-                parseFloat(item.anticipo_iva) || 0,
-                parseFloat(item.retencion) || 0,
-                parseFloat(item.percepcion) || 0,
-                parseFloat(item.sujetos_excluidos) || 0,
-                parseFloat(item.monto) || 0,
+            ws.columns = [
+                { width: 12 }, { width: 12 }, { width: 10 }, { width: 18 },
+                { width: 18 }, { width: 30 }, { width: 14 }, { width: 14 },
+                { width: 14 }, { width: 14 }, { width: 16 }, { width: 10 },
+                { width: 10 }, { width: 10 }, { width: 14 }, { width: 12 },
+                { width: 12 }, { width: 16 }, { width: 16 },
+            ];
+
+            ws.eachRow((row, rowNumber) => {
+                if (rowNumber > 3) {
+                    row.eachCell((cell, colNumber) => {
+                        if (colNumber >= 7) {
+                            cell.numFmt = "#,##0.00";
+                            cell.alignment = { horizontal: "right" };
+                        }
+                    });
+                }
+            });
+
+            const totalRow = ws.addRow([
+                "", "", "", "", "", "TOTALES",
+                totales.exentas_internas,
+                totales.exentas_importaciones,
+                totales.gravadas_internas,
+                totales.gravadas_importaciones,
+                totales.credito_fiscal,
+                totales.fovial,
+                totales.cotrans,
+                totales.cesc,
+                totales.anticipo_iva,
+                totales.retencion,
+                totales.percepcion,
+                totales.sujetos_excluidos,
+                totales.monto,
             ]);
-        });
 
-        // 📐 ANCHOS
-        ws.columns = [
-            { width: 12 }, { width: 12 }, { width: 10 }, { width: 18 },
-            { width: 18 }, { width: 30 }, { width: 14 }, { width: 14 },
-            { width: 14 }, { width: 14 }, { width: 16 }, { width: 10 },
-            { width: 10 }, { width: 10 }, { width: 14 }, { width: 12 },
-            { width: 12 }, { width: 16 }, { width: 16 },
-        ];
+            totalRow.font = { bold: true };
 
-        // 💰 FORMATO NUMÉRICO
-        ws.eachRow((row, rowNumber) => {
-            if (rowNumber > 3) {
-                row.eachCell((cell, colNumber) => {
-                    if (colNumber >= 7) {
-                        cell.numFmt = "#,##0.00";
-                        cell.alignment = { horizontal: "right" };
-                    }
-                });
-            }
-        });
+            const buffer = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buffer]);
+            const url = URL.createObjectURL(blob);
 
-        // 📊 TOTALES (IMPORTANTE HACIENDA)
-        const totalRow = ws.addRow([
-            "", "", "", "", "", "TOTALES",
-            totales.exentas_internas,
-            totales.exentas_importaciones,
-            totales.gravadas_internas,
-            totales.gravadas_importaciones,
-            totales.credito_fiscal,
-            totales.fovial,
-            totales.cotrans,
-            totales.cesc,
-            totales.anticipo_iva,
-            totales.retencion,
-            totales.percepcion,
-            totales.sujetos_excluidos,
-            totales.monto,
-        ]);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `ANEXO_COMPRAS_HACIENDA_${fechaInicio}_${fechaFin}.xlsx`;
+            a.click();
 
-        totalRow.font = { bold: true };
+            URL.revokeObjectURL(url);
 
-        // 📥 DESCARGA
-        const buffer = await wb.xlsx.writeBuffer();
-        const blob = new Blob([buffer]);
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `ANEXO_COMPRAS_HACIENDA_${fechaInicio}_${fechaFin}.xlsx`;
-        a.click();
-
-        URL.revokeObjectURL(url);
-
-    } catch (error) {
-        console.error(error);
-        alert("Error al exportar Excel");
-    } finally {
-        setExporting(false);
-    }
-};
+        } catch (error) {
+            console.error(error);
+            alert("Error al exportar Excel");
+        } finally {
+            setExporting(false);
+        }
+    };
 
     // ── Exportar PDF ──────────────────────────────────────────────────────────
     const handleExportPDF = () => {
@@ -609,7 +613,7 @@ const descargarExcel = async () => {
             doc.text(`Generado: ${new Date().toLocaleDateString("es-SV")}`, 14, 27);
 
             const cols = [
-                "No.","F. Emisión","F. Registro","Tipo","Número","NIT/NRC","Proveedor",
+                "No.","F. Emisión","F. Registro","Tipo","Número","NIT","Proveedor",
                 "Cód. Generación","Sello Recepción",
                 "Ex. Int","Ex. Imp","Gr. Int","Gr. Imp","CF IVA",
                 "FOVIAL","COTRANS","CESC","Ant. IVA","Ret","Perc","Suj. Ex","Total"
@@ -619,7 +623,7 @@ const descargarExcel = async () => {
                 item.no || i + 1,
                 item.fecha_emision_doc,
                 item.fecha_registro_sistema,
-                item.tipo_documento,
+                item.tipo_documento_legible,
                 item.numero_documento,
                 item.numero_registro,
                 item.nombre_proveedor,
@@ -641,7 +645,7 @@ const descargarExcel = async () => {
             ]);
 
             rows.push([
-                "","","","","","","TOTALES","","",
+                "","","","","","TOTALES","","","",
                 formatCurrency(totales.exentas_internas),
                 formatCurrency(totales.exentas_importaciones),
                 formatCurrency(totales.gravadas_internas),
@@ -706,7 +710,7 @@ const descargarExcel = async () => {
                 onSuccess={() => fetchLibroConFechas(fechaInicio, fechaFin)}
             />
 
-            {/* Modal detalle ← NUEVO */}
+            {/* Modal detalle */}
             <DetalleCompraModal
                 isOpen={detalleOpen}
                 onClose={() => setDetalleOpen(false)}
@@ -765,11 +769,11 @@ const descargarExcel = async () => {
                                     <FaSync className={refreshing ? "animate-spin" : ""} size={12} />
                                     {refreshing ? "Actualizando…" : "Actualizar"}
                                 </button>
-<ExportarAnexoCompras
-    descargarCSV={descargarCSV}
-    descargarExcel={descargarExcel}
-    exporting={exporting}
-/>
+                                <ExportarAnexoCompras
+                                    descargarCSV={descargarCSV}
+                                    descargarExcel={descargarExcel}
+                                    exporting={exporting}
+                                />
                                 <button
                                     onClick={handleExportExcel}
                                     disabled={exporting}
@@ -882,7 +886,7 @@ const descargarExcel = async () => {
                                             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
                                             <input
                                                 type="text"
-                                                placeholder="Proveedor, documento, NRC, código…"
+                                                placeholder="Proveedor, documento, NIT, código…"
                                                 value={searchTerm}
                                                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                                                 className="w-full pl-8 pr-8 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400 focus:border-slate-400 transition-colors bg-slate-50"
@@ -958,7 +962,6 @@ const descargarExcel = async () => {
                                                             <div className="flex justify-center gap-1">
                                                                 {item.id ? (
                                                                     <>
-                                                                        {/* Ver detalle ← NUEVO */}
                                                                         <button
                                                                             onClick={() => handleViewDetail(item.id)}
                                                                             className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
@@ -966,7 +969,6 @@ const descargarExcel = async () => {
                                                                         >
                                                                             <FaEye size={13} />
                                                                         </button>
-                                                                        {/* Editar */}
                                                                         <button
                                                                             onClick={() => handleEdit(item.id)}
                                                                             className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
@@ -974,7 +976,6 @@ const descargarExcel = async () => {
                                                                         >
                                                                             <FaEdit size={13} />
                                                                         </button>
-                                                                        {/* Eliminar */}
                                                                         <button
                                                                             onClick={() => handleDelete(item.id)}
                                                                             disabled={deletingId === item.id}

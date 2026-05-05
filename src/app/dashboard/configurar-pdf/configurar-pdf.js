@@ -24,6 +24,40 @@ import { API_BASE_URL } from "@/lib/api";
 
 const API_BASE = `${API_BASE_URL}`;
 
+// Función para comprimir imagen antes de subir
+const compressImage = (file, maxWidth = 800, quality = 0.7) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Redimensionar si es necesario
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Comprimir y convertir a JPEG (más pequeño que PNG)
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedBase64);
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
+};
+
 export default function ConfigurarPdf({ 
   configuracionPdf, 
   sucursal, 
@@ -113,7 +147,7 @@ export default function ConfigurarPdf({
 
       if (response.ok) {
         const data = await response.json();
-        let logoSrc = null; // Inicializar como null
+        let logoSrc = null;
 
         if (data.logo) {
           let tempSrc = data.logo;
@@ -124,7 +158,7 @@ export default function ConfigurarPdf({
             logoSrc = String.fromCharCode.apply(null, new Uint8Array(tempSrc.data));
           }
         }
-        setLogoPreview(logoSrc); // Asignar el resultado final (puede ser null)
+        setLogoPreview(logoSrc);
       } else if (response.status !== 404) {
         const errorData = await response.json();
         console.error("Error al cargar logo:", errorData);
@@ -229,38 +263,33 @@ export default function ConfigurarPdf({
     try {
       setUploadingLogo(true);
       setError("");
+      
+      // Comprimir la imagen antes de subir (reduce tamaño ~70%)
+      const compressedBase64 = await compressImage(file, 600, 0.7);
+      
+      // Actualizar vista previa
+      setLogoPreview(compressedBase64);
+      
+      // Enviar al servidor
+      const response = await fetch(`${API_BASE}/usuarios/updateLogo/${user.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ logo: compressedBase64 })
+      });
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setLogoPreview(e.target.result);
-      };
-      reader.readAsDataURL(file);
-  
-      const base64Reader = new FileReader();
-      base64Reader.onload = async (e) => {
-        const base64WithPrefix = e.target.result;
+      const data = await response.json();
 
-        const response = await fetch(`${API_BASE}/usuarios/updateLogo/${user.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ logo: base64WithPrefix })
-        });
+      if (!response.ok) {
+        throw new Error(data?.error || "Error al actualizar el logo.");
+      }
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data?.error || "Error al actualizar el logo.");
-        }
-
-        setOkMsg("Logo actualizado correctamente");
-        setLogoHasChanged(true);
-        
-        await loadUserLogo();
-      };
-      base64Reader.readAsDataURL(file);
+      setOkMsg("Logo actualizado correctamente");
+      setLogoHasChanged(true);
+      
+      await loadUserLogo();
   
     } catch (err) {
       console.error("[configurar-pdf] Error al subir logo:", err);
@@ -442,16 +471,16 @@ export default function ConfigurarPdf({
                 <div className="flex flex-col md:flex-row gap-6 items-start">
                   <div className="flex-1">
                     <p className="text-sm text-gray-600 mb-4">
-                      El logo aparecerá en los documentos PDF generados. Formatos recomendados: PNG, JPG. Tamaño máximo: 2MB.
+                      El logo aparecerá en los documentos PDF generados. Formatos recomendados: JPG, PNG. Tamaño máximo: 2MB (se comprimirá automáticamente).
                     </p>
                     
                     <div className="flex flex-col sm:flex-row gap-3">
                       <label className={`inline-flex items-center gap-2 rounded border border-gray-300 px-4 py-2 text-sm font-medium ${uploadingLogo ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50 cursor-pointer'}`}>
                         <FaUpload className="h-4 w-4" />
-                        {uploadingLogo ? "Subiendo..." : "Seleccionar Logo"}
+                        {uploadingLogo ? "Comprimiendo y subiendo..." : "Seleccionar Logo"}
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/jpg,image/png"
                           onChange={handleLogoUpload}
                           disabled={uploadingLogo}
                           className="hidden"
