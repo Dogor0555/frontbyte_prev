@@ -438,38 +438,71 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
       setPdfLoading(null);
     }
   };
-const descargarPDFMasivo = async (tipo = "CF") => {
-  try {
-    const response = await fetch(
-      `http://localhost:3000/pdf-masivo/${tipo}`,
-      {
+
+  const descargarPDFMasivo = async (tipo = "CF") => {
+    try {
+      setPdfLoading("masivo");
+      
+      const response = await fetch(`${API_BASE_URL}/pdf-masivo/${tipo}`, {
         method: "GET",
-        credentials: "include", // 🔥 ESTO ES LA CLAVE
+        credentials: "include",
+        headers: {
+          "Accept": "application/zip"
+        }
+      });
+
+      if (!response.ok) {
+        let errorMsg = "Error al descargar";
+        try {
+          const error = await response.json();
+          errorMsg = error.mensaje || error.error || errorMsg;
+        } catch (e) {
+          errorMsg = `Error ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMsg);
       }
-    );
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.error(error);
-      alert(error.mensaje || "Error al descargar");
-      return;
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/zip")) {
+        throw new Error("El servidor no devolvió un archivo ZIP válido");
+      }
+
+      const blob = await response.blob();
+      
+      if (blob.size === 0) {
+        throw new Error("El archivo ZIP está vacío");
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      
+      const contentDisposition = response.headers.get("Content-Disposition");
+      let filename = `${tipo}_facturas_${new Date().toISOString().split('T')[0]}.zip`;
+      
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (match && match[1]) {
+          filename = match[1].replace(/['"]/g, '');
+        }
+      }
+      
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      
+      alert("Descarga completada exitosamente");
+
+    } catch (error) {
+      console.error("Error en descarga masiva:", error);
+      alert(`Error en descarga masiva: ${error.message}`);
+    } finally {
+      setPdfLoading(null);
     }
-
-    const blob = await response.blob();
-
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${tipo}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-  } catch (error) {
-    console.error(error);
-    alert("Error en descarga");
-  }
-};
+  };
 
   const handleViewDetails = (facturaId) => {
     router.push(`/dashboard/facturas/${facturaId}`);
@@ -582,12 +615,6 @@ const descargarPDFMasivo = async (tipo = "CF") => {
                         }
                       </span>
                     </button>
-<button
-  onClick={() => descargarPDFMasivo("CF")}
-  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
->
-  📄 PDF Masivo CF
-</button>
 
                     {showDatePicker && (
                       <div 
@@ -727,6 +754,24 @@ const descargarPDFMasivo = async (tipo = "CF") => {
                       Limpiar
                     </button>
                   )}
+
+                  {/* Botón PDF Masivo */}
+                  <button
+                    onClick={() => descargarPDFMasivo("CF")}
+                    disabled={pdfLoading === "masivo"}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {pdfLoading === "masivo" ? (
+                      <>
+                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                        Generando ZIP...
+                      </>
+                    ) : (
+                      <>
+                        📄 PDF Masivo CF
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
 
