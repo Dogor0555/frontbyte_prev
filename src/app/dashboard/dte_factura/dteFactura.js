@@ -119,7 +119,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       "13": { regex: /^\d{8}-\d{1}$/, mensaje: "Formato de DUI inválido. Debe ser: 12345678-9" },
       "36": { regex: /^\d{4}-\d{6}-\d{3}-\d{1}$/, mensaje: "Formato de NIT inválido. Debe ser: 1234-123456-123-1" },
       "03": { regex: /^[A-Za-z0-9]{5,20}$/, mensaje: "Pasaporte debe contener solo letras y números (5-20 caracteres)" },
-      "02": { regex: /^[A-Za-z0-9]{5,20}$/, mensaje: "Carnet de residente debe contener solo letras y números (5-20 caracteres)" }
+      "02": { regex: /^[A-Za-z0-9]{5,20}$/, mensaje: "Carnet de residente debe contener solo letras y números (5-20 caracteres)" },
+      "37":{ regex: /^\d{7}\d{1}$/, mensaje: "Formato de DUI inválido. Debe ser: 12345678-9" }
     };
 
     const validacion = VALIDACIONES_DOCUMENTO[tipoDocumento];

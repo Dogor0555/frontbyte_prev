@@ -35,6 +35,10 @@ const VALIDACIONES_DOCUMENTO = {
   "02": {
     regex: /^[A-Za-z0-9]{5,20}$/,
     mensaje: "Carnet de residente debe contener solo letras y números (5-20 caracteres)"
+  },
+   "37": {
+    regex: /^\d{7}\d{1}$/,
+    mensaje: "Formato de DUI inválido. Debe ser: 12345678-9"
   }
 };
 
@@ -593,6 +597,7 @@ const DatosEmisorReceptor = ({
                 <option value="13">DUI</option>
                 <option value="03">Pasaporte</option>
                 <option value="02">Carnet de Residente</option>
+                <option value="37">Otro</option>
               </select>
             </div>
 

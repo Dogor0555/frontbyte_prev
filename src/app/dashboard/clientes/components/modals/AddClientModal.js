@@ -30,7 +30,6 @@ export default function AddClientModal({
   ];
 
   useEffect(() => {
-    // Establecer "El Salvador" como país por defecto si no hay uno seleccionado
     if (show && !formData.pais) {
       setFormData((prev) => ({
         ...prev,
@@ -38,13 +37,12 @@ export default function AddClientModal({
         nombre_pais: "El Salvador",
       }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show]);
 
   if (!show) return null;
 
   const validateEmail = (email) => {
-    if (!email) return true; // Correos opcionales pueden estar vacíos
+    if (!email) return true;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
@@ -52,14 +50,21 @@ export default function AddClientModal({
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.nombre.trim()) {
+    if (!formData.nombre?.trim()) {
       newErrors.nombre = "El nombre es obligatorio.";
     } else if (formData.nombre.length > LIMITES.NOMBRE) {
       newErrors.nombre = `El nombre no puede exceder los ${LIMITES.NOMBRE} caracteres.`;
     }
 
+    // Si es Consumidor Final (tipo 37) - Solo validamos el nombre
+    if (formData.tipodocumento === "37") {
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    }
+
+    // Validaciones para persona jurídica
     if (!formData.personanatural) {
-      if (!formData.nombrecomercial.trim()) {
+      if (!formData.nombrecomercial?.trim()) {
         newErrors.nombrecomercial = "El nombre comercial es obligatorio para personas jurídicas.";
       } else if (formData.nombrecomercial.length > LIMITES.NOMBRECOMERCIAL) {
         newErrors.nombrecomercial = `El nombre comercial no puede exceder los ${LIMITES.NOMBRECOMERCIAL} caracteres.`;
@@ -73,6 +78,8 @@ export default function AddClientModal({
         newErrors.giro = `El giro no puede exceder los ${LIMITES.GIRO} caracteres.`;
       }
     }
+    
+    // Validaciones según tipo de documento para persona natural
     if (formData.personanatural) {
       if (formData.tipodocumento === "13" && !formData.dui) {
         newErrors.dui = "El DUI es obligatorio para personas naturales.";
@@ -88,22 +95,19 @@ export default function AddClientModal({
         newErrors.carnetresidente = "El carnet de residente es obligatorio.";
       }
     } else {
+      // Validaciones para persona jurídica
       if (formData.tipodocumento === "36" && !formData.nit) {
         newErrors.nit = "El NIT es obligatorio para personas jurídicas.";
       } else if (formData.tipodocumento === "36" && formData.nit) {
-        // Contar solo dígitos, ignorando guiones
         const digitos = formData.nit.replace(/-/g, '').length;
         
         if (digitos < 9 || digitos > 14) {
           newErrors.nit = "El NIT debe tener entre 9 y 14 dígitos.";
         } else if (digitos === 9) {
-          // Validar formato de NIT antiguo (8 dígitos + guión + 1 dígito)
-          const nitSinGuiones = formData.nit.replace(/-/g, '');
           if (formData.nit.length !== 10 || !/^\d{8}-\d$/.test(formData.nit)) {
             newErrors.nit = "El formato del NIT debe ser 00000000-0 para NITs antiguos.";
           }
         } else if (digitos === 14) {
-          // Validar formato de NIT nuevo (4-6-3-1)
           if (formData.nit.length !== 17 || !/^\d{4}-\d{6}-\d{3}-\d$/.test(formData.nit)) {
             newErrors.nit = "El formato del NIT debe ser 0000-000000-000-0.";
           }
@@ -114,12 +118,10 @@ export default function AddClientModal({
     // Validación de correos
     const correos = [formData.correo, formData.correo2, formData.correo3].filter(Boolean);
     
-    // Validar que al menos un correo esté presente
     if (correos.length === 0) {
       newErrors.correo = "Al menos un correo electrónico es requerido.";
     }
 
-    // Validar formato de cada correo
     if (formData.correo && !validateEmail(formData.correo)) {
       newErrors.correo = "El formato del correo principal no es válido.";
     } else if (formData.correo && formData.correo.length > LIMITES.CORREO) {
@@ -138,19 +140,21 @@ export default function AddClientModal({
       newErrors.correo3 = `El tercer correo no puede exceder los ${LIMITES.CORREO} caracteres.`;
     }
 
-    if (!formData.telefono.trim()) {
+    // Validación de teléfono
+    if (!formData.telefono?.trim()) {
       newErrors.telefono = "El teléfono es obligatorio.";
     } else if (formData.telefono.length !== 8 || !/^[2679]/.test(formData.telefono)) {
       newErrors.telefono = "El teléfono debe tener 8 dígitos y comenzar con 2, 6, 7 o 9.";
     }
 
-    if (!formData.departamento.trim()) {
+    // Validación de dirección
+    if (!formData.departamento?.trim()) {
       newErrors.departamento = "El departamento es obligatorio.";
     }
-    if (!formData.municipio.trim()) {
+    if (!formData.municipio?.trim()) {
       newErrors.municipio = "El municipio es obligatorio.";
     }
-    if (!formData.complemento.trim()) {
+    if (!formData.complemento?.trim()) {
       newErrors.complemento = "La dirección es obligatoria.";
     } else if (formData.complemento.length > LIMITES.COMPLEMENTO) {
       newErrors.complemento = `La dirección no puede exceder los ${LIMITES.COMPLEMENTO} caracteres.`;
@@ -160,6 +164,7 @@ export default function AddClientModal({
       newErrors.pais = "El país es obligatorio.";
     }
 
+    // Código de actividad para persona jurídica
     if (!formData.personanatural && !formData.codactividad) {
       newErrors.codactividad = "El código de actividad es obligatorio para personas jurídicas.";
     }
@@ -171,15 +176,8 @@ export default function AddClientModal({
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    const formDataToSend = {
-      ...formData,
-      correo: formData.correo || null,
-      correo2: formData.correo2 || null,
-      correo3: formData.correo3 || null,
-    };
-
     if (validateForm()) {
-      onSave(e, formDataToSend);
+      onSave(e);
     }
   };
 
@@ -211,6 +209,8 @@ export default function AddClientModal({
     setErrors({});
   };
 
+  const isConsumidorFinal = formData.tipodocumento === "37";
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-screen overflow-y-auto">
@@ -228,40 +228,42 @@ export default function AddClientModal({
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-          {/* Tipo de Persona */}
-          <div className="flex items-center space-x-4 mb-4">
-            <label className="text-sm font-medium text-gray-700">
-              Tipo de Persona:
-            </label>
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="natural"
-                name="tipopersona"
-                value="natural"
-                checked={formData.personanatural === true}
-                onChange={() => handleTipoPersonaChange(true)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-              />
-              <label htmlFor="natural" className="ml-1 text-sm text-gray-900">
-                Natural
+          {/* Tipo de Persona - Oculto para Consumidor Final porque es Natural por defecto */}
+          {!isConsumidorFinal && (
+            <div className="flex items-center space-x-4 mb-4">
+              <label className="text-sm font-medium text-gray-700">
+                Tipo de Persona:
               </label>
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="natural"
+                  name="tipopersona"
+                  value="natural"
+                  checked={formData.personanatural === true}
+                  onChange={() => handleTipoPersonaChange(true)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <label htmlFor="natural" className="ml-1 text-sm text-gray-900">
+                  Natural
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="juridica"
+                  name="tipopersona"
+                  value="juridica"
+                  checked={formData.personanatural === false}
+                  onChange={() => handleTipoPersonaChange(false)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <label htmlFor="juridica" className="ml-1 text-sm text-gray-900">
+                  Jurídica
+                </label>
+              </div>
             </div>
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="juridica"
-                name="tipopersona"
-                value="juridica"
-                checked={formData.personanatural === false}
-                onChange={() => handleTipoPersonaChange(false)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-              />
-              <label htmlFor="juridica" className="ml-1 text-sm text-gray-900">
-                Jurídica
-              </label>
-            </div>
-          </div>
+          )}
 
           {/* Tipo de Documento */}
           <div>
@@ -271,17 +273,28 @@ export default function AddClientModal({
             <select
               value={formData.tipodocumento}
               onChange={(e) => {
-                setFormData({ ...formData, tipodocumento: e.target.value });
-                setErrors({ ...errors, [e.target.name]: undefined });
+                const newTipo = e.target.value;
+                // Si es Consumidor Final, forzamos personanatural = true
+                if (newTipo === "37") {
+                  setFormData({ 
+                    ...formData, 
+                    tipodocumento: newTipo,
+                    personanatural: true 
+                  });
+                } else {
+                  setFormData({ ...formData, tipodocumento: newTipo });
+                }
+                setErrors({});
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
               required
             >
               {tiposDocumento
                 .filter(doc => 
+                  doc.codigo === "37" ? true :
                   formData.personanatural 
                     ? ["13", "03", "02"].includes(doc.codigo) 
-                    : ["36", "37"].includes(doc.codigo) 
+                    : ["36"].includes(doc.codigo) 
                 )
                 .map((doc) => (
                   <option key={doc.codigo} value={doc.codigo}>
@@ -291,516 +304,475 @@ export default function AddClientModal({
             </select>
           </div>
 
-          {/* Campos según tipo de documento */}
-          {formData.tipodocumento === "13" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                DUI
-              </label>
-              <input
-                type="text"
-                value={formData.dui || ""}
-                onChange={(e) => {
-                  let val = e.target.value.replace(/\D/g, "");
-                  if (val.length > 8)
-                    val = val.slice(0, 8) + "-" + val.slice(8, 9);
-                  setFormData({ ...formData, dui: val });
-                  setErrors({ ...errors, dui: undefined });
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                  errors.dui ? "border-red-500" : "border-gray-300"
-                }`}
-                maxLength={10}
-                required={formData.tipodocumento === "13"}
-              />
-              {errors.dui && <p className="text-red-500 text-xs mt-1">{errors.dui}</p>}
-            </div>
-          )}
-
-          {formData.tipodocumento === "03" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Pasaporte
-              </label>
-              <input
-                type="text"
-                value={formData.pasaporte || ""}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^A-Za-z0-9]/g, "");
-                  setFormData({ ...formData, pasaporte: value });
-                  setErrors({ ...errors, pasaporte: undefined });
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                  errors.pasaporte ? "border-red-500" : "border-gray-300"
-                }`}
-                maxLength={LIMITES.PASAPORTE}
-                required={formData.tipodocumento === "03"}
-              />
-              {errors.pasaporte && <p className="text-red-500 text-xs mt-1">{errors.pasaporte}</p>}
-            </div>
-          )}
-
-          {formData.tipodocumento === "36" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                NIT
-              </label>
-              <input
-                type="text"
-                value={formData.nit || ""}
-                onChange={(e) => {
-                  let val = e.target.value.replace(/\D/g, "");
-                  
-                  // Si tiene 9 dígitos, formatear como NIT antiguo (8-1)
-                  if (val.length <= 9) {
-                    if (val.length > 8) {
-                      val = val.slice(0, 8) + "-" + val.slice(8);
-                    }
-                  } 
-                  // Si tiene más de 9 dígitos, formatear como NIT nuevo (4-6-3-1)
-                  else {
-                    if (val.length > 4)
-                      val = val.slice(0, 4) + "-" + val.slice(4);
-                    if (val.length > 11)
-                      val = val.slice(0, 11) + "-" + val.slice(11);
-                    if (val.length > 15)
-                      val = val.slice(0, 15) + "-" + val.slice(15, 16);
-                  }
-                  
-                  setFormData({ ...formData, nit: val });
-                  setErrors({ ...errors, nit: undefined });
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                  errors.nit ? "border-red-500" : "border-gray-300"
-                }`}
-                maxLength={17}
-                required={formData.tipodocumento === "36"}
-              />
-              {errors.nit && <p className="text-red-500 text-xs mt-1">{errors.nit}</p>}
-            </div>
-          )}
-
-          {formData.tipodocumento === "02" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Carnet de Residente
-              </label>
-              <input
-                type="text"
-                value={formData.carnetresidente || ""}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^A-Za-z0-9]/g, "");
-                  setFormData({ ...formData, carnetresidente: value });
-                  setErrors({ ...errors, carnetresidente: undefined });
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                  errors.carnetresidente ? "border-red-500" : "border-gray-300"
-                }`}
-                maxLength={LIMITES.CARNETRESIDENTE}
-                required={formData.tipodocumento === "02"}
-              />
-              {errors.carnetresidente && <p className="text-red-500 text-xs mt-1">{errors.carnetresidente}</p>}
-            </div>
-          )}
-
-          {/* Nombre */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre {formData.personanatural ? "(Persona Natural)" : "(Razón Social)"}
-            </label>
-            <input
-              type="text"
-              value={formData.nombre}
-              onChange={(e) => {
-                const value = e.target.value.replace(
-                  /[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g,
-                  ""
-                );
-                setFormData({ ...formData, nombre: value });
-                setErrors({ ...errors, nombre: undefined });
-              }}
-              className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                errors.nombre ? "border-red-500" : "border-gray-300"
-              }`}
-              maxLength={LIMITES.NOMBRE}
-              required
-            />
-            {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>}
-          </div>
-
-          {/* Nombre Comercial (solo para personas jurídicas) */}
-          {!formData.personanatural && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre Comercial
-              </label>
-              <input
-                type="text"
-                value={formData.nombrecomercial}
-                onChange={(e) => {
-                  const value = e.target.value.replace(
-                    /[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s\-\&]/g,
-                    ""
-                  );
-                  setFormData({ ...formData, nombrecomercial: value });
-                  setErrors({ ...errors, nombrecomercial: undefined });
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                  errors.nombrecomercial ? "border-red-500" : "border-gray-300"
-                }`}
-                maxLength={LIMITES.NOMBRECOMERCIAL}
-                required
-              />
-              {errors.nombrecomercial && <p className="text-red-500 text-xs mt-1">{errors.nombrecomercial}</p>}
-            </div>
-          )}
-
-          {/* Campos adicionales para Personas Jurídicas */}
-          {!formData.personanatural && (
+          {/* CONSUMIDOR FINAL - Solo nombre */}
+          {isConsumidorFinal && (
             <>
+              <div className="bg-green-50 p-4 rounded-md border border-green-200 mb-2">
+                <p className="text-sm text-green-800">
+                  ✅ <strong>Consumidor Final</strong> - Solo necesita ingresar el nombre. 
+                  Los demás datos se guardarán automáticamente como nulos.
+                </p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  NRC (Número de Registro de Contribuyente)
+                  Nombre del Consumidor Final *
                 </label>
                 <input
                   type="text"
-                  value={formData.nrc || ""}
+                  value={formData.nombre}
                   onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9]/g, "");
-                    setFormData({ ...formData, nrc: value });
-                    setErrors({ ...errors, nrc: undefined });
+                    setFormData({ ...formData, nombre: e.target.value });
+                    setErrors({ ...errors, nombre: undefined });
                   }}
                   className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                    errors.nrc ? "border-red-500" : "border-gray-300"
+                    errors.nombre ? "border-red-500" : "border-gray-300"
                   }`}
-                  maxLength={LIMITES.NRC}
+                  maxLength={LIMITES.NOMBRE}
+                  placeholder="Ej: Consumidor Final - Juan Pérez"
+                  required
                 />
-                {errors.nrc && <p className="text-red-500 text-xs mt-1">{errors.nrc}</p>}
+                {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>}
               </div>
             </>
           )}
 
-          {/* Teléfono y Correo Principal */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Teléfono
-              </label>
-              <input
-                type="text"
-                value={formData.telefono}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, "");
-                  setFormData({ ...formData, telefono: value });
-                  setErrors({ ...errors, telefono: undefined });
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                  errors.telefono ? "border-red-500" : "border-gray-300"
-                }`}
-                maxLength={8}
-                required
-              />
-              {errors.telefono && <p className="text-red-500 text-xs mt-1">{errors.telefono}</p>}
-            </div>
+          {/* CLIENTE NORMAL - Todos los campos */}
+          {!isConsumidorFinal && (
+            <>
+              {/* DUI - Solo para persona natural con tipo 13 */}
+              {formData.tipodocumento === "13" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    DUI *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.dui || ""}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/\D/g, "");
+                      if (val.length > 8)
+                        val = val.slice(0, 8) + "-" + val.slice(8, 9);
+                      setFormData({ ...formData, dui: val });
+                      setErrors({ ...errors, dui: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.dui ? "border-red-500" : "border-gray-300"
+                    }`}
+                    maxLength={10}
+                    placeholder="00000000-0"
+                    required={formData.tipodocumento === "13"}
+                  />
+                  {errors.dui && <p className="text-red-500 text-xs mt-1">{errors.dui}</p>}
+                </div>
+              )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Correo Principal
-              </label>
-              <input
-                type="email"
-                value={formData.correo || ""}
-                onChange={(e) => {
-                  setFormData({ ...formData, correo: e.target.value });
-                  setErrors({ ...errors, correo: undefined });
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                  errors.correo ? "border-red-500" : "border-gray-300"
-                }`}
-                maxLength={LIMITES.CORREO}
-              />
-              {errors.correo && <p className="text-red-500 text-xs mt-1">{errors.correo}</p>}
-            </div>
-          </div>
+              {/* Pasaporte - Solo para persona natural con tipo 03 */}
+              {formData.tipodocumento === "03" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Pasaporte *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.pasaporte || ""}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^A-Za-z0-9]/g, "");
+                      setFormData({ ...formData, pasaporte: value });
+                      setErrors({ ...errors, pasaporte: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.pasaporte ? "border-red-500" : "border-gray-300"
+                    }`}
+                    maxLength={LIMITES.PASAPORTE}
+                    required={formData.tipodocumento === "03"}
+                  />
+                  {errors.pasaporte && <p className="text-red-500 text-xs mt-1">{errors.pasaporte}</p>}
+                </div>
+              )}
 
-          {/* Correos secundarios */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Correo Secundario
-              </label>
-              <input
-                type="email"
-                value={formData.correo2 || ""}
-                onChange={(e) => {
-                  setFormData({ ...formData, correo2: e.target.value });
-                  setErrors({ ...errors, correo2: undefined });
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                  errors.correo2 ? "border-red-500" : "border-gray-300"
-                }`}
-                maxLength={LIMITES.CORREO}
-              />
-              {errors.correo2 && <p className="text-red-500 text-xs mt-1">{errors.correo2}</p>}
-            </div>
+              {/* NIT - Solo para persona jurídica con tipo 36 */}
+              {formData.tipodocumento === "36" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    NIT *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nit || ""}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/\D/g, "");
+                      
+                      if (val.length <= 9) {
+                        if (val.length > 8) {
+                          val = val.slice(0, 8) + "-" + val.slice(8);
+                        }
+                      } 
+                      else {
+                        if (val.length > 4)
+                          val = val.slice(0, 4) + "-" + val.slice(4);
+                        if (val.length > 11)
+                          val = val.slice(0, 11) + "-" + val.slice(11);
+                        if (val.length > 15)
+                          val = val.slice(0, 15) + "-" + val.slice(15, 16);
+                      }
+                      
+                      setFormData({ ...formData, nit: val });
+                      setErrors({ ...errors, nit: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.nit ? "border-red-500" : "border-gray-300"
+                    }`}
+                    maxLength={17}
+                    placeholder="0000-000000-000-0"
+                    required={formData.tipodocumento === "36"}
+                  />
+                  {errors.nit && <p className="text-red-500 text-xs mt-1">{errors.nit}</p>}
+                </div>
+              )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tercer Correo
-              </label>
-              <input
-                type="email"
-                value={formData.correo3 || ""}
-                onChange={(e) => {
-                  setFormData({ ...formData, correo3: e.target.value });
-                  setErrors({ ...errors, correo3: undefined });
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                  errors.correo3 ? "border-red-500" : "border-gray-300"
-                }`}
-                maxLength={LIMITES.CORREO}
-              />
-              {errors.correo3 && <p className="text-red-500 text-xs mt-1">{errors.correo3}</p>}
-            </div>
-          </div>
+              {/* Carnet de Residente - Solo para persona natural con tipo 02 */}
+              {formData.tipodocumento === "02" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Carnet de Residente *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.carnetresidente || ""}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^A-Za-z0-9]/g, "");
+                      setFormData({ ...formData, carnetresidente: value });
+                      setErrors({ ...errors, carnetresidente: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.carnetresidente ? "border-red-500" : "border-gray-300"
+                    }`}
+                    maxLength={LIMITES.CARNETRESIDENTE}
+                    required={formData.tipodocumento === "02"}
+                  />
+                  {errors.carnetresidente && <p className="text-red-500 text-xs mt-1">{errors.carnetresidente}</p>}
+                </div>
+              )}
 
-          <div className="text-xs text-gray-500 mb-4">
-            * Al menos un correo electrónico es requerido
-          </div>
-
-          {/* Dirección */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              País
-            </label>
-            <select
-              value={formData.pais}
-              onChange={(e) => {
-                const selectedPais = paises.find(p => p.codigo === e.target.value);
-                const newState = {
-                  ...formData,
-                  pais: selectedPais ? selectedPais.codigo : "",
-                  nombre_pais: selectedPais ? selectedPais.nombre : "",
-                };
-                // Si el país no es El Salvador, limpiar depto y municipio
-                if (selectedPais?.codigo !== "SV") {
-                  newState.departamento = "";
-                  newState.municipio = "";
-                }
-                setFormData(newState);
-                setErrors({ ...errors, pais: undefined });
-              }}
-              className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                errors.pais ? "border-red-500" : "border-gray-300"
-              }`}
-              required
-            >
-              <option value="">Seleccione un País</option>
-              {paises.map((pais) => (
-                <option key={pais.codigo} value={pais.codigo}>
-                  {pais.nombre}
-                </option>
-              ))}
-            </select>
-            {errors.pais && <p className="text-red-500 text-xs mt-1">{errors.pais}</p>}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Departamento
-              </label>
-              <select
-                value={formData.departamento}
-                onChange={(e) => {
-                  setFormData({
-                    ...formData,
-                    departamento: e.target.value,
-                    municipio: "",
-                  });
-                  setErrors({ ...errors, departamento: undefined });
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                  errors.departamento ? "border-red-500" : "border-gray-300"
-                }`}
-                required
-                disabled={formData.pais !== "SV"}
-              >
-                <option value="">Seleccione un Departamento</option>
-                {departamentos.map((dep) => (
-                  <option key={dep.codigo} value={dep.codigo}>
-                    {dep.nombre}
-                  </option>
-                ))}
-              </select>
-              {errors.departamento && <p className="text-red-500 text-xs mt-1">{errors.departamento}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Municipio
-              </label>
-              <select
-                value={formData.municipio}
-                onChange={(e) => {
-                  setFormData({ ...formData, municipio: e.target.value });
-                  setErrors({ ...errors, municipio: undefined });
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                  errors.municipio ? "border-red-500" : "border-gray-300"
-                }`}
-                required
-                disabled={!formData.departamento || formData.pais !== "SV"}
-              >
-                <option value="">Seleccione un Municipio</option>
-                {municipios
-                  .filter(
-                    (mun) => mun.departamento === formData.departamento
-                  )
-                  .map((mun) => (
-                    <option key={mun.codigo} value={mun.codigo}>
-                      {mun.nombre}
-                    </option>
-                  ))}
-              </select>
-              {errors.municipio && <p className="text-red-500 text-xs mt-1">{errors.municipio}</p>}
-            </div>
-          </div>
-
-          {/* Dirección / Complemento */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Dirección / Complemento
-            </label>
-            <input
-              type="text"
-              value={formData.complemento}
-              onChange={(e) => {
-                const value = e.target.value.replace(
-                  /[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s\-\.,#]/g,
-                  ""
-                );
-                setFormData({ ...formData, complemento: value });
-                setErrors({ ...errors, complemento: undefined });
-              }}
-              className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
-                errors.complemento ? "border-red-500" : "border-gray-300"
-              }`}
-              maxLength={LIMITES.COMPLEMENTO}
-              required
-            />
-            {errors.complemento && <p className="text-red-500 text-xs mt-1">{errors.complemento}</p>}
-          </div>
-
-          {/* Actividad solo para Persona Jurídica */}
-          {!formData.personanatural && (
-            <div className="space-y-4">
+              {/* Nombre */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Código de Actividad / Nombre (Principal)
+                  Nombre {formData.personanatural ? "(Persona Natural)" : "(Razón Social)"} *
                 </label>
-                <Select
-                  options={codactividad.map((act) => ({
-                    value: act.codigo,
-                    label: act.codigo + " - " + act.nombre,
-                    nombre: act.nombre,
-                  }))}
-                  value={
-                    formData.codactividad
-                      ? {
-                          value: formData.codactividad,
-                          label:
-                            formData.codactividad +
-                            " - " +
-                            formData.descactividad,
-                        }
-                      : null
-                  }
-                  onChange={(selected) => {
-                    setFormData({
-                      ...formData,
-                      codactividad: selected ? selected.value : "",
-                      descactividad: selected ? selected.nombre : "",
-                    });
-                    setErrors({ ...errors, codactividad: undefined });
+                <input
+                  type="text"
+                  value={formData.nombre}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData({ ...formData, nombre: value });
+                    setErrors({ ...errors, nombre: undefined });
                   }}
-                  className={`w-full text-gray-700 ${
-                    errors.codactividad ? "border border-red-500 rounded-md" : ""
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                    errors.nombre ? "border-red-500" : "border-gray-300"
                   }`}
-                  placeholder="Seleccione una actividad económica"
-                  isClearable
+                  maxLength={LIMITES.NOMBRE}
                   required
                 />
-                {errors.codactividad && <p className="text-red-500 text-xs mt-1">{errors.codactividad}</p>}
+                {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Código de Actividad / Nombre (Secundaria)
-                </label>
-                <Select
-                  options={codactividad.map((act) => ({
-                    value: act.codigo,
-                    label: act.codigo + " - " + act.nombre,
-                    nombre: act.nombre,
-                  }))}
-                  value={
-                    formData.codactividad2
-                      ? {
-                          value: formData.codactividad2,
-                          label:
-                            formData.codactividad2 +
-                            " - " +
-                            formData.descactividad2,
-                        }
-                      : null
-                  }
-                  onChange={(selected) => {
-                    setFormData({
-                      ...formData,
-                      codactividad2: selected ? selected.value : "",
-                      descactividad2: selected ? selected.nombre : "",
-                    });
-                  }}
-                  className="w-full text-gray-700"
-                  placeholder="Seleccione una actividad económica"
-                  isClearable
-                />
+              {/* Nombre Comercial - Solo para persona jurídica */}
+              {!formData.personanatural && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre Comercial *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nombrecomercial}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFormData({ ...formData, nombrecomercial: value });
+                      setErrors({ ...errors, nombrecomercial: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.nombrecomercial ? "border-red-500" : "border-gray-300"
+                    }`}
+                    maxLength={LIMITES.NOMBRECOMERCIAL}
+                    required
+                  />
+                  {errors.nombrecomercial && <p className="text-red-500 text-xs mt-1">{errors.nombrecomercial}</p>}
+                </div>
+              )}
+
+              {/* NRC - Solo para persona jurídica (opcional) */}
+              {!formData.personanatural && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    NRC (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nrc || ""}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^0-9]/g, "");
+                      setFormData({ ...formData, nrc: value });
+                      setErrors({ ...errors, nrc: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.nrc ? "border-red-500" : "border-gray-300"
+                    }`}
+                    maxLength={LIMITES.NRC}
+                    placeholder="Número de Registro de Contribuyente"
+                  />
+                  {errors.nrc && <p className="text-red-500 text-xs mt-1">{errors.nrc}</p>}
+                </div>
+              )}
+
+              {/* Teléfono y Correo Principal */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Teléfono *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.telefono}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "");
+                      setFormData({ ...formData, telefono: value });
+                      setErrors({ ...errors, telefono: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.telefono ? "border-red-500" : "border-gray-300"
+                    }`}
+                    maxLength={8}
+                    placeholder="71234567"
+                    required
+                  />
+                  {errors.telefono && <p className="text-red-500 text-xs mt-1">{errors.telefono}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Correo Principal *
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.correo || ""}
+                    onChange={(e) => {
+                      setFormData({ ...formData, correo: e.target.value });
+                      setErrors({ ...errors, correo: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.correo ? "border-red-500" : "border-gray-300"
+                    }`}
+                    maxLength={LIMITES.CORREO}
+                    placeholder="correo@ejemplo.com"
+                    required
+                  />
+                  {errors.correo && <p className="text-red-500 text-xs mt-1">{errors.correo}</p>}
+                </div>
               </div>
 
+              {/* Correos secundarios */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Correo Secundario (Opcional)
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.correo2 || ""}
+                    onChange={(e) => {
+                      setFormData({ ...formData, correo2: e.target.value });
+                      setErrors({ ...errors, correo2: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.correo2 ? "border-red-500" : "border-gray-300"
+                    }`}
+                    maxLength={LIMITES.CORREO}
+                  />
+                  {errors.correo2 && <p className="text-red-500 text-xs mt-1">{errors.correo2}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tercer Correo (Opcional)
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.correo3 || ""}
+                    onChange={(e) => {
+                      setFormData({ ...formData, correo3: e.target.value });
+                      setErrors({ ...errors, correo3: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.correo3 ? "border-red-500" : "border-gray-300"
+                    }`}
+                    maxLength={LIMITES.CORREO}
+                  />
+                  {errors.correo3 && <p className="text-red-500 text-xs mt-1">{errors.correo3}</p>}
+                </div>
+              </div>
+
+              <div className="text-xs text-gray-500">
+                * Al menos un correo electrónico es requerido
+              </div>
+
+              {/* País */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Código de Actividad / Nombre (Terciaria)
+                  País *
                 </label>
-                <Select
-                  options={codactividad.map((act) => ({
-                    value: act.codigo,
-                    label: act.codigo + " - " + act.nombre,
-                    nombre: act.nombre,
-                  }))}
-                  value={
-                    formData.codactividad3
-                      ? {
-                          value: formData.codactividad3,
-                          label:
-                            formData.codactividad3 +
-                            " - " +
-                            formData.descactividad3,
-                        }
-                      : null
-                  }
-                  onChange={(selected) => {
-                    setFormData({
+                <select
+                  value={formData.pais}
+                  onChange={(e) => {
+                    const selectedPais = paises.find(p => p.codigo === e.target.value);
+                    const newState = {
                       ...formData,
-                      codactividad3: selected ? selected.value : "",
-                      descactividad3: selected ? selected.nombre : "",
-                    });
+                      pais: selectedPais ? selectedPais.codigo : "",
+                      nombre_pais: selectedPais ? selectedPais.nombre : "",
+                    };
+                    if (selectedPais?.codigo !== "SV") {
+                      newState.departamento = "";
+                      newState.municipio = "";
+                    }
+                    setFormData(newState);
+                    setErrors({ ...errors, pais: undefined });
                   }}
-                  className="w-full text-gray-700"
-                  placeholder="Seleccione una actividad económica"
-                  isClearable
-                />
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                    errors.pais ? "border-red-500" : "border-gray-300"
+                  }`}
+                  required
+                >
+                  <option value="">Seleccione un País</option>
+                  {paises.map((pais) => (
+                    <option key={pais.codigo} value={pais.codigo}>
+                      {pais.nombre}
+                    </option>
+                  ))}
+                </select>
+                {errors.pais && <p className="text-red-500 text-xs mt-1">{errors.pais}</p>}
               </div>
-            </div>
+
+              {/* Departamento y Municipio */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Departamento *
+                  </label>
+                  <select
+                    value={formData.departamento}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        departamento: e.target.value,
+                        municipio: "",
+                      });
+                      setErrors({ ...errors, departamento: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.departamento ? "border-red-500" : "border-gray-300"
+                    }`}
+                    required
+                    disabled={formData.pais !== "SV"}
+                  >
+                    <option value="">Seleccione un Departamento</option>
+                    {departamentos.map((dep) => (
+                      <option key={dep.codigo} value={dep.codigo}>
+                        {dep.nombre}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.departamento && <p className="text-red-500 text-xs mt-1">{errors.departamento}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Municipio *
+                  </label>
+                  <select
+                    value={formData.municipio}
+                    onChange={(e) => {
+                      setFormData({ ...formData, municipio: e.target.value });
+                      setErrors({ ...errors, municipio: undefined });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                      errors.municipio ? "border-red-500" : "border-gray-300"
+                    }`}
+                    required
+                    disabled={!formData.departamento || formData.pais !== "SV"}
+                  >
+                    <option value="">Seleccione un Municipio</option>
+                    {municipios
+                      .filter(
+                        (mun) => mun.departamento === formData.departamento
+                      )
+                      .map((mun) => (
+                        <option key={mun.codigo} value={mun.codigo}>
+                          {mun.nombre}
+                        </option>
+                      ))}
+                  </select>
+                  {errors.municipio && <p className="text-red-500 text-xs mt-1">{errors.municipio}</p>}
+                </div>
+              </div>
+
+              {/* Dirección / Complemento */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Dirección / Complemento *
+                </label>
+                <input
+                  type="text"
+                  value={formData.complemento}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData({ ...formData, complemento: value });
+                    setErrors({ ...errors, complemento: undefined });
+                  }}
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
+                    errors.complemento ? "border-red-500" : "border-gray-300"
+                  }`}
+                  maxLength={LIMITES.COMPLEMENTO}
+                  placeholder="Colonia, calle, número de casa, etc."
+                  required
+                />
+                {errors.complemento && <p className="text-red-500 text-xs mt-1">{errors.complemento}</p>}
+              </div>
+
+              {/* Código de Actividad - Solo para persona jurídica */}
+              {!formData.personanatural && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Código de Actividad Principal *
+                  </label>
+                  <Select
+                    options={codactividad.map((act) => ({
+                      value: act.codigo,
+                      label: `${act.codigo} - ${act.nombre}`,
+                      nombre: act.nombre,
+                    }))}
+                    value={
+                      formData.codactividad
+                        ? {
+                            value: formData.codactividad,
+                            label: `${formData.codactividad} - ${formData.descactividad}`,
+                          }
+                        : null
+                    }
+                    onChange={(selected) => {
+                      setFormData({
+                        ...formData,
+                        codactividad: selected ? selected.value : "",
+                        descactividad: selected ? selected.nombre : "",
+                      });
+                      setErrors({ ...errors, codactividad: undefined });
+                    }}
+                    className="w-full text-gray-700"
+                    placeholder="Seleccione una actividad económica"
+                    required
+                  />
+                  {errors.codactividad && <p className="text-red-500 text-xs mt-1">{errors.codactividad}</p>}
+                </div>
+              )}
+            </>
           )}
 
           {/* Botones */}
@@ -824,7 +796,6 @@ export default function AddClientModal({
           </div>
         </form>
 
-        {/* Modal de confirmación de cancelación anidado */}
         {showCancelConfirm && (
           <CancelConfirmModal
             show={showCancelConfirm}

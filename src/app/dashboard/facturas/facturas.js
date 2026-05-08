@@ -53,6 +53,40 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
     fetchFacturas();
   }, []);
 
+
+  useEffect(() => {
+  // Interceptor para logs globales de fetch
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
+    const [url, options] = args;
+    console.log("🌐 [FETCH] Solicitando:", url);
+    
+    const response = await originalFetch(...args);
+    
+    // Clonar la respuesta para no consumir el body original
+    const clonedResponse = response.clone();
+    
+    try {
+      const text = await clonedResponse.text();
+      console.log(`📦 [RESPONSE] ${url}:`, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        bodyPreview: text.substring(0, 500),
+        bodyLength: text.length
+      });
+    } catch (e) {
+      console.error("Error leyendo respuesta:", e);
+    }
+    
+    return response;
+  };
+  
+  return () => {
+    window.fetch = originalFetch;
+  };
+}, []);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       // Solo cerrar si el clic no fue dentro del date picker
@@ -438,36 +472,115 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
       setPdfLoading(null);
     }
   };
-const descargarPDFMasivo = async (tipo = "CF") => {
-  try {
-    const response = await fetch(
-      `http://localhost:3000/pdf-masivo/${tipo}`,
-      {
-        method: "GET",
-        credentials: "include", // 🔥 ESTO ES LA CLAVE
-      }
-    );
 
+  const descargarPDFMasivo = async (tipo = "CF") => {
+  console.log("🔵 [PDF Masivo] Iniciando descarga para tipo:", tipo);
+  
+  try {
+    setPdfLoading("masivo");
+    
+    const url = `${API_BASE_URL}/pdf-masivo/${tipo}`;
+    console.log("🔵 [PDF Masivo] URL completa:", url);
+    
+    const response = await fetch(url, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        "Accept": "application/zip, application/json, text/plain, */*"
+      }
+    });
+
+    console.log("🔵 [PDF Masivo] Status HTTP:", response.status, response.statusText);
+    console.log("🔵 [PDF Masivo] Headers recibidos:", {
+      contentType: response.headers.get("content-type"),
+      contentLength: response.headers.get("content-length"),
+      contentDisposition: response.headers.get("content-disposition")
+    });
+
+    // IMPORTANTE: Leer el cuerpo de la respuesta ANTES de decidir qué hacer
+    const responseText = await response.text();
+    console.log("🔵 [PDF Masivo] Cuerpo de respuesta (primeros 500 chars):", responseText.substring(0, 500));
+    
     if (!response.ok) {
-      const error = await response.json();
-      console.error(error);
-      alert(error.mensaje || "Error al descargar");
-      return;
+      console.error("🔴 [PDF Masivo] ERROR DEL BACKEND:");
+      console.error("🔴 Status:", response.status);
+      console.error("🔴 Status Text:", response.statusText);
+      console.error("🔴 Cuerpo completo del error:", responseText);
+      
+      let errorMsg = "Error al descargar";
+      try {
+        // Intentar parsear como JSON (si el backend devuelve JSON con detalles)
+        const errorJson = JSON.parse(responseText);
+        console.error("🔴 Error JSON completo:", errorJson);
+        errorMsg = errorJson.mensaje || errorJson.error || errorJson.detalle || errorJson.message || responseText;
+      } catch (e) {
+        // No es JSON, mostrar texto plano
+        console.error("🔴 No se pudo parsear como JSON, usando texto plano");
+        errorMsg = responseText || `Error ${response.status}: ${response.statusText}`;
+      }
+      
+      throw new Error(errorMsg);
     }
 
-    const blob = await response.blob();
+    // Si llegamos aquí, la respuesta fue exitosa (status 2xx)
+    // Pero verificar que realmente sea un ZIP
+    const contentType = response.headers.get("content-type");
+    
+    if (!contentType || !contentType.includes("application/zip")) {
+      console.error("🔴 [PDF Masivo] ERROR: El backend no devolvió un ZIP");
+      console.error("🔴 Content-Type recibido:", contentType);
+      console.error("🔴 Respuesta recibida (primeros 500 chars):", responseText.substring(0, 500));
+      throw new Error(`El backend devolvió ${contentType || 'tipo desconocido'} en lugar de un ZIP. Respuesta: ${responseText.substring(0, 200)}`);
+    }
 
-    const url = window.URL.createObjectURL(blob);
+    // Convertir el texto a blob (ya que usamos response.text() arriba, necesitamos recrear el blob)
+    const blob = new Blob([responseText], { type: contentType });
+    console.log("✅ [PDF Masivo] Blob creado - Tamaño:", blob.size, "bytes");
+    
+    if (blob.size === 0) {
+      console.error("🔴 [PDF Masivo] El archivo ZIP está vacío");
+      throw new Error("El archivo ZIP está vacío");
+    }
+
+    // Verificar magic numbers del ZIP
+    const arrayBuffer = await blob.slice(0, 4).arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const isZip = uint8Array[0] === 0x50 && uint8Array[1] === 0x4B;
+    console.log("🔵 [PDF Masivo] ¿Es un ZIP válido?:", isZip);
+    console.log("🔵 [PDF Masivo] Magic numbers:", Array.from(uint8Array).map(b => b.toString(16)).join(' '));
+
+    const urlObj = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `${tipo}.zip`;
+    a.href = urlObj;
+    
+    const contentDisposition = response.headers.get("Content-Disposition");
+    let filename = `${tipo}_facturas_${new Date().toISOString().split('T')[0]}.zip`;
+    
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match && match[1]) {
+        filename = match[1].replace(/['"]/g, '');
+      }
+    }
+    
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
-    a.remove();
+    document.body.removeChild(a);
+    
+    setTimeout(() => URL.revokeObjectURL(urlObj), 100);
+    
+    console.log("✅ [PDF Masivo] Descarga exitosa - Archivo:", filename);
+    alert("Descarga completada exitosamente");
 
   } catch (error) {
-    console.error(error);
-    alert("Error en descarga");
+    console.error("🔴 [PDF Masivo] ERROR CATASTRÓFICO:", error);
+    console.error("🔴 Stack trace:", error.stack);
+    
+    // Mostrar alerta con el error real del backend
+    alert(`Error en descarga masiva:\n${error.message}`);
+  } finally {
+    setPdfLoading(null);
   }
 };
 
@@ -582,12 +695,6 @@ const descargarPDFMasivo = async (tipo = "CF") => {
                         }
                       </span>
                     </button>
-<button
-  onClick={() => descargarPDFMasivo("CF")}
-  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
->
-  📄 PDF Masivo CF
-</button>
 
                     {showDatePicker && (
                       <div 
@@ -727,6 +834,24 @@ const descargarPDFMasivo = async (tipo = "CF") => {
                       Limpiar
                     </button>
                   )}
+
+                  {/* Botón PDF Masivo */}
+                  <button
+                    onClick={() => descargarPDFMasivo("CF")}
+                    disabled={pdfLoading === "masivo"}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {pdfLoading === "masivo" ? (
+                      <>
+                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                        Generando ZIP...
+                      </>
+                    ) : (
+                      <>
+                        📄 PDF Masivo CF
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
 

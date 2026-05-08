@@ -45,8 +45,6 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  
-
   const opcionesActividades = codactividad.map((act) => ({
     value: act.codigo,
     label: `${act.codigo} - ${act.nombre}`,
@@ -62,6 +60,11 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
         `El nombre no puede exceder los ${LIMITES.NOMBRE} caracteres.`
       );
       return false;
+    }
+
+    // Si es Consumidor Final (tipo 37), solo validamos el nombre
+    if (formData.tipodocumento === "37") {
+      return true;
     }
 
     if (!formData.nombrecomercial.trim()) {
@@ -214,8 +217,8 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
     complemento: "",
     codactividad: "",
     descactividad: "",
-    personanatural: false,
-    tipodocumento: "36", 
+    personanatural: true,
+    tipodocumento: "13",
   });
 
   const resetFormData = () => {
@@ -234,8 +237,8 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
       complemento: "",
       codactividad: "",
       descactividad: "",
-      personanatural: false,
-      tipodocumento: "36", 
+      personanatural: true,
+      tipodocumento: "13",
     });
   };
 
@@ -336,19 +339,51 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
     }
   };
 
-const handleSaveNewCliente = async (e) => {
+  const handleSaveNewCliente = async (e) => {
     e.preventDefault();
     try {
-      const datosEnviar = {
-        ...formData,
-        dui: formData.dui || null,
-        pasaporte: formData.pasaporte || null,
-        nit: formData.nit || null,
-        nrc: formData.nrc || null,
-        nombrecomercial: formData.nombrecomercial || "",
-        codactividad: formData.codactividad || "",
-        descactividad: formData.descactividad || "",
-      };
+      let datosEnviar;
+      
+      // Si es Consumidor Final (tipo 37)
+      if (formData.tipodocumento === "37") {
+        datosEnviar = {
+          nombre: formData.nombre.trim(),
+          personanatural: true,
+          tipodocumento: "37",
+          dui: "00000000",
+          pasaporte: null,
+          nit: null,
+          nrc: null,
+          carnetresidente: null,
+          nombrecomercial: "CONSUMIDOR FINAL",
+          pais: "SV",
+          nombre_pais: "El Salvador",
+          codactividad: "00000",
+          descactividad: "No aplica",
+          codactividad2: null,
+          descactividad2: null,
+          codactividad3: null,
+          descactividad3: null,
+          departamento: null,
+          municipio: null,
+          complemento: "CONSUMIDOR FINAL",
+          telefono: null,
+          correo: null,
+          correo2: null,
+          correo3: null,
+        };
+      } else {
+        datosEnviar = {
+          ...formData,
+          dui: formData.dui || null,
+          pasaporte: formData.pasaporte || null,
+          nit: formData.nit || null,
+          nrc: formData.nrc || null,
+          nombrecomercial: formData.nombrecomercial || "",
+          codactividad: formData.codactividad || "00000",
+          descactividad: formData.descactividad || "No aplica",
+        };
+      }
 
       console.log("Datos enviados al backend:", datosEnviar);
 
@@ -362,10 +397,14 @@ const handleSaveNewCliente = async (e) => {
         body: JSON.stringify(datosEnviar),
       });
 
+      const responseData = await response.json();
+      console.log("Respuesta del backend:", responseData);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error del backend:", errorData);
-        setErrorMessage(errorData.message || "Error al agregar el cliente");
+        setErrorMessage(responseData.message || "Error al agregar el cliente");
+        if (responseData.missing) {
+          setErrorMessage(`Faltan campos: ${responseData.missing.join(", ")}`);
+        }
         setShowErrorModal(true);
         return;
       }
@@ -382,21 +421,53 @@ const handleSaveNewCliente = async (e) => {
     }
   };
 
-const handleUpdateCliente = async (e) => {
+  const handleUpdateCliente = async (e) => {
     e.preventDefault();
 
     try {
-      const datosEnviar = {
-        ...formData,
-        dui: formData.dui || null,
-        pasaporte: formData.pasaporte || null,
-        nit: formData.nit || null,
-        nrc: formData.nrc || null,
-        carnetresidente: formData.carnetresidente || null,
-        codactividad: formData.codactividad || null,
-        descactividad: formData.descactividad || null,
-        nombrecomercial: formData.nombrecomercial || "",
-      };
+      let datosEnviar;
+      
+      // Si es Consumidor Final (tipo 37)
+      if (formData.tipodocumento === "37") {
+        datosEnviar = {
+          nombre: formData.nombre.trim(),
+          personanatural: true,
+          tipodocumento: "37",
+          dui: "00000000",
+          pasaporte: null,
+          nit: null,
+          nrc: null,
+          carnetresidente: null,
+          nombrecomercial: "CONSUMIDOR FINAL",
+          pais: "SV",
+          nombre_pais: "El Salvador",
+          codactividad: "00000",
+          descactividad: "No aplica",
+          codactividad2: null,
+          descactividad2: null,
+          codactividad3: null,
+          descactividad3: null,
+          departamento: null,
+          municipio: null,
+          complemento: "CONSUMIDOR FINAL",
+          telefono: null,
+          correo: null,
+          correo2: null,
+          correo3: null,
+        };
+      } else {
+        datosEnviar = {
+          ...formData,
+          dui: formData.dui || null,
+          pasaporte: formData.pasaporte || null,
+          nit: formData.nit || null,
+          nrc: formData.nrc || null,
+          carnetresidente: formData.carnetresidente || null,
+          codactividad: formData.codactividad || "00000",
+          descactividad: formData.descactividad || "No aplica",
+          nombrecomercial: formData.nombrecomercial || "",
+        };
+      }
       
       console.log("Datos enviados al backend:", datosEnviar);
 
@@ -413,11 +484,14 @@ const handleUpdateCliente = async (e) => {
         }
       );
 
+      const responseData = await response.json();
+      console.log("Respuesta del backend:", responseData);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error del backend:", errorData);
-        setErrorMessage(errorData.message || "Error al actualizar el cliente");
-        
+        setErrorMessage(responseData.message || "Error al actualizar el cliente");
+        if (responseData.missing) {
+          setErrorMessage(`Faltan campos: ${responseData.missing.join(", ")}`);
+        }
         setShowErrorModal(true);
         return;
       }
@@ -435,52 +509,50 @@ const handleUpdateCliente = async (e) => {
     }
   };
 
-  
+  const handleToggleEstado = async (clienteId, nuevoEstado) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/clientes/${clienteId}/estado`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: document.cookie,
+          },
+          credentials: "include",
+          body: JSON.stringify({ activo: nuevoEstado }),
+        }
+      );
 
-const handleToggleEstado = async (clienteId, nuevoEstado) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/clientes/${clienteId}/estado`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Cookie: document.cookie,
-        },
-        credentials: "include",
-        body: JSON.stringify({ activo: nuevoEstado }),
+      if (!response.ok) {
+        const errorData = await response.json();
+        setErrorMessage(errorData.message || "Error al cambiar el estado del cliente.");
+        setShowErrorModal(true);
+        return;
       }
-    );
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      setErrorMessage(errorData.message || "Error al cambiar el estado del cliente.");
+      setClientes(prevClientes => 
+        prevClientes.map(cliente => 
+          cliente.idcliente === clienteId 
+            ? { ...cliente, activo: nuevoEstado } 
+            : cliente
+        )
+      );
+      
+      setFilteredClientes(prevFiltered => 
+        prevFiltered.map(cliente => 
+          cliente.idcliente === clienteId 
+            ? { ...cliente, activo: nuevoEstado } 
+            : cliente
+        )
+      );
+      
+    } catch (error) {
+      console.error("Error al cambiar el estado del cliente:", error);
+      setErrorMessage("Error al cambiar el estado del cliente.");
       setShowErrorModal(true);
-      return;
     }
-
-    setClientes(prevClientes => 
-      prevClientes.map(cliente => 
-        cliente.idcliente === clienteId 
-          ? { ...cliente, activo: nuevoEstado } 
-          : cliente
-      )
-    );
-    
-    setFilteredClientes(prevFiltered => 
-      prevFiltered.map(cliente => 
-        cliente.idcliente === clienteId 
-          ? { ...cliente, activo: nuevoEstado } 
-          : cliente
-      )
-    );
-    
-  } catch (error) {
-    console.error("Error al cambiar el estado del cliente:", error);
-    setErrorMessage("Error al cambiar el estado del cliente.");
-    setShowErrorModal(true);
-  }
-};
+  };
 
   const handleDeleteCliente = async (clienteId) => {
     try {
@@ -535,7 +607,6 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
     setShowEditModal(true);
   };
 
-
   const handleDeleteClick = (clienteId) => {
     setClienteToDelete(clienteId);
     setShowDeleteConfirmModal(true);
@@ -575,7 +646,7 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
     currentPage * clientesPorPagina
   );
 
-  return (
+    return (
       <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50 overflow-y-auto">
         {isMobile && sidebarOpen && (
           <div
@@ -657,7 +728,6 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Teléfono
                         </th>
-                        {/* Nueva columna para el estado */}
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Estado
                         </th>
@@ -673,9 +743,10 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
                           const tipoDoc = tiposDocumento.find(
                             (doc) => doc.codigo === cliente.tipodocumento
                           );
-                          const nombreTipoDoc = tipoDoc ? tipoDoc.nombre : "Desconocido";
+                          const nombreTipoDoc = tipoDoc ? tipoDoc.nombre : "Consumidor Final";
 
                           const numeroDocumento =
+                            !cliente.tipodocumento || cliente.tipodocumento === "37" ? "N/A" :
                             cliente.tipodocumento === "36" ? cliente.nit || "N/A" :
                             cliente.tipodocumento === "13" ? cliente.dui || "N/A" :
                             cliente.tipodocumento === "03" ? cliente.pasaporte || "N/A" :
@@ -703,15 +774,13 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
                               </td>
                               <td className="px-4 py-4 text-sm text-gray-900 text-center">
                                 {nombreTipoDoc}
-                                <br />
                               </td>
                               <td className="px-4 py-4 text-sm text-gray-900 text-center font-mono">
                                 {numeroDocumento}
                               </td>
                               <td className="px-4 py-4 text-sm text-gray-900 text-center">
-                                {cliente.telefono}
+                                {!cliente.tipodocumento || cliente.tipodocumento === "37" ? "N/A" : cliente.telefono}
                               </td>
-                              {/* Nueva celda para el estado */}
                               <td className="px-4 py-4 text-sm text-gray-900 text-center">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                   cliente.activo 
@@ -790,8 +859,9 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
                         const tipoDoc = tiposDocumento.find(
                           (doc) => doc.codigo === cliente.tipodocumento
                         );
-                        const nombreTipoDoc = tipoDoc ? tipoDoc.nombre : "Desconocido";
+                        const nombreTipoDoc = tipoDoc ? tipoDoc.nombre : "Consumidor Final";
                         const numeroDocumento =
+                          !cliente.tipodocumento || cliente.tipodocumento === "37" ? "N/A" :
                           cliente.tipodocumento === "36" ? cliente.nit || "N/A" :
                           cliente.tipodocumento === "13" ? cliente.dui || "N/A" :
                           cliente.tipodocumento === "03" ? cliente.pasaporte || "N/A" :
@@ -808,7 +878,7 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
                                 <h3 className="text-lg font-medium text-gray-900">
                                   {cliente.nombre}
                                 </h3>
-                                {cliente.nombrecomercial && (
+                                {cliente.nombrecomercial && cliente.nombrecomercial !== "CONSUMIDOR FINAL" && (
                                   <p className="text-sm text-gray-600 mt-1">
                                     {cliente.nombrecomercial}
                                   </p>
@@ -847,7 +917,6 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 text-sm">
-                              {/* Estado en vista móvil */}
                               <div className="col-span-2">
                                 <span className="font-medium text-gray-500">Estado:</span>
                                 <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -872,13 +941,13 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
                               
                               <div>
                                 <span className="font-medium text-gray-500">Teléfono:</span>
-                                <span className="ml-2 text-gray-900">{cliente.telefono}</span>
+                                <span className="ml-2 text-gray-900">{!cliente.tipodocumento || cliente.tipodocumento === "37" ? "N/A" : cliente.telefono}</span>
                               </div>
 
                               <div className="col-span-2">
                                 <span className="font-medium text-gray-500">Tipo Documento:</span>
                                 <span className="ml-2 text-gray-900">
-                                  {nombreTipoDoc} ({cliente.tipodocumento})
+                                  {nombreTipoDoc}
                                 </span>
                               </div>
 
@@ -892,14 +961,14 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
                               <div className="col-span-2">
                                 <span className="font-medium text-gray-500">Correo:</span>
                                 <span className="ml-2 text-gray-900 break-all">
-                                  {cliente.correo}
+                                  {!cliente.tipodocumento || cliente.tipodocumento === "37" ? "N/A" : cliente.correo}
                                 </span>
                               </div>
 
                               <div className="col-span-2">
                                 <span className="font-medium text-gray-500">Ubicación:</span>
                                 <span className="ml-2 text-gray-900">
-                                  {cliente.departamento}, {cliente.municipio}
+                                  {!cliente.tipodocumento || cliente.tipodocumento === "37" ? "N/A" : `${cliente.departamento || ""}, ${cliente.municipio || ""}`}
                                 </span>
                               </div>
                             </div>
@@ -928,6 +997,7 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
           tiposDocumento={tiposDocumento}
           LIMITES={LIMITES}
         />
+        
         {/* Modal de Editar Cliente */}
         <EditClientModal
           show={showEditModal}
@@ -942,6 +1012,7 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
           tiposDocumento={tiposDocumento}
           LIMITES={LIMITES}
         />
+        
         {/* Modal de Confirmación de Eliminación */}
         <DeleteConfirmModal
           show={showDeleteConfirmModal}
@@ -955,19 +1026,20 @@ const handleToggleEstado = async (clienteId, nuevoEstado) => {
         {/* Modal de Confirmación de Cancelación */}
         <CancelConfirmModal
           show={showCancelConfirmModal}
-            onClose={() => setShowCancelConfirmModal(false)}
-            onConfirm={() => {
-              setShowCancelConfirmModal(false);
-              setShowAddModal(false);
-              setShowEditModal(false);
-              resetFormData();
-            }}
-          />
-          <ErrorModal
-            show={showErrorModal}
-            onClose={() => setShowErrorModal(false)}
-            message={errorMessage}
-          />
+          onClose={() => setShowCancelConfirmModal(false)}
+          onConfirm={() => {
+            setShowCancelConfirmModal(false);
+            setShowAddModal(false);
+            setShowEditModal(false);
+            resetFormData();
+          }}
+        />
+        
+        <ErrorModal
+          show={showErrorModal}
+          onClose={() => setShowErrorModal(false)}
+          message={errorMessage}
+        />
       </div>
     );
 }
