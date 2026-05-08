@@ -6,7 +6,8 @@ import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
-
+import BarcodeScanner from "../components/BarcodeScanner.jsx";
+import Scanner from "../components/Scanner.jsx";
 export default function Productos({ initialProductos = [], user, hasHaciendaToken = false, haciendaStatus = {} }) {
     const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -154,6 +155,8 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     };
 // Estado para controlar la apertura del escáner
     const [openScanner, setOpenScanner] = useState(false);
+    const [productoEscaneado, setProductoEscaneado] = useState(null);
+    const [stockEscaneo, setStockEscaneo] = useState("");
 
     const validateForm = () => {
         if (!validateNombre(formData.nombre)) {
@@ -562,6 +565,27 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         setProductToDelete(productoId);
         setShowDeleteConfirmModal(true);
     };
+const manejarCodigoEscaneado = (codigo) => {
+    const productoExistente = productos.find(p => p.codigo === codigo);
+
+    if (productoExistente) {
+        setProductoEscaneado({
+            ...productoExistente,
+            existe: true
+        });
+    } else {
+        setProductoEscaneado({
+            codigo: codigo,
+            nombre: "",
+            precio: 0,
+            stock: 0,
+            idproveedor: "",
+            existe: false
+        });
+    }
+
+    setStockEscaneo("");
+};
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
@@ -640,9 +664,10 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                 </button>
 <button
   onClick={() => setOpenScanner(true)}
-  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold"
+  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
 >
-  📷 Escanear
+  <Scanner size={20} />
+  Escanear
 </button>
                                 <button
                                     onClick={handleManageSuppliers}
@@ -1099,7 +1124,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                     {codigoError && <p className="text-red-500 text-sm mt-1">{codigoError}</p>}
                                     <p className="text-xs text-gray-500 mt-1">{formData.codigo.length}/{LIMITES.CODIGO} caracteres</p>
                                 </div>
-
                                 <div className="mb-4">
                                     <div className="flex items-center">
                                         <input
@@ -1118,7 +1142,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         Marque esta casilla si es un servicio en lugar de un producto físico.
                                     </p>
                                 </div>
-
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="unidad">
                                         Unidad
@@ -1139,7 +1162,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         ))}
                                     </select>
                                 </div>
-
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="proveedor">
                                         Proveedor
@@ -1159,7 +1181,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         )) : null}
                                     </select>
                                 </div>
-
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="precio">
                                         Precio
@@ -1174,7 +1195,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         required
                                     />
                                 </div>
-
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="stock">
                                         Stock
@@ -1189,7 +1209,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         required
                                     />
                                 </div>
-
                                 <div className="flex justify-end gap-3 mt-6">
                                     <button
                                         type="button"
@@ -1231,7 +1250,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                 <FaClose className="h-5 w-5" />
                             </button>
                         </div>
-
                         <div className="px-6 py-4">
                             <div className="mb-4">
                                 <p className="text-sm text-gray-700 mb-2">
@@ -1244,7 +1262,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                     Stock actual: <span className="font-medium">{selectedProduct.stock}</span>
                                 </p>
                             </div>
-
                             <form onSubmit={handleIncrementStock}>
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="cantidad">
@@ -1262,13 +1279,11 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         step="1"
                                     />
                                 </div>
-
                                 <div className="mb-4">
                                     <p className="text-sm text-gray-700">
                                         Nuevo stock: <span className="font-medium">{selectedProduct.stock + (parseInt(stockIncrement) || 0)}</span>
                                     </p>
                                 </div>
-
                                 <div className="flex justify-end gap-3 mt-6">
                                     <button
                                         type="button"
@@ -1304,7 +1319,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                 <FaClose className="h-5 w-5" />
                             </button>
                         </div>
-
                         <div className="px-6 py-4">
                             <p className="text-gray-700 mb-4">
                                 ¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.
@@ -1345,7 +1359,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                 <FaClose className="h-5 w-5" />
                             </button>
                         </div>
-
                         <div className="px-6 py-4">
                             <p className="text-gray-700 mb-4">
                                 Tienes cambios sin guardar. ¿Estás seguro de que deseas cancelar?
@@ -1398,7 +1411,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                 <FaClose className="h-5 w-5" />
                             </button>
                         </div>
-
                         <div className="px-6 py-4">
                             <p className="text-gray-700 mb-4">{errorMessage}</p>
                             <div className="flex justify-end">
@@ -1428,7 +1440,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                 <FaClose className="h-5 w-5" />
                             </button>
                         </div>
-
                         <div className="px-6 py-4">
                             {filteredProductos && Array.isArray(filteredProductos) && filteredProductos.length > 0 ? (
                                 <div className="space-y-4">
@@ -1437,7 +1448,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                             <div className="flex justify-between items-start">
                                                 <h3 className="text-lg font-medium text-gray-900">{producto.nombre}</h3>
                                             </div>
-
                                             <div className="mt-4 space-y-2">
                                                 <div className="flex justify-between">
                                                     <span className="text-sm font-medium text-gray-500">Código:</span>
@@ -1470,6 +1480,176 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                     </div>
                 </div>
             )}
+
+            {openScanner && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+<div className="bg-white rounded-xl p-6 w-[1000px] max-w-[95%]">
+  <h2 className="text-2xl font-bold mb-4">
+    Escanear Código de Barras
+  </h2>
+
+  <div className="flex gap-6">
+
+    {/* IZQUIERDA → SCANNER */}
+    <div className="w-1/2">
+      <BarcodeScanner
+        onDetected={(codigo) => {
+          manejarCodigoEscaneado(codigo);
+        }}
+      />
+    </div>
+
+    {/* DERECHA → INFO */}
+    <div className="w-1/2">
+
+      {!productoEscaneado && (
+        <p className="text-gray-500">
+          Escanea un producto...
+        </p>
+      )}
+
+      {productoEscaneado && (
+        <div className="border p-4 rounded-lg shadow">
+
+          <h3 className="font-bold text-lg mb-3">
+            {productoEscaneado.existe
+              ? "Producto encontrado"
+              : "Nuevo producto"}
+          </h3>
+
+          {/* Código */}
+          <p className="text-sm text-gray-500">Código:</p>
+          <p className="font-mono mb-2">
+            {productoEscaneado.codigo}
+          </p>
+
+          {/* Nombre */}
+          <input
+            type="text"
+            placeholder="Nombre del producto"
+            value={productoEscaneado.nombre}
+            onChange={(e) =>
+              setProductoEscaneado({
+                ...productoEscaneado,
+                nombre: e.target.value,
+              })
+            }
+            className="w-full border p-2 rounded mb-3"
+          />
+
+{/* PRECIO */}
+<input
+  type="number"
+  placeholder="Precio"
+  value={productoEscaneado.precio}
+  onChange={(e) =>
+    setProductoEscaneado({
+      ...productoEscaneado,
+      precio: e.target.value,
+    })
+  }
+  className="w-full border p-2 rounded mb-3"
+/>
+{/* PROVEEDOR */}
+<select
+  value={productoEscaneado.idproveedor || ""}
+  onChange={(e) =>
+    setProductoEscaneado({
+      ...productoEscaneado,
+      idproveedor: e.target.value,
+    })
+  }
+  className="w-full border p-2 rounded mb-3"
+>
+  <option value="">Seleccione proveedor</option>
+
+  {Array.isArray(proveedores) &&
+    proveedores.map((prov) => (
+      <option key={prov.id} value={prov.id}>
+        {prov.nombre}
+      </option>
+    ))}
+</select>
+          {/* Stock actual */}
+          {productoEscaneado.existe && (
+            <p className="text-sm mb-2">
+              Stock actual:{" "}
+              <strong>{productoEscaneado.stock}</strong>
+            </p>
+          )}
+
+          {/* Agregar stock */}
+          <input
+            type="number"
+            placeholder="Cantidad"
+            value={stockEscaneo}
+            onChange={(e) => setStockEscaneo(e.target.value)}
+            className="w-full border p-2 rounded mb-3"
+          />
+
+          {/* BOTÓN */}
+          <button
+            onClick={async () => {
+
+              if (productoEscaneado.existe) {
+                // 🔥 incrementar stock
+                await fetch(`${API_BASE_URL}/productos/incrementStock/${productoEscaneado.id}`, {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Cookie: document.cookie,
+                  },
+                  credentials: "include",
+                  body: JSON.stringify({
+                    cantidad: parseInt(stockEscaneo),
+                  }),
+                });
+
+              } else {
+                // 🔥 crear producto
+                await fetch(`${API_BASE_URL}/productos/addPro`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Cookie: document.cookie,
+                  },
+                  credentials: "include",
+body: JSON.stringify({
+  ...productoEscaneado,
+  precio: parseFloat(productoEscaneado.precio),
+  stock: parseInt(stockEscaneo),
+  unidad: "59",
+  idproveedor: productoEscaneado.idproveedor || null,
+}),
+                });
+              }
+
+              alert("Guardado ✅");
+
+              setProductoEscaneado(null);
+              setStockEscaneo("");
+              fetchProductos();
+            }}
+            className="w-full bg-blue-900 text-white py-2 rounded-lg"
+          >
+            {productoEscaneado.existe
+              ? "Agregar Stock"
+              : "Crear Producto"}
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <button
+    onClick={() => setOpenScanner(false)}
+    className="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg"
+  >
+    Cerrar
+  </button>
+</div>
+                </div>
+                )}
         </div>
     );
 }
