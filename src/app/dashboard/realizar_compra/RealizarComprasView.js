@@ -17,9 +17,54 @@ import {
     FaMoneyBillWave,
     FaCheckCircle,
     FaExclamationCircle,
-    FaInfoCircle
+    FaInfoCircle,
+    FaEdit
 } from "react-icons/fa";
 
+// ========== UNIDADES DE MEDIDA ==========
+const unidadesDisponibles = [
+    { codigo: "1", nombre: "metro" },
+    { codigo: "2", nombre: "Yarda" },
+    { codigo: "6", nombre: "milímetro" },
+    { codigo: "9", nombre: "kilómetro cuadrado" },
+    { codigo: "10", nombre: "Hectárea" },
+    { codigo: "13", nombre: "metro cuadrado" },
+    { codigo: "15", nombre: "Vara cuadrada" },
+    { codigo: "18", nombre: "metro cúbico" },
+    { codigo: "20", nombre: "Barril" },
+    { codigo: "22", nombre: "Galón" },
+    { codigo: "23", nombre: "Litro" },
+    { codigo: "24", nombre: "Botella" },
+    { codigo: "26", nombre: "Mililitro" },
+    { codigo: "30", nombre: "Tonelada" },
+    { codigo: "32", nombre: "Quintal" },
+    { codigo: "33", nombre: "Arroba" },
+    { codigo: "34", nombre: "Kilogramo" },
+    { codigo: "36", nombre: "Libra" },
+    { codigo: "37", nombre: "Onza troy" },
+    { codigo: "38", nombre: "Onza" },
+    { codigo: "39", nombre: "Gramo" },
+    { codigo: "40", nombre: "Miligramo" },
+    { codigo: "42", nombre: "Megawatt" },
+    { codigo: "43", nombre: "Kilowatt" },
+    { codigo: "44", nombre: "Watt" },
+    { codigo: "45", nombre: "Megavoltio-amperio" },
+    { codigo: "46", nombre: "Kilovoltio-amperio" },
+    { codigo: "47", nombre: "Voltio-amperio" },
+    { codigo: "49", nombre: "Gigawatt-hora" },
+    { codigo: "50", nombre: "Megawatt-hora" },
+    { codigo: "51", nombre: "Kilowatt-hora" },
+    { codigo: "52", nombre: "Watt-hora" },
+    { codigo: "53", nombre: "Kilovoltio" },
+    { codigo: "54", nombre: "Voltio" },
+    { codigo: "55", nombre: "Millar" },
+    { codigo: "56", nombre: "Medio millar" },
+    { codigo: "57", nombre: "Ciento" },
+    { codigo: "58", nombre: "Docena" },
+    { codigo: "59", nombre: "Unidad" },
+    { codigo: "99", nombre: "Otra" },
+    { codigo: "Caja", nombre: "Caja" }
+];
 
 // ========== TOAST NOTIFICATION SYSTEM ==========
 const Toast = ({ toasts, removeToast }) => {
@@ -119,8 +164,24 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [mpSelected, setMpSelected] = useState(null);
     const [mpCantidad, setMpCantidad] = useState("");
     const [mpCosto, setMpCosto] = useState("");
-    const [mpUnidad, setMpUnidad] = useState("UND");
+    const [mpUnidad, setMpUnidad] = useState("59");
     const [materiasPrimas, setMateriasPrimas] = useState([]);
+
+    // ========== ESTADOS PARA PRODUCTO (MODAL UNIDAD) ==========
+    const [showProductoUnidadModal, setShowProductoUnidadModal] = useState(false);
+    const [tempProductData, setTempProductData] = useState(null);
+    const [tempCantidad, setTempCantidad] = useState(1);
+    const [tempPrecio, setTempPrecio] = useState("");
+    const [tempUnidad, setTempUnidad] = useState("59");
+
+    // ========== ESTADOS PARA EDITAR DETALLE ==========
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editDetailIndex, setEditDetailIndex] = useState(null);
+    const [editDetailData, setEditDetailData] = useState({
+        cantidad: 0,
+        precio_unitario: 0,
+        unidad: "59"
+    });
 
     const [tipoInventario, setTipoInventario] = useState("producto");
     const [productosPendientesMP, setProductosPendientesMP] = useState([]);
@@ -167,7 +228,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         descripcion: "",
         cantidad: 0,
         precio_unitario: 0,
-        subtotal: 0
+        subtotal: 0,
+        unidad: ""
     });
 
     const [productSearch, setProductSearch] = useState("");
@@ -192,6 +254,150 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [pendingDtes, setPendingDtes] = useState([]);
     const [currentDteIndex, setCurrentDteIndex] = useState(0);
     const [isProcessingMultiple, setIsProcessingMultiple] = useState(false);
+
+    const getNombreUnidad = (codigo) => {
+        const unidad = unidadesDisponibles.find(u => u.codigo === codigo);
+        return unidad ? unidad.nombre : "Unidad";
+    };
+
+    // ========== FUNCIÓN MEJORADA PARA MAPEAR UNIDADES ==========
+    const mapearUnidadDesdeJson = (uniMedida) => {
+        if (uniMedida === null || uniMedida === undefined || uniMedida === "") {
+            console.log("⚠️ Unidad vacía, usando '59' (Unidad)");
+            return "59";
+        }
+        
+        let unidadStr = String(uniMedida).trim();
+        
+        if (/^\d+$/.test(unidadStr)) {
+            console.log(`📏 Unidad numérica: ${unidadStr} → ${unidadStr}`);
+            return unidadStr;
+        }
+        
+        const unidadLower = unidadStr.toLowerCase();
+        
+        const mapeo = {
+            "unidad": "59", "unidades": "59", "u": "59", "pza": "59", "pieza": "59", "piezas": "59",
+            "kg": "34", "kilogramo": "34", "kilogramos": "34", "kilo": "34", "kilos": "34", "kgs": "34",
+            "lb": "36", "libra": "36", "libras": "36",
+            "litro": "23", "litros": "23", "l": "23",
+            "ml": "26", "mililitro": "26", "mililitros": "26",
+            "gal": "22", "galon": "22", "galones": "22",
+            "m": "1", "metro": "1", "metros": "1",
+            "m2": "13", "metro cuadrado": "13", "metros cuadrados": "13",
+            "m3": "18", "metro cubico": "18", "metros cubicos": "18",
+            "ton": "30", "tonelada": "30", "toneladas": "30",
+            "qq": "32", "quintal": "32", "quintales": "32",
+            "doc": "58", "docena": "58", "docenas": "58",
+            "cj": "Caja", "caja": "Caja", "cajas": "Caja",
+            "ciento": "57", "cientos": "57",
+            "millar": "55", "millares": "55",
+            "yarda": "2", "yardas": "2",
+            "hectarea": "10", "hectareas": "10",
+            "barril": "20", "barriles": "20",
+            "botella": "24", "botellas": "24",
+            "gramo": "39", "gramos": "39",
+            "miligramo": "40", "miligramos": "40"
+        };
+        
+        const resultado = mapeo[unidadLower];
+        if (resultado) {
+            console.log(`📏 Unidad mapeada: "${uniMedida}" → ${resultado}`);
+            return resultado;
+        }
+        
+        console.log(`📏 Unidad no mapeada: "${uniMedida}", usando: ${unidadStr}`);
+        return unidadStr;
+    };
+
+ const consolidarDetalles = (detallesExistentes, nuevosDetalles) => {
+    const mapaDetalles = new Map();
+    
+    // Primero, agregar los detalles existentes
+    detallesExistentes.forEach(detalle => {
+        let key;
+        if (detalle.tipo === "producto" && detalle.producto_id) {
+            key = `prod_${detalle.producto_id}`;
+        } else if (detalle.tipo === "materia_prima" && detalle.materia_prima_id) {
+            key = `mp_${detalle.materia_prima_id}`;
+        } else {
+            key = `gasto_${detalle.descripcion || Date.now()}`;
+        }
+        
+        if (mapaDetalles.has(key)) {
+            const existente = mapaDetalles.get(key);
+            const nuevaCantidad = existente.cantidad + detalle.cantidad;
+            existente.cantidad = parseFloat(nuevaCantidad.toFixed(4));
+            existente.subtotal = parseFloat((existente.cantidad * existente.precio_unitario).toFixed(2));
+        } else {
+            mapaDetalles.set(key, { ...detalle });
+        }
+    });
+    
+    // Segundo, agregar o consolidar los nuevos detalles
+    nuevosDetalles.forEach(detalle => {
+        let key;
+        if (detalle.tipo === "producto" && detalle.producto_id) {
+            key = `prod_${detalle.producto_id}`;
+        } else if (detalle.tipo === "materia_prima" && detalle.materia_prima_id) {
+            key = `mp_${detalle.materia_prima_id}`;
+        } else {
+            key = `gasto_${detalle.descripcion || Date.now()}`;
+        }
+        
+        if (mapaDetalles.has(key)) {
+            const existente = mapaDetalles.get(key);
+            const nuevaCantidad = existente.cantidad + detalle.cantidad;
+            existente.cantidad = parseFloat(nuevaCantidad.toFixed(4));
+            existente.subtotal = parseFloat((existente.cantidad * existente.precio_unitario).toFixed(2));
+            
+            if (detalle.unidad && detalle.unidad !== "59" && existente.unidad === "59") {
+                existente.unidad = detalle.unidad;
+            }
+        } else {
+            mapaDetalles.set(key, { ...detalle });
+        }
+    });
+    
+    return Array.from(mapaDetalles.values());
+};
+
+    // ========== FUNCIÓN PARA ACTUALIZAR STOCK ==========
+    const actualizarStockProductos = async (detallesCompra) => {
+        const actualizacionesStock = [];
+        
+        for (const detalle of detallesCompra) {
+            if (detalle.tipo === "producto" && detalle.producto_id) {
+                const producto = productos.find(p => p.id === detalle.producto_id);
+                if (producto) {
+                    const nuevoStock = (producto.stock || 0) + detalle.cantidad;
+                    actualizacionesStock.push({
+                        id: detalle.producto_id,
+                        stock: nuevoStock,
+                        cantidadAgregada: detalle.cantidad,
+                        nombre: producto.nombre,
+                        unidad: detalle.unidad
+                    });
+                }
+            }
+        }
+        
+        for (const actualizacion of actualizacionesStock) {
+            try {
+                await fetch(`${API_BASE_URL}/productos/update/${actualizacion.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ stock: actualizacion.stock })
+                });
+                console.log(`✅ Stock actualizado: ${actualizacion.nombre} +${actualizacion.cantidadAgregada} = ${actualizacion.stock}`);
+            } catch (error) {
+                console.error(`❌ Error actualizando stock de ${actualizacion.nombre}:`, error);
+            }
+        }
+        
+        return actualizacionesStock;
+    };
 
     // Función para extraer sello de recepción del DTE
     const extraerSelloRecepcion = (dteData) => {
@@ -277,16 +483,59 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         return { fovial, cotrans, iva, cesc };
     };
 
+    // Función para abrir el modal de edición
+    const handleOpenEditModal = (index) => {
+        const detail = detalles[index];
+        setEditDetailIndex(index);
+        setEditDetailData({
+            cantidad: detail.cantidad,
+            precio_unitario: detail.precio_unitario,
+            unidad: detail.unidad || "59"
+        });
+        setShowEditModal(true);
+    };
+
+    // Función para guardar los cambios editados
+    const handleSaveEdit = () => {
+        if (editDetailIndex === null) return;
+
+        const newDetalles = [...detalles];
+        const detail = newDetalles[editDetailIndex];
+        
+        const nuevaCantidad = parseFloat(editDetailData.cantidad);
+        const nuevoPrecio = parseFloat(editDetailData.precio_unitario);
+        const nuevoSubtotal = nuevaCantidad * nuevoPrecio;
+        
+        newDetalles[editDetailIndex] = {
+            ...detail,
+            cantidad: nuevaCantidad,
+            precio_unitario: nuevoPrecio,
+            subtotal: nuevoSubtotal,
+            unidad: editDetailData.unidad
+        };
+        
+        setDetalles(newDetalles);
+        updateTotals(newDetalles, formData.tipo_compra);
+        setShowEditModal(false);
+        setEditDetailIndex(null);
+        
+        addToast({ 
+            type: 'success', 
+            message: `Detalle actualizado con unidad: ${getNombreUnidad(editDetailData.unidad)}` 
+        });
+    };
+
     // Función para procesar el resto del DTE después de crear MPs
     const procesarRestoDteConMP = (dteData, foundProv, nombresMPCreados) => {
         const nuevosDetalles = [];
         let currentProductos = [...productos];
 
-        // Extraer NIT y NRC del emisor
         const emisorNit = dteData.emisor?.nit || null;
         const emisorNrc = dteData.emisor?.nrc || null;
 
         const cuerpoDoc = dteData.cuerpoDocumento || [];
+        const productosAcumulados = new Map();
+        
         for (const item of cuerpoDoc) {
             if (nombresMPCreados.includes(item.descripcion)) {
                 continue;
@@ -298,17 +547,30 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             }
             
             if (foundProd) {
-                nuevosDetalles.push({
-                    tipo: "producto",
-                    producto_id: foundProd.id,
-                    producto_nombre: foundProd.nombre,
-                    producto_codigo: foundProd.codigo,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precioUni,
-                    subtotal: item.ventaGravada
-                });
+                const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
+                const key = foundProd.id;
+                
+                if (productosAcumulados.has(key)) {
+                    const acumulado = productosAcumulados.get(key);
+                    acumulado.cantidad += item.cantidad;
+                    acumulado.subtotal = acumulado.cantidad * acumulado.precio_unitario;
+                } else {
+                    productosAcumulados.set(key, {
+                        tipo: "producto",
+                        producto_id: foundProd.id,
+                        producto_nombre: foundProd.nombre,
+                        producto_codigo: foundProd.codigo,
+                        cantidad: item.cantidad,
+                        precio_unitario: item.precioUni,
+                        subtotal: item.ventaGravada,
+                        unidad: unidadDesdeJson
+                    });
+                }
             }
         }
+
+        const detallesProcesados = Array.from(productosAcumulados.values());
+        const nuevosDetallesConsolidados = consolidarDetalles(detalles, detallesProcesados);
 
         const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
         const selloRecepcion = extraerSelloRecepcion(dteData);
@@ -338,25 +600,27 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             };
         });
 
-        if (nuevosDetalles.length > 0) {
-            setDetalles(prev => [...prev, ...nuevosDetalles]);
+        if (detallesProcesados.length > 0) {
+            setDetalles(nuevosDetallesConsolidados);
         }
 
+        // Mostrar resumen de productos cargados
+        const resumenProductos = detallesProcesados.map(d => 
+            `${d.producto_nombre}: ${d.cantidad} ${getNombreUnidad(d.unidad)} @ $${d.precio_unitario}`
+        );
+        
         addToast({ 
             type: 'success', 
             title: 'DTE Cargado', 
             lines: [
                 `📄 Documento: ${dteData.identificacion?.numeroControl || "N/A"}`,
                 `🏢 Proveedor: ${dteData.emisor?.nombre || "N/A"}`,
-                `🆔 NIT: ${emisorNit || "N/A"}`,
-                `📌 NRC: ${emisorNrc || "N/A"}`,
                 `💰 Total: $${dteData.resumen?.totalPagar || 0}`,
-                `🚗 FOVIAL: $${fovial}`,
-                `🚛 COTRANS: $${cotrans}`,
-                `💵 IVA: $${iva}`,
-                `🔐 Sello: ${selloRecepcion ? '✅ Recibido' : '❌ No encontrado'}`
+                `📦 Productos: ${detallesProcesados.length}`,
+                ...resumenProductos.slice(0, 3),
+                ...(resumenProductos.length > 3 ? [`... y ${resumenProductos.length - 3} más`] : [])
             ],
-            duration: 5000
+            duration: 8000
         });
     };
 
@@ -383,7 +647,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                         credentials: "include",
                         body: JSON.stringify({
                             nombre: nombreLimpio,
-                            unidad: "UND"
+                            unidad: "59"
                         })
                     });
 
@@ -406,6 +670,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 
                 const cantidad = itemOriginal?.cantidad || 1;
                 const precioUnitario = itemOriginal?.precioUni || 0;
+                const unidadDesdeJson = mapearUnidadDesdeJson(itemOriginal?.uniMedida);
 
                 nuevosDetalles.push({
                     ...crearDetalleBase(),
@@ -416,16 +681,16 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     descripcion: mp.nombre,
                     cantidad: parseFloat(cantidad),
                     precio_unitario: parseFloat(precioUnitario),
-                    subtotal: parseFloat(cantidad) * parseFloat(precioUnitario)
+                    subtotal: parseFloat(cantidad) * parseFloat(precioUnitario),
+                    unidad: unidadDesdeJson
                 });
                 
                 nombresMPCreados.push(nombreLimpio);
             }
 
-            setDetalles(prev => [...prev, ...nuevosDetalles]);
-            
-            const newDetalles = [...detalles, ...nuevosDetalles];
-            updateTotals(newDetalles, formData.tipo_compra);
+            const nuevosDetallesConsolidados = consolidarDetalles(detalles, nuevosDetalles);
+            setDetalles(nuevosDetallesConsolidados);
+            updateTotals(nuevosDetallesConsolidados, formData.tipo_compra);
 
             closeDialog(() => {
                 if (pendingDteData) {
@@ -525,39 +790,52 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     }, [productSearch, productos]);
 
     const handleSelectProduct = (prod) => {
-        setSelectedProduct(prod);
+        setTempProductData(prod);
+        setTempCantidad(addQuantity);
+        setTempPrecio(addPrice || prod.precio || "");
+        setTempUnidad(prod.unidad || "59");
+        setShowProductoUnidadModal(true);
         setProductSearch(prod.nombre);
-        setAddPrice(prod.precio || "");
-        setAddQuantity(1);
+        setSelectedProduct(prod);
     };
 
-    const handleAddDetail = () => {
-        if (!selectedProduct) return;
-        if (addQuantity <= 0) return addToast({ type: 'error', message: 'La cantidad debe ser mayor a 0' });
-        if (addPrice < 0) return addToast({ type: 'error', message: 'El precio no puede ser negativo' });
+    const handleConfirmarProductoConUnidad = () => {
+        if (!tempProductData) return;
+        
+        if (tempCantidad <= 0) {
+            addToast({ type: 'error', message: 'La cantidad debe ser mayor a 0' });
+            return;
+        }
+        if (tempPrecio < 0) {
+            addToast({ type: 'error', message: 'El precio no puede ser negativo' });
+            return;
+        }
 
-        const subtotal = parseFloat(addQuantity) * parseFloat(addPrice || 0);
+        const subtotal = parseFloat(tempCantidad) * parseFloat(tempPrecio || 0);
         
         const newDetail = {
             tipo: "producto",
-            producto_id: selectedProduct.id,
-            producto_nombre: selectedProduct.nombre,
-            producto_codigo: selectedProduct.codigo,
-            cantidad: parseFloat(addQuantity),
-            precio_unitario: parseFloat(addPrice || 0),
-            subtotal: subtotal
+            producto_id: tempProductData.id,
+            producto_nombre: tempProductData.nombre,
+            producto_codigo: tempProductData.codigo,
+            cantidad: parseFloat(tempCantidad),
+            precio_unitario: parseFloat(tempPrecio || 0),
+            subtotal: subtotal,
+            unidad: tempUnidad
         };
 
-        const newDetalles = [...detalles, newDetail];
-        setDetalles(newDetalles);
-        updateTotals(newDetalles, formData.tipo_compra);
+        const nuevosDetallesConsolidados = consolidarDetalles(detalles, [newDetail]);
+        setDetalles(nuevosDetallesConsolidados);
+        updateTotals(nuevosDetallesConsolidados, formData.tipo_compra);
         
         setSelectedProduct(null);
         setProductSearch("");
         setAddQuantity(1);
         setAddPrice("");
+        setTempProductData(null);
+        setShowProductoUnidadModal(false);
         
-        addToast({ type: 'success', message: 'Producto agregado correctamente' });
+        addToast({ type: 'success', message: `Producto agregado con unidad: ${getNombreUnidad(tempUnidad)}` });
     };
 
     const handleAddGasto = () => {
@@ -584,12 +862,13 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             descripcion: gastoData.descripcion,
             cantidad: gastoData.cantidad,
             precio_unitario: gastoData.precio_unitario,
-            subtotal: subtotal
+            subtotal: subtotal,
+            unidad: ""
         };
 
-        const newDetalles = [...detalles, newDetail];
-        setDetalles(newDetalles);
-        updateTotals(newDetalles, formData.tipo_compra);
+        const nuevosDetallesConsolidados = consolidarDetalles(detalles, [newDetail]);
+        setDetalles(nuevosDetallesConsolidados);
+        updateTotals(nuevosDetallesConsolidados, formData.tipo_compra);
         
         setGastoData({ descripcion: "", cantidad: 1, precio_unitario: 0 });
         setShowGastoModal(false);
@@ -613,7 +892,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     credentials: "include",
                     body: JSON.stringify({
                         nombre: mpSearch,
-                        unidad: mpUnidad || "UND"
+                        unidad: mpUnidad
                     })
                 });
 
@@ -640,22 +919,22 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 descripcion: mp.nombre,
                 cantidad: cantidad,
                 precio_unitario: costo,
-                subtotal: subtotal
+                subtotal: subtotal,
+                unidad: mp.unidad || mpUnidad
             };
 
-            setDetalles(prev => [...prev, nuevoDetalle]);
-            
-            const newDetalles = [...detalles, nuevoDetalle];
-            updateTotals(newDetalles, formData.tipo_compra);
+            const nuevosDetallesConsolidados = consolidarDetalles(detalles, [nuevoDetalle]);
+            setDetalles(nuevosDetallesConsolidados);
+            updateTotals(nuevosDetallesConsolidados, formData.tipo_compra);
 
             setMpSelected(null);
             setMpSearch("");
             setMpCantidad("");
             setMpCosto("");
-            setMpUnidad("UND");
+            setMpUnidad("59");
             setShowMateriaPrimaModal(false);
 
-            addToast({ type: 'success', message: `Materia prima "${mp.nombre}" agregada` });
+            addToast({ type: 'success', message: `Materia prima "${mp.nombre}" agregada con unidad: ${getNombreUnidad(mp.unidad || mpUnidad)}` });
 
         } catch (error) {
             console.error("❌ Error creando materia prima:", error);
@@ -698,22 +977,25 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     };
 
     const updateTotals = (currentDetalles, tipo) => {
-        const totalMonto = currentDetalles.reduce((sum, item) => sum + item.subtotal, 0);
-        const totalFixed = parseFloat(totalMonto.toFixed(2));
-        const ivaSugerido = parseFloat((totalFixed * 0.13).toFixed(2));
-
-        setFormData(prev => {
-            const newData = {
-                ...prev,
-                gravadas_internas: tipo === 'local' ? totalFixed : 0,
-                gravadas_importaciones: tipo === 'importacion' ? totalFixed : 0,
-                credito_fiscal: ivaSugerido,
-                exentas_internas: totalFixed,
-                exentas_importaciones: 0
-            };
-            return { ...newData, total_compras: calculateTotal(newData) };
-        });
-    };
+    // Solo calcular y actualizar formData, NO modificar detalles
+    const totalMonto = currentDetalles.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+    const totalFixed = parseFloat(totalMonto.toFixed(2));
+    
+    setFormData(prev => {
+        const newData = {
+            ...prev,
+            gravadas_internas: tipo === 'local' ? totalFixed : 0,
+            gravadas_importaciones: tipo === 'importacion' ? totalFixed : 0,
+            exentas_internas: tipo === 'local' ? 0 : totalFixed, // O ajusta según necesidad
+        };
+        const totalCompras = parseFloat(newData.gravadas_internas || 0) + 
+                             parseFloat(newData.gravadas_importaciones || 0) +
+                             parseFloat(newData.credito_fiscal || 0) +
+                             parseFloat(newData.fovial || 0) +
+                             parseFloat(newData.cotrans || 0);
+        return { ...newData, total_compras: totalCompras };
+    });
+};
 
     const calculateTotal = (data) => {
         return parseFloat((
@@ -751,178 +1033,240 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         }, 280);
     };
 
-    const procesarDteActual = async (dteData) => {
-        setIsLoading(true);
-        try {
-            setCurrentDteData(dteData);
+// ========== FUNCIÓN PRINCIPAL DEFINITIVA - CON RESETEO DE DETALLES ==========
+const procesarDteActual = async (dteData) => {
+    setIsLoading(true);
+    try {
+        setCurrentDteData(dteData);
+        
+        console.log("📄 PROCESANDO DTE:");
+        const cuerpoDoc = dteData.cuerpoDocumento || [];
+        console.log(`  - Total de líneas en DTE: ${cuerpoDoc.length}`);
+        
+        // 🔍 MOSTRAR TODAS LAS LÍNEAS DEL DTE
+        console.log("🔍 ===== DETALLE COMPLETO DEL DTE =====");
+        cuerpoDoc.forEach((item, idx) => {
+            console.log(`  Línea ${idx + 1}:`);
+            console.log(`    Código: ${item.codigo || "N/A"}`);
+            console.log(`    Descripción: ${item.descripcion}`);
+            console.log(`    Cantidad ORIGINAL: ${item.cantidad}`);
+            console.log(`    Precio Unitario: ${item.precioUni}`);
+            console.log(`    Subtotal: ${item.ventaGravada}`);
+            console.log(`    Unidad: ${item.uniMedida}`);
+        });
+        
+        const emisorNit = dteData.emisor?.nit;
+        const emisorNrc = dteData.emisor?.nrc;
+        
+        // Buscar o crear proveedor
+        let foundProv = proveedores.find(p => 
+            (p.nit && p.nit === emisorNit) || 
+            (p.nrc && p.nrc === emisorNrc) ||
+            (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor?.nombre?.toLowerCase() || ""))
+        );
+
+        if (!foundProv && emisorNit) {
+            try {
+                const newProvData = {
+                    nombre: dteData.emisor?.nombre || "Proveedor sin nombre",
+                    codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
+                    descripcion: dteData.emisor?.descActividad || "Creado automáticamente desde DTE",
+                    nit: emisorNit,
+                    nrc: emisorNrc
+                };
+
+                const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify(newProvData),
+                });
+
+                if (response.ok) {
+                    const resJson = await response.json();
+                    foundProv = resJson.proveedor;
+                    setProveedores(prev => [...prev, foundProv]);
+                }
+            } catch (err) {
+                console.error("Error creando proveedor automático:", err);
+            }
+        }
+
+        const currentProveedorId = foundProv ? foundProv.id : null;
+
+        // Extraer datos del DTE
+        let codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
+        const selloRecepcion = extraerSelloRecepcion(dteData);
+        const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
+
+        const productosNoEncontrados = [];
+        const productosACrear = [];
+        let currentProductos = [...productos];
+        
+        // ✅ PRIMERO: Identificar productos no encontrados
+        for (const item of cuerpoDoc) {
+            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            if (!foundProd) {
+                foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
+            }
+            if (!foundProd) {
+                productosNoEncontrados.push(`${item.codigo || 'S/C'} - ${item.descripcion}`);
+                productosACrear.push({
+                    item,
+                    nombre: item.descripcion,
+                    codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                    unidad: mapearUnidadDesdeJson(item.uniMedida),
+                    precio: item.precioUni,
+                    preciooferta: 0,
+                    stock: 0,
+                    es_servicio: item.tipoItem === 2,
+                    idproveedor: currentProveedorId
+                });
+            }
+        }
+
+        if (productosNoEncontrados.length > 0) {
+            setProductosNoEncontradosMsg(productosNoEncontrados);
+            setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
+            setShowDialog(true);
+            setIsLoading(false);
+            return;
+        }
+
+        // ✅ SEGUNDO: Procesar productos - Map SIN acumulación doble
+        const productosMap = new Map();
+
+        for (const item of cuerpoDoc) {
+            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            if (!foundProd) {
+                foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
+            }
             
-            const emisorNit = dteData.emisor?.nit;
-            const emisorNrc = dteData.emisor?.nrc;
-            
-            let foundProv = proveedores.find(p => 
-                (p.nit && p.nit === emisorNit) || 
-                (p.nrc && p.nrc === emisorNrc) ||
-                (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor?.nombre?.toLowerCase() || ""))
-            );
-
-            if (!foundProv) {
-                try {
-                    const newProvData = {
-                        nombre: dteData.emisor?.nombre || "Proveedor sin nombre",
-                        codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
-                        descripcion: dteData.emisor?.descActividad || "Creado automáticamente desde DTE",
-                        nit: emisorNit,
-                        nrc: emisorNrc
-                    };
-
-                    const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify(newProvData),
-                    });
-
-                    if (response.ok) {
-                        const resJson = await response.json();
-                        foundProv = resJson.proveedor;
-                        setProveedores(prev => [...prev, foundProv]);
-                    }
-                } catch (err) {
-                    console.error("Error creando proveedor automático:", err);
-                }
-            }
-
-            const currentProveedorId = foundProv ? foundProv.id : null;
-
-            let codigoGeneracion = null;
-            if (dteData.identificacion?.codigoGeneracion) {
-                codigoGeneracion = dteData.identificacion.codigoGeneracion;
-            } else if (dteData.codigoGeneracion) {
-                codigoGeneracion = dteData.codigoGeneracion;
-            }
-
-            const selloRecepcion = extraerSelloRecepcion(dteData);
-            const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
-
-            const productosNoEncontrados = [];
-            const productosACrear = [];
-            let currentProductos = [...productos];
-
-            const cuerpoDoc = dteData.cuerpoDocumento || [];
-            for (const item of cuerpoDoc) {
-                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-                if (!foundProd) {
-                    foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
-                }
-                if (!foundProd) {
-                    productosNoEncontrados.push(`${item.codigo} - ${item.descripcion}`);
-                    productosACrear.push({
-                        item,
-                        nombre: item.descripcion,
-                        codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                        unidad: item.uniMedida || "Unidad",
-                        precio: item.precioUni,
-                        preciooferta: 0,
-                        stock: 0,
-                        es_servicio: item.tipoItem === 2,
-                        idproveedor: currentProveedorId
-                    });
-                }
-            }
-
-            if (productosNoEncontrados.length > 0) {
-                setProductosNoEncontradosMsg(productosNoEncontrados);
-                setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
-                setShowDialog(true);
-                setIsLoading(false);
-                return;
-            }
-
-            const nuevosDetalles = [];
-
-            for (const item of cuerpoDoc) {
-                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-                if (!foundProd) {
-                    foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
-                }
-                if (foundProd) {
-                    nuevosDetalles.push({
+            if (foundProd) {
+                const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
+                const productId = foundProd.id;
+                const cantidadOriginal = parseFloat(item.cantidad);
+                const precioUnitario = parseFloat(item.precioUni);
+                const subtotalOriginal = parseFloat(item.ventaGravada);
+                
+                console.log(`📦 Procesando: ${foundProd.nombre}`);
+                console.log(`   Cantidad en ESTA línea: ${cantidadOriginal}`);
+                console.log(`   Precio: ${precioUnitario}`);
+                console.log(`   Subtotal: ${subtotalOriginal}`);
+                
+                if (productosMap.has(productId)) {
+                    // ⚠️ Mismo producto aparece en MÚLTIPLES líneas del DTE
+                    const existente = productosMap.get(productId);
+                    const nuevaCantidad = existente.cantidad + cantidadOriginal;
+                    const nuevoSubtotal = parseFloat((nuevaCantidad * existente.precio_unitario).toFixed(2));
+                    
+                    console.log(`   🔁 ACUMULANDO (mismo producto en otra línea):`);
+                    console.log(`      ${existente.cantidad} + ${cantidadOriginal} = ${nuevaCantidad}`);
+                    console.log(`      Nuevo subtotal: $${nuevoSubtotal}`);
+                    
+                    existente.cantidad = parseFloat(nuevaCantidad.toFixed(4));
+                    existente.subtotal = nuevoSubtotal;
+                } else {
+                    // ✅ Producto NUEVO en este DTE
+                    console.log(`   ✨ PRODUCTO NUEVO en este DTE`);
+                    productosMap.set(productId, {
                         tipo: "producto",
                         producto_id: foundProd.id,
                         producto_nombre: foundProd.nombre,
                         producto_codigo: foundProd.codigo,
-                        cantidad: item.cantidad,
-                        precio_unitario: item.precioUni,
-                        subtotal: item.ventaGravada
+                        cantidad: parseFloat(cantidadOriginal.toFixed(4)),
+                        precio_unitario: parseFloat(precioUnitario.toFixed(4)),
+                        subtotal: parseFloat(subtotalOriginal.toFixed(2)),
+                        unidad: unidadDesdeJson
                     });
                 }
             }
-
-            const exentasConTributos = (fovial + cotrans) || 0;
-
-            setFormData(prev => {
-                const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
-                const newData = {
-                    ...prev,
-                    fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
-                    numero_documento: dteData.identificacion?.numeroControl || "",
-                    codigo_generacion: codigoGeneracion,
-                    sello_recepcion: selloRecepcion,
-                    nrc: emisorNrc || "",
-                    nit: emisorNit || "",
-                    nombre_proveedor: dteData.emisor?.nombre || "",
-                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                    tipo_documento: tipoMap[String(dteData.identificacion?.tipoDte || "").padStart(2, '0')] || "CCF",
-                    gravadas_internas: dteData.resumen?.totalGravada || 0,
-                    credito_fiscal: iva,
-                    fovial: fovial,
-                    cotrans: cotrans,
-                    cesc: cesc,
-                    exentas_internas: exentasConTributos,
-                    total_compras: dteData.resumen?.totalPagar || 0
-                };
-                console.log("📝 FormData actualizado:", { 
-                    nrc: newData.nrc,
-                    nit: newData.nit,
-                    nombre_proveedor: newData.nombre_proveedor,
-                    exentas_internas: newData.exentas_internas,
-                    fovial: newData.fovial, 
-                    cotrans: newData.cotrans,
-                    gravadas_internas: newData.gravadas_internas,
-                    sello_recepcion: newData.sello_recepcion
-                });
-                return newData;
-            });
-
-            if (nuevosDetalles.length > 0) {
-                setDetalles(prev => [...prev, ...nuevosDetalles]);
-            }
-
-            addToast({ 
-                type: 'success', 
-                title: 'DTE Cargado', 
-                lines: [
-                    `📄 Documento: ${dteData.identificacion?.numeroControl || "N/A"}`,
-                    `🏢 Proveedor: ${dteData.emisor?.nombre || "N/A"}`,
-                    `🆔 NIT: ${emisorNit || "N/A"}`,
-                    `📌 NRC: ${emisorNrc || "N/A"}`,
-                    `💰 Total: $${dteData.resumen?.totalPagar || 0}`,
-                    `🚗 FOVIAL: $${fovial}`,
-                    `🚛 COTRANS: $${cotrans}`,
-                    `💵 IVA: $${iva}`,
-                    `🔐 Sello: ${selloRecepcion ? '✅ Recibido' : '❌ No encontrado'}`
-                ],
-                duration: 6000
-            });
-
-            setIsLoading(false);
-        } catch (error) {
-            console.error("Error procesando DTE:", error);
-            setError("Error al procesar el archivo DTE.");
-            setIsLoading(false);
         }
-    };
 
+        // Convertir el Map a array de detalles
+        const nuevosDetalles = Array.from(productosMap.values());
+
+        console.log("📊 RESULTADO FINAL (productos de ESTE DTE):");
+        nuevosDetalles.forEach(d => {
+            console.log(`  ✅ ${d.producto_nombre}: Cantidad TOTAL = ${d.cantidad}, Subtotal = $${d.subtotal.toFixed(2)}`);
+        });
+
+        // ✅ IMPORTANTE: Reemplazar detalles, NO acumular con los que ya existían
+        // Esto evita que se dupliquen si cargas múltiples DTEs
+        setDetalles(nuevosDetalles);
+
+        // Calcular totales redondeados
+        const totalGravado = parseFloat(nuevosDetalles.reduce((sum, d) => sum + d.subtotal, 0).toFixed(2));
+        const fovialRedondeado = parseFloat(fovial.toFixed(2));
+        const cotransRedondeado = parseFloat(cotrans.toFixed(2));
+        const ivaRedondeado = parseFloat(iva.toFixed(2));
+        const cescRedondeado = parseFloat(cesc.toFixed(2));
+        const exentasInternas = parseFloat((fovialRedondeado + cotransRedondeado).toFixed(2));
+        const totalCompras = parseFloat((totalGravado + ivaRedondeado + fovialRedondeado + cotransRedondeado).toFixed(2));
+
+        console.log("📊 TOTALES CALCULADOS:");
+        console.log(`   Total Gravado: $${totalGravado}`);
+        console.log(`   IVA: $${ivaRedondeado}`);
+        console.log(`   FOVIAL: $${fovialRedondeado}`);
+        console.log(`   COTRANS: $${cotransRedondeado}`);
+        console.log(`   TOTAL A PAGAR: $${totalCompras}`);
+
+        // Actualizar formData
+        setFormData(prev => {
+            const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
+            const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
+            
+            return {
+                ...prev,
+                fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
+                numero_documento: dteData.identificacion?.numeroControl || "",
+                codigo_generacion: codigoGeneracion,
+                sello_recepcion: selloRecepcion,
+                nrc: emisorNrc || "",
+                nit: emisorNit || "",
+                nombre_proveedor: dteData.emisor?.nombre || "",
+                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                tipo_documento: tipoMap[tipoDteValue] || "CCF",
+                gravadas_internas: totalGravado,
+                credito_fiscal: ivaRedondeado,
+                fovial: fovialRedondeado,
+                cotrans: cotransRedondeado,
+                cesc: cescRedondeado,
+                exentas_internas: exentasInternas,
+                total_compras: totalCompras
+            };
+        });
+
+        // Mostrar toast con resumen
+        const resumenProductos = nuevosDetalles.map(d => 
+            `${d.producto_nombre}: ${d.cantidad} ${getNombreUnidad(d.unidad)} @ $${d.precio_unitario.toFixed(2)} = $${d.subtotal.toFixed(2)}`
+        );
+        
+        addToast({ 
+            type: 'success', 
+            title: 'DTE Cargado Correctamente', 
+            lines: [
+                `📄 Documento: ${dteData.identificacion?.numeroControl || "N/A"}`,
+                `🏢 Proveedor: ${dteData.emisor?.nombre || "N/A"}`,
+                `💰 Total Gravado: $${totalGravado}`,
+                `💰 Total a Pagar: $${totalCompras}`,
+                `📦 Productos: ${nuevosDetalles.length}`,
+                ...resumenProductos.slice(0, 3),
+                ...(resumenProductos.length > 3 ? [`... y ${resumenProductos.length - 3} más`] : []),
+                `🚗 FOVIAL: $${fovialRedondeado}`,
+                `🚛 COTRANS: $${cotransRedondeado}`,
+                `💵 IVA: $${ivaRedondeado}`
+            ],
+            duration: 8000
+        });
+
+        setIsLoading(false);
+    } catch (error) {
+        console.error("Error procesando DTE:", error);
+        setError("Error al procesar el archivo DTE: " + error.message);
+        setIsLoading(false);
+    }
+};
     const handleChange = (e) => {
         const { name, value } = e.target;
         
@@ -1021,6 +1365,12 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         setIsLoading(true);
 
         try {
+            // Asegurar que cada detalle tenga unidad
+            const detallesConUnidad = detalles.map(d => ({
+                ...d,
+                unidad: d.unidad && d.unidad !== "" ? d.unidad : "59"
+            }));
+            
             const payload = {
                 ...formData,
                 proveedor_id: parseInt(formData.proveedor_id),
@@ -1043,7 +1393,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 retencion: parseFloat(formData.retencion || 0),
                 percepcion: parseFloat(formData.percepcion || 0),
                 retencion_terceros: parseFloat(formData.retencion_terceros || 0),
-                detalles: detalles.map(d => ({
+                detalles: detallesConUnidad.map(d => ({
                     producto_id: d.producto_id || null,
                     materia_prima_id: d.materia_prima_id || null,
                     es_materia_prima: d.es_materia_prima || false,
@@ -1053,19 +1403,11 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                     cantidad: parseFloat(d.cantidad || 0),
                     precio_unitario: parseFloat(d.precio_unitario || 0),
                     subtotal: parseFloat(d.subtotal || 0),
-                    tipo: d.tipo || "gasto"
+                    tipo: d.tipo || "gasto",
+                    unidad: d.unidad || "59"
                 })),
                 dteData: currentDteData
             };
-
-            console.log("📦 PAYLOAD enviado:", {
-                nit: payload.nit,
-                nrc: payload.nrc,
-                exentas_internas: payload.exentas_internas,
-                fovial: payload.fovial,
-                cotrans: payload.cotrans,
-                sello_recepcion: payload.sello_recepcion
-            });
 
             const response = await fetch(`${API_BASE_URL}/compras/add`, {
                 method: "POST",
@@ -1080,6 +1422,13 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 throw new Error(data.error || data.message || "Error al guardar la compra");
             }
 
+            // Actualizar stock después de guardar la compra
+            const actualizaciones = await actualizarStockProductos(detallesConUnidad);
+            
+            const stockMessages = actualizaciones.map(a => 
+                `📦 ${a.nombre}: +${a.cantidadAgregada} ${getNombreUnidad(a.unidad)} → ${a.stock}`
+            );
+
             const fechaActual = new Date().toLocaleDateString('es-SV', {
                 day: '2-digit', month: '2-digit', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
@@ -1087,16 +1436,16 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
             addToast({
                 type: 'success',
-                title: '¡Compra registrada!',
+                title: '¡Compra registrada y stock actualizado!',
                 lines: [
                     `📄 Documento: ${data.numero_documento}`,
                     `💰 Total: ${formatCurrency(data.monto)}`,
-                    `🚗 FOVIAL: ${formatCurrency(data.fovial)}`,
-                    `🚛 COTRANS: ${formatCurrency(data.cotrans)}`,
-                    `📦 Productos: ${detalles.length}`,
+                    `📦 Stock actualizado: ${actualizaciones.length} productos`,
+                    ...stockMessages.slice(0, 3),
+                    ...(stockMessages.length > 3 ? [`... y ${stockMessages.length - 3} más`] : []),
                     `🕐 ${fechaActual}`
                 ],
-                duration: 6000
+                duration: 10000
             });
 
             if (isProcessingMultiple && currentDteIndex < pendingDtes.length - 1) {
@@ -1138,7 +1487,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         const emisorNit = dteData.emisor?.nit || null;
         const emisorNrc = dteData.emisor?.nrc || null;
         
-        const nuevosDetalles = [];
+        const productosAcumulados = new Map();
 
         const cuerpoDoc = dteData.cuerpoDocumento || [];
         for (const item of cuerpoDoc) {
@@ -1148,31 +1497,52 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             }
             
             if (foundProd) {
-                nuevosDetalles.push({
-                    tipo: "producto",
-                    producto_id: foundProd.id,
-                    producto_nombre: foundProd.nombre,
-                    producto_codigo: foundProd.codigo,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precioUni,
-                    subtotal: item.ventaGravada
-                });
+                const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
+                const key = foundProd.id;
+                
+                if (productosAcumulados.has(key)) {
+                    const acumulado = productosAcumulados.get(key);
+                    acumulado.cantidad += item.cantidad;
+                    acumulado.subtotal = acumulado.cantidad * acumulado.precio_unitario;
+                } else {
+                    productosAcumulados.set(key, {
+                        tipo: "producto",
+                        producto_id: foundProd.id,
+                        producto_nombre: foundProd.nombre,
+                        producto_codigo: foundProd.codigo,
+                        cantidad: item.cantidad,
+                        precio_unitario: item.precioUni,
+                        subtotal: item.ventaGravada,
+                        unidad: unidadDesdeJson
+                    });
+                }
             } else {
-                nuevosDetalles.push({
-                    tipo: "gasto",
-                    producto_id: null,
-                    producto_codigo: null,
-                    producto_nombre: null,
-                    descripcion: item.descripcion,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precioUni,
-                    subtotal: item.ventaGravada,
-                });
+                const key = `gasto_${item.descripcion}`;
+                if (productosAcumulados.has(key)) {
+                    const acumulado = productosAcumulados.get(key);
+                    acumulado.cantidad += item.cantidad;
+                    acumulado.subtotal = acumulado.cantidad * acumulado.precio_unitario;
+                } else {
+                    productosAcumulados.set(key, {
+                        tipo: "gasto",
+                        producto_id: null,
+                        producto_codigo: null,
+                        producto_nombre: null,
+                        descripcion: item.descripcion,
+                        cantidad: item.cantidad,
+                        precio_unitario: item.precioUni,
+                        subtotal: item.ventaGravada,
+                        unidad: ""
+                    });
+                }
             }
         }
 
+        const nuevosDetalles = Array.from(productosAcumulados.values());
+        const nuevosDetallesConsolidados = consolidarDetalles(detalles, nuevosDetalles);
+
         if (nuevosDetalles.length > 0) {
-            setDetalles(prev => [...prev, ...nuevosDetalles]);
+            setDetalles(nuevosDetallesConsolidados);
             addToast({ 
                 type: 'success', 
                 title: 'Productos cargados', 
@@ -1219,153 +1589,193 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     };
 
     const handleDialogYes = async () => {
-        if (!pendingDteData) return;
+    if (!pendingDteData) return;
 
-        setIsLoading(true);
-        try {
-            const { dteData, productosACrear, foundProv, currentProveedorId } = pendingDteData;
-            
-            const emisorNit = dteData.emisor?.nit || null;
-            const emisorNrc = dteData.emisor?.nrc || null;
-            
-            let currentProductos = [...productos];
-            const nuevosDetalles = [];
+    setIsLoading(true);
+    try {
+        const { dteData, productosACrear, foundProv, currentProveedorId } = pendingDteData;
+        
+        const emisorNit = dteData.emisor?.nit || null;
+        const emisorNrc = dteData.emisor?.nrc || null;
+        
+        let currentProductos = [...productos];
+        const productosAcumulados = new Map(); // Map para acumular SOLO UNA VEZ
 
-            for (let i = 0; i < productosACrear.length; i++) {
-                if (selectedProductosToCreate[i]) {
-                    const prodData = productosACrear[i];
-                    try {
-                        const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            credentials: "include",
-                            body: JSON.stringify({
-                                nombre: prodData.nombre,
-                                codigo: prodData.codigo,
-                                unidad: prodData.unidad,
-                                precio: prodData.precio,
-                                preciooferta: prodData.preciooferta,
-                                stock: prodData.stock,
-                                es_servicio: prodData.es_servicio,
-                                idproveedor: currentProveedorId
-                            }),
+        // 🔥 PASO 1: Crear SOLO los productos seleccionados que NO existen
+        for (let i = 0; i < productosACrear.length; i++) {
+            if (selectedProductosToCreate[i]) {
+                const prodData = productosACrear[i];
+                try {
+                    console.log(`📦 Creando nuevo producto: ${prodData.nombre}`);
+                    
+                    const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            nombre: prodData.nombre,
+                            codigo: prodData.codigo,
+                            unidad: prodData.unidad,
+                            precio: prodData.precio,
+                            preciooferta: prodData.preciooferta,
+                            stock: prodData.stock,
+                            es_servicio: prodData.es_servicio,
+                            idproveedor: currentProveedorId
+                        }),
+                    });
+
+                    if (response.ok) {
+                        const resJson = await response.json();
+                        const newProd = resJson.producto;
+                        currentProductos.push(newProd);
+                        setProductos(prev => [...prev, newProd]);
+
+                        // ✅ Agregar directamente al acumulador con la cantidad correcta
+                        const key = `prod_${newProd.id}`;
+                        const cantidadOriginal = parseFloat(prodData.item.cantidad);
+                        const precioUnitario = parseFloat(prodData.item.precioUni);
+                        const subtotalOriginal = parseFloat(prodData.item.ventaGravada);
+                        const unidadDesdeJson = mapearUnidadDesdeJson(prodData.item.uniMedida);
+                        
+                        console.log(`   ✅ Producto creado: ${newProd.nombre}, cantidad: ${cantidadOriginal}`);
+                        
+                        productosAcumulados.set(key, {
+                            tipo: "producto",
+                            producto_id: newProd.id,
+                            producto_nombre: newProd.nombre,
+                            producto_codigo: newProd.codigo,
+                            cantidad: parseFloat(cantidadOriginal.toFixed(4)),
+                            precio_unitario: parseFloat(precioUnitario.toFixed(4)),
+                            subtotal: parseFloat(subtotalOriginal.toFixed(2)),
+                            unidad: unidadDesdeJson
                         });
-
-                        if (response.ok) {
-                            const resJson = await response.json();
-                            const newProd = resJson.producto;
-                            currentProductos.push(newProd);
-                            setProductos(prev => [...prev, newProd]);
-
-                            nuevosDetalles.push({
-                                tipo: "producto",
-                                producto_id: newProd.id,
-                                producto_nombre: newProd.nombre,
-                                producto_codigo: newProd.codigo,
-                                cantidad: prodData.item.cantidad,
-                                precio_unitario: prodData.item.precioUni,
-                                subtotal: prodData.item.ventaGravada
-                            });
-                        }
-                    } catch (err) {
-                        console.error("Error creando producto:", err);
+                    } else {
+                        console.error("Error creando producto:", await response.text());
                     }
+                } catch (err) {
+                    console.error("Error creando producto:", err);
                 }
             }
+        }
 
-            const cuerpoDoc = dteData.cuerpoDocumento || [];
-            for (const item of cuerpoDoc) {
-                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-
-                if (!foundProd) {
-                    foundProd = currentProductos.find(
-                        p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase()
-                    );
-                }
-
-                if (foundProd) {
-                    const existente = nuevosDetalles.find(d => d.producto_id === foundProd.id);
-
-                    if (existente) {
-                        existente.cantidad += item.cantidad;
-                        existente.subtotal += item.ventaGravada;
-                    } else {
-                        nuevosDetalles.push({
-                            ...crearDetalleBase(),
-                            tipo: "producto",
-                            producto_id: foundProd.id,
-                            producto_nombre: foundProd.nombre,
-                            producto_codigo: foundProd.codigo,
-                            cantidad: item.cantidad,
-                            precio_unitario: item.precioUni,
-                            subtotal: item.ventaGravada
-                        });
-                    }
+        // 🔥 PASO 2: Procesar el resto de productos (los que YA existían)
+        const cuerpoDoc = dteData.cuerpoDocumento || [];
+        for (const item of cuerpoDoc) {
+            // Buscar el producto en currentProductos (incluye los nuevos creados)
+            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            if (!foundProd) {
+                foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
+            }
+            
+            if (foundProd) {
+                const key = `prod_${foundProd.id}`;
+                
+                // ⚠️ IMPORTANTE: Solo procesar si NO está ya en el acumulador
+                if (!productosAcumulados.has(key)) {
+                    const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
+                    const cantidadOriginal = parseFloat(item.cantidad);
+                    const precioUnitario = parseFloat(item.precioUni);
+                    const subtotalOriginal = parseFloat(item.ventaGravada);
+                    
+                    console.log(`📦 Producto existente: ${foundProd.nombre}, cantidad: ${cantidadOriginal}`);
+                    
+                    productosAcumulados.set(key, {
+                        tipo: "producto",
+                        producto_id: foundProd.id,
+                        producto_nombre: foundProd.nombre,
+                        producto_codigo: foundProd.codigo,
+                        cantidad: parseFloat(cantidadOriginal.toFixed(4)),
+                        precio_unitario: parseFloat(precioUnitario.toFixed(4)),
+                        subtotal: parseFloat(subtotalOriginal.toFixed(2)),
+                        unidad: unidadDesdeJson
+                    });
                 } else {
-                    nuevosDetalles.push({
-                        ...crearDetalleBase(),
+                    console.log(`⚠️ Producto ya procesado (evitando duplicado): ${foundProd.nombre}`);
+                }
+            } else {
+                // Si no es producto, procesar como gasto
+                const key = `gasto_${item.descripcion}`;
+                if (!productosAcumulados.has(key)) {
+                    productosAcumulados.set(key, {
                         tipo: "gasto",
                         descripcion: item.descripcion,
-                        cantidad: item.cantidad,
-                        precio_unitario: item.precioUni,
-                        subtotal: item.ventaGravada
+                        cantidad: parseFloat(item.cantidad),
+                        precio_unitario: parseFloat(item.precioUni),
+                        subtotal: parseFloat(item.ventaGravada),
+                        unidad: ""
                     });
                 }
             }
+        }
 
-            const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
-            const totalProductos = dteData.resumen?.totalGravada || 0;
-            const exentasConTributos = (fovial + cotrans) || 0;
+        // Convertir el Map a array de detalles
+        const nuevosDetalles = Array.from(productosAcumulados.values());
+
+        console.log("📊 RESULTADO FINAL (sin duplicados):");
+        nuevosDetalles.forEach(d => {
+            console.log(`  ✅ ${d.producto_nombre || d.descripcion}: Cantidad = ${d.cantidad}, Subtotal = $${d.subtotal.toFixed(2)}`);
+        });
+
+        // ✅ Reemplazar detalles, NO acumular con los que ya existían
+        setDetalles(nuevosDetalles);
+
+        // Extraer tributos y actualizar formData
+        const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
+        const totalGravado = parseFloat(nuevosDetalles.reduce((sum, d) => sum + d.subtotal, 0).toFixed(2));
+        const fovialRedondeado = parseFloat(fovial.toFixed(2));
+        const cotransRedondeado = parseFloat(cotrans.toFixed(2));
+        const ivaRedondeado = parseFloat(iva.toFixed(2));
+        const cescRedondeado = parseFloat(cesc.toFixed(2));
+        const exentasInternas = parseFloat((fovialRedondeado + cotransRedondeado).toFixed(2));
+        const totalCompras = parseFloat((totalGravado + ivaRedondeado + fovialRedondeado + cotransRedondeado).toFixed(2));
+
+        setFormData(prev => {
+            const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
+            const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
             const selloRecepcion = extraerSelloRecepcion(dteData);
             const codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
+            
+            return {
+                ...prev,
+                fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
+                numero_documento: dteData.identificacion?.numeroControl || "",
+                codigo_generacion: codigoGeneracion,
+                sello_recepcion: selloRecepcion,
+                nrc: emisorNrc || prev.nrc,
+                nit: emisorNit || prev.nit,
+                nombre_proveedor: dteData.emisor?.nombre || prev.nombre_proveedor,
+                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                tipo_documento: tipoMap[tipoDteValue] || "CCF",
+                gravadas_internas: totalGravado,
+                credito_fiscal: ivaRedondeado,
+                fovial: fovialRedondeado,
+                cotrans: cotransRedondeado,
+                cesc: cescRedondeado,
+                exentas_internas: exentasInternas,
+                total_compras: totalCompras
+            };
+        });
 
-            setFormData(prev => {
-                const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
-                const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
-                return {
-                    ...prev,
-                    fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
-                    numero_documento: dteData.identificacion?.numeroControl || "",
-                    codigo_generacion: codigoGeneracion,
-                    sello_recepcion: selloRecepcion,
-                    nrc: emisorNrc || prev.nrc,
-                    nit: emisorNit || prev.nit,
-                    nombre_proveedor: dteData.emisor?.nombre || prev.nombre_proveedor,
-                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                    tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                    gravadas_internas: totalProductos,
-                    credito_fiscal: iva,
-                    fovial: fovial,
-                    cotrans: cotrans,
-                    cesc: cesc,
-                    exentas_internas: exentasConTributos,
-                    total_compras: dteData.resumen?.totalPagar || 0
-                };
-            });
-
-            if (nuevosDetalles.length > 0) {
-                setDetalles(prev => [...prev, ...nuevosDetalles]);
-            }
-
-            closeDialog(() => {
-                setPendingDteData(null);
-                setProductosNoEncontradosMsg([]);
-                setSelectedProductosToCreate({});
-                setIsLoading(false);
-            });
-
-            addToast({ 
-                type: 'success', 
-                title: 'Productos creados', 
-                message: `Se crearon ${productosACrear.filter((_, i) => selectedProductosToCreate[i]).length} productos nuevos.` 
-            });
-
-        } catch (error) {
-            console.error("Error:", error);
-            setError("Error al crear los productos.");
+        closeDialog(() => {
+            setPendingDteData(null);
+            setProductosNoEncontradosMsg([]);
+            setSelectedProductosToCreate({});
             setIsLoading(false);
-        }
-    };
+        });
+
+        addToast({ 
+            type: 'success', 
+            title: 'Productos creados y cargados', 
+            message: `Se crearon ${Object.values(selectedProductosToCreate).filter(v => v).length} productos nuevos. Total productos: ${nuevosDetalles.length}`,
+            duration: 5000
+        });
+
+    } catch (error) {
+        console.error("Error:", error);
+        setError("Error al crear los productos.");
+        setIsLoading(false);
+    }
+};
 
     if (isLoadingData) {
         return (
@@ -1575,13 +1985,18 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                 min="0" step="0.01" placeholder="0.00"
                                             />
                                         </div>
-                                        <div className="md:col-span-1">
+                                        <div className="md:col-span-2">
                                             <button 
-                                                type="button" onClick={handleAddDetail}
+                                                type="button" 
+                                                onClick={() => {
+                                                    if (selectedProduct) {
+                                                        handleSelectProduct(selectedProduct);
+                                                    }
+                                                }}
                                                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center"
                                                 disabled={!selectedProduct}
                                             >
-                                                <FaPlus className="mr-2" /> Agregar
+                                                <FaPlus className="mr-2" /> Agregar Producto
                                             </button>
                                         </div>
                                         <div className="md:col-span-1">
@@ -1610,6 +2025,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                 <tr>
                                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
                                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto / Descripción</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidad</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cant.</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Costo Unit.</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
@@ -1619,7 +2035,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                             <tbody className="bg-white divide-y divide-gray-200">
                                                 {detalles.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
+                                                        <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
                                                             No hay productos agregados.
                                                         </td>
                                                     </tr>
@@ -1640,13 +2056,31 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                                             <td className="px-4 py-3 text-sm text-gray-900">
                                                                 {item.producto_nombre || item.descripcion || "Sin descripción"}
                                                             </td>
+                                                            <td className="px-4 py-3 text-sm text-gray-500">
+                                                                {item.unidad ? getNombreUnidad(item.unidad) : "-"}
+                                                            </td>
                                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">{item.cantidad}</td>
                                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">${item.precio_unitario.toFixed(2)}</td>
                                                             <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">${item.subtotal.toFixed(2)}</td>
                                                             <td className="px-4 py-3 text-center">
-                                                                <button type="button" onClick={() => handleRemoveDetail(idx)} className="text-red-600 hover:text-red-800">
-                                                                    <FaTrash />
-                                                                </button>
+                                                                <div className="flex items-center justify-center gap-2">
+                                                                    <button 
+                                                                        type="button" 
+                                                                        onClick={() => handleOpenEditModal(idx)} 
+                                                                        className="text-blue-600 hover:text-blue-800 transition-colors"
+                                                                        title="Editar"
+                                                                    >
+                                                                        <FaEdit />
+                                                                    </button>
+                                                                    <button 
+                                                                        type="button" 
+                                                                        onClick={() => handleRemoveDetail(idx)} 
+                                                                        className="text-red-600 hover:text-red-800 transition-colors"
+                                                                        title="Eliminar"
+                                                                    >
+                                                                        <FaTrash />
+                                                                    </button>
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     ))
@@ -1824,6 +2258,188 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 </div>
             </div>
 
+            {/* MODAL PARA SELECCIONAR UNIDAD DEL PRODUCTO */}
+            {showProductoUnidadModal && tempProductData && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-gray-200">
+                        <div className="flex items-center justify-between mb-5">
+                            <h2 className="text-xl font-semibold text-gray-800">
+                                Seleccionar Unidad para {tempProductData.nombre}
+                            </h2>
+                            <button
+                                onClick={() => setShowProductoUnidadModal(false)}
+                                className="text-gray-400 hover:text-gray-600 transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Producto</label>
+                            <div className="bg-gray-100 rounded-xl px-4 py-3">
+                                <p className="font-medium text-gray-800">{tempProductData.nombre}</p>
+                                <p className="text-xs text-gray-500">Código: {tempProductData.codigo}</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+                                <input
+                                    type="number"
+                                    value={tempCantidad}
+                                    onChange={(e) => setTempCantidad(parseFloat(e.target.value) || 0)}
+                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                                    min="0.01"
+                                    step="0.01"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Costo Unitario ($)</label>
+                                <input
+                                    type="number"
+                                    value={tempPrecio}
+                                    onChange={(e) => setTempPrecio(parseFloat(e.target.value) || 0)}
+                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                                    min="0"
+                                    step="0.01"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>
+                            <select
+                                value={tempUnidad}
+                                onChange={(e) => setTempUnidad(e.target.value)}
+                                className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                            >
+                                {unidadesDisponibles.map(unidad => (
+                                    <option key={unidad.codigo} value={unidad.codigo}>
+                                        {unidad.nombre}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="bg-gray-50 border rounded-xl p-3 flex justify-between text-sm mb-4">
+                            <span className="text-gray-600">Subtotal:</span>
+                            <span className="font-semibold text-gray-900">
+                                ${((tempCantidad || 0) * (tempPrecio || 0)).toFixed(2)}
+                            </span>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowProductoUnidadModal(false)}
+                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmarProductoConUnidad}
+                                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition flex items-center gap-2"
+                            >
+                                <FaPlus /> Agregar Producto
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL PARA EDITAR DETALLE (Cantidad, Precio y Unidad) */}
+            {showEditModal && editDetailIndex !== null && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-gray-200">
+                        <div className="flex items-center justify-between mb-5">
+                            <h2 className="text-xl font-semibold text-gray-800">
+                                Editar Detalle
+                            </h2>
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                className="text-gray-400 hover:text-gray-600 transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Producto / Descripción</label>
+                            <div className="bg-gray-100 rounded-xl px-4 py-3">
+                                <p className="font-medium text-gray-800">
+                                    {detalles[editDetailIndex]?.producto_nombre || detalles[editDetailIndex]?.descripcion || "Sin descripción"}
+                                </p>
+                                {detalles[editDetailIndex]?.tipo === "producto" && (
+                                    <p className="text-xs text-gray-500">Código: {detalles[editDetailIndex]?.producto_codigo}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+                                <input
+                                    type="number"
+                                    value={editDetailData.cantidad}
+                                    onChange={(e) => setEditDetailData({...editDetailData, cantidad: parseFloat(e.target.value) || 0})}
+                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                                    min="0.01"
+                                    step="0.01"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Precio Unitario ($)</label>
+                                <input
+                                    type="number"
+                                    value={editDetailData.precio_unitario}
+                                    onChange={(e) => setEditDetailData({...editDetailData, precio_unitario: parseFloat(e.target.value) || 0})}
+                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                                    min="0"
+                                    step="0.01"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>
+                            <select
+                                value={editDetailData.unidad}
+                                onChange={(e) => setEditDetailData({...editDetailData, unidad: e.target.value})}
+                                className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                            >
+                                {unidadesDisponibles.map(unidad => (
+                                    <option key={unidad.codigo} value={unidad.codigo}>
+                                        {unidad.nombre}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="bg-gray-50 border rounded-xl p-3 flex justify-between text-sm mb-4">
+                            <span className="text-gray-600">Nuevo Subtotal:</span>
+                            <span className="font-semibold text-gray-900">
+                                ${((editDetailData.cantidad || 0) * (editDetailData.precio_unitario || 0)).toFixed(2)}
+                            </span>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition flex items-center gap-2"
+                            >
+                                <FaSave /> Guardar Cambios
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* MODAL PARA AGREGAR GASTO/SERVICIO */}
             {showGastoModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1965,7 +2581,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 </div>
             )}
 
-            {/* MODAL MATERIA PRIMA */}
+            {/* MODAL MATERIA PRIMA CON UNIDADES */}
             {showMateriaPrimaModal && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-gray-200">
@@ -2039,17 +2655,17 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                         </div>
 
                         <div className="mt-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>
                             <select
                                 value={mpUnidad}
                                 onChange={(e) => setMpUnidad(e.target.value)}
                                 className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
                             >
-                                <option value="KG">Kilogramos</option>
-                                <option value="LB">Libras</option>
-                                <option value="G">Gramos</option>
-                                <option value="LT">Litros</option>
-                                <option value="ML">Mililitros</option>
-                                <option value="UND" selected>Unidad</option>
+                                {unidadesDisponibles.map(unidad => (
+                                    <option key={unidad.codigo} value={unidad.codigo}>
+                                        {unidad.nombre}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
@@ -2072,7 +2688,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                                 onClick={handleAddMateriaPrima}
                                 className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-sm transition flex items-center gap-2"
                             >
-                                ➕ Agregar
+                                Agregar
                             </button>
                         </div>
                     </div>
