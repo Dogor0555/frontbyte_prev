@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FaTimes, FaBox, FaBuilding, FaFileAlt, FaCalendarAlt, FaMoneyBillWave } from "react-icons/fa";
+import { FaTimes, FaBox, FaBuilding, FaFileAlt, FaCalendarAlt, FaMoneyBillWave, FaCube, FaFlask, FaTag } from "react-icons/fa";
 import { API_BASE_URL } from "@/lib/api";
 
 const formatCurrency = (amount) =>
@@ -24,6 +24,48 @@ const Field = ({ label, value, mono = false, span = false }) => (
         </p>
     </div>
 );
+
+// Componente para mostrar el tipo con colores
+const TipoBadge = ({ tipo, materia_prima_id, producto_id }) => {
+    // Determinar el tipo real
+    let tipoReal = tipo;
+    if (materia_prima_id) tipoReal = "materia_prima";
+    else if (producto_id) tipoReal = "producto";
+    else tipoReal = "gasto";
+    
+    const config = {
+        producto: { 
+            icon: <FaBox size={11} />, 
+            text: "PRODUCTO", 
+            bg: "bg-blue-100", 
+            color: "text-blue-700",
+            border: "border-blue-200"
+        },
+        materia_prima: { 
+            icon: <FaFlask size={11} />, 
+            text: "MATERIA PRIMA", 
+            bg: "bg-purple-100", 
+            color: "text-purple-700",
+            border: "border-purple-200"
+        },
+        gasto: { 
+            icon: <FaTag size={11} />, 
+            text: "GASTO", 
+            bg: "bg-amber-100", 
+            color: "text-amber-700",
+            border: "border-amber-200"
+        }
+    };
+    
+    const style = config[tipoReal] || config.gasto;
+    
+    return (
+        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${style.bg} ${style.color} ${style.border} border`}>
+            {style.icon}
+            {style.text}
+        </span>
+    );
+};
 
 export default function DetalleCompraModal({ isOpen, onClose, compraId }) {
     const [data, setData] = useState(null);
@@ -59,7 +101,7 @@ export default function DetalleCompraModal({ isOpen, onClose, compraId }) {
             className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto py-8"
             onClick={(e) => e.target === e.currentTarget && onClose()}
         >
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 overflow-hidden">
 
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
                     <div className="flex items-center gap-3">
@@ -141,6 +183,7 @@ export default function DetalleCompraModal({ isOpen, onClose, compraId }) {
                                         <table className="min-w-full divide-y divide-slate-100">
                                             <thead className="bg-slate-50">
                                                 <tr>
+                                                    <th className="px-4 py-2.5 text-xs font-semibold text-slate-500 text-left">TIPO</th>
                                                     <th className="px-4 py-2.5 text-xs font-semibold text-slate-500 text-left">Código</th>
                                                     <th className="px-4 py-2.5 text-xs font-semibold text-slate-500 text-left">Producto / Descripción</th>
                                                     <th className="px-4 py-2.5 text-xs font-semibold text-slate-500 text-right">Cant.</th>
@@ -149,31 +192,42 @@ export default function DetalleCompraModal({ isOpen, onClose, compraId }) {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 bg-white">
-                                                {detalles.map((det, i) => (
-                                                    <tr key={det.id || i} className="hover:bg-slate-50">
-                                                        <td className="px-4 py-2.5 text-xs font-mono text-slate-500">
-                                                            {det.producto?.codigo ? (
-                                                                det.producto.codigo
-                                                            ) : (
-                                                                <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full font-sans">
-                                                                    Gasto
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-4 py-2.5 text-sm text-slate-800">
-                                                            {det.producto?.nombre || det.descripcion || "Sin descripción"}
-                                                        </td>
-                                                        <td className="px-4 py-2.5 text-sm text-slate-700 text-right">
-                                                            {parseFloat(det.cantidad).toFixed(2)}
-                                                        </td>
-                                                        <td className="px-4 py-2.5 text-sm text-slate-700 text-right">
-                                                            {formatCurrency(det.precio_unitario)}
-                                                        </td>
-                                                        <td className="px-4 py-2.5 text-sm font-semibold text-slate-800 text-right">
-                                                            {formatCurrency(det.subtotal)}
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                {detalles.map((det, i) => {
+                                                    // Determinar código según el tipo
+                                                    let codigo = "—";
+                                                    if (det.materia_prima_id) {
+                                                        codigo = det.materia_prima_codigo || "MP-" + det.materia_prima_id;
+                                                    } else if (det.producto_id) {
+                                                        codigo = det.producto?.codigo || "P-" + det.producto_id;
+                                                    }
+                                                    
+                                                    return (
+                                                        <tr key={det.id || i} className="hover:bg-slate-50">
+                                                            <td className="px-4 py-2.5">
+                                                                <TipoBadge 
+                                                                    tipo={det.tipo}
+                                                                    materia_prima_id={det.materia_prima_id}
+                                                                    producto_id={det.producto_id}
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-xs font-mono text-slate-500">
+                                                                {codigo}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-sm text-slate-800 font-medium">
+                                                                {det.producto?.nombre || det.descripcion || "Sin descripción"}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-sm text-slate-700 text-right">
+                                                                {parseFloat(det.cantidad).toFixed(2)}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-sm text-slate-700 text-right">
+                                                                {formatCurrency(det.precio_unitario)}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-sm font-semibold text-slate-800 text-right">
+                                                                {formatCurrency(det.subtotal)}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>

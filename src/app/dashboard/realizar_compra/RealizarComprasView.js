@@ -624,95 +624,176 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         });
     };
 
-    const handleAgregarMateriaPrimaDesdeDialog = async () => {
-        const seleccionados = productosNoEncontradosMsg.filter((_, idx) => selectedProductosToCreate[idx]);
+ const handleAgregarMateriaPrimaDesdeDialog = async () => {
+    const seleccionadosIndices = Object.keys(selectedProductosToCreate).filter(idx => selectedProductosToCreate[idx]);
+    
+    if (seleccionadosIndices.length === 0) {
+        addToast({ type: 'error', message: 'Seleccione al menos un producto para agregar como materia prima' });
+        return;
+    }
 
-        if (seleccionados.length === 0) {
-            addToast({ type: 'error', message: 'Seleccione al menos un producto para agregar como materia prima' });
+    try {
+        const idsucursal = user?.idsucursal;
+        
+        if (!idsucursal) {
+            addToast({ type: 'error', message: 'No se pudo identificar la sucursal. Reinicie sesión.' });
             return;
         }
 
-        try {
-            const nuevosDetalles = [];
-            const nombresMPCreados = [];
-
-            for (const nombreProducto of seleccionados) {
-                const nombreLimpio = nombreProducto.split(" - ").pop().trim();
-                let mp = materiasPrimas.find(mp => mp.nombre.toLowerCase() === nombreLimpio.toLowerCase());
-
-                if (!mp) {
-                    const res = await fetch(`${API_BASE_URL}/materias-primas`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify({
-                            nombre: nombreLimpio,
-                            unidad: "59"
-                        })
-                    });
-
-                    const data = await res.json();
-
-                    if (!data?.id) {
-                        console.error("❌ Error creando MP:", data);
-                        addToast({ type: 'error', message: `Error creando materia prima: ${nombreLimpio}` });
-                        continue;
-                    }
-
-                    mp = data;
-                    setMateriasPrimas(prev => [...prev, mp]);
-                }
-
-                const itemOriginal = pendingDteData?.dteData?.cuerpoDocumento?.find(
-                    item => item.descripcion === nombreLimpio || 
-                            `${item.codigo} - ${item.descripcion}` === nombreProducto
-                );
-                
-                const cantidad = itemOriginal?.cantidad || 1;
-                const precioUnitario = itemOriginal?.precioUni || 0;
-                const unidadDesdeJson = mapearUnidadDesdeJson(itemOriginal?.uniMedida);
-
-                nuevosDetalles.push({
-                    ...crearDetalleBase(),
-                    tipo: "materia_prima",
-                    es_materia_prima: true,
-                    producto_id: null,
-                    materia_prima_id: mp.id,
-                    descripcion: mp.nombre,
-                    cantidad: parseFloat(cantidad),
-                    precio_unitario: parseFloat(precioUnitario),
-                    subtotal: parseFloat(cantidad) * parseFloat(precioUnitario),
-                    unidad: unidadDesdeJson
+        const { dteData, itemsNoEncontrados, foundProv, currentProveedorId, itemsProcesados } = pendingDteData;
+        
+        const nuevosDetalles = [...(itemsProcesados || [])];
+        
+        for (const idx of seleccionadosIndices) {
+            const itemData = itemsNoEncontrados[parseInt(idx)];
+            if (!itemData) continue;
+            
+            const nombreLimpio = itemData.nombre;
+            
+            // Buscar si ya existe en materiasPrimas (estado local)
+            let mp = materiasPrimas.find(mp => mp.nombre?.toLowerCase() === nombreLimpio?.toLowerCase());
+            
+            if (!mp) {
+                // Crear nueva materia prima
+                const res = await fetch(`${API_BASE_URL}/materias-primas`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        nombre: nombreLimpio,
+                        unidad: "59",
+                        idsucursal: idsucursal
+                    })
                 });
                 
-                nombresMPCreados.push(nombreLimpio);
-            }
-
-            const nuevosDetallesConsolidados = consolidarDetalles(detalles, nuevosDetalles);
-            setDetalles(nuevosDetallesConsolidados);
-            updateTotals(nuevosDetallesConsolidados, formData.tipo_compra);
-
-            closeDialog(() => {
-                if (pendingDteData) {
-                    procesarRestoDteConMP(pendingDteData.dteData, pendingDteData.foundProv, nombresMPCreados);
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    console.error("❌ Error creando MP:", data);
+                    addToast({ type: 'error', message: `Error creando materia prima: ${nombreLimpio} - ${data.error || data.message}` });
+                    continue;
                 }
-                setPendingDteData(null);
-                setProductosNoEncontradosMsg([]);
-                setSelectedProductosToCreate({});
-                setIsLoading(false);
-            });
-
-            addToast({ 
-                type: 'success', 
-                title: 'Materias Primas Agregadas', 
-                message: `Se agregaron ${nuevosDetalles.length} materia(s) prima(s) correctamente`
-            });
-
-        } catch (error) {
-            console.error("❌ Error agregando MP:", error);
-            addToast({ type: 'error', message: 'Error al agregar materia prima' });
+                
+                mp = data.materia || data;
+                
+                if (!mp?.id) {
+                    console.error("❌ Error: backend no devolvió ID");
+                    addToast({ type: 'error', message: `Error: no se pudo crear ${nombreLimpio}` });
+                    continue;
+                }
+                
+                setMateriasPrimas(prev => [...prev, mp]);
+                addToast({ type: 'success', message: `Materia prima "${mp.nombre}" creada` });
+            }
+            
+            const cantidad = parseFloat(itemData.cantidad);
+            const precioUnitario = parseFloat(itemData.precio);
+            const subtotal = cantidad * precioUnitario;
+            const unidadDesdeJson = mapearUnidadDesdeJson(itemData.unidad);
+            
+            const nuevoDetalle = {
+                tipo: "materia_prima",
+                producto_id: null,
+                materia_prima_id: mp.id,
+                producto_nombre: mp.nombre,
+                producto_codigo: mp.codigo,
+                descripcion: mp.nombre,
+                cantidad: cantidad,
+                precio_unitario: precioUnitario,
+                subtotal: subtotal,
+                unidad: mp.unidad || unidadDesdeJson,
+                es_materia_prima: true
+            };
+            
+            nuevosDetalles.push(nuevoDetalle);
         }
-    };
+        
+        // PROCESAR EL RESTO DE ÍTEMS (los que NO se seleccionaron) como GASTOS
+        const indicesNoSeleccionados = itemsNoEncontrados
+            .map((_, idx) => idx)
+            .filter(idx => !selectedProductosToCreate[idx]);
+        
+        for (const idx of indicesNoSeleccionados) {
+            const itemData = itemsNoEncontrados[idx];
+            if (!itemData) continue;
+            
+            const cantidad = parseFloat(itemData.cantidad);
+            const precioUnitario = parseFloat(itemData.precio);
+            const subtotal = cantidad * precioUnitario;
+            
+            nuevosDetalles.push({
+                tipo: "gasto",
+                producto_id: null,
+                materia_prima_id: null,
+                producto_nombre: null,
+                producto_codigo: null,
+                descripcion: itemData.nombre,
+                cantidad: cantidad,
+                precio_unitario: precioUnitario,
+                subtotal: subtotal,
+                unidad: "",
+                es_materia_prima: false
+            });
+        }
+        
+        setDetalles(nuevosDetalles);
+        
+        // Actualizar formData con los totales
+        const totalGravado = parseFloat(nuevosDetalles.reduce((sum, d) => sum + d.subtotal, 0).toFixed(2));
+        const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
+        const fovialRedondeado = parseFloat(fovial.toFixed(2));
+        const cotransRedondeado = parseFloat(cotrans.toFixed(2));
+        const ivaRedondeado = parseFloat(iva.toFixed(2));
+        const exentasInternas = parseFloat((fovialRedondeado + cotransRedondeado).toFixed(2));
+        const totalCompras = parseFloat((totalGravado + ivaRedondeado + fovialRedondeado + cotransRedondeado).toFixed(2));
+        
+        setFormData(prev => {
+            const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
+            const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
+            const selloRecepcion = extraerSelloRecepcion(dteData);
+            const codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
+            
+            return {
+                ...prev,
+                fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
+                numero_documento: dteData.identificacion?.numeroControl || "",
+                codigo_generacion: codigoGeneracion,
+                sello_recepcion: selloRecepcion,
+                nrc: dteData.emisor?.nrc || prev.nrc,
+                nit: dteData.emisor?.nit || prev.nit,
+                nombre_proveedor: dteData.emisor?.nombre || prev.nombre_proveedor,
+                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                tipo_documento: tipoMap[tipoDteValue] || "CCF",
+                gravadas_internas: totalGravado,
+                credito_fiscal: ivaRedondeado,
+                fovial: fovialRedondeado,
+                cotrans: cotransRedondeado,
+                exentas_internas: exentasInternas,
+                total_compras: totalCompras
+            };
+        });
+        
+        updateTotals(nuevosDetalles, formData.tipo_compra);
+        
+        closeDialog(() => {
+            setPendingDteData(null);
+            setProductosNoEncontradosMsg([]);
+            setSelectedProductosToCreate({});
+            setIsLoading(false);
+        });
+        
+        addToast({ 
+            type: 'success', 
+            title: 'Materias Primas Agregadas', 
+            message: `Se agregaron ${seleccionadosIndices.length} materia(s) prima(s) correctamente.`
+        });
+        
+    } catch (error) {
+        console.error("❌ Error en handleAgregarMateriaPrimaDesdeDialog:", error);
+        addToast({ type: 'error', message: error.message || 'Error al agregar materia prima' });
+        setIsLoading(false);
+    }
+};
 
     const handleAgregarSeleccionados = () => {
         const seleccionados = productosNoEncontradosMsg.filter((_, idx) => selectedProductosToCreate[idx]);
@@ -877,70 +958,88 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     };
 
     const handleAddMateriaPrima = async () => {
-        if (!mpSearch || !mpCantidad || !mpCosto) {
-            addToast({ type: 'error', message: 'Complete todos los campos' });
-            return;
-        }
+    if (!mpSearch || !mpCantidad || !mpCosto) {
+        addToast({ type: 'error', message: 'Complete todos los campos' });
+        return;
+    }
 
-        try {
-            let mp = mpSelected;
+    try {
+        let mp = mpSelected;
+        const idsucursal = user?.idsucursal;
 
-            if (!mpSelected) {
-                const res = await fetch(`${API_BASE_URL}/materias-primas`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({
-                        nombre: mpSearch,
-                        unidad: mpUnidad
-                    })
-                });
-
-                const data = await res.json();
-
-                if (!data?.id) {
-                    throw new Error("Error: backend no devolvió ID");
-                }
-
-                mp = data;
-                setMateriasPrimas(prev => [...prev, mp]);
+        if (!mpSelected) {
+            if (!idsucursal) {
+                addToast({ type: 'error', message: 'No se pudo identificar la sucursal' });
+                return;
             }
 
-            const cantidad = parseFloat(mpCantidad);
-            const costo = parseFloat(mpCosto);
-            const subtotal = cantidad * costo;
+            const res = await fetch(`${API_BASE_URL}/materias-primas`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    nombre: mpSearch,
+                    unidad: mpUnidad,
+                    idsucursal: idsucursal
+                })
+            });
 
-            const nuevoDetalle = {
-                ...crearDetalleBase(),
-                tipo: "materia_prima",
-                es_materia_prima: true,
-                producto_id: null,
-                materia_prima_id: mp.id,
-                descripcion: mp.nombre,
-                cantidad: cantidad,
-                precio_unitario: costo,
-                subtotal: subtotal,
-                unidad: mp.unidad || mpUnidad
-            };
+            const data = await res.json();
 
-            const nuevosDetallesConsolidados = consolidarDetalles(detalles, [nuevoDetalle]);
-            setDetalles(nuevosDetallesConsolidados);
-            updateTotals(nuevosDetallesConsolidados, formData.tipo_compra);
+            if (!res.ok) {
+                throw new Error(data.error || data.message || "Error al crear materia prima");
+            }
 
-            setMpSelected(null);
-            setMpSearch("");
-            setMpCantidad("");
-            setMpCosto("");
-            setMpUnidad("59");
-            setShowMateriaPrimaModal(false);
+            mp = data.materia || data;
+            
+            if (!mp?.id) {
+                throw new Error("El backend no devolvió el ID de la materia prima");
+            }
 
-            addToast({ type: 'success', message: `Materia prima "${mp.nombre}" agregada con unidad: ${getNombreUnidad(mp.unidad || mpUnidad)}` });
-
-        } catch (error) {
-            console.error("❌ Error creando materia prima:", error);
-            addToast({ type: 'error', message: 'Error al agregar materia prima' });
+            setMateriasPrimas(prev => [...prev, mp]);
+            addToast({ type: 'success', message: `Materia prima "${mp.nombre}" creada` });
         }
-    };
+
+        const cantidad = parseFloat(mpCantidad);
+        const costo = parseFloat(mpCosto);
+        const subtotal = cantidad * costo;
+
+        const nuevoDetalle = {
+            tipo: "materia_prima",
+            materia_prima_id: mp.id,
+            descripcion: mp.nombre,
+            cantidad: cantidad,
+            precio_unitario: costo,
+            subtotal: subtotal,
+            unidad: mp.unidad || mpUnidad,
+            producto_id: null,
+            producto_codigo: null,
+            producto_nombre: null,
+            es_materia_prima: true
+        };
+
+        const nuevosDetallesConsolidados = consolidarDetalles(detalles, [nuevoDetalle]);
+        setDetalles(nuevosDetallesConsolidados);
+        updateTotals(nuevosDetallesConsolidados, formData.tipo_compra);
+
+        // Resetear el modal
+        setMpSelected(null);
+        setMpSearch("");
+        setMpCantidad("");
+        setMpCosto("");
+        setMpUnidad("59");
+        setShowMateriaPrimaModal(false);
+
+        addToast({ 
+            type: 'success', 
+            message: `Materia prima "${mp.nombre}" agregada con unidad: ${getNombreUnidad(mp.unidad || mpUnidad)}` 
+        });
+
+    } catch (error) {
+        console.error("❌ Error agregando materia prima:", error);
+        addToast({ type: 'error', message: error.message || 'Error al agregar materia prima' });
+    }
+};
 
     const handleCreateMP = async () => {
         if (!mpSearch.trim()) return;
@@ -1033,7 +1132,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         }, 280);
     };
 
-// ========== FUNCIÓN PRINCIPAL DEFINITIVA - CON RESETEO DE DETALLES ==========
+// ========== FUNCIÓN PRINCIPAL CORREGIDA - PROCESA PRODUCTOS Y MATERIAS PRIMAS ==========
 const procesarDteActual = async (dteData) => {
     setIsLoading(true);
     try {
@@ -1042,18 +1141,6 @@ const procesarDteActual = async (dteData) => {
         console.log("📄 PROCESANDO DTE:");
         const cuerpoDoc = dteData.cuerpoDocumento || [];
         console.log(`  - Total de líneas en DTE: ${cuerpoDoc.length}`);
-        
-        // 🔍 MOSTRAR TODAS LAS LÍNEAS DEL DTE
-        console.log("🔍 ===== DETALLE COMPLETO DEL DTE =====");
-        cuerpoDoc.forEach((item, idx) => {
-            console.log(`  Línea ${idx + 1}:`);
-            console.log(`    Código: ${item.codigo || "N/A"}`);
-            console.log(`    Descripción: ${item.descripcion}`);
-            console.log(`    Cantidad ORIGINAL: ${item.cantidad}`);
-            console.log(`    Precio Unitario: ${item.precioUni}`);
-            console.log(`    Subtotal: ${item.ventaGravada}`);
-            console.log(`    Unidad: ${item.uniMedida}`);
-        });
         
         const emisorNit = dteData.emisor?.nit;
         const emisorNrc = dteData.emisor?.nrc;
@@ -1099,119 +1186,122 @@ const procesarDteActual = async (dteData) => {
         const selloRecepcion = extraerSelloRecepcion(dteData);
         const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
 
-        const productosNoEncontrados = [];
-        const productosACrear = [];
-        let currentProductos = [...productos];
+        // ========== CLASIFICAR ÍTEMS DEL DTE ==========
+        const itemsNoEncontrados = [];
+        const itemsProcesados = new Map(); // Para acumular productos y MPs existentes
         
-        // ✅ PRIMERO: Identificar productos no encontrados
         for (const item of cuerpoDoc) {
-            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+            // PRIMERO: Buscar si existe como PRODUCTO
+            let foundProd = productos.find(p => p.codigo === item.codigo);
             if (!foundProd) {
-                foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
+                foundProd = productos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
             }
-            if (!foundProd) {
-                productosNoEncontrados.push(`${item.codigo || 'S/C'} - ${item.descripcion}`);
-                productosACrear.push({
-                    item,
-                    nombre: item.descripcion,
-                    codigo: item.codigo || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                    unidad: mapearUnidadDesdeJson(item.uniMedida),
-                    precio: item.precioUni,
-                    preciooferta: 0,
-                    stock: 0,
-                    es_servicio: item.tipoItem === 2,
-                    idproveedor: currentProveedorId
-                });
+            
+            if (foundProd) {
+                // Es un producto existente ✅
+                const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
+                const key = `prod_${foundProd.id}`;
+                
+                if (itemsProcesados.has(key)) {
+                    const existente = itemsProcesados.get(key);
+                    existente.cantidad += parseFloat(item.cantidad);
+                    existente.subtotal = existente.cantidad * existente.precio_unitario;
+                } else {
+                    itemsProcesados.set(key, {
+                        tipo: "producto",
+                        producto_id: foundProd.id,
+                        materia_prima_id: null,
+                        producto_nombre: foundProd.nombre,
+                        producto_codigo: foundProd.codigo,
+                        descripcion: foundProd.nombre,
+                        cantidad: parseFloat(item.cantidad),
+                        precio_unitario: parseFloat(item.precioUni),
+                        subtotal: parseFloat(item.ventaGravada),
+                        unidad: unidadDesdeJson,
+                        es_materia_prima: false
+                    });
+                }
+                continue;
             }
+            
+            // SEGUNDO: Buscar si existe como MATERIA PRIMA
+            let foundMP = materiasPrimas.find(mp => mp.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
+            if (!foundMP && item.codigo) {
+                foundMP = materiasPrimas.find(mp => mp.codigo === item.codigo);
+            }
+            
+            if (foundMP) {
+                // Es una materia prima existente ✅
+                const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
+                const key = `mp_${foundMP.id}`;
+                
+                if (itemsProcesados.has(key)) {
+                    const existente = itemsProcesados.get(key);
+                    existente.cantidad += parseFloat(item.cantidad);
+                    existente.subtotal = existente.cantidad * existente.precio_unitario;
+                } else {
+                    itemsProcesados.set(key, {
+                        tipo: "materia_prima",
+                        producto_id: null,
+                        materia_prima_id: foundMP.id,
+                        producto_nombre: foundMP.nombre,
+                        producto_codigo: foundMP.codigo,
+                        descripcion: foundMP.nombre,
+                        cantidad: parseFloat(item.cantidad),
+                        precio_unitario: parseFloat(item.precioUni),
+                        subtotal: parseFloat(item.ventaGravada),
+                        unidad: unidadDesdeJson,
+                        es_materia_prima: true
+                    });
+                }
+                continue;
+            }
+            
+            // TERCERO: No existe ni como producto ni como materia prima
+            itemsNoEncontrados.push({
+                nombre: item.descripcion,
+                codigo: item.codigo || 'S/C',
+                cantidad: item.cantidad,
+                precio: item.precioUni,
+                subtotal: item.ventaGravada,
+                unidad: item.uniMedida,
+                item: item
+            });
         }
-
-        if (productosNoEncontrados.length > 0) {
-            setProductosNoEncontradosMsg(productosNoEncontrados);
-            setPendingDteData({ dteData, productosACrear, foundProv, currentProveedorId });
+        
+        // ========== SI HAY ÍTEMS NO ENCONTRADOS, MOSTRAR DIÁLOGO ==========
+        if (itemsNoEncontrados.length > 0) {
+            const nombresNoEncontrados = itemsNoEncontrados.map(i => `${i.codigo} - ${i.nombre}`);
+            setProductosNoEncontradosMsg(nombresNoEncontrados);
+            setPendingDteData({ 
+                dteData, 
+                itemsNoEncontrados,  // Guardar los items completos
+                foundProv, 
+                currentProveedorId,
+                itemsProcesados: Array.from(itemsProcesados.values()) // Guardar los ya procesados
+            });
             setShowDialog(true);
             setIsLoading(false);
             return;
         }
-
-        // ✅ SEGUNDO: Procesar productos - Map SIN acumulación doble
-        const productosMap = new Map();
-
-        for (const item of cuerpoDoc) {
-            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-            if (!foundProd) {
-                foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
-            }
-            
-            if (foundProd) {
-                const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
-                const productId = foundProd.id;
-                const cantidadOriginal = parseFloat(item.cantidad);
-                const precioUnitario = parseFloat(item.precioUni);
-                const subtotalOriginal = parseFloat(item.ventaGravada);
-                
-                console.log(`📦 Procesando: ${foundProd.nombre}`);
-                console.log(`   Cantidad en ESTA línea: ${cantidadOriginal}`);
-                console.log(`   Precio: ${precioUnitario}`);
-                console.log(`   Subtotal: ${subtotalOriginal}`);
-                
-                if (productosMap.has(productId)) {
-                    // ⚠️ Mismo producto aparece en MÚLTIPLES líneas del DTE
-                    const existente = productosMap.get(productId);
-                    const nuevaCantidad = existente.cantidad + cantidadOriginal;
-                    const nuevoSubtotal = parseFloat((nuevaCantidad * existente.precio_unitario).toFixed(2));
-                    
-                    console.log(`   🔁 ACUMULANDO (mismo producto en otra línea):`);
-                    console.log(`      ${existente.cantidad} + ${cantidadOriginal} = ${nuevaCantidad}`);
-                    console.log(`      Nuevo subtotal: $${nuevoSubtotal}`);
-                    
-                    existente.cantidad = parseFloat(nuevaCantidad.toFixed(4));
-                    existente.subtotal = nuevoSubtotal;
-                } else {
-                    // ✅ Producto NUEVO en este DTE
-                    console.log(`   ✨ PRODUCTO NUEVO en este DTE`);
-                    productosMap.set(productId, {
-                        tipo: "producto",
-                        producto_id: foundProd.id,
-                        producto_nombre: foundProd.nombre,
-                        producto_codigo: foundProd.codigo,
-                        cantidad: parseFloat(cantidadOriginal.toFixed(4)),
-                        precio_unitario: parseFloat(precioUnitario.toFixed(4)),
-                        subtotal: parseFloat(subtotalOriginal.toFixed(2)),
-                        unidad: unidadDesdeJson
-                    });
-                }
-            }
-        }
-
-        // Convertir el Map a array de detalles
-        const nuevosDetalles = Array.from(productosMap.values());
-
-        console.log("📊 RESULTADO FINAL (productos de ESTE DTE):");
+        
+        // ========== SI NO HAY ÍTEMS NO ENCONTRADOS, PROCESAR DIRECTAMENTE ==========
+        const nuevosDetalles = Array.from(itemsProcesados.values());
+        
+        console.log("📊 RESULTADO FINAL:");
         nuevosDetalles.forEach(d => {
-            console.log(`  ✅ ${d.producto_nombre}: Cantidad TOTAL = ${d.cantidad}, Subtotal = $${d.subtotal.toFixed(2)}`);
+            console.log(`  ✅ ${d.tipo === "materia_prima" ? "MP" : "Producto"}: ${d.producto_nombre}, Cantidad: ${d.cantidad}, Subtotal: $${d.subtotal.toFixed(2)}`);
         });
-
-        // ✅ IMPORTANTE: Reemplazar detalles, NO acumular con los que ya existían
-        // Esto evita que se dupliquen si cargas múltiples DTEs
+        
         setDetalles(nuevosDetalles);
-
-        // Calcular totales redondeados
+        
         const totalGravado = parseFloat(nuevosDetalles.reduce((sum, d) => sum + d.subtotal, 0).toFixed(2));
         const fovialRedondeado = parseFloat(fovial.toFixed(2));
         const cotransRedondeado = parseFloat(cotrans.toFixed(2));
         const ivaRedondeado = parseFloat(iva.toFixed(2));
-        const cescRedondeado = parseFloat(cesc.toFixed(2));
         const exentasInternas = parseFloat((fovialRedondeado + cotransRedondeado).toFixed(2));
         const totalCompras = parseFloat((totalGravado + ivaRedondeado + fovialRedondeado + cotransRedondeado).toFixed(2));
-
-        console.log("📊 TOTALES CALCULADOS:");
-        console.log(`   Total Gravado: $${totalGravado}`);
-        console.log(`   IVA: $${ivaRedondeado}`);
-        console.log(`   FOVIAL: $${fovialRedondeado}`);
-        console.log(`   COTRANS: $${cotransRedondeado}`);
-        console.log(`   TOTAL A PAGAR: $${totalCompras}`);
-
-        // Actualizar formData
+        
         setFormData(prev => {
             const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
             const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
@@ -1231,35 +1321,18 @@ const procesarDteActual = async (dteData) => {
                 credito_fiscal: ivaRedondeado,
                 fovial: fovialRedondeado,
                 cotrans: cotransRedondeado,
-                cesc: cescRedondeado,
                 exentas_internas: exentasInternas,
                 total_compras: totalCompras
             };
         });
-
-        // Mostrar toast con resumen
-        const resumenProductos = nuevosDetalles.map(d => 
-            `${d.producto_nombre}: ${d.cantidad} ${getNombreUnidad(d.unidad)} @ $${d.precio_unitario.toFixed(2)} = $${d.subtotal.toFixed(2)}`
-        );
         
         addToast({ 
             type: 'success', 
             title: 'DTE Cargado Correctamente', 
-            lines: [
-                `📄 Documento: ${dteData.identificacion?.numeroControl || "N/A"}`,
-                `🏢 Proveedor: ${dteData.emisor?.nombre || "N/A"}`,
-                `💰 Total Gravado: $${totalGravado}`,
-                `💰 Total a Pagar: $${totalCompras}`,
-                `📦 Productos: ${nuevosDetalles.length}`,
-                ...resumenProductos.slice(0, 3),
-                ...(resumenProductos.length > 3 ? [`... y ${resumenProductos.length - 3} más`] : []),
-                `🚗 FOVIAL: $${fovialRedondeado}`,
-                `🚛 COTRANS: $${cotransRedondeado}`,
-                `💵 IVA: $${ivaRedondeado}`
-            ],
-            duration: 8000
+            message: `Documento: ${dteData.identificacion?.numeroControl || "N/A"} - Total: $${totalCompras}`,
+            duration: 5000
         });
-
+        
         setIsLoading(false);
     } catch (error) {
         console.error("Error procesando DTE:", error);
@@ -1588,38 +1661,47 @@ const procesarDteActual = async (dteData) => {
         });
     };
 
-    const handleDialogYes = async () => {
+  const handleDialogYes = async () => {
     if (!pendingDteData) return;
 
     setIsLoading(true);
     try {
-        const { dteData, productosACrear, foundProv, currentProveedorId } = pendingDteData;
+        // ✅ Usa itemsNoEncontrados en lugar de productosACrear
+        const { dteData, itemsNoEncontrados, foundProv, currentProveedorId } = pendingDteData;
         
         const emisorNit = dteData.emisor?.nit || null;
         const emisorNrc = dteData.emisor?.nrc || null;
         
         let currentProductos = [...productos];
-        const productosAcumulados = new Map(); // Map para acumular SOLO UNA VEZ
+        const productosAcumulados = new Map();
 
         // 🔥 PASO 1: Crear SOLO los productos seleccionados que NO existen
-        for (let i = 0; i < productosACrear.length; i++) {
+        // ✅ itemsNoEncontrados es un array de objetos, no de strings
+        for (let i = 0; i < itemsNoEncontrados.length; i++) {
             if (selectedProductosToCreate[i]) {
-                const prodData = productosACrear[i];
+                const itemData = itemsNoEncontrados[i]; // ✅ Esto es un objeto con nombre, codigo, cantidad, precio, etc.
+                
                 try {
-                    console.log(`📦 Creando nuevo producto: ${prodData.nombre}`);
+                    console.log(`📦 Creando nuevo producto: ${itemData.nombre}`);
+                    
+                    const precioUnitario = parseFloat(itemData.precio);
+                    const cantidadOriginal = parseFloat(itemData.cantidad);
+                    
+                    // Determinar la unidad
+                    let unidad = mapearUnidadDesdeJson(itemData.unidad);
                     
                     const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         credentials: "include",
                         body: JSON.stringify({
-                            nombre: prodData.nombre,
-                            codigo: prodData.codigo,
-                            unidad: prodData.unidad,
-                            precio: prodData.precio,
-                            preciooferta: prodData.preciooferta,
-                            stock: prodData.stock,
-                            es_servicio: prodData.es_servicio,
+                            nombre: itemData.nombre,
+                            codigo: itemData.codigo || `PROD-${Date.now()}`,
+                            unidad: unidad,
+                            precio: precioUnitario,
+                            preciooferta: 0,
+                            stock: 0,
+                            es_servicio: false,
                             idproveedor: currentProveedorId
                         }),
                     });
@@ -1630,12 +1712,9 @@ const procesarDteActual = async (dteData) => {
                         currentProductos.push(newProd);
                         setProductos(prev => [...prev, newProd]);
 
-                        // ✅ Agregar directamente al acumulador con la cantidad correcta
+                        // ✅ Agregar al acumulador con la cantidad correcta
                         const key = `prod_${newProd.id}`;
-                        const cantidadOriginal = parseFloat(prodData.item.cantidad);
-                        const precioUnitario = parseFloat(prodData.item.precioUni);
-                        const subtotalOriginal = parseFloat(prodData.item.ventaGravada);
-                        const unidadDesdeJson = mapearUnidadDesdeJson(prodData.item.uniMedida);
+                        const subtotalOriginal = cantidadOriginal * precioUnitario;
                         
                         console.log(`   ✅ Producto creado: ${newProd.nombre}, cantidad: ${cantidadOriginal}`);
                         
@@ -1647,7 +1726,7 @@ const procesarDteActual = async (dteData) => {
                             cantidad: parseFloat(cantidadOriginal.toFixed(4)),
                             precio_unitario: parseFloat(precioUnitario.toFixed(4)),
                             subtotal: parseFloat(subtotalOriginal.toFixed(2)),
-                            unidad: unidadDesdeJson
+                            unidad: unidad
                         });
                     } else {
                         console.error("Error creando producto:", await response.text());
@@ -1658,7 +1737,7 @@ const procesarDteActual = async (dteData) => {
             }
         }
 
-        // 🔥 PASO 2: Procesar el resto de productos (los que YA existían)
+        // 🔥 PASO 2: Procesar el resto de items (los que YA existían)
         const cuerpoDoc = dteData.cuerpoDocumento || [];
         for (const item of cuerpoDoc) {
             // Buscar el producto en currentProductos (incluye los nuevos creados)
@@ -1670,27 +1749,18 @@ const procesarDteActual = async (dteData) => {
             if (foundProd) {
                 const key = `prod_${foundProd.id}`;
                 
-                // ⚠️ IMPORTANTE: Solo procesar si NO está ya en el acumulador
                 if (!productosAcumulados.has(key)) {
                     const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
-                    const cantidadOriginal = parseFloat(item.cantidad);
-                    const precioUnitario = parseFloat(item.precioUni);
-                    const subtotalOriginal = parseFloat(item.ventaGravada);
-                    
-                    console.log(`📦 Producto existente: ${foundProd.nombre}, cantidad: ${cantidadOriginal}`);
-                    
                     productosAcumulados.set(key, {
                         tipo: "producto",
                         producto_id: foundProd.id,
                         producto_nombre: foundProd.nombre,
                         producto_codigo: foundProd.codigo,
-                        cantidad: parseFloat(cantidadOriginal.toFixed(4)),
-                        precio_unitario: parseFloat(precioUnitario.toFixed(4)),
-                        subtotal: parseFloat(subtotalOriginal.toFixed(2)),
+                        cantidad: parseFloat(item.cantidad.toFixed(4)),
+                        precio_unitario: parseFloat(item.precioUni.toFixed(4)),
+                        subtotal: parseFloat(item.ventaGravada.toFixed(2)),
                         unidad: unidadDesdeJson
                     });
-                } else {
-                    console.log(`⚠️ Producto ya procesado (evitando duplicado): ${foundProd.nombre}`);
                 }
             } else {
                 // Si no es producto, procesar como gasto
@@ -1711,12 +1781,11 @@ const procesarDteActual = async (dteData) => {
         // Convertir el Map a array de detalles
         const nuevosDetalles = Array.from(productosAcumulados.values());
 
-        console.log("📊 RESULTADO FINAL (sin duplicados):");
+        console.log("📊 RESULTADO FINAL:");
         nuevosDetalles.forEach(d => {
             console.log(`  ✅ ${d.producto_nombre || d.descripcion}: Cantidad = ${d.cantidad}, Subtotal = $${d.subtotal.toFixed(2)}`);
         });
 
-        // ✅ Reemplazar detalles, NO acumular con los que ya existían
         setDetalles(nuevosDetalles);
 
         // Extraer tributos y actualizar formData
@@ -1725,13 +1794,12 @@ const procesarDteActual = async (dteData) => {
         const fovialRedondeado = parseFloat(fovial.toFixed(2));
         const cotransRedondeado = parseFloat(cotrans.toFixed(2));
         const ivaRedondeado = parseFloat(iva.toFixed(2));
-        const cescRedondeado = parseFloat(cesc.toFixed(2));
         const exentasInternas = parseFloat((fovialRedondeado + cotransRedondeado).toFixed(2));
         const totalCompras = parseFloat((totalGravado + ivaRedondeado + fovialRedondeado + cotransRedondeado).toFixed(2));
 
         setFormData(prev => {
-            const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
             const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
+            const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
             const selloRecepcion = extraerSelloRecepcion(dteData);
             const codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
             
@@ -1750,7 +1818,6 @@ const procesarDteActual = async (dteData) => {
                 credito_fiscal: ivaRedondeado,
                 fovial: fovialRedondeado,
                 cotrans: cotransRedondeado,
-                cesc: cescRedondeado,
                 exentas_internas: exentasInternas,
                 total_compras: totalCompras
             };
