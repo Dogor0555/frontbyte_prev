@@ -122,10 +122,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     const getNombreUnidad = (codigo) => {
         if (!codigo) return "Desconocido";
         const codigoNormalizado = codigo.toString().trim();
-        // Para mostrar "Caja" cuando el código sea "99" pero originalmente era "Caja"
         if (codigoNormalizado === "99") {
-            // Aquí necesitaríamos saber si originalmente era "Caja" o "Otra"
-            // Por simplicidad, mostramos "Otra/Caja"
             return "Otra/Caja";
         }
         const unidad = unidades.find(u => u.codigo === codigoNormalizado);
@@ -143,7 +140,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     };
 
     const validateStock = (value) => {
-        return !isNaN(value);
+        return !isNaN(value) && value >= 0;
     };
 
     const validateNombre = (nombre) => {
@@ -153,7 +150,8 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     const validateCodigo = (codigo) => {
         return codigo.length <= LIMITES.CODIGO;
     };
-// Estado para controlar la apertura del escáner
+    
+    // Estado para controlar la apertura del escáner
     const [openScanner, setOpenScanner] = useState(false);
     const [productoEscaneado, setProductoEscaneado] = useState(null);
     const [stockEscaneo, setStockEscaneo] = useState("");
@@ -178,7 +176,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
             return false;
         }
         if (!validateStock(formData.stock)) {
-            setErrorMessage("El stock debe ser un número entero válido.");
+            setErrorMessage("El stock debe ser un número válido (puede incluir decimales).");
             return false;
         }
         return true;
@@ -375,13 +373,14 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
             return;
         }
 
-        // Convertir la unidad seleccionada al código que se enviará al backend
         const codigoUnidadBackend = getCodigoUnidadBackend(selectedUnidad);
 
         const producto = {
             ...formData,
-            unidad: codigoUnidadBackend, // Enviamos el código convertido
-            idproveedor: selectedProveedor || null
+            unidad: codigoUnidadBackend,
+            idproveedor: selectedProveedor || null,
+            stock: parseFloat(formData.stock),
+            precio: parseFloat(formData.precio)
         };
 
         try {
@@ -433,13 +432,14 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
             return;
         }
 
-        // Convertir la unidad seleccionada al código que se enviará al backend
         const codigoUnidadBackend = getCodigoUnidadBackend(selectedUnidad);
 
         const producto = {
             ...formData,
-            unidad: codigoUnidadBackend, // Enviamos el código convertido
-            idproveedor: selectedProveedor || null
+            unidad: codigoUnidadBackend,
+            idproveedor: selectedProveedor || null,
+            stock: parseFloat(formData.stock),
+            precio: parseFloat(formData.precio)
         };
 
         try {
@@ -482,8 +482,9 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         
         if (!selectedProduct) return;
         
-        if (!stockIncrement || isNaN(stockIncrement) || stockIncrement <= 0) {
-            setErrorMessage("La cantidad debe ser un número positivo");
+        const cantidad = parseFloat(stockIncrement);
+        if (isNaN(cantidad) || cantidad <= 0) {
+            setErrorMessage("La cantidad debe ser un número positivo (puede incluir decimales).");
             setShowErrorModal(true);
             return;
         }
@@ -496,7 +497,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                     Cookie: document.cookie,
                 },
                 credentials: "include",
-                body: JSON.stringify({ cantidad: parseInt(stockIncrement) }),
+                body: JSON.stringify({ cantidad: cantidad }),
             });
 
             if (!response.ok) {
@@ -506,7 +507,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
             const updatedProductos = Array.isArray(productos)
                 ? productos.map(p => 
                     p.id === selectedProduct.id 
-                        ? { ...p, stock: p.stock + parseInt(stockIncrement) } 
+                        ? { ...p, stock: parseFloat(p.stock) + cantidad } 
                         : p
                 )
                 : productos;
@@ -554,8 +555,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
 
     const handleEditClick = (producto) => {
         setFormData(producto);
-        // Para editar, necesitamos mostrar la unidad original que seleccionó el usuario
-        // Si el código es "99", mostramos "Caja" o "Otra"? Por simplicidad mostramos "Otra"
         setSelectedUnidad(producto.unidad);
         setSelectedProveedor(producto.idproveedor || "");
         setShowEditModal(true);
@@ -565,27 +564,28 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         setProductToDelete(productoId);
         setShowDeleteConfirmModal(true);
     };
-const manejarCodigoEscaneado = (codigo) => {
-    const productoExistente = productos.find(p => p.codigo === codigo);
+    
+    const manejarCodigoEscaneado = (codigo) => {
+        const productoExistente = productos.find(p => p.codigo === codigo);
 
-    if (productoExistente) {
-        setProductoEscaneado({
-            ...productoExistente,
-            existe: true
-        });
-    } else {
-        setProductoEscaneado({
-            codigo: codigo,
-            nombre: "",
-            precio: 0,
-            stock: 0,
-            idproveedor: "",
-            existe: false
-        });
-    }
+        if (productoExistente) {
+            setProductoEscaneado({
+                ...productoExistente,
+                existe: true
+            });
+        } else {
+            setProductoEscaneado({
+                codigo: codigo,
+                nombre: "",
+                precio: 0,
+                stock: 0,
+                idproveedor: "",
+                existe: false
+            });
+        }
 
-    setStockEscaneo("");
-};
+        setStockEscaneo("");
+    };
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
@@ -662,13 +662,13 @@ const manejarCodigoEscaneado = (codigo) => {
                                 >
                                     <FaPlus className="mr-2" /> Agregar
                                 </button>
-<button
-  onClick={() => setOpenScanner(true)}
-  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
->
-  <Scanner size={20} />
-  Escanear
-</button>
+                                <button
+                                    onClick={() => setOpenScanner(true)}
+                                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2"
+                                >
+                                    <Scanner size={20} />
+                                    Escanear
+                                </button>
                                 <button
                                     onClick={handleManageSuppliers}
                                     className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors shadow-sm flex items-center justify-center"
@@ -1020,6 +1020,7 @@ const manejarCodigoEscaneado = (codigo) => {
                                         onChange={handleNumberChange}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
+                                        step="any"
                                     />
                                 </div>
 
@@ -1036,6 +1037,7 @@ const manejarCodigoEscaneado = (codigo) => {
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
                                         min="0"
+                                        step="any"
                                     />
                                 </div>
 
@@ -1193,6 +1195,7 @@ const manejarCodigoEscaneado = (codigo) => {
                                         onChange={handleNumberChange}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
+                                        step="any"
                                     />
                                 </div>
                                 <div className="mb-4">
@@ -1207,6 +1210,8 @@ const manejarCodigoEscaneado = (codigo) => {
                                         onChange={handleStockChange}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
+                                        min="0"
+                                        step="any"
                                     />
                                 </div>
                                 <div className="flex justify-end gap-3 mt-6">
@@ -1275,13 +1280,13 @@ const manejarCodigoEscaneado = (codigo) => {
                                         onChange={(e) => setStockIncrement(e.target.value)}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
-                                        min="1"
-                                        step="1"
+                                        min="0.0001"
+                                        step="any"
                                     />
                                 </div>
                                 <div className="mb-4">
                                     <p className="text-sm text-gray-700">
-                                        Nuevo stock: <span className="font-medium">{selectedProduct.stock + (parseInt(stockIncrement) || 0)}</span>
+                                        Nuevo stock: <span className="font-medium">{parseFloat(selectedProduct.stock) + (parseFloat(stockIncrement) || 0)}</span>
                                     </p>
                                 </div>
                                 <div className="flex justify-end gap-3 mt-6">
@@ -1483,173 +1488,170 @@ const manejarCodigoEscaneado = (codigo) => {
 
             {openScanner && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-<div className="bg-white rounded-xl p-6 w-[1000px] max-w-[95%]">
-  <h2 className="text-2xl font-bold mb-4">
-    Escanear Código de Barras
-  </h2>
+                    <div className="bg-white rounded-xl p-6 w-[1000px] max-w-[95%]">
+                        <h2 className="text-2xl font-bold mb-4">
+                            Escanear Código de Barras
+                        </h2>
 
-  <div className="flex gap-6">
+                        <div className="flex gap-6">
+                            {/* IZQUIERDA → SCANNER */}
+                            <div className="w-1/2">
+                                <BarcodeScanner
+                                    onDetected={(codigo) => {
+                                        manejarCodigoEscaneado(codigo);
+                                    }}
+                                />
+                            </div>
 
-    {/* IZQUIERDA → SCANNER */}
-    <div className="w-1/2">
-      <BarcodeScanner
-        onDetected={(codigo) => {
-          manejarCodigoEscaneado(codigo);
-        }}
-      />
-    </div>
+                            {/* DERECHA → INFO */}
+                            <div className="w-1/2">
+                                {!productoEscaneado && (
+                                    <p className="text-gray-500">
+                                        Escanea un producto...
+                                    </p>
+                                )}
 
-    {/* DERECHA → INFO */}
-    <div className="w-1/2">
+                                {productoEscaneado && (
+                                    <div className="border p-4 rounded-lg shadow">
+                                        <h3 className="font-bold text-lg mb-3">
+                                            {productoEscaneado.existe
+                                                ? "Producto encontrado"
+                                                : "Nuevo producto"}
+                                        </h3>
 
-      {!productoEscaneado && (
-        <p className="text-gray-500">
-          Escanea un producto...
-        </p>
-      )}
+                                        {/* Código */}
+                                        <p className="text-sm text-gray-500">Código:</p>
+                                        <p className="font-mono mb-2">
+                                            {productoEscaneado.codigo}
+                                        </p>
 
-      {productoEscaneado && (
-        <div className="border p-4 rounded-lg shadow">
+                                        {/* Nombre */}
+                                        <input
+                                            type="text"
+                                            placeholder="Nombre del producto"
+                                            value={productoEscaneado.nombre}
+                                            onChange={(e) =>
+                                                setProductoEscaneado({
+                                                    ...productoEscaneado,
+                                                    nombre: e.target.value,
+                                                })
+                                            }
+                                            className="w-full border p-2 rounded mb-3"
+                                        />
 
-          <h3 className="font-bold text-lg mb-3">
-            {productoEscaneado.existe
-              ? "Producto encontrado"
-              : "Nuevo producto"}
-          </h3>
+                                        {/* PRECIO */}
+                                        <input
+                                            type="number"
+                                            placeholder="Precio"
+                                            value={productoEscaneado.precio}
+                                            onChange={(e) =>
+                                                setProductoEscaneado({
+                                                    ...productoEscaneado,
+                                                    precio: e.target.value,
+                                                })
+                                            }
+                                            className="w-full border p-2 rounded mb-3"
+                                            step="any"
+                                        />
+                                        {/* PROVEEDOR */}
+                                        <select
+                                            value={productoEscaneado.idproveedor || ""}
+                                            onChange={(e) =>
+                                                setProductoEscaneado({
+                                                    ...productoEscaneado,
+                                                    idproveedor: e.target.value,
+                                                })
+                                            }
+                                            className="w-full border p-2 rounded mb-3"
+                                        >
+                                            <option value="">Seleccione proveedor</option>
+                                            {Array.isArray(proveedores) &&
+                                                proveedores.map((prov) => (
+                                                    <option key={prov.id} value={prov.id}>
+                                                        {prov.nombre}
+                                                    </option>
+                                                ))}
+                                        </select>
+                                        {/* Stock actual */}
+                                        {productoEscaneado.existe && (
+                                            <p className="text-sm mb-2">
+                                                Stock actual:{" "}
+                                                <strong>{productoEscaneado.stock}</strong>
+                                            </p>
+                                        )}
 
-          {/* Código */}
-          <p className="text-sm text-gray-500">Código:</p>
-          <p className="font-mono mb-2">
-            {productoEscaneado.codigo}
-          </p>
+                                        {/* Agregar stock */}
+                                        <input
+                                            type="number"
+                                            placeholder="Cantidad"
+                                            value={stockEscaneo}
+                                            onChange={(e) => setStockEscaneo(e.target.value)}
+                                            className="w-full border p-2 rounded mb-3"
+                                            step="any"
+                                            min="0"
+                                        />
 
-          {/* Nombre */}
-          <input
-            type="text"
-            placeholder="Nombre del producto"
-            value={productoEscaneado.nombre}
-            onChange={(e) =>
-              setProductoEscaneado({
-                ...productoEscaneado,
-                nombre: e.target.value,
-              })
-            }
-            className="w-full border p-2 rounded mb-3"
-          />
+                                        {/* BOTÓN */}
+                                        <button
+                                            onClick={async () => {
+                                                if (productoEscaneado.existe) {
+                                                    // 🔥 incrementar stock
+                                                    await fetch(`${API_BASE_URL}/productos/incrementStock/${productoEscaneado.id}`, {
+                                                        method: "PUT",
+                                                        headers: {
+                                                            "Content-Type": "application/json",
+                                                            Cookie: document.cookie,
+                                                        },
+                                                        credentials: "include",
+                                                        body: JSON.stringify({
+                                                            cantidad: parseFloat(stockEscaneo),
+                                                        }),
+                                                    });
+                                                } else {
+                                                    // 🔥 crear producto
+                                                    await fetch(`${API_BASE_URL}/productos/addPro`, {
+                                                        method: "POST",
+                                                        headers: {
+                                                            "Content-Type": "application/json",
+                                                            Cookie: document.cookie,
+                                                        },
+                                                        credentials: "include",
+                                                        body: JSON.stringify({
+                                                            ...productoEscaneado,
+                                                            precio: parseFloat(productoEscaneado.precio),
+                                                            stock: parseFloat(stockEscaneo),
+                                                            unidad: "59",
+                                                            idproveedor: productoEscaneado.idproveedor || null,
+                                                        }),
+                                                    });
+                                                }
 
-{/* PRECIO */}
-<input
-  type="number"
-  placeholder="Precio"
-  value={productoEscaneado.precio}
-  onChange={(e) =>
-    setProductoEscaneado({
-      ...productoEscaneado,
-      precio: e.target.value,
-    })
-  }
-  className="w-full border p-2 rounded mb-3"
-/>
-{/* PROVEEDOR */}
-<select
-  value={productoEscaneado.idproveedor || ""}
-  onChange={(e) =>
-    setProductoEscaneado({
-      ...productoEscaneado,
-      idproveedor: e.target.value,
-    })
-  }
-  className="w-full border p-2 rounded mb-3"
->
-  <option value="">Seleccione proveedor</option>
+                                                alert("Guardado ✅");
 
-  {Array.isArray(proveedores) &&
-    proveedores.map((prov) => (
-      <option key={prov.id} value={prov.id}>
-        {prov.nombre}
-      </option>
-    ))}
-</select>
-          {/* Stock actual */}
-          {productoEscaneado.existe && (
-            <p className="text-sm mb-2">
-              Stock actual:{" "}
-              <strong>{productoEscaneado.stock}</strong>
-            </p>
-          )}
+                                                setProductoEscaneado(null);
+                                                setStockEscaneo("");
+                                                fetchProductos();
+                                            }}
+                                            className="w-full bg-blue-900 text-white py-2 rounded-lg"
+                                        >
+                                            {productoEscaneado.existe
+                                                ? "Agregar Stock"
+                                                : "Crear Producto"}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
 
-          {/* Agregar stock */}
-          <input
-            type="number"
-            placeholder="Cantidad"
-            value={stockEscaneo}
-            onChange={(e) => setStockEscaneo(e.target.value)}
-            className="w-full border p-2 rounded mb-3"
-          />
-
-          {/* BOTÓN */}
-          <button
-            onClick={async () => {
-
-              if (productoEscaneado.existe) {
-                // 🔥 incrementar stock
-                await fetch(`${API_BASE_URL}/productos/incrementStock/${productoEscaneado.id}`, {
-                  method: "PUT",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Cookie: document.cookie,
-                  },
-                  credentials: "include",
-                  body: JSON.stringify({
-                    cantidad: parseInt(stockEscaneo),
-                  }),
-                });
-
-              } else {
-                // 🔥 crear producto
-                await fetch(`${API_BASE_URL}/productos/addPro`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Cookie: document.cookie,
-                  },
-                  credentials: "include",
-body: JSON.stringify({
-  ...productoEscaneado,
-  precio: parseFloat(productoEscaneado.precio),
-  stock: parseInt(stockEscaneo),
-  unidad: "59",
-  idproveedor: productoEscaneado.idproveedor || null,
-}),
-                });
-              }
-
-              alert("Guardado ✅");
-
-              setProductoEscaneado(null);
-              setStockEscaneo("");
-              fetchProductos();
-            }}
-            className="w-full bg-blue-900 text-white py-2 rounded-lg"
-          >
-            {productoEscaneado.existe
-              ? "Agregar Stock"
-              : "Crear Producto"}
-          </button>
-        </div>
-      )}
-    </div>
-  </div>
-
-  <button
-    onClick={() => setOpenScanner(false)}
-    className="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg"
-  >
-    Cerrar
-  </button>
-</div>
+                        <button
+                            onClick={() => setOpenScanner(false)}
+                            className="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
                 </div>
-                )}
+            )}
         </div>
     );
 }
