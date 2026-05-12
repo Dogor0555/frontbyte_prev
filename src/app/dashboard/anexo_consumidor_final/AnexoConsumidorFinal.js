@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { FaSearch, FaFileAlt, FaCalendarAlt, FaDownload, FaFilter, FaChartLine, FaFileExcel, FaPrint, FaSync, FaFilePdf, FaFileExport } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaCalendarAlt, FaDownload, FaFilter, FaChartLine, FaFileExcel, FaPrint, FaSync, FaFilePdf, FaFileExport, FaChevronDown } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
@@ -23,6 +23,7 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
   const [exportingPDF, setExportingPDF] = useState(false);
   const [exportingCSV, setExportingCSV] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [resumen, setResumen] = useState({
     totalVentas: 0,
     totalGravadas: 0,
@@ -36,6 +37,18 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
   const itemsPerPage = 10;
   const router = useRouter();
   const tableRef = useRef();
+  const dropdownRef = useRef(null);
+
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowExportDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Función para obtener la fecha actual en hora de El Salvador (UTC-6)
   const getCurrentDateElSalvador = () => {
@@ -93,6 +106,7 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
 
   // ========== GENERAR CSV ==========
   const handleExportCSV = async () => {
+    setShowExportDropdown(false);
     setExportingCSV(true);
     try {
       const response = await fetch(
@@ -124,7 +138,9 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
     }
   };
 
+  // ========== GENERAR EXCEL ==========
   const handleExportExcel = async () => {
+    setShowExportDropdown(false);
     setExporting(true);
     try {
       let datosParaExportar = documentos;
@@ -147,21 +163,19 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
         return;
       }
 
-      // Crear nuevo workbook con ExcelJS
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Anexo Consumidor Final');
 
-      // Definir columnas con anchos fijos para la mayoría
       worksheet.columns = [
         { header: 'FECHA DE EMISIÓN', key: 'fecha_emision', width: 12 },
-        { header: 'CLASE DE DOCUMENTO', key: 'clase_documento' }, // Se expandirá
+        { header: 'CLASE DE DOCUMENTO', key: 'clase_documento' },
         { header: 'TIPO DE DOCUMENTO', key: 'tipo_documento', width: 15 },
-        { header: 'NÚMERO DE RESOLUCIÓN', key: 'numero_resolucion' }, // Se expandirá
+        { header: 'NÚMERO DE RESOLUCIÓN', key: 'numero_resolucion' },
         { header: 'SERIE DEL DOCUMENTO', key: 'serie_documento', width: 15 },
         { header: 'CONTROL INTERNO DEL', key: 'numero_control_interno_del', width: 12 },
         { header: 'CONTROL INTERNO AL', key: 'numero_control_interno_al', width: 12 },
-        { header: 'DOCUMENTO DEL', key: 'numero_documento_del' }, // Se expandirá
-        { header: 'DOCUMENTO AL', key: 'numero_documento_al' }, // Se expandirá
+        { header: 'DOCUMENTO DEL', key: 'numero_documento_del' },
+        { header: 'DOCUMENTO AL', key: 'numero_documento_al' },
         { header: 'MÁQUINA REGISTRADORA', key: 'numero_maquina_registradora', width: 12 },
         { header: 'VENTAS EXENTAS', key: 'ventas_exentas', width: 12 },
         { header: 'VENTAS INTERNAS EXENTAS NO SUJETAS', key: 'ventas_internas_exentas_no_sujetas', width: 18 },
@@ -178,34 +192,15 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
         { header: 'NÚMERO ANEXO', key: 'numero_anexo', width: 10 }
       ];
 
-      // Estilo para la cabecera - AZUL CLARO con letras BLANCAS
       const headerRow = worksheet.getRow(1);
-      headerRow.eachCell((cell, colNumber) => {
-        cell.font = { 
-          color: { argb: 'FFFFFFFF' }, 
-          bold: true,
-          size: 10
-        };
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FF4472C4' } // Azul claro
-        };
-        cell.alignment = { 
-          vertical: 'middle', 
-          horizontal: 'center',
-          wrapText: true
-        };
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FF000000' } },
-          left: { style: 'thin', color: { argb: 'FF000000' } },
-          bottom: { style: 'thin', color: { argb: 'FF000000' } },
-          right: { style: 'thin', color: { argb: 'FF000000' } }
-        };
+      headerRow.eachCell((cell) => {
+        cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
       });
       headerRow.height = 25;
 
-      // Agregar datos con filas alternadas
       datosParaExportar.forEach((doc, index) => {
         const row = worksheet.addRow({
           fecha_emision: doc.fecha_emision || '',
@@ -233,102 +228,42 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
           numero_anexo: doc.numero_anexo || ''
         });
 
-        // Alternar colores de fila
         const isEvenRow = index % 2 === 0;
         const fillColor = isEvenRow ? 'FFD9E1F2' : 'FFFFFFFF';
         
         row.eachCell((cell, colNumber) => {
-          // Para la columna 10 (MÁQUINA REGISTRADORA) siempre aplicar estilo, aunque esté vacía
-          const isMaquinaRegistradora = colNumber === 10;
-          
-          // Aplicar estilo si la celda tiene contenido O es la columna de máquina registradora
-          if (cell.value !== null && cell.value !== undefined && cell.value !== '' || isMaquinaRegistradora) {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: fillColor }
-            };
-            
-            cell.font = {
-              color: { argb: 'FF000000' }, // Texto negro
-              size: 9
-            };
-            
-            cell.border = {
-              top: { style: 'thin', color: { argb: 'FF000000' } },
-              left: { style: 'thin', color: { argb: 'FF000000' } },
-              bottom: { style: 'thin', color: { argb: 'FF000000' } },
-              right: { style: 'thin', color: { argb: 'FF000000' } }
-            };
-
-            // Formato numérico para columnas de valores (columnas 11-20)
-            if (colNumber >= 11 && colNumber <= 20) {
-              cell.numFmt = '#,##0.00';
-              cell.alignment = { horizontal: 'right', vertical: 'middle' };
-            }
-
-            // Alinear primera columna al centro
-            if (colNumber === 1) {
-              cell.alignment = { horizontal: 'center', vertical: 'middle' };
-            }
-
-            // Para la columna de máquina registradora, asegurar que tenga al menos un valor vacío
-            if (isMaquinaRegistradora && (cell.value === null || cell.value === undefined || cell.value === '')) {
-              cell.value = ''; // Asegurar que tenga un valor vacío para que se aplique el estilo
-            }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+          cell.font = { color: { argb: 'FF000000' }, size: 9 };
+          cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+          if (colNumber >= 11 && colNumber <= 20) {
+            cell.numFmt = '#,##0.00';
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+          }
+          if (colNumber === 1) {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
           }
         });
       });
 
-      // FUNCIÓN PARA CALCULAR ANCHO SOLO PARA COLUMNAS ESPECÍFICAS
-      const calculateAutoWidthColumns = () => {
-        const columns = worksheet.columns;
-        
-        // Índices de las columnas que se expandirán (base 0)
-        const autoWidthColumns = [1, 3, 7, 8]; // CLASE DOC, RESOLUCIÓN, DOC DEL, DOC AL
-        
-        autoWidthColumns.forEach(colIndex => {
-          let maxLength = 0;
-          
-          // Revisar todas las filas para esta columna
-          worksheet.eachRow((row, rowNumber) => {
-            const cell = row.getCell(colIndex + 1); // +1 porque getCell usa base 1
-            
-            if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
-              const cellText = String(cell.value);
-              const cellLength = cellText.length;
-              
-              if (cellLength > maxLength) {
-                maxLength = cellLength;
-              }
-            }
-          });
-          
-          // Calcular ancho considerando el header también
-          const headerText = worksheet.getRow(1).getCell(colIndex + 1).value;
-          const headerLength = headerText ? String(headerText).length : 0;
-          maxLength = Math.max(maxLength, headerLength);
-          
-          // Aplicar ancho calculado con límites
-          let calculatedWidth = Math.max(
-            maxLength * 1.2, // Factor de conversión
-            15, // Ancho mínimo
-            50  // Ancho máximo
-          );
-          
-          if (columns[colIndex]) {
-            columns[colIndex].width = calculatedWidth;
+      // Calcular anchos automáticos
+      const autoWidthColumns = [1, 3, 7, 8];
+      autoWidthColumns.forEach(colIndex => {
+        let maxLength = 0;
+        worksheet.eachRow((row) => {
+          const cell = row.getCell(colIndex + 1);
+          if (cell.value) {
+            const cellLength = String(cell.value).length;
+            if (cellLength > maxLength) maxLength = cellLength;
           }
         });
-      };
+        const headerLength = String(worksheet.getRow(1).getCell(colIndex + 1).value || '').length;
+        maxLength = Math.max(maxLength, headerLength);
+        const calculatedWidth = Math.max(maxLength * 1.2, 15, 50);
+        if (worksheet.columns[colIndex]) worksheet.columns[colIndex].width = calculatedWidth;
+      });
 
-      // Calcular y aplicar anchos automáticos para columnas específicas
-      calculateAutoWidthColumns();
-
-      // HOJA DE RESUMEN
+      // Hoja de resumen
       const worksheetResumen = workbook.addWorksheet('Resumen');
-
-      // Datos para el resumen
       const fechaGeneracion = getCurrentDateElSalvador();
       const datosResumen = [
         ['ANEXO DE CONSUMIDOR FINAL - RESUMEN', ''],
@@ -351,67 +286,30 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
         ['Exportaciones Servicio:', documentos.reduce((sum, doc) => sum + (doc.exportaciones_servicio || 0), 0)]
       ];
 
-      // Agregar datos al resumen
       datosResumen.forEach((fila, rowIndex) => {
         const row = worksheetResumen.addRow(fila);
-        
         row.eachCell((cell, colNumber) => {
-          // Solo aplicar estilo si la celda tiene contenido
-          if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
-            
-            // Estilo para títulos principales
+          if (cell.value) {
             if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
-              if (colNumber === 1) { // Solo la primera columna del título
-                cell.font = { 
-                  color: { argb: 'FFFFFFFF' }, 
-                  bold: true,
-                  size: rowIndex === 0 ? 14 : 12
-                };
-                cell.fill = {
-                  type: 'pattern',
-                  pattern: 'solid',
-                  fgColor: { argb: 'FF4472C4' }
-                };
+              if (colNumber === 1) {
+                cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: rowIndex === 0 ? 14 : 12 };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
                 cell.alignment = { horizontal: 'center' };
               }
             }
-            
-            // Formato numérico para valores en la segunda columna
             if (colNumber === 2 && typeof cell.value === 'number') {
               cell.numFmt = '#,##0.00';
               cell.alignment = { horizontal: 'right' };
             }
-
-            // Bordes para todas las celdas con contenido
-            cell.border = {
-              top: { style: 'thin', color: { argb: 'FF000000' } },
-              left: { style: 'thin', color: { argb: 'FF000000' } },
-              bottom: { style: 'thin', color: { argb: 'FF000000' } },
-              right: { style: 'thin', color: { argb: 'FF000000' } }
-            };
+            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
           }
         });
-
-        // Ajustar altura solo para filas con contenido
-        if (fila.some(cell => cell !== null && cell !== undefined && cell !== '')) {
-          if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
-            row.height = 25;
-          }
-        }
       });
 
-      // Anchos fijos para el resumen
-      worksheetResumen.columns = [
-        { width: 30 },
-        { width: 20 }
-      ];
+      worksheetResumen.columns = [{ width: 30 }, { width: 20 }];
 
-      // Generar y descargar el archivo
       const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      });
-      
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -447,7 +345,6 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
           doc.addPage();
         }
         
-        // Encabezado
         if (pageIndex === 0) {
           doc.setFontSize(16);
           doc.setFont("helvetica", "bold");
@@ -458,7 +355,6 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
           doc.text(`Período: ${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`, margin, 25);
           doc.text(`Generado: ${new Date().toLocaleDateString('es-SV')}`, pageWidth - margin, 25, { align: "right" });
           
-          // Resumen
           doc.setFontSize(9);
           doc.setFont("helvetica", "bold");
           doc.text("RESUMEN", margin, 35);
@@ -505,28 +401,14 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
           ] : [],
           body: tableData,
           theme: 'grid',
-          headStyles: {
-            fillColor: [75, 85, 99],
-            textColor: 255,
-            fontStyle: 'bold',
-            fontSize: 5
-          },
-          styles: {
-            fontSize: 4,
-            cellPadding: 1,
-            valign: 'middle'
-          },
+          headStyles: { fillColor: [75, 85, 99], textColor: 255, fontStyle: 'bold', fontSize: 5 },
+          styles: { fontSize: 4, cellPadding: 1, valign: 'middle' },
           margin: { left: margin, right: margin }
         });
 
         doc.setFontSize(8);
         doc.setFont("helvetica", "italic");
-        doc.text(
-          `Página ${pageIndex + 1} de ${chunks.length}`,
-          pageWidth / 2,
-          doc.internal.pageSize.getHeight() - 8,
-          { align: "center" }
-        );
+        doc.text(`Página ${pageIndex + 1} de ${chunks.length}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 8, { align: "center" });
       });
       
       doc.save(`anexo-consumidor-final-${fechaInicio}-a-${fechaFin}.pdf`);
@@ -548,7 +430,6 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
     ? documentos.filter((doc) => {
         if (!doc) return false;
         const searchLower = searchTerm.toLowerCase();
-
         return (
           (doc.serie_documento?.toLowerCase() || "").includes(searchLower) ||
           (doc.numero_control_interno_del?.toString() || "").includes(searchTerm) ||
@@ -649,7 +530,6 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
         <Sidebar />
       </div>
 
-      {/* Overlay para móviles */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
@@ -658,7 +538,6 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
       )}
 
       <div className="flex-1 flex flex-col min-w-0">  
-        {/* Navbar */}
         <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
           <Navbar 
             user={user}
@@ -669,7 +548,6 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
           />
         </div>
 
-        {/* Contenido con scroll */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
             <div className="max-w-full mx-auto">
@@ -692,23 +570,38 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
                     {refreshing ? 'Actualizando...' : 'Actualizar'}
                   </button>
                   
-                  <button
-                    onClick={handleExportCSV}
-                    disabled={exportingCSV}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                  >
-                    <FaFileExport className="mr-2" />
-                    {exportingCSV ? 'Generando...' : 'CSV'}
-                  </button>
-                  
-                  <button
-                    onClick={handleExportExcel}
-                    disabled={exporting}
-                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                  >
-                    <FaFileExcel className="mr-2" />
-                    {exporting ? 'Exportando...' : 'Excel'}
-                  </button>
+                  {/* ========== DROPDOWN PARA EXPORTAR ========== */}
+                  <div className="relative" ref={dropdownRef}>
+                    <button
+                      onClick={() => setShowExportDropdown(!showExportDropdown)}
+                      className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <FaDownload className="mr-2" />
+                      Exportar
+                      <FaChevronDown className="ml-2 text-sm" />
+                    </button>
+                    
+                    {showExportDropdown && (
+                      <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                        <button
+                          onClick={handleExportCSV}
+                          disabled={exportingCSV}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg flex items-center"
+                        >
+                          <FaFileExport className="mr-2 text-blue-500" />
+                          {exportingCSV ? 'Generando...' : 'CSV'}
+                        </button>
+                        <button
+                          onClick={handleExportExcel}
+                          disabled={exporting}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-b-lg flex items-center"
+                        >
+                          <FaFileExcel className="mr-2 text-green-600" />
+                          {exporting ? 'Exportando...' : 'Excel'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   
                   <button
                     onClick={handleExportPDF}
@@ -725,9 +618,7 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fecha Inicio
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio</label>
                     <div className="relative">
                       <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                       <input
@@ -740,9 +631,7 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fecha Fin
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Fin</label>
                     <div className="relative">
                       <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                       <input
@@ -755,9 +644,7 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Buscar documento
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Buscar documento</label>
                     <div className="relative">
                       <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                       <input
@@ -775,7 +662,7 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
                 </div>
               </div>
 
-              {/* Tabla de Documentos - VISTA COMPLETA SIEMPRE */}
+              {/* Tabla de Documentos */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
@@ -819,7 +706,6 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
                   </table>
                 </div>
 
-                {/* Paginación */}
                 {documentosFiltrados.length > itemsPerPage && (
                   <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
                     <div className="flex items-center justify-between">
@@ -834,9 +720,7 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
                         >
                           Anterior
                         </button>
-                        <span className="px-3 py-1 text-sm text-gray-700">
-                          Página {currentPage} de {totalPages}
-                        </span>
+                        <span className="px-3 py-1 text-sm text-gray-700">Página {currentPage} de {totalPages}</span>
                         <button
                           onClick={() => paginate(currentPage + 1)}
                           disabled={currentPage === totalPages}
@@ -849,15 +733,12 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
                   </div>
                 )}
 
-                {/* Mensaje cuando no hay resultados */}
                 {documentosFiltrados.length === 0 && (
                   <div className="text-center py-12">
                     <div className="text-gray-400 mb-3">
                       <FaFileAlt className="inline-block text-4xl" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-700 mb-2">
-                      No se encontraron registros
-                    </h3>
+                    <h3 className="text-lg font-medium text-gray-700 mb-2">No se encontraron registros</h3>
                     <p className="text-gray-500 text-sm">
                       {documentos.length === 0 
                         ? 'No hay documentos registrados en el período seleccionado' 
@@ -870,7 +751,6 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
           </div>
         </div>
 
-        {/* Footer */}
         <Footer />
       </div>
     </div>
