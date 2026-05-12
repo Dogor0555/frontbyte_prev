@@ -21,6 +21,7 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
   const [currentPage, setCurrentPage] = useState(1);
   const [exporting, setExporting] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportingCSV, setExportingCSV] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [resumen, setResumen] = useState({
     totalVentas: 0,
@@ -90,310 +91,344 @@ export default function AnexoConsumidorFinalView({ user, hasHaciendaToken, hacie
     }
   };
 
-const handleExportExcel = async () => {
-  setExporting(true);
-  try {
-    let datosParaExportar = documentos;
-    
-    if (datosParaExportar.length === 0) {
+  // ========== GENERAR CSV ==========
+  const handleExportCSV = async () => {
+    setExportingCSV(true);
+    try {
       const response = await fetch(
-        `${API_BASE_URL}/anexo-consumidor-final-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+        `${API_BASE_URL}/anexo-consumidor-final/csv?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
         {
           credentials: "include"
         }
       );
-      
-      if (!response.ok) throw new Error("Error al cargar datos para exportar");
-      const data = await response.json();
-      datosParaExportar = Array.isArray(data.documentos) ? data.documentos : [];
+
+      if (!response.ok) {
+        throw new Error("Error al generar el CSV");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `ANEXO_CONSUMIDOR_FINAL_${fechaInicio}_${fechaFin}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Error al exportar CSV:", error);
+      alert("Error al generar el archivo CSV: " + error.message);
+    } finally {
+      setExportingCSV(false);
     }
+  };
 
-    if (datosParaExportar.length === 0) {
-      alert("No hay datos para exportar en el período seleccionado");
-      return;
-    }
-
-    // Crear nuevo workbook con ExcelJS
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Anexo Consumidor Final');
-
-    // Definir columnas con anchos fijos para la mayoría
-    worksheet.columns = [
-      { header: 'FECHA DE EMISIÓN', key: 'fecha_emision', width: 12 },
-      { header: 'CLASE DE DOCUMENTO', key: 'clase_documento' }, // Se expandirá
-      { header: 'TIPO DE DOCUMENTO', key: 'tipo_documento', width: 15 },
-      { header: 'NÚMERO DE RESOLUCIÓN', key: 'numero_resolucion' }, // Se expandirá
-      { header: 'SERIE DEL DOCUMENTO', key: 'serie_documento', width: 15 },
-      { header: 'CONTROL INTERNO DEL', key: 'numero_control_interno_del', width: 12 },
-      { header: 'CONTROL INTERNO AL', key: 'numero_control_interno_al', width: 12 },
-      { header: 'DOCUMENTO DEL', key: 'numero_documento_del' }, // Se expandirá
-      { header: 'DOCUMENTO AL', key: 'numero_documento_al' }, // Se expandirá
-      { header: 'MÁQUINA REGISTRADORA', key: 'numero_maquina_registradora', width: 12 },
-      { header: 'VENTAS EXENTAS', key: 'ventas_exentas', width: 12 },
-      { header: 'VENTAS INTERNAS EXENTAS NO SUJETAS', key: 'ventas_internas_exentas_no_sujetas', width: 18 },
-      { header: 'VENTAS NO SUJETAS', key: 'ventas_no_sujetas', width: 14 },
-      { header: 'VENTAS GRAVADAS LOCALES', key: 'ventas_gravadas_locales', width: 15 },
-      { header: 'EXPORTACIONES CENTROAMÉRICA', key: 'exportaciones_centroamerica', width: 18 },
-      { header: 'EXPORTACIONES FUERA CENTROAMÉRICA', key: 'exportaciones_fuera_centroamerica', width: 22 },
-      { header: 'EXPORTACIONES SERVICIO', key: 'exportaciones_servicio', width: 16 },
-      { header: 'VENTAS ZONAS FRANCAS', key: 'ventas_zonas_francas', width: 15 },
-      { header: 'VENTAS CUENTA TERCEROS', key: 'ventas_cuenta_terceros', width: 16 },
-      { header: 'TOTAL VENTAS', key: 'total_ventas', width: 12 },
-      { header: 'TIPO OPERACIÓN', key: 'tipo_operacion', width: 12 },
-      { header: 'TIPO INGRESO', key: 'tipo_ingreso', width: 12 },
-      { header: 'NÚMERO ANEXO', key: 'numero_anexo', width: 10 }
-    ];
-
-    // Estilo para la cabecera - AZUL CLARO con letras BLANCAS
-    const headerRow = worksheet.getRow(1);
-    headerRow.eachCell((cell, colNumber) => {
-      cell.font = { 
-        color: { argb: 'FFFFFFFF' }, 
-        bold: true,
-        size: 10
-      };
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF4472C4' } // Azul claro
-      };
-      cell.alignment = { 
-        vertical: 'middle', 
-        horizontal: 'center',
-        wrapText: true
-      };
-      cell.border = {
-        top: { style: 'thin', color: { argb: 'FF000000' } },
-        left: { style: 'thin', color: { argb: 'FF000000' } },
-        bottom: { style: 'thin', color: { argb: 'FF000000' } },
-        right: { style: 'thin', color: { argb: 'FF000000' } }
-      };
-    });
-    headerRow.height = 25;
-
-    // Agregar datos con filas alternadas
-    datosParaExportar.forEach((doc, index) => {
-      const row = worksheet.addRow({
-        fecha_emision: doc.fecha_emision || '',
-        clase_documento: doc.clase_documento || '',
-        tipo_documento: doc.tipo_documento || '',
-        numero_resolucion: doc.numero_resolucion || '',
-        serie_documento: doc.serie_documento || '',
-        numero_control_interno_del: doc.numero_control_interno_del || '',
-        numero_control_interno_al: doc.numero_control_interno_al || '',
-        numero_documento_del: doc.numero_documento_del || '',
-        numero_documento_al: doc.numero_documento_al || '',
-        numero_maquina_registradora: doc.numero_maquina_registradora || '',
-        ventas_exentas: doc.ventas_exentas || 0,
-        ventas_internas_exentas_no_sujetas: doc.ventas_internas_exentas_no_sujetas || 0,
-        ventas_no_sujetas: doc.ventas_no_sujetas || 0,
-        ventas_gravadas_locales: doc.ventas_gravadas_locales || 0,
-        exportaciones_centroamerica: doc.exportaciones_centroamerica || 0,
-        exportaciones_fuera_centroamerica: doc.exportaciones_fuera_centroamerica || 0,
-        exportaciones_servicio: doc.exportaciones_servicio || 0,
-        ventas_zonas_francas: doc.ventas_zonas_francas || 0,
-        ventas_cuenta_terceros: doc.ventas_cuenta_terceros || 0,
-        total_ventas: doc.total_ventas || 0,
-        tipo_operacion: doc.tipo_operacion || '',
-        tipo_ingreso: doc.tipo_ingreso || '',
-        numero_anexo: doc.numero_anexo || ''
-      });
-
-      // Alternar colores de fila
-      const isEvenRow = index % 2 === 0;
-      const fillColor = isEvenRow ? 'FFD9E1F2' : 'FFFFFFFF';
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      let datosParaExportar = documentos;
       
-      row.eachCell((cell, colNumber) => {
-        // Para la columna 10 (MÁQUINA REGISTRADORA) siempre aplicar estilo, aunque esté vacía
-        const isMaquinaRegistradora = colNumber === 10;
+      if (datosParaExportar.length === 0) {
+        const response = await fetch(
+          `${API_BASE_URL}/anexo-consumidor-final-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+          {
+            credentials: "include"
+          }
+        );
         
-        // Aplicar estilo si la celda tiene contenido O es la columna de máquina registradora
-        if (cell.value !== null && cell.value !== undefined && cell.value !== '' || isMaquinaRegistradora) {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: fillColor }
-          };
-          
-          cell.font = {
-            color: { argb: 'FF000000' }, // Texto negro
-            size: 9
-          };
-          
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FF000000' } },
-            left: { style: 'thin', color: { argb: 'FF000000' } },
-            bottom: { style: 'thin', color: { argb: 'FF000000' } },
-            right: { style: 'thin', color: { argb: 'FF000000' } }
-          };
+        if (!response.ok) throw new Error("Error al cargar datos para exportar");
+        const data = await response.json();
+        datosParaExportar = Array.isArray(data.documentos) ? data.documentos : [];
+      }
 
-          // Formato numérico para columnas de valores (columnas 11-20)
-          if (colNumber >= 11 && colNumber <= 20) {
-            cell.numFmt = '#,##0.00';
-            cell.alignment = { horizontal: 'right', vertical: 'middle' };
-          }
+      if (datosParaExportar.length === 0) {
+        alert("No hay datos para exportar en el período seleccionado");
+        return;
+      }
 
-          // Alinear primera columna al centro
-          if (colNumber === 1) {
-            cell.alignment = { horizontal: 'center', vertical: 'middle' };
-          }
+      // Crear nuevo workbook con ExcelJS
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Anexo Consumidor Final');
 
-          // Para la columna de máquina registradora, asegurar que tenga al menos un valor vacío
-          if (isMaquinaRegistradora && (cell.value === null || cell.value === undefined || cell.value === '')) {
-            cell.value = ''; // Asegurar que tenga un valor vacío para que se aplique el estilo
-          }
-        }
+      // Definir columnas con anchos fijos para la mayoría
+      worksheet.columns = [
+        { header: 'FECHA DE EMISIÓN', key: 'fecha_emision', width: 12 },
+        { header: 'CLASE DE DOCUMENTO', key: 'clase_documento' }, // Se expandirá
+        { header: 'TIPO DE DOCUMENTO', key: 'tipo_documento', width: 15 },
+        { header: 'NÚMERO DE RESOLUCIÓN', key: 'numero_resolucion' }, // Se expandirá
+        { header: 'SERIE DEL DOCUMENTO', key: 'serie_documento', width: 15 },
+        { header: 'CONTROL INTERNO DEL', key: 'numero_control_interno_del', width: 12 },
+        { header: 'CONTROL INTERNO AL', key: 'numero_control_interno_al', width: 12 },
+        { header: 'DOCUMENTO DEL', key: 'numero_documento_del' }, // Se expandirá
+        { header: 'DOCUMENTO AL', key: 'numero_documento_al' }, // Se expandirá
+        { header: 'MÁQUINA REGISTRADORA', key: 'numero_maquina_registradora', width: 12 },
+        { header: 'VENTAS EXENTAS', key: 'ventas_exentas', width: 12 },
+        { header: 'VENTAS INTERNAS EXENTAS NO SUJETAS', key: 'ventas_internas_exentas_no_sujetas', width: 18 },
+        { header: 'VENTAS NO SUJETAS', key: 'ventas_no_sujetas', width: 14 },
+        { header: 'VENTAS GRAVADAS LOCALES', key: 'ventas_gravadas_locales', width: 15 },
+        { header: 'EXPORTACIONES CENTROAMÉRICA', key: 'exportaciones_centroamerica', width: 18 },
+        { header: 'EXPORTACIONES FUERA CENTROAMÉRICA', key: 'exportaciones_fuera_centroamerica', width: 22 },
+        { header: 'EXPORTACIONES SERVICIO', key: 'exportaciones_servicio', width: 16 },
+        { header: 'VENTAS ZONAS FRANCAS', key: 'ventas_zonas_francas', width: 15 },
+        { header: 'VENTAS CUENTA TERCEROS', key: 'ventas_cuenta_terceros', width: 16 },
+        { header: 'TOTAL VENTAS', key: 'total_ventas', width: 12 },
+        { header: 'TIPO OPERACIÓN', key: 'tipo_operacion', width: 12 },
+        { header: 'TIPO INGRESO', key: 'tipo_ingreso', width: 12 },
+        { header: 'NÚMERO ANEXO', key: 'numero_anexo', width: 10 }
+      ];
+
+      // Estilo para la cabecera - AZUL CLARO con letras BLANCAS
+      const headerRow = worksheet.getRow(1);
+      headerRow.eachCell((cell, colNumber) => {
+        cell.font = { 
+          color: { argb: 'FFFFFFFF' }, 
+          bold: true,
+          size: 10
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4472C4' } // Azul claro
+        };
+        cell.alignment = { 
+          vertical: 'middle', 
+          horizontal: 'center',
+          wrapText: true
+        };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
+        };
       });
-    });
+      headerRow.height = 25;
 
-    // FUNCIÓN PARA CALCULAR ANCHO SOLO PARA COLUMNAS ESPECÍFICAS
-    const calculateAutoWidthColumns = () => {
-      const columns = worksheet.columns;
-      
-      // Índices de las columnas que se expandirán (base 0)
-      const autoWidthColumns = [1, 3, 7, 8]; // CLASE DOC, RESOLUCIÓN, DOC DEL, DOC AL
-      
-      autoWidthColumns.forEach(colIndex => {
-        let maxLength = 0;
+      // Agregar datos con filas alternadas
+      datosParaExportar.forEach((doc, index) => {
+        const row = worksheet.addRow({
+          fecha_emision: doc.fecha_emision || '',
+          clase_documento: doc.clase_documento || '',
+          tipo_documento: doc.tipo_documento || '',
+          numero_resolucion: doc.numero_resolucion || '',
+          serie_documento: doc.serie_documento || '',
+          numero_control_interno_del: doc.numero_control_interno_del || '',
+          numero_control_interno_al: doc.numero_control_interno_al || '',
+          numero_documento_del: doc.numero_documento_del || '',
+          numero_documento_al: doc.numero_documento_al || '',
+          numero_maquina_registradora: doc.numero_maquina_registradora || '',
+          ventas_exentas: doc.ventas_exentas || 0,
+          ventas_internas_exentas_no_sujetas: doc.ventas_internas_exentas_no_sujetas || 0,
+          ventas_no_sujetas: doc.ventas_no_sujetas || 0,
+          ventas_gravadas_locales: doc.ventas_gravadas_locales || 0,
+          exportaciones_centroamerica: doc.exportaciones_centroamerica || 0,
+          exportaciones_fuera_centroamerica: doc.exportaciones_fuera_centroamerica || 0,
+          exportaciones_servicio: doc.exportaciones_servicio || 0,
+          ventas_zonas_francas: doc.ventas_zonas_francas || 0,
+          ventas_cuenta_terceros: doc.ventas_cuenta_terceros || 0,
+          total_ventas: doc.total_ventas || 0,
+          tipo_operacion: doc.tipo_operacion || '',
+          tipo_ingreso: doc.tipo_ingreso || '',
+          numero_anexo: doc.numero_anexo || ''
+        });
+
+        // Alternar colores de fila
+        const isEvenRow = index % 2 === 0;
+        const fillColor = isEvenRow ? 'FFD9E1F2' : 'FFFFFFFF';
         
-        // Revisar todas las filas para esta columna
-        worksheet.eachRow((row, rowNumber) => {
-          const cell = row.getCell(colIndex + 1); // +1 porque getCell usa base 1
+        row.eachCell((cell, colNumber) => {
+          // Para la columna 10 (MÁQUINA REGISTRADORA) siempre aplicar estilo, aunque esté vacía
+          const isMaquinaRegistradora = colNumber === 10;
           
-          if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
-            const cellText = String(cell.value);
-            const cellLength = cellText.length;
+          // Aplicar estilo si la celda tiene contenido O es la columna de máquina registradora
+          if (cell.value !== null && cell.value !== undefined && cell.value !== '' || isMaquinaRegistradora) {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: fillColor }
+            };
             
-            if (cellLength > maxLength) {
-              maxLength = cellLength;
+            cell.font = {
+              color: { argb: 'FF000000' }, // Texto negro
+              size: 9
+            };
+            
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FF000000' } },
+              left: { style: 'thin', color: { argb: 'FF000000' } },
+              bottom: { style: 'thin', color: { argb: 'FF000000' } },
+              right: { style: 'thin', color: { argb: 'FF000000' } }
+            };
+
+            // Formato numérico para columnas de valores (columnas 11-20)
+            if (colNumber >= 11 && colNumber <= 20) {
+              cell.numFmt = '#,##0.00';
+              cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            }
+
+            // Alinear primera columna al centro
+            if (colNumber === 1) {
+              cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            }
+
+            // Para la columna de máquina registradora, asegurar que tenga al menos un valor vacío
+            if (isMaquinaRegistradora && (cell.value === null || cell.value === undefined || cell.value === '')) {
+              cell.value = ''; // Asegurar que tenga un valor vacío para que se aplique el estilo
             }
           }
         });
-        
-        // Calcular ancho considerando el header también
-        const headerText = worksheet.getRow(1).getCell(colIndex + 1).value;
-        const headerLength = headerText ? String(headerText).length : 0;
-        maxLength = Math.max(maxLength, headerLength);
-        
-        // Aplicar ancho calculado con límites
-        let calculatedWidth = Math.max(
-          maxLength * 1.2, // Factor de conversión
-          15, // Ancho mínimo
-          50  // Ancho máximo
-        );
-        
-        if (columns[colIndex]) {
-          columns[colIndex].width = calculatedWidth;
-        }
       });
-    };
 
-    // Calcular y aplicar anchos automáticos para columnas específicas
-    calculateAutoWidthColumns();
-
-    // HOJA DE RESUMEN
-    const worksheetResumen = workbook.addWorksheet('Resumen');
-
-    // Datos para el resumen
-    const fechaGeneracion = getCurrentDateElSalvador();
-    const datosResumen = [
-      ['ANEXO DE CONSUMIDOR FINAL - RESUMEN', ''],
-      ['', ''],
-      ['Fecha de generación:', fechaGeneracion.toLocaleDateString('es-SV')],
-      ['Período:', `${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`],
-      ['', ''],
-      ['RESUMEN GENERAL'],
-      ['Total Documentos:', resumen.cantidadDocumentos || 0],
-      ['Ventas Gravadas:', resumen.totalGravadas || 0],
-      ['Ventas Exentas:', resumen.totalExentas || 0],
-      ['Ventas No Sujetas:', resumen.totalNoSujetas || 0],
-      ['Exportaciones:', resumen.totalExportaciones || 0],
-      ['Ventas Zonas Francas:', resumen.totalZonasFrancas || 0],
-      ['Total Ventas:', resumen.totalVentas || 0],
-      ['', ''],
-      ['DESGLOSE DE EXPORTACIONES'],
-      ['Exportaciones Centroamérica:', documentos.reduce((sum, doc) => sum + (doc.exportaciones_centroamerica || 0), 0)],
-      ['Exportaciones Fuera Centroamérica:', documentos.reduce((sum, doc) => sum + (doc.exportaciones_fuera_centroamerica || 0), 0)],
-      ['Exportaciones Servicio:', documentos.reduce((sum, doc) => sum + (doc.exportaciones_servicio || 0), 0)]
-    ];
-
-    // Agregar datos al resumen
-    datosResumen.forEach((fila, rowIndex) => {
-      const row = worksheetResumen.addRow(fila);
-      
-      row.eachCell((cell, colNumber) => {
-        // Solo aplicar estilo si la celda tiene contenido
-        if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
+      // FUNCIÓN PARA CALCULAR ANCHO SOLO PARA COLUMNAS ESPECÍFICAS
+      const calculateAutoWidthColumns = () => {
+        const columns = worksheet.columns;
+        
+        // Índices de las columnas que se expandirán (base 0)
+        const autoWidthColumns = [1, 3, 7, 8]; // CLASE DOC, RESOLUCIÓN, DOC DEL, DOC AL
+        
+        autoWidthColumns.forEach(colIndex => {
+          let maxLength = 0;
           
-          // Estilo para títulos principales
-          if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
-            if (colNumber === 1) { // Solo la primera columna del título
-              cell.font = { 
-                color: { argb: 'FFFFFFFF' }, 
-                bold: true,
-                size: rowIndex === 0 ? 14 : 12
-              };
-              cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FF4472C4' }
-              };
-              cell.alignment = { horizontal: 'center' };
+          // Revisar todas las filas para esta columna
+          worksheet.eachRow((row, rowNumber) => {
+            const cell = row.getCell(colIndex + 1); // +1 porque getCell usa base 1
+            
+            if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
+              const cellText = String(cell.value);
+              const cellLength = cellText.length;
+              
+              if (cellLength > maxLength) {
+                maxLength = cellLength;
+              }
             }
-          }
+          });
           
-          // Formato numérico para valores en la segunda columna
-          if (colNumber === 2 && typeof cell.value === 'number') {
-            cell.numFmt = '#,##0.00';
-            cell.alignment = { horizontal: 'right' };
+          // Calcular ancho considerando el header también
+          const headerText = worksheet.getRow(1).getCell(colIndex + 1).value;
+          const headerLength = headerText ? String(headerText).length : 0;
+          maxLength = Math.max(maxLength, headerLength);
+          
+          // Aplicar ancho calculado con límites
+          let calculatedWidth = Math.max(
+            maxLength * 1.2, // Factor de conversión
+            15, // Ancho mínimo
+            50  // Ancho máximo
+          );
+          
+          if (columns[colIndex]) {
+            columns[colIndex].width = calculatedWidth;
           }
+        });
+      };
 
-          // Bordes para todas las celdas con contenido
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FF000000' } },
-            left: { style: 'thin', color: { argb: 'FF000000' } },
-            bottom: { style: 'thin', color: { argb: 'FF000000' } },
-            right: { style: 'thin', color: { argb: 'FF000000' } }
-          };
+      // Calcular y aplicar anchos automáticos para columnas específicas
+      calculateAutoWidthColumns();
+
+      // HOJA DE RESUMEN
+      const worksheetResumen = workbook.addWorksheet('Resumen');
+
+      // Datos para el resumen
+      const fechaGeneracion = getCurrentDateElSalvador();
+      const datosResumen = [
+        ['ANEXO DE CONSUMIDOR FINAL - RESUMEN', ''],
+        ['', ''],
+        ['Fecha de generación:', fechaGeneracion.toLocaleDateString('es-SV')],
+        ['Período:', `${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`],
+        ['', ''],
+        ['RESUMEN GENERAL'],
+        ['Total Documentos:', resumen.cantidadDocumentos || 0],
+        ['Ventas Gravadas:', resumen.totalGravadas || 0],
+        ['Ventas Exentas:', resumen.totalExentas || 0],
+        ['Ventas No Sujetas:', resumen.totalNoSujetas || 0],
+        ['Exportaciones:', resumen.totalExportaciones || 0],
+        ['Ventas Zonas Francas:', resumen.totalZonasFrancas || 0],
+        ['Total Ventas:', resumen.totalVentas || 0],
+        ['', ''],
+        ['DESGLOSE DE EXPORTACIONES'],
+        ['Exportaciones Centroamérica:', documentos.reduce((sum, doc) => sum + (doc.exportaciones_centroamerica || 0), 0)],
+        ['Exportaciones Fuera Centroamérica:', documentos.reduce((sum, doc) => sum + (doc.exportaciones_fuera_centroamerica || 0), 0)],
+        ['Exportaciones Servicio:', documentos.reduce((sum, doc) => sum + (doc.exportaciones_servicio || 0), 0)]
+      ];
+
+      // Agregar datos al resumen
+      datosResumen.forEach((fila, rowIndex) => {
+        const row = worksheetResumen.addRow(fila);
+        
+        row.eachCell((cell, colNumber) => {
+          // Solo aplicar estilo si la celda tiene contenido
+          if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
+            
+            // Estilo para títulos principales
+            if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
+              if (colNumber === 1) { // Solo la primera columna del título
+                cell.font = { 
+                  color: { argb: 'FFFFFFFF' }, 
+                  bold: true,
+                  size: rowIndex === 0 ? 14 : 12
+                };
+                cell.fill = {
+                  type: 'pattern',
+                  pattern: 'solid',
+                  fgColor: { argb: 'FF4472C4' }
+                };
+                cell.alignment = { horizontal: 'center' };
+              }
+            }
+            
+            // Formato numérico para valores en la segunda columna
+            if (colNumber === 2 && typeof cell.value === 'number') {
+              cell.numFmt = '#,##0.00';
+              cell.alignment = { horizontal: 'right' };
+            }
+
+            // Bordes para todas las celdas con contenido
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FF000000' } },
+              left: { style: 'thin', color: { argb: 'FF000000' } },
+              bottom: { style: 'thin', color: { argb: 'FF000000' } },
+              right: { style: 'thin', color: { argb: 'FF000000' } }
+            };
+          }
+        });
+
+        // Ajustar altura solo para filas con contenido
+        if (fila.some(cell => cell !== null && cell !== undefined && cell !== '')) {
+          if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
+            row.height = 25;
+          }
         }
       });
 
-      // Ajustar altura solo para filas con contenido
-      if (fila.some(cell => cell !== null && cell !== undefined && cell !== '')) {
-        if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
-          row.height = 25;
-        }
-      }
-    });
+      // Anchos fijos para el resumen
+      worksheetResumen.columns = [
+        { width: 30 },
+        { width: 20 }
+      ];
 
-    // Anchos fijos para el resumen
-    worksheetResumen.columns = [
-      { width: 30 },
-      { width: 20 }
-    ];
+      // Generar y descargar el archivo
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `anexo-consumidor-final-${fechaInicio}-a-${fechaFin}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error("Error al exportar Excel:", error);
+      alert("Error al exportar Excel: " + error.message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
-    // Generar y descargar el archivo
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { 
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-    });
-    
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `anexo-consumidor-final-${fechaInicio}-a-${fechaFin}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-  } catch (error) {
-    console.error("Error al exportar Excel:", error);
-    alert("Error al exportar Excel: " + error.message);
-  } finally {
-    setExporting(false);
-  }
-};
   const handleExportPDF = async () => {
     setExportingPDF(true);
     try {
@@ -658,6 +693,15 @@ const handleExportExcel = async () => {
                   </button>
                   
                   <button
+                    onClick={handleExportCSV}
+                    disabled={exportingCSV}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    <FaFileExport className="mr-2" />
+                    {exportingCSV ? 'Generando...' : 'CSV'}
+                  </button>
+                  
+                  <button
                     onClick={handleExportExcel}
                     disabled={exporting}
                     className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
@@ -746,7 +790,7 @@ const handleExportExcel = async () => {
                             {column.label}
                           </th>
                         ))}
-                      </tr>
+                      </table>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {currentItems.map((doc, index) => (
