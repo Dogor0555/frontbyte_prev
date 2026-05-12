@@ -10,7 +10,8 @@ export default function ProductModal({
   cargandoProductos,
   errorCargaProductos,
   unidades,
-  obtenerNombreUnidad
+  obtenerNombreUnidad,
+  onTipoIngresoChange
 }) {
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -27,6 +28,29 @@ export default function ProductModal({
   const [descuentoAplicado, setDescuentoAplicado] = useState(0);
   const [precioEditable, setPrecioEditable] = useState(0);
   const [errorDescuento, setErrorDescuento] = useState("");
+
+ // ========== SELECCIÓN AUTOMÁTICA DE TIPO DE INGRESO SEGÚN EL PRODUCTO SELECCIONADO ==========
+useEffect(() => {
+  if (!productoSeleccionado || !onTipoIngresoChange) return;
+  
+  let codigo = "";
+  let descripcion = "";
+  
+  // Determinar según el producto seleccionado (NO según tipoProducto)
+  if (productoSeleccionado.es_servicio) {
+    // Es un Servicio
+    codigo = "02";
+    descripcion = "Actividades de Servicios";
+  } else {
+    // Es un Bien (producto físico)
+    codigo = "03";
+    descripcion = "Actividades Comerciales";
+  }
+  
+  if (codigo) {
+    onTipoIngresoChange(codigo, descripcion);
+  }
+}, [productoSeleccionado, onTipoIngresoChange]);
 
   useEffect(() => {
     const checkMobile = () => {
