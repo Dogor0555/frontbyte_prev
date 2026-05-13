@@ -42,10 +42,13 @@ import {
   FaBriefcase,
   FaStore,
   FaMapMarkerAlt,
-  FaHeadset
+  FaHeadset,
+  FaExchangeAlt,
+  FaCheckCircle,
+  FaTimes 
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
-import { logout, isAdmin } from "../../services/auth";
+import { logout, isAdmin, seleccionarEmpresa, getEmpresasUsuario } from "../../services/auth";
 import { useState, useEffect } from "react";
 import { API_BASE_URL } from "@/lib/api";
 import { usePathname } from "next/navigation";
@@ -60,6 +63,14 @@ export default function Sidebar({ onOpenPerfil }) {
   const [permisos, setPermisos] = useState([]);
   const [loadingPermisos, setLoadingPermisos] = useState(true);
   const [headerExpanded, setHeaderExpanded] = useState(false);
+  
+  // Estados para el selector de empresas
+  const [showEmpresaSelector, setShowEmpresaSelector] = useState(false);
+  const [empresasDisponibles, setEmpresasDisponibles] = useState([]);
+  const [cargandoEmpresas, setCargandoEmpresas] = useState(false);
+  const [cambiandoEmpresa, setCambiandoEmpresa] = useState(false);
+  const [tieneMultiplesEmpresas, setTieneMultiplesEmpresas] = useState(false);
+  
   const [openMenus, setOpenMenus] = useState({
     dtes: false,
     facturas: false,
@@ -102,7 +113,99 @@ export default function Sidebar({ onOpenPerfil }) {
     }
     
     cargarPermisos();
+    verificarMultiplesEmpresas();
   }, []);
+
+  // En tu Sidebar.js, modifica la función verificarMultiplesEmpresas
+const verificarMultiplesEmpresas = async () => {
+  try {
+    setCargandoEmpresas(true);
+    const empresas = await getEmpresasUsuario();
+    setEmpresasDisponibles(empresas);
+    setTieneMultiplesEmpresas(empresas.length > 1);
+    console.log('Empresas disponibles:', empresas.length);
+    
+    // Si tiene múltiples, mostrar un pequeño indicador o notificación
+    if (empresas.length > 1) {
+      console.log('💼 Usuario con múltiples empresas. Puede cambiar usando el botón Cambiar Empresa');
+    }
+  } catch (error) {
+    console.error('Error al verificar empresas:', error);
+    setTieneMultiplesEmpresas(false);
+  } finally {
+    setCargandoEmpresas(false);
+  }
+};
+
+  // Abrir modal de selector de empresas
+  const abrirSelectorEmpresas = () => {
+    const cargarEmpresas = async () => {
+      setCargandoEmpresas(true);
+      try {
+        const empresas = await getEmpresasUsuario();
+        setEmpresasDisponibles(empresas);
+        setShowEmpresaSelector(true);
+      } catch (error) {
+        console.error('Error al cargar empresas:', error);
+      } finally {
+        setCargandoEmpresas(false);
+      }
+    };
+    cargarEmpresas();
+  };
+
+ // En tu Sidebar.js, actualiza la función handleCambiarEmpresa
+const handleCambiarEmpresa = async (empresaSeleccionada) => {
+  setCambiandoEmpresa(true);
+  try {
+    console.log('🔄 Cambiando a empresa:', empresaSeleccionada.empresa.nombre);
+    
+    const result = await seleccionarEmpresa({
+      idEmpleado: empresaSeleccionada.idEmpleado,
+      idEmpresa: empresaSeleccionada.idEmpresa,
+      idSucursal: empresaSeleccionada.idSucursal
+    });
+    
+    console.log('✅ Resultado cambio:', result);
+    
+    if (result.success) {
+      // Actualizar localStorage
+      if (result.empleado) {
+        localStorage.setItem("empleado", JSON.stringify(result.empleado));
+        setEmpleado(result.empleado);
+      }
+      if (result.empresa) {
+        localStorage.setItem("empresa", JSON.stringify(result.empresa));
+        setEmpresa(result.empresa);
+      }
+      if (result.sucursal) {
+        localStorage.setItem("sucursal", JSON.stringify(result.sucursal));
+        setSucursal(result.sucursal);
+      }
+      
+      // Cerrar modal
+      setShowEmpresaSelector(false);
+      
+      // Recargar permisos para la nueva empresa
+      await cargarPermisos();
+      
+      // Mostrar mensaje de éxito (opcional - puedes quitarlo después)
+      // Usar un toast o notificación en lugar de alert
+      console.log(`✅ Cambiaste a la empresa: ${result.empresa.nombre}`);
+      
+      // Recargar la página para aplicar todos los cambios
+      window.location.reload();
+    } else {
+      console.error('❌ Error en respuesta:', result);
+      alert('Error al cambiar de empresa: ' + (result.mensaje || 'Intenta nuevamente'));
+    }
+  } catch (error) {
+    console.error('❌ Error al cambiar de empresa:', error);
+    alert('Error al cambiar de empresa: ' + (error.message || 'Intenta nuevamente'));
+  } finally {
+    setCambiandoEmpresa(false);
+  }
+};
 
   useEffect(() => {
     const determineOpenMenu = () => {
@@ -246,11 +349,6 @@ export default function Sidebar({ onOpenPerfil }) {
 
   const isActive = (href) => {
     return pathname === href;
-  };
-
-  // Función para abrir el chat flotante
-  const openFloatingChat = () => {
-    window.dispatchEvent(new CustomEvent('openFloatingChat'));
   };
 
   const todosLosMenuItems = [
@@ -524,12 +622,6 @@ export default function Sidebar({ onOpenPerfil }) {
       menuKey: "compras",
       permiso: "Compras"
     },
-   // { 
-    //  name: "Soporte Técnico", 
-    //  icon: <FaHeadset />, 
-    //  onClick: openFloatingChat,  // Usamos onClick en lugar de href
-    //  permiso: "Soporte" 
-    //},
     { 
       name: "Reportes", 
       icon: <FaChartLine />, 
@@ -642,295 +734,440 @@ export default function Sidebar({ onOpenPerfil }) {
   const perfilLabel = empleado && isAdmin(empleado) ? "Editar Perfil" : "Ver Perfil";
 
   return (
-    <aside className="bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 h-full w-64 shadow-2xl">
-      <div className="flex flex-col h-full">
-
-        <div 
-          className={`
-            bg-gradient-to-br from-blue-800 via-blue-700 to-blue-800 
-            flex flex-col items-center justify-center 
-            border-b border-blue-600/50 shadow-lg px-4
-            transition-all duration-500 ease-in-out overflow-hidden
-            ${headerExpanded ? 'py-6' : 'py-4'}
-          `}
-          onMouseEnter={() => setHeaderExpanded(true)}
-          onMouseLeave={() => setHeaderExpanded(false)}
-        >
+    <>
+      <aside className="bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 h-full w-64 shadow-2xl">
+        <div className="flex flex-col h-full">
+          {/* Header con selector de empresas */}
           <div 
             className={`
-              bg-white relative rounded-full overflow-hidden 
-              shadow-xl ring-4 ring-blue-300/40
-              transition-all duration-500 ease-in-out
-              ${headerExpanded ? 'h-20 w-20 mb-4' : 'h-14 w-14 mb-2'}
+              bg-gradient-to-br from-blue-800 via-blue-700 to-blue-800 
+              flex flex-col items-center justify-center 
+              border-b border-blue-600/50 shadow-lg px-4
+              transition-all duration-500 ease-in-out overflow-hidden
+              ${headerExpanded ? 'py-6' : 'py-4'}
             `}
+            onMouseEnter={() => setHeaderExpanded(true)}
+            onMouseLeave={() => setHeaderExpanded(false)}
           >
-            <Image 
-              src={logo} 
-              alt="Byte Fusion Soluciones" 
-              fill 
-              className="object-cover p-1" 
-            />
-          </div>
-          
-          <div className="text-center w-full">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <FaBriefcase 
-                className={`
-                  text-blue-200 transition-all duration-300
-                  ${headerExpanded ? 'text-base' : 'text-xs'}
-                `} 
-              />
-              <h1 
-                className={`
-                  text-white font-bold tracking-wide drop-shadow-md
-                  transition-all duration-300 truncate max-w-full
-                  ${headerExpanded ? 'text-base' : 'text-sm'}
-                `}
-              >
-                {empresa ? empresa.nombre : 'Byte Fusion Soluciones'}
-              </h1>
-            </div>
-            
-            {sucursal && (
-              <div className="flex items-center justify-center gap-1.5 mb-2">
-                <FaStore className="text-blue-300 text-xs" />
-                <span className="text-blue-100 text-xs font-medium">
-                  {sucursal.nombre}
-                </span>
-              </div>
-            )}
-            
             <div 
               className={`
-                transition-all duration-500 ease-in-out space-y-2
-                ${headerExpanded 
-                  ? 'opacity-100 max-h-32 transform translate-y-0' 
-                  : 'opacity-0 max-h-0 transform -translate-y-4'
-                }
+                bg-white relative rounded-full overflow-hidden 
+                shadow-xl ring-4 ring-blue-300/40 cursor-pointer
+                transition-all duration-500 ease-in-out
+                ${headerExpanded ? 'h-20 w-20 mb-4' : 'h-14 w-14 mb-2'}
               `}
+              onClick={abrirSelectorEmpresas}
             >
-              {empresa?.nit && (
-                <div className="text-blue-100 text-xs font-medium bg-blue-800/60 px-3 py-1.5 rounded-full inline-block backdrop-blur-sm border border-blue-600/30">
-                  <span className="text-blue-300">NIT:</span> {empresa.nit}
+              <Image 
+                src={logo} 
+                alt="Byte Fusion Soluciones" 
+                fill 
+                className="object-cover p-1" 
+              />
+            </div>
+            
+            <div className="text-center w-full">
+              <div 
+                className="flex items-center justify-center gap-2 mb-1 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={abrirSelectorEmpresas}
+              >
+                <FaBriefcase 
+                  className={`
+                    text-blue-200 transition-all duration-300
+                    ${headerExpanded ? 'text-base' : 'text-xs'}
+                  `} 
+                />
+                <h1 
+                  className={`
+                    text-white font-bold tracking-wide drop-shadow-md
+                    transition-all duration-300 truncate max-w-full
+                    ${headerExpanded ? 'text-base' : 'text-sm'}
+                  `}
+                >
+                  {empresa ? empresa.nombre : 'Byte Fusion Soluciones'}
+                </h1>
+                {tieneMultiplesEmpresas && (
+                  <FaExchangeAlt className="text-blue-300 text-xs ml-1" />
+                )}
+              </div>
+              
+              {sucursal && (
+                <div className="flex items-center justify-center gap-1.5 mb-2">
+                  <FaStore className="text-blue-300 text-xs" />
+                  <span className="text-blue-100 text-xs font-medium">
+                    {sucursal.nombre}
+                  </span>
                 </div>
               )}
               
-              {empresa?.ambiente && (
-                <div 
+              {/* Botón cambiar empresa (si tiene múltiples) */}
+              {tieneMultiplesEmpresas && (
+                <button
+                  onClick={abrirSelectorEmpresas}
                   className={`
-                    text-xs font-semibold px-3 py-1.5 rounded-full inline-block
-                    backdrop-blur-sm transition-all duration-300
-                    ${empresa.ambiente === '00' 
-                      ? 'bg-yellow-500/20 text-yellow-200 border border-yellow-400/40 shadow-yellow-500/20' 
-                      : 'bg-green-500/20 text-green-200 border border-green-400/40 shadow-green-500/20'
-                    }
-                    shadow-lg
+                    mt-2 px-3 py-1.5 rounded-lg text-xs font-medium
+                    bg-blue-700/60 hover:bg-blue-600/80 text-blue-100
+                    border border-blue-500/40 transition-all duration-300
+                    flex items-center justify-center gap-2 w-full
+                    hover:scale-[1.02] hover:shadow-lg
                   `}
                 >
-                  {empresa.ambiente === '00' ? 'Ambiente de Pruebas' : 'Ambiente de Producción'}
-                </div>
+                  <FaExchangeAlt className="text-xs" />
+                  <span>Cambiar de Empresa</span>
+                </button>
               )}
+              
+              <div 
+                className={`
+                  transition-all duration-500 ease-in-out space-y-2 mt-2
+                  ${headerExpanded 
+                    ? 'opacity-100 max-h-32 transform translate-y-0' 
+                    : 'opacity-0 max-h-0 transform -translate-y-4'
+                  }
+                `}
+              >
+                {empresa?.nit && (
+                  <div className="text-blue-100 text-xs font-medium bg-blue-800/60 px-3 py-1.5 rounded-full inline-block backdrop-blur-sm border border-blue-600/30">
+                    <span className="text-blue-300">NIT:</span> {empresa.nit}
+                  </div>
+                )}
+                
+                {empresa?.ambiente && (
+                  <div 
+                    className={`
+                      text-xs font-semibold px-3 py-1.5 rounded-full inline-block
+                      backdrop-blur-sm transition-all duration-300
+                      ${empresa.ambiente === '00' 
+                        ? 'bg-yellow-500/20 text-yellow-200 border border-yellow-400/40 shadow-yellow-500/20' 
+                        : 'bg-green-500/20 text-green-200 border border-green-400/40 shadow-green-500/20'
+                      }
+                      shadow-lg
+                    `}
+                  >
+                    {empresa.ambiente === '00' ? 'Ambiente de Pruebas' : 'Ambiente de Producción'}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        <nav className="flex-1 py-5 px-3 overflow-y-auto custom-scrollbar">
-          <ul className="space-y-1.5">
-            {menuItems.map(({ name, icon, href, onClick, subMenu, menuKey }) => (
-              <li key={name}>
-                {subMenu ? (
-                  <div className="group">
+          <nav className="flex-1 py-5 px-3 overflow-y-auto custom-scrollbar">
+            <ul className="space-y-1.5">
+              {menuItems.map(({ name, icon, href, onClick, subMenu, menuKey }) => (
+                <li key={name}>
+                  {subMenu ? (
+                    <div className="group">
+                      <button
+                        className={`
+                          w-full flex items-center justify-between px-4 py-3 
+                          text-blue-100 rounded-xl transition-all duration-300 ease-out
+                          ${openMenus[menuKey] 
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 border-l-4 border-blue-300 scale-[1.02]' 
+                            : 'hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]'
+                          }
+                        `}
+                        onClick={() => toggleMenu(menuKey)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`text-lg transition-transform duration-300 ${openMenus[menuKey] ? 'scale-110' : ''}`}>
+                            {icon}
+                          </span>
+                          <span className="font-medium text-sm">{name}</span>
+                        </div>
+                        <span className={`
+                          text-sm transition-all duration-300 ease-out
+                          ${openMenus[menuKey] ? 'rotate-180 text-white' : 'text-blue-300'}
+                        `}>
+                          <FaChevronDown />
+                        </span>
+                      </button>
+                      
+                      <div className={`
+                        overflow-hidden transition-all duration-400 ease-out
+                        ${openMenus[menuKey] ? 'max-h-[500px] opacity-100 mt-2 mb-2' : 'max-h-0 opacity-0 mt-0'}
+                      `}>
+                        <div className="rounded-xl bg-blue-800/60 border border-blue-700/40 shadow-inner p-2 ml-3 backdrop-blur-sm">
+                          <ul className="space-y-1">
+                            {subMenu
+                              .filter(subItem => tienePermiso(subItem.permiso))
+                              .map(({ name: subName, icon: subIcon, href: subHref }, index) => (
+                              <li 
+                                key={subName}
+                                className={`
+                                  transition-all duration-300 ease-out
+                                  ${openMenus[menuKey] 
+                                    ? 'translate-x-0 opacity-100' 
+                                    : 'translate-x-4 opacity-0'
+                                  }
+                                `}
+                                style={{
+                                  transitionDelay: openMenus[menuKey] ? `${index * 40}ms` : '0ms'
+                                }}
+                              >
+                                <Link
+                                  href={subHref}
+                                  className={`
+                                    flex items-center gap-3 px-3 py-2.5 text-blue-100 
+                                    rounded-lg transition-all duration-200 ease-out relative group/sub
+                                    ${isActive(subHref) 
+                                      ? 'bg-gradient-to-r from-blue-600/70 to-blue-500/70 text-white border-l-4 border-blue-300 font-semibold shadow-md' 
+                                      : 'hover:bg-gradient-to-r hover:from-blue-700/40 hover:to-blue-600/40 hover:text-white hover:translate-x-1'
+                                    }
+                                  `}
+                                >
+                                  <span className="text-base">{subIcon}</span>
+                                  <span className="text-sm flex-1">{subName}</span>
+                                  {isActive(subHref) ? (
+                                    <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
+                                  ) : (
+                                    <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/sub:opacity-100 transition-opacity" />
+                                  )}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  ) : onClick ? (
                     <button
+                      onClick={onClick}
                       className={`
-                        w-full flex items-center justify-between px-4 py-3 
-                        text-blue-100 rounded-xl transition-all duration-300 ease-out
-                        ${openMenus[menuKey] 
+                        w-full flex items-center gap-3 px-4 py-3 text-blue-100 
+                        rounded-xl transition-all duration-300 ease-out relative group/item
+                        hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]
+                      `}
+                    >
+                      <span className="text-lg">
+                        {icon}
+                      </span>
+                      <span className="font-medium text-sm flex-1 text-left">{name}</span>
+                      <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                    </button>
+                  ) : (
+                    <Link
+                      href={href}
+                      className={`
+                        flex items-center gap-3 px-4 py-3 text-blue-100 
+                        rounded-xl transition-all duration-300 ease-out relative group/item
+                        ${isActive(href) 
                           ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 border-l-4 border-blue-300 scale-[1.02]' 
                           : 'hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]'
                         }
                       `}
-                      onClick={() => toggleMenu(menuKey)}
                     >
-                      <div className="flex items-center gap-3">
-                        <span className={`text-lg transition-transform duration-300 ${openMenus[menuKey] ? 'scale-110' : ''}`}>
-                          {icon}
-                        </span>
-                        <span className="font-medium text-sm">{name}</span>
-                      </div>
-                      <span className={`
-                        text-sm transition-all duration-300 ease-out
-                        ${openMenus[menuKey] ? 'rotate-180 text-white' : 'text-blue-300'}
-                      `}>
-                        <FaChevronDown />
+                      <span className={`text-lg transition-transform duration-300 ${isActive(href) ? 'scale-110' : ''}`}>
+                        {icon}
                       </span>
-                    </button>
-                    
-                    <div className={`
-                      overflow-hidden transition-all duration-400 ease-out
-                      ${openMenus[menuKey] ? 'max-h-[500px] opacity-100 mt-2 mb-2' : 'max-h-0 opacity-0 mt-0'}
-                    `}>
-                      <div className="rounded-xl bg-blue-800/60 border border-blue-700/40 shadow-inner p-2 ml-3 backdrop-blur-sm">
-                        <ul className="space-y-1">
-                          {subMenu
-                            .filter(subItem => tienePermiso(subItem.permiso))
-                            .map(({ name: subName, icon: subIcon, href: subHref }, index) => (
-                            <li 
-                              key={subName}
-                              className={`
-                                transition-all duration-300 ease-out
-                                ${openMenus[menuKey] 
-                                  ? 'translate-x-0 opacity-100' 
-                                  : 'translate-x-4 opacity-0'
-                                }
-                              `}
-                              style={{
-                                transitionDelay: openMenus[menuKey] ? `${index * 40}ms` : '0ms'
-                              }}
-                            >
-                              <Link
-                                href={subHref}
-                                className={`
-                                  flex items-center gap-3 px-3 py-2.5 text-blue-100 
-                                  rounded-lg transition-all duration-200 ease-out relative group/sub
-                                  ${isActive(subHref) 
-                                    ? 'bg-gradient-to-r from-blue-600/70 to-blue-500/70 text-white border-l-4 border-blue-300 font-semibold shadow-md' 
-                                    : 'hover:bg-gradient-to-r hover:from-blue-700/40 hover:to-blue-600/40 hover:text-white hover:translate-x-1'
-                                  }
-                                `}
-                              >
-                                <span className="text-base">{subIcon}</span>
-                                <span className="text-sm flex-1">{subName}</span>
-                                {isActive(subHref) ? (
-                                  <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
-                                ) : (
-                                  <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/sub:opacity-100 transition-opacity" />
-                                )}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                      <span className="font-medium text-sm flex-1">{name}</span>
+                      {isActive(href) ? (
+                        <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
+                      ) : (
+                        <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                      )}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          {empleado && (
+            <div className="p-4 border-t border-blue-600/50 bg-gradient-to-br from-blue-800/90 to-blue-700/90 backdrop-blur-sm">
+              <div className="bg-gradient-to-r from-blue-900/40 to-blue-800/40 rounded-xl p-4 border border-blue-600/30 shadow-lg hover:shadow-xl hover:border-blue-500/50 transition-all duration-300">
+                <div className="flex items-center gap-4">
+                  <div className="relative flex-shrink-0">
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
+                      <FaUserAlt className="text-white text-lg" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-blue-800 animate-pulse shadow-lg shadow-green-400/50"></div>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-white text-xs sm:text-sm break-words leading-tight line-clamp-2">
+                      {empleado.nombre}
+                    </h3>
+
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="px-2.5 py-1 bg-blue-700/60 rounded-full text-blue-100 text-xs font-medium border border-blue-500/30 whitespace-nowrap">
+                        {empleado.rol}
+                      </span>
+
+                      <span className="text-xs text-blue-200 bg-blue-800/30 px-2 py-1 rounded-lg border border-blue-500/20 whitespace-nowrap">
+                        ● Activo
+                      </span>
                     </div>
                   </div>
-                ) : onClick ? (
-                  // Si tiene onClick, usar botón en lugar de Link
-                  <button
-                    onClick={onClick}
-                    className={`
-                      w-full flex items-center gap-3 px-4 py-3 text-blue-100 
-                      rounded-xl transition-all duration-300 ease-out relative group/item
-                      hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]
-                    `}
-                  >
-                    <span className="text-lg">
-                      {icon}
-                    </span>
-                    <span className="font-medium text-sm flex-1 text-left">{name}</span>
-                    <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                  </button>
-                ) : (
-                  <Link
-                    href={href}
-                    className={`
-                      flex items-center gap-3 px-4 py-3 text-blue-100 
-                      rounded-xl transition-all duration-300 ease-out relative group/item
-                      ${isActive(href) 
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 border-l-4 border-blue-300 scale-[1.02]' 
-                        : 'hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]'
-                      }
-                    `}
-                  >
-                    <span className={`text-lg transition-transform duration-300 ${isActive(href) ? 'scale-110' : ''}`}>
-                      {icon}
-                    </span>
-                    <span className="font-medium text-sm flex-1">{name}</span>
-                    {isActive(href) ? (
-                      <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
-                    ) : (
-                      <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                    )}
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        {empleado && (
-          <div className="p-4 border-t border-blue-600/50 bg-gradient-to-br from-blue-800/90 to-blue-700/90 backdrop-blur-sm">
-            <div className="bg-gradient-to-r from-blue-900/40 to-blue-800/40 rounded-xl p-4 border border-blue-600/30 shadow-lg hover:shadow-xl hover:border-blue-500/50 transition-all duration-300">
-              <div className="flex items-center gap-4">
-                <div className="relative flex-shrink-0">
-                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
-                    <FaUserAlt className="text-white text-lg" />
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-blue-800 animate-pulse shadow-lg shadow-green-400/50"></div>
                 </div>
-
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-white text-xs sm:text-sm break-words leading-tight line-clamp-2">
-                  {empleado.nombre}
-                </h3>
-
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="px-2.5 py-1 bg-blue-700/60 rounded-full text-blue-100 text-xs font-medium border border-blue-500/30 whitespace-nowrap">
-                    {empleado.rol}
-                  </span>
-
-                  <span className="text-xs text-blue-200 bg-blue-800/30 px-2 py-1 rounded-lg border border-blue-500/20 whitespace-nowrap">
-                    ● Activo
-                  </span>
-                </div>
-              </div>
-
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {empleado && (
+          {empleado && (
+            <div className="bg-gradient-to-br from-blue-800/90 to-blue-700/90 p-4 border-t border-blue-600/50">
+              <Link
+                href="/dashboard/editar_perfil"
+                scroll={false}
+                className={`
+                  flex items-center justify-center gap-3 w-full px-4 py-3.5 
+                  border rounded-xl transition-all duration-300 font-medium text-sm
+                  ${isActive('/dashboard/editar_perfil') 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/30' 
+                    : 'text-blue-200 border-blue-500/50 hover:bg-gradient-to-r hover:from-blue-700/60 hover:to-blue-600/60 hover:text-white hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/20'
+                  }
+                  hover:scale-[1.02]
+                `}
+              >
+                <FaUserAlt className="text-base" />
+                <span>{perfilLabel}</span>
+                {isActive('/dashboard/editar_perfil') && (
+                  <div className="ml-auto w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
+                )}
+              </Link>
+            </div>
+          )}
+
           <div className="bg-gradient-to-br from-blue-800/90 to-blue-700/90 p-4 border-t border-blue-600/50">
-            <Link
-              href="/dashboard/editar_perfil"
-              scroll={false}
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
               className={`
                 flex items-center justify-center gap-3 w-full px-4 py-3.5 
-                border rounded-xl transition-all duration-300 font-medium text-sm
-                ${isActive('/dashboard/editar_perfil') 
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/30' 
-                  : 'text-blue-200 border-blue-500/50 hover:bg-gradient-to-r hover:from-blue-700/60 hover:to-blue-600/60 hover:text-white hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/20'
-                }
-                hover:scale-[1.02]
+                text-blue-200 border border-red-500/50 rounded-xl 
+                transition-all duration-300 font-medium text-sm
+                hover:bg-gradient-to-r hover:from-red-600/70 hover:to-red-500/70 
+                hover:text-white hover:border-red-400 hover:shadow-lg hover:shadow-red-500/20
+                hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed
               `}
             >
-              <FaUserAlt className="text-base" />
-              <span>{perfilLabel}</span>
-              {isActive('/dashboard/editar_perfil') && (
-                <div className="ml-auto w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
-              )}
-            </Link>
+              <FaSignOutAlt className={`text-base ${isLoggingOut ? "animate-spin" : ""}`} />
+              <span>{isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}</span>
+            </button>
           </div>
-        )}
-
-        <div className="bg-gradient-to-br from-blue-800/90 to-blue-700/90 p-4 border-t border-blue-600/50">
-          <button
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className={`
-              flex items-center justify-center gap-3 w-full px-4 py-3.5 
-              text-blue-200 border border-red-500/50 rounded-xl 
-              transition-all duration-300 font-medium text-sm
-              hover:bg-gradient-to-r hover:from-red-600/70 hover:to-red-500/70 
-              hover:text-white hover:border-red-400 hover:shadow-lg hover:shadow-red-500/20
-              hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed
-            `}
-          >
-            <FaSignOutAlt className={`text-base ${isLoggingOut ? "animate-spin" : ""}`} />
-            <span>{isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}</span>
-          </button>
         </div>
+      </aside>
+
+      {showEmpresaSelector && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3">
+    <div className="bg-gradient-to-b from-blue-900 to-blue-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-blue-600/40">
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-blue-700/60">
+        <div className="flex items-center gap-2.5">
+          <div className="bg-blue-600/50 p-1.5 rounded-lg">
+            <FaExchangeAlt className="text-white text-xs" />
+          </div>
+          <div>
+            <h2 className="text-white font-semibold text-sm">Cambiar empresa</h2>
+            <p className="text-blue-300 text-[11px]">Selecciona la empresa a acceder</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowEmpresaSelector(false)}
+          className="text-blue-400 hover:text-white transition-colors p-1"
+        >
+          <FaTimes size={12} />
+        </button>
       </div>
 
+      {/* Body */}
+      <div className="p-3 max-h-80 overflow-y-auto space-y-1.5">
+        {cargandoEmpresas ? (
+          <div className="flex flex-col items-center justify-center py-8 gap-2">
+            <svg className="h-6 w-6 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <p className="text-xs text-blue-300">Cargando empresas...</p>
+          </div>
+        ) : empresasDisponibles.length === 0 ? (
+          <div className="text-center py-8">
+            <FaBuilding className="text-blue-500 text-2xl mx-auto mb-2" />
+            <p className="text-xs text-blue-300">No hay otras empresas disponibles</p>
+          </div>
+        ) : (
+          empresasDisponibles.map((emp, index) => {
+            const isCurrent = empresa && emp.idEmpresa === empresa.id;
+            return (
+              <div
+                key={index}
+                onClick={() => !isCurrent && !cambiandoEmpresa && handleCambiarEmpresa(emp)}
+                className={`
+                  flex items-start gap-3 p-2.5 rounded-xl border transition-all duration-200
+                  ${isCurrent
+                    ? 'bg-green-500/15 border-green-500/40 cursor-default'
+                    : 'bg-blue-800/40 border-blue-600/25 hover:bg-blue-700/50 hover:border-blue-500/40 cursor-pointer'
+                  }
+                  ${cambiandoEmpresa ? 'opacity-50 pointer-events-none' : ''}
+                `}
+              >
+                {/* Avatar */}
+                <div className={`
+                  w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 mt-0.5
+                  ${isCurrent
+                    ? 'bg-green-500/25 text-green-300'
+                    : 'bg-blue-600/50 text-blue-100'
+                  }
+                `}>
+                  {emp.empresa.nombre?.charAt(0).toUpperCase()}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  {/* Nombre + badge */}
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold text-white leading-tight">
+                      {emp.empresa.nombre}
+                    </p>
+                    {isCurrent && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/25 text-green-300 border border-green-500/30 flex-shrink-0 mt-0.5">
+                        Actual
+                      </span>
+                    )}
+                  </div>
+
+                  {/* NIT */}
+                  <p className="text-[11px] text-blue-400 mt-0.5">
+                    NIT: {emp.empresa.nit}
+                  </p>
+
+                  {/* Sucursal y ambiente */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-[11px] text-blue-300 flex items-center gap-1">
+                      <FaStore size={9} className="flex-shrink-0" />
+                      {emp.sucursal.nombre}
+                    </p>
+                    <span className="text-blue-600">·</span>
+                    <p className={`text-[11px] flex-shrink-0 ${emp.empresa.ambiente === 2 ? 'text-green-400' : 'text-yellow-400'}`}>
+                      {emp.empresa.ambiente === 2 ? 'Producción' : 'Pruebas'}
+                    </p>
+                  </div>
+                </div>
+
+                {!isCurrent && (
+                  <FaChevronRight className="text-blue-500 text-xs flex-shrink-0 mt-1" />
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="px-3 py-2.5 border-t border-blue-700/60">
+        <button
+          onClick={() => setShowEmpresaSelector(false)}
+          disabled={cambiandoEmpresa}
+          className="w-full py-2 rounded-lg bg-blue-700/40 hover:bg-blue-600/50 text-blue-200 text-xs font-medium transition-all disabled:opacity-50 border border-blue-600/30"
+        >
+          Cancelar
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
+      {/* ESTILOS UNIFICADOS - Solo un bloque style jsx global */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -947,7 +1184,22 @@ export default function Sidebar({ onOpenPerfil }) {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(96, 165, 250, 0.8);
         }
+        
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-fadeInUp {
+          animation: fadeInUp 0.3s ease-out;
+        }
       `}</style>
-    </aside>
+    </>
   );
 }
