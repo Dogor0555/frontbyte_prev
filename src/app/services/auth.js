@@ -35,6 +35,69 @@ export const login = async (email, password) => {
 
   const data = await response.json();
 
+  // Si requiere selección de empresa, no intentar obtener token de Hacienda todavía
+  if (data.requiereSeleccion) {
+    return data;
+  }
+
+  let hasHaciendaToken = false;
+  try {
+    const haciendaCheck = await fetch(`${API_BASE_URL}/hacienda/token-check`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (haciendaCheck.ok) {
+      hasHaciendaToken = true;
+    }
+  } catch (error) {
+    console.warn("No se pudo conectar con Hacienda:", error);
+  }
+
+  return {
+    ...data,
+    hasHaciendaToken
+  };
+};
+
+// NUEVA FUNCIÓN: Seleccionar empresa después del login
+export const seleccionarEmpresa = async (seleccion) => {
+  const selectUrl = `${API_BASE_URL}/seleccionar-empresa`;
+  console.log("Seleccionando empresa en:", selectUrl);
+  
+  const response = await fetch(selectUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      idEmpleado: seleccion.idEmpleado,
+      idEmpresa: seleccion.idEmpresa,
+      idSucursal: seleccion.idSucursal
+    }),
+  });
+
+  console.log("Respuesta de seleccionar empresa:", response);
+
+  if (!response.ok) {
+    let msg = '';
+    try {
+      const errData = await response.json();
+      msg = errData.mensaje || errData.message || errData.error || JSON.stringify(errData);
+    } catch (e) {
+      try {
+        msg = await response.text();
+      } catch (e2) {
+        msg = '';
+      }
+    }
+    throw new Error(msg || 'Error al seleccionar la empresa');
+  }
+
+  const data = await response.json();
+
+  // Verificar token de Hacienda después de seleccionar la empresa
   let hasHaciendaToken = false;
   try {
     const haciendaCheck = await fetch(`${API_BASE_URL}/hacienda/token-check`, {
@@ -159,3 +222,42 @@ export const hasRole = (empleado, requiredRole) => {
 export const isAdmin = (empleado) => {
   return hasRole(empleado, 'admin');
 };
+
+// Función para obtener las empresas disponibles del usuario actual
+export const getEmpresasUsuario = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/usuario/empresas`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.empresas || [];
+    }
+    return [];
+  } catch (error) {
+    console.error("Error al obtener empresas del usuario:", error);
+    return [];
+  }
+};
+
+// Función para cambiar de empresa sin cerrar sesión
+export const cambiarEmpresa = async (idEmpleado, idEmpresa, idSucursal) => {
+  const result = await seleccionarEmpresa({ idEmpleado, idEmpresa, idSucursal });
+  if (result.success) {
+    // Actualizar datos en localStorage
+    if (result.empleado) {
+      localStorage.setItem("empleado", JSON.stringify(result.empleado));
+    }
+    if (result.empresa) {
+      localStorage.setItem("empresa", JSON.stringify(result.empresa));
+    }
+    if (result.sucursal) {
+      localStorage.setItem("sucursal", JSON.stringify(result.sucursal));
+    }
+  }
+  return result;
+};
+
+

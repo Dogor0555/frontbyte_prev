@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useTransition } from "react";
-import { FaEye, FaEyeSlash, FaBuilding, FaEnvelope, FaLock } from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaBuilding, FaEnvelope, FaLock, FaCheck, FaTimes } from "react-icons/fa";
 import Image from "next/image";
 import img from "../../images/factura.jpg";
 import logo from "../../images/logoo.png";
 import { useRouter } from "next/navigation";
-import { login } from "../../services/auth";
-import { API_BASE_URL } from "@/lib/api";
+import { login, seleccionarEmpresa } from "../../services/auth";
 
 // Componente de input reutilizable
 const InputField = ({ 
@@ -110,6 +109,152 @@ const ErrorAlert = ({ message, onDismiss }) => (
   </div>
 );
 
+// Componente de selección de empresa (Modal)
+const SeleccionEmpresaModal = ({ opciones, onSeleccionar, onCancelar, isLoading }) => {
+  const [seleccion, setSeleccion] = useState(null);
+  const [error, setError] = useState("");
+
+  const handleConfirmar = async () => {
+    if (!seleccion) {
+      setError("Por favor selecciona una empresa");
+      return;
+    }
+    setError("");
+    await onSeleccionar(seleccion);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div 
+        className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-fadeInUp overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-700 to-blue-900 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative h-10 w-10 rounded-full bg-white/20 p-2">
+                <FaBuilding className="text-white w-full h-full" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Múltiples Empresas</h2>
+                <p className="text-sm text-blue-100">Selecciona a cuál deseas acceder</p>
+              </div>
+            </div>
+            <button
+              onClick={onCancelar}
+              className="text-white/80 hover:text-white transition-colors"
+            >
+              <FaTimes size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-6">
+          <p className="text-sm text-gray-600 mb-4">
+            Tu correo está asociado a las siguientes empresas. Por favor selecciona una:
+          </p>
+          
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {opciones.map((opcion, index) => (
+              <label
+                key={index}
+                className={`
+                  flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer
+                  transition-all duration-200 hover:shadow-md
+                  ${seleccion?.idEmpleado === opcion.idEmpleado 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-blue-300'
+                  }
+                `}
+                onClick={() => setSeleccion(opcion)}
+              >
+                <div className="flex-shrink-0 mt-1">
+                  <div className={`
+                    w-5 h-5 rounded-full border-2 flex items-center justify-center
+                    ${seleccion?.idEmpleado === opcion.idEmpleado 
+                      ? 'border-blue-500 bg-blue-500' 
+                      : 'border-gray-300'
+                    }
+                  `}>
+                    {seleccion?.idEmpleado === opcion.idEmpleado && (
+                      <FaCheck className="text-white text-xs" />
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="font-semibold text-gray-900">
+                      {opcion.empresa.nombre}
+                    </h3>
+                    <span className={`
+                      text-xs px-2 py-1 rounded-full
+                      ${opcion.empresa.ambiente === 2 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-yellow-100 text-yellow-700'
+                      }
+                    `}>
+                      {opcion.empresa.ambiente === 2 ? 'Producción' : 'Pruebas'}
+                    </span>
+                  </div>
+                  
+                  <div className="text-sm text-gray-500 space-y-0.5">
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">Sucursal:</span>
+                      <span>{opcion.sucursal.nombre}</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">NIT:</span>
+                      <span>{opcion.empresa.nit}</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">Tu rol:</span>
+                      <span className="capitalize">{opcion.empleado.rol}</span>
+                    </p>
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+          
+          {error && (
+            <p className="text-xs text-red-500 mt-3 text-center">{error}</p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 p-6 pt-0">
+          <button
+            onClick={onCancelar}
+            className="flex-1 px-4 py-2.5 rounded-xl border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-all"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirmar}
+            disabled={isLoading}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-700 to-blue-900 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50"
+          >
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Ingresando...
+              </span>
+            ) : (
+              'Ingresar'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -121,6 +266,11 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
+  
+  // Estados para el modal de selección de empresa
+  const [showModal, setShowModal] = useState(false);
+  const [opcionesEmpresas, setOpcionesEmpresas] = useState([]);
+  const [seleccionando, setSeleccionando] = useState(false);
 
   // Cargar email guardado al montar el componente
   useEffect(() => {
@@ -182,32 +332,74 @@ export default function LoginPage() {
       try {
         const result = await login(formData.email, formData.password);
         
-        // Guardar email si "recordarme" está activado
-        if (rememberMe) {
-          localStorage.setItem("rememberedEmail", formData.email);
-        } else {
-          localStorage.removeItem("rememberedEmail");
+        // Verificar si requiere selección de empresa
+        if (result.requiereSeleccion) {
+          setOpcionesEmpresas(result.opciones);
+          setShowModal(true);
+          return;
         }
         
-        // Guardar datos en localStorage
-        if (result.empleado) {
-          localStorage.setItem("empleado", JSON.stringify(result.empleado));
-        }
-        if (result.empresa) {
-          localStorage.setItem("empresa", JSON.stringify(result.empresa));
-          console.log("Empresa guardada:", result.empresa.nombre);
-        }
-        if (result.sucursal) {
-          localStorage.setItem("sucursal", JSON.stringify(result.sucursal));
-          console.log("Sucursal guardada:", result.sucursal.nombre);
-        }
+        // Login normal - guardar datos y redirigir
+        await procesarLoginExitoso(result);
         
-        router.push("/dashboard");
       } catch (err) {
         console.error("Error de autenticación:", err);
         setError(err.message || "Credenciales incorrectas. Verifica tu correo y contraseña.");
       }
     });
+  };
+
+  const procesarLoginExitoso = async (result) => {
+    // Guardar email si "recordarme" está activado
+    if (rememberMe) {
+      localStorage.setItem("rememberedEmail", formData.email);
+    } else {
+      localStorage.removeItem("rememberedEmail");
+    }
+    
+    // Guardar datos en localStorage
+    if (result.empleado) {
+      localStorage.setItem("empleado", JSON.stringify(result.empleado));
+    }
+    if (result.empresa) {
+      localStorage.setItem("empresa", JSON.stringify(result.empresa));
+      console.log("Empresa guardada:", result.empresa.nombre);
+    }
+    if (result.sucursal) {
+      localStorage.setItem("sucursal", JSON.stringify(result.sucursal));
+      console.log("Sucursal guardada:", result.sucursal.nombre);
+    }
+    
+    router.push("/dashboard");
+  };
+
+  const handleSeleccionarEmpresa = async (seleccion) => {
+    setSeleccionando(true);
+    try {
+      const result = await seleccionarEmpresa({
+        idEmpleado: seleccion.idEmpleado,
+        idEmpresa: seleccion.idEmpresa,
+        idSucursal: seleccion.idSucursal
+      });
+      
+      if (result.success) {
+        await procesarLoginExitoso(result);
+      } else {
+        setError(result.mensaje || "Error al seleccionar la empresa");
+        setShowModal(false);
+      }
+    } catch (err) {
+      console.error("Error al seleccionar empresa:", err);
+      setError(err.message || "Error al seleccionar la empresa");
+      setShowModal(false);
+    } finally {
+      setSeleccionando(false);
+    }
+  };
+
+  const handleCancelarSeleccion = () => {
+    setShowModal(false);
+    setOpcionesEmpresas([]);
   };
 
   return (
@@ -303,7 +495,6 @@ export default function LoginPage() {
                 />
                 <span className="select-none text-sm text-gray-600">Recordarme</span>
               </label>
-             
             </div>
 
             <SubmitButton isLoading={isPending}>
@@ -354,6 +545,16 @@ export default function LoginPage() {
         </div>
       </div>
 
+      {/* Modal de selección de empresa */}
+      {showModal && (
+        <SeleccionEmpresaModal
+          opciones={opcionesEmpresas}
+          onSeleccionar={handleSeleccionarEmpresa}
+          onCancelar={handleCancelarSeleccion}
+          isLoading={seleccionando}
+        />
+      )}
+
       <style jsx global>{`
         @keyframes fadeInUp {
           from {
@@ -364,6 +565,19 @@ export default function LoginPage() {
             opacity: 1;
             transform: translateY(0);
           }
+        }
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fadeInUp {
+          animation: fadeInUp 0.3s ease-out;
         }
       `}</style>
     </div>
