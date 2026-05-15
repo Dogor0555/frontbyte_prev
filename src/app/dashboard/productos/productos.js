@@ -248,14 +248,20 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         setFilteredProductos(initialProductos || []);
     }, [initialProductos]);
 
-    useEffect(() => {
-        const results = productos && Array.isArray(productos) ? productos.filter(producto =>
-            producto.id.toString().includes(searchTerm) ||
-            producto.codigo.includes(searchTerm) ||
-            producto.nombre.includes(searchTerm)
-        ) : [];
-        setFilteredProductos(results);
-    }, [searchTerm, productos]);
+useEffect(() => {
+    const term = searchTerm.toLowerCase();
+
+    const results = productos && Array.isArray(productos)
+        ? productos.filter((producto) =>
+            producto.id?.toString().includes(term) ||
+            producto.codigo?.toLowerCase().includes(term) ||
+            producto.codigo_barras?.toLowerCase().includes(term) ||
+            producto.nombre?.toLowerCase().includes(term)
+        )
+        : [];
+
+    setFilteredProductos(results);
+}, [searchTerm, productos]);
 
     // Fetch proveedores
     const fetchProveedores = async () => {
@@ -715,8 +721,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                             <div className="relative">
                                 <input
                                     type="text"
-                                    placeholder="Buscar por ID, código o nombre"
-                                    value={searchTerm}
+                                    placeholder="Buscar por ID, código, código barras o nombre"                                    value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="text-gray-900 w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
@@ -736,8 +741,10 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         <tr>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Código Barras</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
-                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio venta</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Costo</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Proveedor</th>
                                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -748,14 +755,12 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                             <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.nombre}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.codigo}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                                                    {getNombreUnidad(producto.unidad)}
-                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.codigo_barras || "—"}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{getNombreUnidad(producto.unidad)}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.precio}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.precio_costo ? `$${producto.precio_costo}` : "—"}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.stock}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                                                    {getNombreProveedor(producto.idproveedor)}
-                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{getNombreProveedor(producto.idproveedor)}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                                                     <div className="flex justify-center items-center space-x-2">
                                                         <button

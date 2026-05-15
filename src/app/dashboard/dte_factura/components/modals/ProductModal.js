@@ -774,7 +774,8 @@ useEffect(() => {
                     {productosFiltrados
                       .filter(producto =>
                         producto.nombre.toLowerCase().includes(searchTerm) ||
-                        producto.codigo.toLowerCase().includes(searchTerm)
+                        producto.codigo.toLowerCase().includes(searchTerm) ||
+                        producto.codigo_barras?.toLowerCase().includes(searchTerm)
                       )
                       .map((producto) => (
                         <div
@@ -801,10 +802,11 @@ useEffect(() => {
                       ))
                     }
 
-                    {productosFiltrados.filter(producto =>
-                      producto.nombre.toLowerCase().includes(searchTerm) ||
-                      producto.codigo.toLowerCase().includes(searchTerm)
-                    ).length === 0 && (
+{productosFiltrados.filter(producto =>
+  producto.nombre?.toLowerCase().includes(searchTerm) ||
+  producto.codigo?.toLowerCase().includes(searchTerm) ||
+  producto.codigo_barra?.toLowerCase().includes(searchTerm)
+).length === 0 && (
                       <div className="p-6 text-center text-gray-500">
                         <FaSearch className="mx-auto mb-2 text-2xl text-gray-400" />
                         <p>No se encontraron {tipoProducto === "1" ? "productos" : tipoProducto === "2" ? "servicios" : "items"}</p>
