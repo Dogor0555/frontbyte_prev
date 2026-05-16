@@ -1138,8 +1138,8 @@ const handleCambiarEmpresa = async (empresaSeleccionada) => {
                       {emp.sucursal.nombre}
                     </p>
                     <span className="text-blue-600">·</span>
-                    <p className={`text-[11px] flex-shrink-0 ${emp.empresa.ambiente === 2 ? 'text-green-400' : 'text-yellow-400'}`}>
-                      {emp.empresa.ambiente === 2 ? 'Producción' : 'Pruebas'}
+                    <p className={`text-[11px] flex-shrink-0 ${emp.empresa.ambiente === "01" ? 'text-green-400' : 'text-yellow-400'}`}>
+                      {emp.empresa.ambiente === "01" ? 'Producción' : 'Pruebas'}
                     </p>
                   </div>
                 </div>
