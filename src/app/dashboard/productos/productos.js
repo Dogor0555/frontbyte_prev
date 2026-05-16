@@ -440,13 +440,15 @@ useEffect(() => {
 
         const codigoUnidadBackend = getCodigoUnidadBackend(selectedUnidad);
 
-        const producto = {
-            ...formData,
-            unidad: codigoUnidadBackend,
-            idproveedor: selectedProveedor || null,
-            stock: parseFloat(formData.stock),
-            precio: parseFloat(formData.precio)
-        };
+const producto = {
+    ...formData,
+    unidad: codigoUnidadBackend,
+    idproveedor: selectedProveedor || null,
+    stock: parseFloat(formData.stock),
+    precio: parseFloat(formData.precio),
+    precio_costo: parseFloat(formData.precio_costo || 0),
+    codigo_barras: formData.codigo_barras || ""
+};
 
         try {
             const response = await fetch(`${API_BASE_URL}/productos/updatePro/${formData.id}`, {
@@ -459,20 +461,25 @@ useEffect(() => {
                 body: JSON.stringify(producto),
             });
 
-            if (!response.ok) {
-                throw new Error("Error al actualizar el producto");
-            }
+if (!response.ok) {
+    const errorText = await response.text();
+    console.error("ERROR BACKEND:", errorText);
+
+    throw new Error(errorText || "Error al actualizar el producto");
+}
 
             setShowEditModal(false);
-            setFormData({
-                nombre: "",
-                codigo: "",
-                unidad: "",
-                precio: 0,
-                stock: 0,
-                es_servicio: false,
-                idproveedor: ""
-            });
+setFormData({
+    nombre: "",
+    codigo: "",
+    codigo_barras: "",
+    unidad: "",
+    precio: 0,
+    precio_costo: 0,
+    stock: 0,
+    es_servicio: false,
+    idproveedor: ""
+});
             setSelectedUnidad("");
             setSelectedProveedor("");
             fetchProductos();
@@ -1132,6 +1139,26 @@ useEffect(() => {
                                     <p className="text-xs text-gray-500 mt-1">{formData.codigo.length}/{LIMITES.CODIGO} caracteres</p>
                                 </div>
                                 <div className="mb-4">
+    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="codigo_barra">
+        Código de Barra
+    </label>
+
+    <input
+        type="text"
+        id="codigo_barras"
+        name="codigo_barras"
+        value={formData.codigo_barras || ""}
+        onChange={(e) =>
+            setFormData({
+                ...formData,
+                codigo_barras: e.target.value,
+            })
+        }
+        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+        maxLength={100}
+    />
+</div>
+                                <div className="mb-4">
                                     <div className="flex items-center">
                                         <input
                                             type="checkbox"
@@ -1203,6 +1230,24 @@ useEffect(() => {
                                         step="any"
                                     />
                                 </div>
+                                <div className="mb-4">
+    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="precio_costo">
+        Precio Costo
+    </label>
+
+    <input
+        type="number"
+        id="precio_costo"
+        name="precio_costo"
+        value={formData.precio_costo}
+        onChange={handleNumberChange}
+        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+        required
+        step="any"
+        min="0"
+    />
+</div>
+
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="stock">
                                         Stock
