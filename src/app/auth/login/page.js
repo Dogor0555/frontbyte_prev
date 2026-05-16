@@ -191,12 +191,12 @@ const SeleccionEmpresaModal = ({ opciones, onSeleccionar, onCancelar, isLoading 
                     </h3>
                     <span className={`
                       text-xs px-2 py-1 rounded-full
-                      ${opcion.empresa.ambiente === 2 
+                      ${opcion.empresa.ambiente === 0
                         ? 'bg-green-100 text-green-700' 
                         : 'bg-yellow-100 text-yellow-700'
                       }
                     `}>
-                      {opcion.empresa.ambiente === 2 ? 'Producción' : 'Pruebas'}
+                      {opcion.empresa.ambiente === "01" ? 'Producción' : 'Pruebas'}
                     </span>
                   </div>
                   
