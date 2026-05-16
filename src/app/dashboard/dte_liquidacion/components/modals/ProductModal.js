@@ -748,7 +748,7 @@ const calcularTotal = () => {
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Escriba al menos 2 caracteres para buscar..."
+                    placeholder="Buscar por nombre, código o código de barras..."
                     className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value.toLowerCase())}
@@ -779,7 +779,8 @@ const calcularTotal = () => {
                     {productosFiltrados
                       .filter(producto =>
                         producto.nombre.toLowerCase().includes(searchTerm) ||
-                        producto.codigo.toLowerCase().includes(searchTerm)
+                        producto.codigo.toLowerCase().includes(searchTerm) ||
+                        producto.codigo_barras?.toLowerCase().includes(searchTerm)
                       )
                       .map((producto) => (
                         <div
@@ -808,7 +809,8 @@ const calcularTotal = () => {
 
                     {productosFiltrados.filter(producto =>
                       producto.nombre.toLowerCase().includes(searchTerm) ||
-                      producto.codigo.toLowerCase().includes(searchTerm)
+                      producto.codigo.toLowerCase().includes(searchTerm) ||
+                      producto.codigo_barras?.toLowerCase().includes(searchTerm)
                     ).length === 0 && (
                       <div className="p-6 text-center text-gray-500">
                         <FaSearch className="mx-auto mb-2 text-2xl text-gray-400" />

@@ -185,6 +185,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
     const [tipoInventario, setTipoInventario] = useState("producto");
     const [productosPendientesMP, setProductosPendientesMP] = useState([]);
+    const [tempPrecioVenta, setTempPrecioVenta] = useState(0);
     
     const [formData, setFormData] = useState({
         fecha: new Date().toISOString().split('T')[0],
@@ -496,34 +497,37 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     };
 
     // Función para guardar los cambios editados
-    const handleSaveEdit = () => {
-        if (editDetailIndex === null) return;
-
-        const newDetalles = [...detalles];
-        const detail = newDetalles[editDetailIndex];
-        
-        const nuevaCantidad = parseFloat(editDetailData.cantidad);
-        const nuevoPrecio = parseFloat(editDetailData.precio_unitario);
-        const nuevoSubtotal = nuevaCantidad * nuevoPrecio;
-        
-        newDetalles[editDetailIndex] = {
-            ...detail,
-            cantidad: nuevaCantidad,
-            precio_unitario: nuevoPrecio,
-            subtotal: nuevoSubtotal,
-            unidad: editDetailData.unidad
-        };
-        
-        setDetalles(newDetalles);
-        updateTotals(newDetalles, formData.tipo_compra);
-        setShowEditModal(false);
-        setEditDetailIndex(null);
-        
-        addToast({ 
-            type: 'success', 
-            message: `Detalle actualizado con unidad: ${getNombreUnidad(editDetailData.unidad)}` 
-        });
+const handleSaveEdit = () => {
+    if (editDetailIndex === null) return;
+    const newDetalles = [...detalles];
+    const detail = newDetalles[editDetailIndex];
+    const nuevaCantidad = parseFloat(editDetailData.cantidad);
+    // ✅ NUEVOS
+    const nuevoPrecioCosto = parseFloat(editDetailData.precio_costo || 0);
+    const nuevoPrecioVenta = parseFloat(editDetailData.precio_venta || 0);
+    // ✅ SUBTOTAL BASADO EN COSTO
+    const nuevoSubtotal = nuevaCantidad * nuevoPrecioCosto;
+    newDetalles[editDetailIndex] = {
+        ...detail,
+        cantidad: nuevaCantidad,
+        // ✅ COSTO
+        precio_unitario: nuevoPrecioCosto,
+        precio_costo: nuevoPrecioCosto,
+        // ✅ VENTA
+        precio_venta: nuevoPrecioVenta,
+        subtotal: nuevoSubtotal,
+        unidad: editDetailData.unidad
     };
+    
+    setDetalles(newDetalles);
+    updateTotals(newDetalles, formData.tipo_compra);
+    setShowEditModal(false);
+    setEditDetailIndex(null);
+    addToast({ 
+        type: 'success', 
+        message: `Detalle actualizado con unidad: ${getNombreUnidad(editDetailData.unidad)}` 
+    });
+};
 
     // Función para procesar el resto del DTE después de crear MPs
     const procesarRestoDteConMP = (dteData, foundProv, nombresMPCreados) => {
@@ -899,8 +903,15 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             producto_id: tempProductData.id,
             producto_nombre: tempProductData.nombre,
             producto_codigo: tempProductData.codigo,
+            // ✅ NUEVO
+            codigo_barras: tempProductData.codigo_barras || null,
             cantidad: parseFloat(tempCantidad),
+            // ✅ ESTE ES EL COSTO DEL DTE
             precio_unitario: parseFloat(tempPrecio || 0),
+            // ✅ NUEVO
+            precio_costo: parseFloat(tempPrecio || 0),
+            // ✅ NUEVO
+            precio_venta: parseFloat(tempPrecioVenta || 0),
             subtotal: subtotal,
             unidad: tempUnidad
         };
@@ -913,6 +924,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         setProductSearch("");
         setAddQuantity(1);
         setAddPrice("");
+        setTempPrecioVenta(0);
         setTempProductData(null);
         setShowProductoUnidadModal(false);
         
@@ -1240,33 +1252,57 @@ const procesarDteActual = async (dteData) => {
                     existente.cantidad += parseFloat(item.cantidad);
                     existente.subtotal = existente.cantidad * existente.precio_unitario;
                 } else {
-                    itemsProcesados.set(key, {
-                        tipo: "materia_prima",
-                        producto_id: null,
-                        materia_prima_id: foundMP.id,
-                        producto_nombre: foundMP.nombre,
-                        producto_codigo: foundMP.codigo,
-                        descripcion: foundMP.nombre,
-                        cantidad: parseFloat(item.cantidad),
-                        precio_unitario: parseFloat(item.precioUni),
-                        subtotal: parseFloat(item.ventaGravada),
-                        unidad: unidadDesdeJson,
-                        es_materia_prima: true
-                    });
+itemsProcesados.set(key, {
+    tipo: "producto",
+    producto_id: foundProd.id,
+    materia_prima_id: null,
+
+    producto_nombre: foundProd.nombre,
+    producto_codigo: foundProd.codigo,
+
+    // ✅ NUEVO
+    codigo_barras: foundProd.codigo_barras || null,
+
+    descripcion: foundProd.nombre,
+
+    cantidad: parseFloat(item.cantidad),
+
+    // ✅ COSTO
+    precio_unitario: parseFloat(item.precioUni),
+
+    // ✅ NUEVOS CAMPOS
+    precio_costo: parseFloat(item.precioUni),
+    precio_venta: parseFloat(foundProd.precio || 0),
+
+    subtotal: parseFloat(item.ventaGravada),
+
+    unidad: unidadDesdeJson,
+    es_materia_prima: false
+});
                 }
                 continue;
             }
             
             // TERCERO: No existe ni como producto ni como materia prima
-            itemsNoEncontrados.push({
-                nombre: item.descripcion,
-                codigo: item.codigo || 'S/C',
-                cantidad: item.cantidad,
-                precio: item.precioUni,
-                subtotal: item.ventaGravada,
-                unidad: item.uniMedida,
-                item: item
-            });
+itemsNoEncontrados.push({
+    nombre: item.descripcion,
+    codigo: item.codigo || 'S/C',
+
+    // ✅ NUEVO
+    codigo_barras: item.codigo_barras || null,
+
+    cantidad: item.cantidad,
+
+    // ✅ COSTO REAL DEL DTE
+    precio_costo: parseFloat(item.precioUni || 0),
+
+    // ✅ PRECIO VENTA MANUAL
+    precio_venta: 0,
+
+    subtotal: item.ventaGravada,
+    unidad: item.uniMedida,
+    item: item
+});
         }
         
         // ========== SI HAY ÍTEMS NO ENCONTRADOS, MOSTRAR DIÁLOGO ==========
@@ -1697,8 +1733,13 @@ const procesarDteActual = async (dteData) => {
                         body: JSON.stringify({
                             nombre: itemData.nombre,
                             codigo: itemData.codigo || `PROD-${Date.now()}`,
+                            // ✅ NUEVO
+                            codigo_barras: itemData.codigo_barras || null,
                             unidad: unidad,
-                            precio: precioUnitario,
+                            // ✅ PRECIO VENTA
+                            precio: parseFloat(itemData.precio_venta || 0),
+                            // ✅ PRECIO COSTO
+                            precio_costo: parseFloat(itemData.precio_costo || precioUnitario),
                             preciooferta: 0,
                             stock: 0,
                             es_servicio: false,
@@ -1720,13 +1761,20 @@ const procesarDteActual = async (dteData) => {
                         
                         productosAcumulados.set(key, {
                             tipo: "producto",
-                            producto_id: newProd.id,
-                            producto_nombre: newProd.nombre,
-                            producto_codigo: newProd.codigo,
-                            cantidad: parseFloat(cantidadOriginal.toFixed(4)),
-                            precio_unitario: parseFloat(precioUnitario.toFixed(4)),
-                            subtotal: parseFloat(subtotalOriginal.toFixed(2)),
-                            unidad: unidad
+                            producto_id: foundProd.id,
+                            producto_nombre: foundProd.nombre,
+                            producto_codigo: foundProd.codigo,
+                            // ✅ NUEVO
+                            codigo_barras: foundProd.codigo_barras || null,
+                            cantidad: parseFloat(item.cantidad.toFixed(4)),
+                            // ✅ COSTO DEL DTE
+                            precio_unitario: parseFloat(item.precioUni.toFixed(4)),
+                            // ✅ NUEVOS CAMPOS
+                            precio_costo: parseFloat(item.precioUni.toFixed(4)),
+                            // ✅ ESTE ES EL PRECIO DE VENTA
+                            precio_venta: parseFloat(foundProd.precio || 0),
+                            subtotal: parseFloat(item.ventaGravada.toFixed(2)),
+                            unidad: unidadDesdeJson
                         });
                     } else {
                         console.error("Error creando producto:", await response.text());
@@ -2095,6 +2143,7 @@ const procesarDteActual = async (dteData) => {
                                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidad</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cant.</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Costo Unit.</th>
+                                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Precio Venta</th>
                                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
                                                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acción</th>
                                                 </tr>
@@ -2102,7 +2151,7 @@ const procesarDteActual = async (dteData) => {
                                             <tbody className="bg-white divide-y divide-gray-200">
                                                 {detalles.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
+                                                        <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
                                                             No hay productos agregados.
                                                         </td>
                                                     </tr>
@@ -2127,8 +2176,15 @@ const procesarDteActual = async (dteData) => {
                                                                 {item.unidad ? getNombreUnidad(item.unidad) : "-"}
                                                             </td>
                                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">{item.cantidad}</td>
-                                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">${item.precio_unitario.toFixed(2)}</td>
-                                                            <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">${item.subtotal.toFixed(2)}</td>
+                                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">${parseFloat(item.precio_costo || item.precio_unitario || 0).toFixed(2)}</td>
+<td className="px-4 py-3 text-sm text-right">
+    <input
+        type="number"
+        min="0"
+        step="0.01"
+        value={item.precio_venta || 0}
+        onChange={(e) => {const nuevosDetalles = [...detalles];nuevosDetalles[idx] = {...nuevosDetalles[idx],precio_venta: parseFloat(e.target.value) || 0};setDetalles(nuevosDetalles);}}className="w-24 border border-gray-300 rounded px-2 py-1 text-right text-green-600 font-medium"/></td>
+                                                            <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">${parseFloat(item.subtotal || 0).toFixed(2)}</td>
                                                             <td className="px-4 py-3 text-center">
                                                                 <div className="flex items-center justify-center gap-2">
                                                                     <button 
@@ -2349,30 +2405,50 @@ const procesarDteActual = async (dteData) => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
-                                <input
-                                    type="number"
-                                    value={tempCantidad}
-                                    onChange={(e) => setTempCantidad(parseFloat(e.target.value) || 0)}
-                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
-                                    min="0.01"
-                                    step="0.01"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Costo Unitario ($)</label>
-                                <input
-                                    type="number"
-                                    value={tempPrecio}
-                                    onChange={(e) => setTempPrecio(parseFloat(e.target.value) || 0)}
-                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
-                                    min="0"
-                                    step="0.01"
-                                />
-                            </div>
-                        </div>
+<div className="grid grid-cols-2 gap-3 mb-4">
+    {/* CANTIDAD */}
+    <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+        <input
+            type="number"
+            value={tempCantidad}
+            onChange={(e) =>
+                setTempCantidad(parseFloat(e.target.value) || 0)
+            }
+            className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+            min="0.01"
+            step="0.01"
+        />
+    </div>
+    {/* COSTO */}
+    <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Costo Unitario ($)</label>
+        <input
+            type="number"
+            value={tempPrecio}
+            onChange={(e) =>
+                setTempPrecio(parseFloat(e.target.value) || 0)
+            }
+            className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+            min="0"
+            step="0.01"
+        />
+    </div>
+    {/* NUEVO PRECIO VENTA */}
+    <div className="col-span-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Precio Venta ($)</label>
+        <input
+            type="number"
+            value={tempPrecioVenta || 0}
+            onChange={(e) =>
+                setTempPrecioVenta(parseFloat(e.target.value) || 0)
+            }
+            className="w-full border border-green-300 focus:border-green-500 focus:ring-2 focus:ring-green-100 rounded-xl px-3 py-2 outline-none transition-all"
+            min="0"
+            step="0.01"
+        />
+    </div>
+</div>
 
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>
@@ -2454,17 +2530,45 @@ const procesarDteActual = async (dteData) => {
                                     step="0.01"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Precio Unitario ($)</label>
-                                <input
-                                    type="number"
-                                    value={editDetailData.precio_unitario}
-                                    onChange={(e) => setEditDetailData({...editDetailData, precio_unitario: parseFloat(e.target.value) || 0})}
-                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
-                                    min="0"
-                                    step="0.01"
-                                />
-                            </div>
+<div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+        Precio Costo ($)
+    </label>
+
+    <input
+        type="number"
+        value={editDetailData.precio_costo || 0}
+        onChange={(e) =>
+            setEditDetailData({
+                ...editDetailData,
+                precio_costo: parseFloat(e.target.value) || 0
+            })
+        }
+        className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+        min="0"
+        step="0.01"
+    />
+</div>
+
+<div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+        Precio Venta ($)
+    </label>
+
+    <input
+        type="number"
+        value={editDetailData.precio_venta || 0}
+        onChange={(e) =>
+            setEditDetailData({
+                ...editDetailData,
+                precio_venta: parseFloat(e.target.value) || 0
+            })
+        }
+        className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+        min="0"
+        step="0.01"
+    />
+</div>
                         </div>
 
                         <div className="mb-4">
@@ -2703,7 +2807,7 @@ const procesarDteActual = async (dteData) => {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                             <input
                                 type="number"
                                 placeholder="Cantidad"
