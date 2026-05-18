@@ -52,8 +52,10 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     const [formData, setFormData] = useState({
         nombre: "",
         codigo: "",
+        codigo_barras: "",
         unidad: "",
         precio: 0,
+        precio_costo: 0,
         stock: 0,
         es_servicio: false,
         idproveedor: ""
@@ -959,6 +961,21 @@ setFormData({
                                     {codigoError && <p className="text-red-500 text-sm mt-1">{codigoError}</p>}
                                     <p className="text-xs text-gray-500 mt-1">{formData.codigo.length}/{LIMITES.CODIGO} caracteres</p>
                                 </div>
+                                <div className="mb-4">
+    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="codigo_barra">
+        Código de Barra
+    </label>
+
+    <input
+        type="text"
+        id="codigo_barra"
+        name="codigo_barra"
+        value={formData.codigo_barra ?? ""}
+        onChange={handleCodigoChange}
+        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+        placeholder="Ingrese el código de barras"
+    />
+</div>
 
                                 <div className="mb-4">
                                     <div className="flex items-center">
@@ -1021,20 +1038,42 @@ setFormData({
                                 </div>
 
                                 <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="precio">
-                                        Precio
-                                    </label>
-                                    <input
-                                        type="number"
-                                        id="precio"
-                                        name="precio"
-                                        value={formData.precio}
-                                        onChange={handleNumberChange}
-                                        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                        required
-                                        step="any"
-                                    />
+<label
+    className="block text-sm font-medium text-gray-700 mb-1"
+    htmlFor="precio_venta"
+>
+    Precio Venta
+</label>
+
+<input
+    type="number"
+    id="precio_venta"
+    name="precio_venta"
+    value={formData.precio_venta ?? ""}
+    onChange={handleNumberChange}
+    className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+    required
+    step="any"
+/>
                                 </div>
+                                <div className="mb-4">
+    <label
+        className="block text-sm font-medium text-gray-700 mb-1"
+        htmlFor="precio"
+    >
+        Precio Costo
+    </label>
+
+    <input
+        type="number"
+        id="precio"
+        name="precio"
+        value={formData.precio ?? ""}
+        onChange={handleNumberChange}
+        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+        step="any"
+    />
+</div>
 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="stock">
