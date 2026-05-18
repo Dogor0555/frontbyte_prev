@@ -6,12 +6,12 @@ import Sidebar from "../components/sidebar";
 import Navbar from "../components/navbar";
 import Footer from "../components/footer";
 import JsonDteUploader from "./JsonDteUploader";
-import { 
-    FaSave, 
-    FaTimes, 
-    FaPlus, 
-    FaTrash, 
-    FaSearch, 
+import {
+    FaSave,
+    FaTimes,
+    FaPlus,
+    FaTrash,
+    FaSearch,
     FaBoxOpen,
     FaShoppingCart,
     FaMoneyBillWave,
@@ -66,13 +66,13 @@ const unidadesDisponibles = [
     { codigo: "Caja", nombre: "Caja" }
 ];
 
-// ========== TOAST NOTIFICATION SYSTEM ==========
+// ========== TOAST NOTIFICATION SYSTEM CORREGIDO ==========
 const Toast = ({ toasts, removeToast }) => {
     return (
         <div className="fixed top-5 right-5 z-50 flex flex-col gap-3 pointer-events-none" style={{ maxWidth: 360 }}>
-            {toasts.map(toast => (
+            {toasts.map((toast, index) => (
                 <div
-                    key={toast.id}
+                    key={toast.id || index}
                     className="pointer-events-auto flex items-start gap-3 bg-white rounded-xl shadow-lg border px-4 py-3"
                     style={{
                         borderColor: toast.type === 'success' ? '#16a34a' : toast.type === 'error' ? '#dc2626' : '#2563eb',
@@ -120,18 +120,20 @@ const Toast = ({ toasts, removeToast }) => {
 
 const useToast = () => {
     const [toasts, setToasts] = useState([]);
+    let counter = 0;
 
     const addToast = useCallback(({ type = 'info', title, message, lines, duration = 4000 }) => {
-        const id = Date.now();
+        counter++;
+        const id = Date.now() + '-' + counter + '-' + Math.random().toString(36).substr(2, 9);
         setToasts(prev => [...prev, { id, type, title, message, lines, leaving: false }]);
-        
+
         setTimeout(() => {
             setToasts(prev => prev.map(t => t.id === id ? { ...t, leaving: true } : t));
             setTimeout(() => {
                 setToasts(prev => prev.filter(t => t.id !== id));
             }, 350);
         }, duration);
-        
+
         return id;
     }, []);
 
@@ -146,7 +148,7 @@ const useToast = () => {
 export default function RealizarComprasView({ user, hasHaciendaToken, haciendaStatus }) {
     const router = useRouter();
     const { toasts, addToast, removeToast } = useToast();
-    
+
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -155,7 +157,7 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
 
     const [proveedores, setProveedores] = useState([]);
     const [productos, setProductos] = useState([]);
-    
+
     const [currentDteData, setCurrentDteData] = useState(null);
 
     // ========== ESTADOS PARA MATERIA PRIMA ==========
@@ -180,13 +182,16 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [editDetailData, setEditDetailData] = useState({
         cantidad: 0,
         precio_unitario: 0,
-        unidad: "59"
+        unidad: "59",
+        precio_costo: 0,
+        precio_venta: 0,
+        codigo_barras: ""
     });
 
     const [tipoInventario, setTipoInventario] = useState("producto");
     const [productosPendientesMP, setProductosPendientesMP] = useState([]);
     const [tempPrecioVenta, setTempPrecioVenta] = useState(0);
-    
+
     const [formData, setFormData] = useState({
         fecha: new Date().toISOString().split('T')[0],
         fecha_emision: new Date().toISOString().split('T')[0],
@@ -243,7 +248,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [gastoData, setGastoData] = useState({
         descripcion: "",
         cantidad: 1,
-        precio_unitario: 0
+        precio_unitario: 0,
+        unidad: "59"
     });
 
     const [showDialog, setShowDialog] = useState(false);
@@ -251,7 +257,8 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     const [productosNoEncontradosMsg, setProductosNoEncontradosMsg] = useState([]);
     const [pendingDteData, setPendingDteData] = useState(null);
     const [selectedProductosToCreate, setSelectedProductosToCreate] = useState({});
-    
+    const [productosData, setProductosData] = useState({});
+
     const [pendingDtes, setPendingDtes] = useState([]);
     const [currentDteIndex, setCurrentDteIndex] = useState(0);
     const [isProcessingMultiple, setIsProcessingMultiple] = useState(false);
@@ -264,19 +271,19 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
     // ========== FUNCIÓN MEJORADA PARA MAPEAR UNIDADES ==========
     const mapearUnidadDesdeJson = (uniMedida) => {
         if (uniMedida === null || uniMedida === undefined || uniMedida === "") {
-            console.log("⚠️ Unidad vacía, usando '59' (Unidad)");
+            console.log("Unidad vacia, usando '59' (Unidad)");
             return "59";
         }
-        
+
         let unidadStr = String(uniMedida).trim();
-        
+
         if (/^\d+$/.test(unidadStr)) {
-            console.log(`📏 Unidad numérica: ${unidadStr} → ${unidadStr}`);
+            console.log("Unidad numerica: " + unidadStr + " → " + unidadStr);
             return unidadStr;
         }
-        
+
         const unidadLower = unidadStr.toLowerCase();
-        
+
         const mapeo = {
             "unidad": "59", "unidades": "59", "u": "59", "pza": "59", "pieza": "59", "piezas": "59",
             "kg": "34", "kilogramo": "34", "kilogramos": "34", "kilo": "34", "kilos": "34", "kgs": "34",
@@ -300,140 +307,145 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
             "gramo": "39", "gramos": "39",
             "miligramo": "40", "miligramos": "40"
         };
-        
+
         const resultado = mapeo[unidadLower];
         if (resultado) {
-            console.log(`📏 Unidad mapeada: "${uniMedida}" → ${resultado}`);
+            console.log("Unidad mapeada: " + uniMedida + " → " + resultado);
             return resultado;
         }
-        
-        console.log(`📏 Unidad no mapeada: "${uniMedida}", usando: ${unidadStr}`);
+
+        console.log("Unidad no mapeada: " + uniMedida + ", usando: " + unidadStr);
         return unidadStr;
     };
 
- const consolidarDetalles = (detallesExistentes, nuevosDetalles) => {
-    const mapaDetalles = new Map();
-    
-    // Primero, agregar los detalles existentes
-    detallesExistentes.forEach(detalle => {
-        let key;
-        if (detalle.tipo === "producto" && detalle.producto_id) {
-            key = `prod_${detalle.producto_id}`;
-        } else if (detalle.tipo === "materia_prima" && detalle.materia_prima_id) {
-            key = `mp_${detalle.materia_prima_id}`;
-        } else {
-            key = `gasto_${detalle.descripcion || Date.now()}`;
-        }
-        
-        if (mapaDetalles.has(key)) {
-            const existente = mapaDetalles.get(key);
-            const nuevaCantidad = existente.cantidad + detalle.cantidad;
-            existente.cantidad = parseFloat(nuevaCantidad.toFixed(4));
-            existente.subtotal = parseFloat((existente.cantidad * existente.precio_unitario).toFixed(2));
-        } else {
-            mapaDetalles.set(key, { ...detalle });
-        }
-    });
-    
-    // Segundo, agregar o consolidar los nuevos detalles
-    nuevosDetalles.forEach(detalle => {
-        let key;
-        if (detalle.tipo === "producto" && detalle.producto_id) {
-            key = `prod_${detalle.producto_id}`;
-        } else if (detalle.tipo === "materia_prima" && detalle.materia_prima_id) {
-            key = `mp_${detalle.materia_prima_id}`;
-        } else {
-            key = `gasto_${detalle.descripcion || Date.now()}`;
-        }
-        
-        if (mapaDetalles.has(key)) {
-            const existente = mapaDetalles.get(key);
-            const nuevaCantidad = existente.cantidad + detalle.cantidad;
-            existente.cantidad = parseFloat(nuevaCantidad.toFixed(4));
-            existente.subtotal = parseFloat((existente.cantidad * existente.precio_unitario).toFixed(2));
-            
-            if (detalle.unidad && detalle.unidad !== "59" && existente.unidad === "59") {
-                existente.unidad = detalle.unidad;
-            }
-        } else {
-            mapaDetalles.set(key, { ...detalle });
-        }
-    });
-    
-    return Array.from(mapaDetalles.values());
-};
+    const consolidarDetalles = (detallesExistentes, nuevosDetalles) => {
+        const mapaDetalles = new Map();
 
-    // ========== FUNCIÓN PARA ACTUALIZAR STOCK ==========
-    const actualizarStockProductos = async (detallesCompra) => {
-        const actualizacionesStock = [];
-        
-        for (const detalle of detallesCompra) {
+        detallesExistentes.forEach(detalle => {
+            let key;
             if (detalle.tipo === "producto" && detalle.producto_id) {
-                const producto = productos.find(p => p.id === detalle.producto_id);
-                if (producto) {
-                    const nuevoStock = (producto.stock || 0) + detalle.cantidad;
-                    actualizacionesStock.push({
-                        id: detalle.producto_id,
-                        stock: nuevoStock,
-                        cantidadAgregada: detalle.cantidad,
-                        nombre: producto.nombre,
-                        unidad: detalle.unidad
-                    });
+                key = "prod_" + detalle.producto_id;
+            } else if (detalle.tipo === "materia_prima" && detalle.materia_prima_id) {
+                key = "mp_" + detalle.materia_prima_id;
+            } else {
+                key = "gasto_" + (detalle.descripcion || Date.now());
+            }
+
+            if (mapaDetalles.has(key)) {
+                const existente = mapaDetalles.get(key);
+                const nuevaCantidad = existente.cantidad + detalle.cantidad;
+                existente.cantidad = parseFloat(nuevaCantidad.toFixed(4));
+                existente.subtotal = parseFloat((existente.cantidad * existente.precio_unitario).toFixed(2));
+            } else {
+                mapaDetalles.set(key, { ...detalle });
+            }
+        });
+
+        nuevosDetalles.forEach(detalle => {
+            let key;
+            if (detalle.tipo === "producto" && detalle.producto_id) {
+                key = "prod_" + detalle.producto_id;
+            } else if (detalle.tipo === "materia_prima" && detalle.materia_prima_id) {
+                key = "mp_" + detalle.materia_prima_id;
+            } else {
+                key = "gasto_" + (detalle.descripcion || Date.now());
+            }
+
+            if (mapaDetalles.has(key)) {
+                const existente = mapaDetalles.get(key);
+                const nuevaCantidad = existente.cantidad + detalle.cantidad;
+                existente.cantidad = parseFloat(nuevaCantidad.toFixed(4));
+                existente.subtotal = parseFloat((existente.cantidad * existente.precio_unitario).toFixed(2));
+
+                if (detalle.unidad && detalle.unidad !== "59" && existente.unidad === "59") {
+                    existente.unidad = detalle.unidad;
                 }
+            } else {
+                mapaDetalles.set(key, { ...detalle });
             }
-        }
-        
-        for (const actualizacion of actualizacionesStock) {
-            try {
-                await fetch(`${API_BASE_URL}/productos/update/${actualizacion.id}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({ stock: actualizacion.stock })
-                });
-                console.log(`✅ Stock actualizado: ${actualizacion.nombre} +${actualizacion.cantidadAgregada} = ${actualizacion.stock}`);
-            } catch (error) {
-                console.error(`❌ Error actualizando stock de ${actualizacion.nombre}:`, error);
-            }
-        }
-        
-        return actualizacionesStock;
+        });
+
+        return Array.from(mapaDetalles.values());
     };
 
+    const actualizarStockProductos = async (detallesCompra) => {
+    const actualizacionesStock = [];
+
+    for (const detalle of detallesCompra) {
+        if (detalle.tipo === "producto" && detalle.producto_id) {
+            const producto = productos.find(p => p.id === detalle.producto_id);
+            if (producto) {
+                const nuevoStock = (parseFloat(producto.stock) || 0) + parseFloat(detalle.cantidad);
+                actualizacionesStock.push({
+                    id: detalle.producto_id,
+                    stock: nuevoStock,
+                    cantidadAgregada: detalle.cantidad,
+                    nombre: producto.nombre,
+                    unidad: detalle.unidad
+                });
+            }
+        }
+    }
+
+    for (const actualizacion of actualizacionesStock) {
+        try {
+            const res = await fetch(API_BASE_URL + "/productos/updatePro/" + actualizacion.id, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ stock: actualizacion.stock })
+            });
+
+            if (!res.ok) {
+                const txt = await res.text();
+                console.error("Error stock " + actualizacion.nombre + ":", txt);
+            } else {
+                console.log("Stock OK: " + actualizacion.nombre + " +" + actualizacion.cantidadAgregada + " → " + actualizacion.stock);
+                setProductos(prev => prev.map(p =>
+                    p.id === actualizacion.id ? { ...p, stock: actualizacion.stock } : p
+                ));
+            }
+        } catch (error) {
+            console.error("Error actualizando stock de " + actualizacion.nombre + ":", error);
+        }
+    }
+
+    return actualizacionesStock;
+};
     // Función para extraer sello de recepción del DTE
     const extraerSelloRecepcion = (dteData) => {
-        console.log("🔍 Buscando sello de recepción en el DTE...");
-        
+        console.log("Buscando sello de recepcion en el DTE...");
+
         if (dteData.responseMH?.selloRecibido) {
-            console.log("✅ Sello encontrado en responseMH.selloRecibido:", dteData.responseMH.selloRecibido);
+            console.log("Sello encontrado en responseMH.selloRecibido:", dteData.responseMH.selloRecibido);
             return dteData.responseMH.selloRecibido;
         }
         else if (dteData.responseMH?.selloRecepcion) {
-            console.log("✅ Sello encontrado en responseMH.selloRecepcion:", dteData.responseMH.selloRecepcion);
+            console.log("Sello encontrado en responseMH.selloRecepcion:", dteData.responseMH.selloRecepcion);
             return dteData.responseMH.selloRecepcion;
         }
         else if (dteData.respuestaHacienda?.selloRecibido) {
-            console.log("✅ Sello encontrado en respuestaHacienda.selloRecibido:", dteData.respuestaHacienda.selloRecibido);
+            console.log("Sello encontrado en respuestaHacienda.selloRecibido:", dteData.respuestaHacienda.selloRecibido);
             return dteData.respuestaHacienda.selloRecibido;
         }
         else if (dteData.respuestaHacienda?.selloRecepcion) {
-            console.log("✅ Sello encontrado en respuestaHacienda.selloRecepcion:", dteData.respuestaHacienda.selloRecepcion);
+            console.log("Sello encontrado en respuestaHacienda.selloRecepcion:", dteData.respuestaHacienda.selloRecepcion);
             return dteData.respuestaHacienda.selloRecepcion;
         }
         else if (dteData.selloRecibido) {
-            console.log("✅ Sello encontrado en raíz como selloRecibido:", dteData.selloRecibido);
+            console.log("Sello encontrado en raiz como selloRecibido:", dteData.selloRecibido);
             return dteData.selloRecibido;
         }
         else if (dteData.sello_recepcion) {
-            console.log("✅ Sello encontrado en raíz como sello_recepcion:", dteData.sello_recepcion);
+            console.log("Sello encontrado en raiz como sello_recepcion:", dteData.sello_recepcion);
             return dteData.sello_recepcion;
         }
         else if (dteData.data?.selloRecibido) {
-            console.log("✅ Sello encontrado en data.selloRecibido:", dteData.data.selloRecibido);
+            console.log("Sello encontrado en data.selloRecibido:", dteData.data.selloRecibido);
             return dteData.data.selloRecibido;
         }
         else if (dteData.documento?.selloRecibido) {
-            console.log("✅ Sello encontrado en documento.selloRecibido:", dteData.documento.selloRecibido);
+            console.log("Sello encontrado en documento.selloRecibido:", dteData.documento.selloRecibido);
             return dteData.documento.selloRecibido;
         }
         else {
@@ -441,22 +453,22 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
                 if (!obj || typeof obj !== "object") return null;
                 for (const key in obj) {
                     if (key.toLowerCase().includes("sello") && typeof obj[key] === "string" && obj[key].length > 10) {
-                        console.log(`🔍 Posible sello encontrado en ${path}.${key}:`, obj[key]);
+                        console.log("Posible sello encontrado en " + path + "." + key + ":", obj[key]);
                         return obj[key];
                     }
-                    const resultado = buscarSello(obj[key], `${path}.${key}`);
+                    const resultado = buscarSello(obj[key], path + "." + key);
                     if (resultado) return resultado;
                 }
                 return null;
             };
             const selloEncontrado = buscarSello(dteData);
             if (selloEncontrado) {
-                console.log("✅ Sello encontrado mediante búsqueda recursiva:", selloEncontrado);
+                console.log("Sello encontrado mediante busqueda recursiva:", selloEncontrado);
                 return selloEncontrado;
             }
         }
-        
-        console.log("⚠️ No se encontró sello de recepción en ninguna ubicación");
+
+        console.log("No se encontro sello de recepcion en ninguna ubicacion");
         return null;
     };
 
@@ -468,11 +480,11 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         let cesc = 0;
 
         if (dteData.resumen?.tributos && Array.isArray(dteData.resumen.tributos)) {
-            console.log("📊 Tributos encontrados en DTE:", dteData.resumen.tributos);
+            console.log("Tributos encontrados en DTE:", dteData.resumen.tributos);
             dteData.resumen.tributos.forEach(tributo => {
                 const valor = parseFloat(tributo.valor) || 0;
-                console.log(`  - ${tributo.codigo}: ${tributo.descripcion} = $${valor}`);
-                switch(tributo.codigo) {
+                console.log("  - " + tributo.codigo + ": " + tributo.descripcion + " = $" + valor);
+                switch (tributo.codigo) {
                     case 'D1': fovial = valor; break;
                     case 'C8': cotrans = valor; break;
                     case '20': iva = valor; break;
@@ -491,43 +503,45 @@ export default function RealizarComprasView({ user, hasHaciendaToken, haciendaSt
         setEditDetailData({
             cantidad: detail.cantidad,
             precio_unitario: detail.precio_unitario,
-            unidad: detail.unidad || "59"
+            unidad: detail.unidad || "59",
+            precio_costo: detail.precio_costo || detail.precio_unitario || 0,
+            precio_venta: detail.precio_venta || 0,
+            codigo_barras: detail.codigo_barras || ''
         });
         setShowEditModal(true);
     };
 
     // Función para guardar los cambios editados
-const handleSaveEdit = () => {
-    if (editDetailIndex === null) return;
-    const newDetalles = [...detalles];
-    const detail = newDetalles[editDetailIndex];
-    const nuevaCantidad = parseFloat(editDetailData.cantidad);
-    // ✅ NUEVOS
-    const nuevoPrecioCosto = parseFloat(editDetailData.precio_costo || 0);
-    const nuevoPrecioVenta = parseFloat(editDetailData.precio_venta || 0);
-    // ✅ SUBTOTAL BASADO EN COSTO
-    const nuevoSubtotal = nuevaCantidad * nuevoPrecioCosto;
-    newDetalles[editDetailIndex] = {
-        ...detail,
-        cantidad: nuevaCantidad,
-        // ✅ COSTO
-        precio_unitario: nuevoPrecioCosto,
-        precio_costo: nuevoPrecioCosto,
-        // ✅ VENTA
-        precio_venta: nuevoPrecioVenta,
-        subtotal: nuevoSubtotal,
-        unidad: editDetailData.unidad
+    const handleSaveEdit = () => {
+        if (editDetailIndex === null) return;
+        const newDetalles = [...detalles];
+        const detail = newDetalles[editDetailIndex];
+        const nuevaCantidad = parseFloat(editDetailData.cantidad);
+        const nuevoPrecioCosto = parseFloat(editDetailData.precio_costo || 0);
+        const nuevoPrecioVenta = parseFloat(editDetailData.precio_venta || 0);
+        const nuevoCodigoBarras = editDetailData.codigo_barras || detail.codigo_barras || '';
+        const nuevoSubtotal = nuevaCantidad * nuevoPrecioCosto;
+
+        newDetalles[editDetailIndex] = {
+            ...detail,
+            cantidad: nuevaCantidad,
+            precio_unitario: nuevoPrecioCosto,
+            precio_costo: nuevoPrecioCosto,
+            precio_venta: nuevoPrecioVenta,
+            codigo_barras: nuevoCodigoBarras,
+            subtotal: nuevoSubtotal,
+            unidad: editDetailData.unidad
+        };
+
+        setDetalles(newDetalles);
+        updateTotals(newDetalles, formData.tipo_compra);
+        setShowEditModal(false);
+        setEditDetailIndex(null);
+        addToast({
+            type: 'success',
+            message: "Detalle actualizado con unidad: " + getNombreUnidad(editDetailData.unidad)
+        });
     };
-    
-    setDetalles(newDetalles);
-    updateTotals(newDetalles, formData.tipo_compra);
-    setShowEditModal(false);
-    setEditDetailIndex(null);
-    addToast({ 
-        type: 'success', 
-        message: `Detalle actualizado con unidad: ${getNombreUnidad(editDetailData.unidad)}` 
-    });
-};
 
     // Función para procesar el resto del DTE después de crear MPs
     const procesarRestoDteConMP = (dteData, foundProv, nombresMPCreados) => {
@@ -539,7 +553,7 @@ const handleSaveEdit = () => {
 
         const cuerpoDoc = dteData.cuerpoDocumento || [];
         const productosAcumulados = new Map();
-        
+
         for (const item of cuerpoDoc) {
             if (nombresMPCreados.includes(item.descripcion)) {
                 continue;
@@ -549,11 +563,11 @@ const handleSaveEdit = () => {
             if (!foundProd) {
                 foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
             }
-            
+
             if (foundProd) {
                 const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
                 const key = foundProd.id;
-                
+
                 if (productosAcumulados.has(key)) {
                     const acumulado = productosAcumulados.get(key);
                     acumulado.cantidad += item.cantidad;
@@ -608,196 +622,199 @@ const handleSaveEdit = () => {
             setDetalles(nuevosDetallesConsolidados);
         }
 
-        // Mostrar resumen de productos cargados
-        const resumenProductos = detallesProcesados.map(d => 
-            `${d.producto_nombre}: ${d.cantidad} ${getNombreUnidad(d.unidad)} @ $${d.precio_unitario}`
+        const resumenProductos = detallesProcesados.map(d =>
+            d.producto_nombre + ": " + d.cantidad + " " + getNombreUnidad(d.unidad) + " @ $" + d.precio_unitario
         );
-        
-        addToast({ 
-            type: 'success', 
-            title: 'DTE Cargado', 
+
+        addToast({
+            type: 'success',
+            title: 'DTE Cargado',
             lines: [
-                `📄 Documento: ${dteData.identificacion?.numeroControl || "N/A"}`,
-                `🏢 Proveedor: ${dteData.emisor?.nombre || "N/A"}`,
-                `💰 Total: $${dteData.resumen?.totalPagar || 0}`,
-                `📦 Productos: ${detallesProcesados.length}`,
+                "Documento: " + (dteData.identificacion?.numeroControl || "N/A"),
+                "Proveedor: " + (dteData.emisor?.nombre || "N/A"),
+                "Total: $" + (dteData.resumen?.totalPagar || 0),
+                "Productos: " + detallesProcesados.length,
                 ...resumenProductos.slice(0, 3),
-                ...(resumenProductos.length > 3 ? [`... y ${resumenProductos.length - 3} más`] : [])
+                ...(resumenProductos.length > 3 ? ["... y " + (resumenProductos.length - 3) + " mas"] : [])
             ],
             duration: 8000
         });
     };
 
- const handleAgregarMateriaPrimaDesdeDialog = async () => {
-    const seleccionadosIndices = Object.keys(selectedProductosToCreate).filter(idx => selectedProductosToCreate[idx]);
-    
-    if (seleccionadosIndices.length === 0) {
-        addToast({ type: 'error', message: 'Seleccione al menos un producto para agregar como materia prima' });
-        return;
-    }
+    const handleAgregarMateriaPrimaDesdeDialog = async () => {
+        const seleccionadosIndices = Object.keys(selectedProductosToCreate).filter(idx => selectedProductosToCreate[idx]);
 
-    try {
-        const idsucursal = user?.idsucursal;
-        
-        if (!idsucursal) {
-            addToast({ type: 'error', message: 'No se pudo identificar la sucursal. Reinicie sesión.' });
+        if (seleccionadosIndices.length === 0) {
+            addToast({ type: 'error', message: 'Seleccione al menos un producto para agregar como materia prima' });
             return;
         }
 
-        const { dteData, itemsNoEncontrados, foundProv, currentProveedorId, itemsProcesados } = pendingDteData;
-        
-        const nuevosDetalles = [...(itemsProcesados || [])];
-        
-        for (const idx of seleccionadosIndices) {
-            const itemData = itemsNoEncontrados[parseInt(idx)];
-            if (!itemData) continue;
-            
-            const nombreLimpio = itemData.nombre;
-            
-            // Buscar si ya existe en materiasPrimas (estado local)
-            let mp = materiasPrimas.find(mp => mp.nombre?.toLowerCase() === nombreLimpio?.toLowerCase());
-            
-            if (!mp) {
-                // Crear nueva materia prima
-                const res = await fetch(`${API_BASE_URL}/materias-primas`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({
-                        nombre: nombreLimpio,
-                        unidad: "59",
-                        idsucursal: idsucursal
-                    })
-                });
-                
-                const data = await res.json();
-                
-                if (!res.ok) {
-                    console.error("❌ Error creando MP:", data);
-                    addToast({ type: 'error', message: `Error creando materia prima: ${nombreLimpio} - ${data.error || data.message}` });
-                    continue;
-                }
-                
-                mp = data.materia || data;
-                
-                if (!mp?.id) {
-                    console.error("❌ Error: backend no devolvió ID");
-                    addToast({ type: 'error', message: `Error: no se pudo crear ${nombreLimpio}` });
-                    continue;
-                }
-                
-                setMateriasPrimas(prev => [...prev, mp]);
-                addToast({ type: 'success', message: `Materia prima "${mp.nombre}" creada` });
+        try {
+            const idsucursal = user?.idsucursal;
+
+            if (!idsucursal) {
+                addToast({ type: 'error', message: 'No se pudo identificar la sucursal. Reinicie sesion.' });
+                return;
             }
-            
-            const cantidad = parseFloat(itemData.cantidad);
-            const precioUnitario = parseFloat(itemData.precio);
-            const subtotal = cantidad * precioUnitario;
-            const unidadDesdeJson = mapearUnidadDesdeJson(itemData.unidad);
-            
-            const nuevoDetalle = {
-                tipo: "materia_prima",
-                producto_id: null,
-                materia_prima_id: mp.id,
-                producto_nombre: mp.nombre,
-                producto_codigo: mp.codigo,
-                descripcion: mp.nombre,
-                cantidad: cantidad,
-                precio_unitario: precioUnitario,
-                subtotal: subtotal,
-                unidad: mp.unidad || unidadDesdeJson,
-                es_materia_prima: true
-            };
-            
-            nuevosDetalles.push(nuevoDetalle);
-        }
-        
-        // PROCESAR EL RESTO DE ÍTEMS (los que NO se seleccionaron) como GASTOS
-        const indicesNoSeleccionados = itemsNoEncontrados
-            .map((_, idx) => idx)
-            .filter(idx => !selectedProductosToCreate[idx]);
-        
-        for (const idx of indicesNoSeleccionados) {
-            const itemData = itemsNoEncontrados[idx];
-            if (!itemData) continue;
-            
-            const cantidad = parseFloat(itemData.cantidad);
-            const precioUnitario = parseFloat(itemData.precio);
-            const subtotal = cantidad * precioUnitario;
-            
-            nuevosDetalles.push({
-                tipo: "gasto",
-                producto_id: null,
-                materia_prima_id: null,
-                producto_nombre: null,
-                producto_codigo: null,
-                descripcion: itemData.nombre,
-                cantidad: cantidad,
-                precio_unitario: precioUnitario,
-                subtotal: subtotal,
-                unidad: "",
-                es_materia_prima: false
+
+            const { dteData, itemsNoEncontrados, foundProv, currentProveedorId, itemsProcesados } = pendingDteData;
+
+            const nuevosDetalles = [...(itemsProcesados || [])];
+
+            for (const idx of seleccionadosIndices) {
+                const itemData = itemsNoEncontrados[parseInt(idx)];
+                if (!itemData) continue;
+
+                const nombreLimpio = itemData.nombre;
+                const unidadDesdeJson = mapearUnidadDesdeJson(itemData.unidad);
+
+                let mp = materiasPrimas.find(mp => mp.nombre?.toLowerCase() === nombreLimpio?.toLowerCase());
+
+                if (!mp) {
+                    const res = await fetch(API_BASE_URL + "/materias-primas", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            nombre: nombreLimpio,
+                            unidad: unidadDesdeJson,
+                            idsucursal: idsucursal
+                        })
+                    });
+
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        console.error("Error creando MP:", data);
+                        addToast({ type: 'error', message: "Error creando materia prima: " + nombreLimpio + " - " + (data.error || data.message) });
+                        continue;
+                    }
+
+                    mp = data.materia || data;
+
+                    if (!mp?.id) {
+                        console.error("Error: backend no devolvio ID");
+                        addToast({ type: 'error', message: "Error: no se pudo crear " + nombreLimpio });
+                        continue;
+                    }
+
+                    setMateriasPrimas(prev => [...prev, mp]);
+                    addToast({ type: 'success', message: "Materia prima " + mp.nombre + " creada" });
+                }
+
+                const cantidad = parseFloat(itemData.cantidad);
+                const precioUnitario = parseFloat(itemData.precio_costo || 0);
+                const subtotal = cantidad * precioUnitario;
+
+                const nuevoDetalle = {
+                    tipo: "materia_prima",
+                    producto_id: null,
+                    materia_prima_id: mp.id,
+                    producto_nombre: mp.nombre,
+                    producto_codigo: mp.codigo,
+                    descripcion: mp.nombre,
+                    cantidad: cantidad,
+                    precio_unitario: precioUnitario,
+                    precio_costo: precioUnitario,
+                    precio_venta: 0,
+                    codigo_barras: itemData.codigo_barras || null,
+                    subtotal: subtotal,
+                    unidad: mp.unidad || unidadDesdeJson,
+                    es_materia_prima: true
+                };
+
+                nuevosDetalles.push(nuevoDetalle);
+            }
+
+            const indicesNoSeleccionados = itemsNoEncontrados
+                .map((_, idx) => idx)
+                .filter(idx => !selectedProductosToCreate[idx]);
+
+            for (const idx of indicesNoSeleccionados) {
+                const itemData = itemsNoEncontrados[idx];
+                if (!itemData) continue;
+
+                const cantidad = parseFloat(itemData.cantidad);
+                const precioUnitario = parseFloat(itemData.precio_costo || 0);
+                const subtotal = cantidad * precioUnitario;
+                const unidadDesdeJson = mapearUnidadDesdeJson(itemData.unidad);
+
+                nuevosDetalles.push({
+                    tipo: "gasto",
+                    producto_id: null,
+                    materia_prima_id: null,
+                    producto_nombre: null,
+                    producto_codigo: null,
+                    descripcion: itemData.nombre,
+                    cantidad: cantidad,
+                    precio_unitario: precioUnitario,
+                    precio_costo: precioUnitario,
+                    precio_venta: 0,
+                    codigo_barras: null,
+                    subtotal: subtotal,
+                    unidad: unidadDesdeJson,
+                    es_materia_prima: false
+                });
+            }
+
+            setDetalles(nuevosDetalles);
+
+            const totalGravado = parseFloat(nuevosDetalles.reduce((sum, d) => sum + d.subtotal, 0).toFixed(2));
+            const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
+            const fovialRedondeado = parseFloat(fovial.toFixed(2));
+            const cotransRedondeado = parseFloat(cotrans.toFixed(2));
+            const ivaRedondeado = parseFloat(iva.toFixed(2));
+            const exentasInternas = parseFloat((fovialRedondeado + cotransRedondeado).toFixed(2));
+            const totalCompras = parseFloat((totalGravado + ivaRedondeado + fovialRedondeado + cotransRedondeado).toFixed(2));
+
+            setFormData(prev => {
+                const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
+                const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
+                const selloRecepcion = extraerSelloRecepcion(dteData);
+                const codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
+
+                return {
+                    ...prev,
+                    fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
+                    numero_documento: dteData.identificacion?.numeroControl || "",
+                    codigo_generacion: codigoGeneracion,
+                    sello_recepcion: selloRecepcion,
+                    nrc: dteData.emisor?.nrc || prev.nrc,
+                    nit: dteData.emisor?.nit || prev.nit,
+                    nombre_proveedor: dteData.emisor?.nombre || prev.nombre_proveedor,
+                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                    tipo_documento: tipoMap[tipoDteValue] || "CCF",
+                    gravadas_internas: totalGravado,
+                    credito_fiscal: ivaRedondeado,
+                    fovial: fovialRedondeado,
+                    cotrans: cotransRedondeado,
+                    exentas_internas: exentasInternas,
+                    total_compras: totalCompras
+                };
             });
-        }
-        
-        setDetalles(nuevosDetalles);
-        
-        // Actualizar formData con los totales
-        const totalGravado = parseFloat(nuevosDetalles.reduce((sum, d) => sum + d.subtotal, 0).toFixed(2));
-        const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
-        const fovialRedondeado = parseFloat(fovial.toFixed(2));
-        const cotransRedondeado = parseFloat(cotrans.toFixed(2));
-        const ivaRedondeado = parseFloat(iva.toFixed(2));
-        const exentasInternas = parseFloat((fovialRedondeado + cotransRedondeado).toFixed(2));
-        const totalCompras = parseFloat((totalGravado + ivaRedondeado + fovialRedondeado + cotransRedondeado).toFixed(2));
-        
-        setFormData(prev => {
-            const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
-            const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
-            const selloRecepcion = extraerSelloRecepcion(dteData);
-            const codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
-            
-            return {
-                ...prev,
-                fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
-                numero_documento: dteData.identificacion?.numeroControl || "",
-                codigo_generacion: codigoGeneracion,
-                sello_recepcion: selloRecepcion,
-                nrc: dteData.emisor?.nrc || prev.nrc,
-                nit: dteData.emisor?.nit || prev.nit,
-                nombre_proveedor: dteData.emisor?.nombre || prev.nombre_proveedor,
-                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                gravadas_internas: totalGravado,
-                credito_fiscal: ivaRedondeado,
-                fovial: fovialRedondeado,
-                cotrans: cotransRedondeado,
-                exentas_internas: exentasInternas,
-                total_compras: totalCompras
-            };
-        });
-        
-        updateTotals(nuevosDetalles, formData.tipo_compra);
-        
-        closeDialog(() => {
-            setPendingDteData(null);
-            setProductosNoEncontradosMsg([]);
-            setSelectedProductosToCreate({});
+
+            updateTotals(nuevosDetalles, formData.tipo_compra);
+
+            closeDialog(() => {
+                setPendingDteData(null);
+                setProductosNoEncontradosMsg([]);
+                setSelectedProductosToCreate({});
+                setProductosData({});
+                setIsLoading(false);
+            });
+
+            addToast({
+                type: 'success',
+                title: 'Materias Primas Agregadas',
+                message: "Se agregaron " + seleccionadosIndices.length + " materia(s) prima(s) correctamente."
+            });
+
+        } catch (error) {
+            console.error("Error en handleAgregarMateriaPrimaDesdeDialog:", error);
+            addToast({ type: 'error', message: error.message || 'Error al agregar materia prima' });
             setIsLoading(false);
-        });
-        
-        addToast({ 
-            type: 'success', 
-            title: 'Materias Primas Agregadas', 
-            message: `Se agregaron ${seleccionadosIndices.length} materia(s) prima(s) correctamente.`
-        });
-        
-    } catch (error) {
-        console.error("❌ Error en handleAgregarMateriaPrimaDesdeDialog:", error);
-        addToast({ type: 'error', message: error.message || 'Error al agregar materia prima' });
-        setIsLoading(false);
-    }
-};
+        }
+    };
 
     const handleAgregarSeleccionados = () => {
         const seleccionados = productosNoEncontradosMsg.filter((_, idx) => selectedProductosToCreate[idx]);
@@ -826,9 +843,9 @@ const handleSaveEdit = () => {
         const fetchData = async () => {
             try {
                 const [provRes, prodRes, mpRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/proveedores/getAll`, { credentials: "include" }),
-                    fetch(`${API_BASE_URL}/productos/getAll`, { credentials: "include" }),
-                    fetch(`${API_BASE_URL}/materias-primas`, { credentials: "include" })
+                    fetch(API_BASE_URL + "/proveedores/getAll", { credentials: "include" }),
+                    fetch(API_BASE_URL + "/productos/getAll", { credentials: "include" }),
+                    fetch(API_BASE_URL + "/materias-primas", { credentials: "include" })
                 ]);
 
                 if (provRes.ok) {
@@ -868,8 +885,8 @@ const handleSaveEdit = () => {
     const filteredProducts = useMemo(() => {
         if (!productSearch) return [];
         const term = productSearch.toLowerCase();
-        return productos.filter(p => 
-            p.nombre.toLowerCase().includes(term) || 
+        return productos.filter(p =>
+            p.nombre.toLowerCase().includes(term) ||
             p.codigo.toLowerCase().includes(term)
         ).slice(0, 5);
     }, [productSearch, productos]);
@@ -886,7 +903,7 @@ const handleSaveEdit = () => {
 
     const handleConfirmarProductoConUnidad = () => {
         if (!tempProductData) return;
-        
+
         if (tempCantidad <= 0) {
             addToast({ type: 'error', message: 'La cantidad debe ser mayor a 0' });
             return;
@@ -897,20 +914,16 @@ const handleSaveEdit = () => {
         }
 
         const subtotal = parseFloat(tempCantidad) * parseFloat(tempPrecio || 0);
-        
+
         const newDetail = {
             tipo: "producto",
             producto_id: tempProductData.id,
             producto_nombre: tempProductData.nombre,
             producto_codigo: tempProductData.codigo,
-            // ✅ NUEVO
-            codigo_barras: tempProductData.codigo_barras || null,
+            codigo_barras: tempProductData.codigo_barras || '',
             cantidad: parseFloat(tempCantidad),
-            // ✅ ESTE ES EL COSTO DEL DTE
             precio_unitario: parseFloat(tempPrecio || 0),
-            // ✅ NUEVO
             precio_costo: parseFloat(tempPrecio || 0),
-            // ✅ NUEVO
             precio_venta: parseFloat(tempPrecioVenta || 0),
             subtotal: subtotal,
             unidad: tempUnidad
@@ -919,7 +932,7 @@ const handleSaveEdit = () => {
         const nuevosDetallesConsolidados = consolidarDetalles(detalles, [newDetail]);
         setDetalles(nuevosDetallesConsolidados);
         updateTotals(nuevosDetallesConsolidados, formData.tipo_compra);
-        
+
         setSelectedProduct(null);
         setProductSearch("");
         setAddQuantity(1);
@@ -927,13 +940,13 @@ const handleSaveEdit = () => {
         setTempPrecioVenta(0);
         setTempProductData(null);
         setShowProductoUnidadModal(false);
-        
-        addToast({ type: 'success', message: `Producto agregado con unidad: ${getNombreUnidad(tempUnidad)}` });
+
+        addToast({ type: 'success', message: "Producto agregado con unidad: " + getNombreUnidad(tempUnidad) });
     };
 
     const handleAddGasto = () => {
         if (!gastoData.descripcion.trim()) {
-            addToast({ type: 'error', message: 'Ingrese una descripción para el gasto/servicio' });
+            addToast({ type: 'error', message: 'Ingrese una descripcion para el gasto/servicio' });
             return;
         }
         if (gastoData.cantidad <= 0) {
@@ -946,7 +959,7 @@ const handleSaveEdit = () => {
         }
 
         const subtotal = gastoData.cantidad * gastoData.precio_unitario;
-        
+
         const newDetail = {
             tipo: "gasto",
             producto_id: null,
@@ -955,109 +968,114 @@ const handleSaveEdit = () => {
             descripcion: gastoData.descripcion,
             cantidad: gastoData.cantidad,
             precio_unitario: gastoData.precio_unitario,
+            precio_costo: gastoData.precio_unitario,
+            precio_venta: 0,
+            codigo_barras: null,
             subtotal: subtotal,
-            unidad: ""
+            unidad: gastoData.unidad || "59"
         };
 
         const nuevosDetallesConsolidados = consolidarDetalles(detalles, [newDetail]);
         setDetalles(nuevosDetallesConsolidados);
         updateTotals(nuevosDetallesConsolidados, formData.tipo_compra);
-        
-        setGastoData({ descripcion: "", cantidad: 1, precio_unitario: 0 });
+
+        setGastoData({ descripcion: "", cantidad: 1, precio_unitario: 0, unidad: "59" });
         setShowGastoModal(false);
-        
+
         addToast({ type: 'success', message: 'Gasto/Servicio agregado correctamente' });
     };
 
     const handleAddMateriaPrima = async () => {
-    if (!mpSearch || !mpCantidad || !mpCosto) {
-        addToast({ type: 'error', message: 'Complete todos los campos' });
-        return;
-    }
-
-    try {
-        let mp = mpSelected;
-        const idsucursal = user?.idsucursal;
-
-        if (!mpSelected) {
-            if (!idsucursal) {
-                addToast({ type: 'error', message: 'No se pudo identificar la sucursal' });
-                return;
-            }
-
-            const res = await fetch(`${API_BASE_URL}/materias-primas`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({
-                    nombre: mpSearch,
-                    unidad: mpUnidad,
-                    idsucursal: idsucursal
-                })
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || data.message || "Error al crear materia prima");
-            }
-
-            mp = data.materia || data;
-            
-            if (!mp?.id) {
-                throw new Error("El backend no devolvió el ID de la materia prima");
-            }
-
-            setMateriasPrimas(prev => [...prev, mp]);
-            addToast({ type: 'success', message: `Materia prima "${mp.nombre}" creada` });
+        if (!mpSearch || !mpCantidad || !mpCosto) {
+            addToast({ type: 'error', message: 'Complete todos los campos' });
+            return;
         }
 
-        const cantidad = parseFloat(mpCantidad);
-        const costo = parseFloat(mpCosto);
-        const subtotal = cantidad * costo;
+        try {
+            let mp = mpSelected;
+            const idsucursal = user?.idsucursal;
 
-        const nuevoDetalle = {
-            tipo: "materia_prima",
-            materia_prima_id: mp.id,
-            descripcion: mp.nombre,
-            cantidad: cantidad,
-            precio_unitario: costo,
-            subtotal: subtotal,
-            unidad: mp.unidad || mpUnidad,
-            producto_id: null,
-            producto_codigo: null,
-            producto_nombre: null,
-            es_materia_prima: true
-        };
+            if (!mpSelected) {
+                if (!idsucursal) {
+                    addToast({ type: 'error', message: 'No se pudo identificar la sucursal' });
+                    return;
+                }
 
-        const nuevosDetallesConsolidados = consolidarDetalles(detalles, [nuevoDetalle]);
-        setDetalles(nuevosDetallesConsolidados);
-        updateTotals(nuevosDetallesConsolidados, formData.tipo_compra);
+                const res = await fetch(API_BASE_URL + "/materias-primas", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        nombre: mpSearch,
+                        unidad: mpUnidad,
+                        idsucursal: idsucursal
+                    })
+                });
 
-        // Resetear el modal
-        setMpSelected(null);
-        setMpSearch("");
-        setMpCantidad("");
-        setMpCosto("");
-        setMpUnidad("59");
-        setShowMateriaPrimaModal(false);
+                const data = await res.json();
 
-        addToast({ 
-            type: 'success', 
-            message: `Materia prima "${mp.nombre}" agregada con unidad: ${getNombreUnidad(mp.unidad || mpUnidad)}` 
-        });
+                if (!res.ok) {
+                    throw new Error(data.error || data.message || "Error al crear materia prima");
+                }
 
-    } catch (error) {
-        console.error("❌ Error agregando materia prima:", error);
-        addToast({ type: 'error', message: error.message || 'Error al agregar materia prima' });
-    }
-};
+                mp = data.materia || data;
+
+                if (!mp?.id) {
+                    throw new Error("El backend no devolvio el ID de la materia prima");
+                }
+
+                setMateriasPrimas(prev => [...prev, mp]);
+                addToast({ type: 'success', message: "Materia prima " + mp.nombre + " creada" });
+            }
+
+            const cantidad = parseFloat(mpCantidad);
+            const costo = parseFloat(mpCosto);
+            const subtotal = cantidad * costo;
+
+            const nuevoDetalle = {
+                tipo: "materia_prima",
+                materia_prima_id: mp.id,
+                descripcion: mp.nombre,
+                cantidad: cantidad,
+                precio_unitario: costo,
+                precio_costo: costo,
+                precio_venta: 0,
+                codigo_barras: null,
+                subtotal: subtotal,
+                unidad: mp.unidad || mpUnidad,
+                producto_id: null,
+                producto_codigo: null,
+                producto_nombre: null,
+                es_materia_prima: true
+            };
+
+            const nuevosDetallesConsolidados = consolidarDetalles(detalles, [nuevoDetalle]);
+            setDetalles(nuevosDetallesConsolidados);
+            updateTotals(nuevosDetallesConsolidados, formData.tipo_compra);
+
+            setMpSelected(null);
+            setMpSearch("");
+            setMpCantidad("");
+            setMpCosto("");
+            setMpUnidad("59");
+            setShowMateriaPrimaModal(false);
+
+            addToast({
+                type: 'success',
+                message: "Materia prima " + mp.nombre + " agregada con unidad: " + getNombreUnidad(mp.unidad || mpUnidad)
+            });
+
+        } catch (error) {
+            console.error("Error agregando materia prima:", error);
+            addToast({ type: 'error', message: error.message || 'Error al agregar materia prima' });
+        }
+    };
 
     const handleCreateMP = async () => {
         if (!mpSearch.trim()) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/materias-primas`, {
+            const res = await fetch(API_BASE_URL + "/materias-primas", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
@@ -1088,25 +1106,24 @@ const handleSaveEdit = () => {
     };
 
     const updateTotals = (currentDetalles, tipo) => {
-    // Solo calcular y actualizar formData, NO modificar detalles
-    const totalMonto = currentDetalles.reduce((sum, item) => sum + (item.subtotal || 0), 0);
-    const totalFixed = parseFloat(totalMonto.toFixed(2));
-    
-    setFormData(prev => {
-        const newData = {
-            ...prev,
-            gravadas_internas: tipo === 'local' ? totalFixed : 0,
-            gravadas_importaciones: tipo === 'importacion' ? totalFixed : 0,
-            exentas_internas: tipo === 'local' ? 0 : totalFixed, // O ajusta según necesidad
-        };
-        const totalCompras = parseFloat(newData.gravadas_internas || 0) + 
-                             parseFloat(newData.gravadas_importaciones || 0) +
-                             parseFloat(newData.credito_fiscal || 0) +
-                             parseFloat(newData.fovial || 0) +
-                             parseFloat(newData.cotrans || 0);
-        return { ...newData, total_compras: totalCompras };
-    });
-};
+        const totalMonto = currentDetalles.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+        const totalFixed = parseFloat(totalMonto.toFixed(2));
+
+        setFormData(prev => {
+            const newData = {
+                ...prev,
+                gravadas_internas: tipo === 'local' ? totalFixed : 0,
+                gravadas_importaciones: tipo === 'importacion' ? totalFixed : 0,
+                exentas_internas: tipo === 'local' ? 0 : totalFixed,
+            };
+            const totalCompras = parseFloat(newData.gravadas_internas || 0) +
+                parseFloat(newData.gravadas_importaciones || 0) +
+                parseFloat(newData.credito_fiscal || 0) +
+                parseFloat(newData.fovial || 0) +
+                parseFloat(newData.cotrans || 0);
+            return { ...newData, total_compras: totalCompras };
+        });
+    };
 
     const calculateTotal = (data) => {
         return parseFloat((
@@ -1125,7 +1142,7 @@ const handleSaveEdit = () => {
     const handleDteLoaded = async (dtesData) => {
         setIsLoading(true);
         setIsProcessingMultiple(true);
-        
+
         const dtes = Array.isArray(dtesData) ? dtesData : [dtesData];
 
         if (dtes.length > 0) {
@@ -1144,244 +1161,227 @@ const handleSaveEdit = () => {
         }, 280);
     };
 
-// ========== FUNCIÓN PRINCIPAL CORREGIDA - PROCESA PRODUCTOS Y MATERIAS PRIMAS ==========
-const procesarDteActual = async (dteData) => {
-    setIsLoading(true);
-    try {
-        setCurrentDteData(dteData);
-        
-        console.log("📄 PROCESANDO DTE:");
-        const cuerpoDoc = dteData.cuerpoDocumento || [];
-        console.log(`  - Total de líneas en DTE: ${cuerpoDoc.length}`);
-        
-        const emisorNit = dteData.emisor?.nit;
-        const emisorNrc = dteData.emisor?.nrc;
-        
-        // Buscar o crear proveedor
-        let foundProv = proveedores.find(p => 
-            (p.nit && p.nit === emisorNit) || 
-            (p.nrc && p.nrc === emisorNrc) ||
-            (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor?.nombre?.toLowerCase() || ""))
-        );
+    // ========== FUNCIÓN PRINCIPAL CORREGIDA - PROCESA PRODUCTOS Y MATERIAS PRIMAS ==========
+    const procesarDteActual = async (dteData) => {
+        setIsLoading(true);
+        try {
+            setCurrentDteData(dteData);
 
-        if (!foundProv && emisorNit) {
-            try {
-                const newProvData = {
-                    nombre: dteData.emisor?.nombre || "Proveedor sin nombre",
-                    codigo: emisorNrc || emisorNit || `PROV-${Date.now()}`,
-                    descripcion: dteData.emisor?.descActividad || "Creado automáticamente desde DTE",
-                    nit: emisorNit,
-                    nrc: emisorNrc
-                };
+            console.log("PROCESANDO DTE:");
+            const cuerpoDoc = dteData.cuerpoDocumento || [];
+            console.log("  - Total de lineas en DTE: " + cuerpoDoc.length);
 
-                const response = await fetch(`${API_BASE_URL}/proveedores/add`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify(newProvData),
-                });
+            const emisorNit = dteData.emisor?.nit;
+            const emisorNrc = dteData.emisor?.nrc;
 
-                if (response.ok) {
-                    const resJson = await response.json();
-                    foundProv = resJson.proveedor;
-                    setProveedores(prev => [...prev, foundProv]);
-                }
-            } catch (err) {
-                console.error("Error creando proveedor automático:", err);
-            }
-        }
+            let foundProv = proveedores.find(p =>
+                (p.nit && p.nit === emisorNit) ||
+                (p.nrc && p.nrc === emisorNrc) ||
+                (p.nombre && p.nombre.toLowerCase().includes(dteData.emisor?.nombre?.toLowerCase() || ""))
+            );
 
-        const currentProveedorId = foundProv ? foundProv.id : null;
+            if (!foundProv && emisorNit) {
+                try {
+                    const newProvData = {
+                        nombre: dteData.emisor?.nombre || "Proveedor sin nombre",
+                        codigo: emisorNrc || emisorNit || ("PROV-" + Date.now()),
+                        descripcion: dteData.emisor?.descActividad || "Creado automaticamente desde DTE",
+                        nit: emisorNit,
+                        nrc: emisorNrc
+                    };
 
-        // Extraer datos del DTE
-        let codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
-        const selloRecepcion = extraerSelloRecepcion(dteData);
-        const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
-
-        // ========== CLASIFICAR ÍTEMS DEL DTE ==========
-        const itemsNoEncontrados = [];
-        const itemsProcesados = new Map(); // Para acumular productos y MPs existentes
-        
-        for (const item of cuerpoDoc) {
-            // PRIMERO: Buscar si existe como PRODUCTO
-            let foundProd = productos.find(p => p.codigo === item.codigo);
-            if (!foundProd) {
-                foundProd = productos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
-            }
-            
-            if (foundProd) {
-                // Es un producto existente ✅
-                const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
-                const key = `prod_${foundProd.id}`;
-                
-                if (itemsProcesados.has(key)) {
-                    const existente = itemsProcesados.get(key);
-                    existente.cantidad += parseFloat(item.cantidad);
-                    existente.subtotal = existente.cantidad * existente.precio_unitario;
-                } else {
-                    itemsProcesados.set(key, {
-                        tipo: "producto",
-                        producto_id: foundProd.id,
-                        materia_prima_id: null,
-                        producto_nombre: foundProd.nombre,
-                        producto_codigo: foundProd.codigo,
-                        descripcion: foundProd.nombre,
-                        cantidad: parseFloat(item.cantidad),
-                        precio_unitario: parseFloat(item.precioUni),
-                        subtotal: parseFloat(item.ventaGravada),
-                        unidad: unidadDesdeJson,
-                        es_materia_prima: false
+                    const response = await fetch(API_BASE_URL + "/proveedores/add", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify(newProvData),
                     });
+
+                    if (response.ok) {
+                        const resJson = await response.json();
+                        foundProv = resJson.proveedor;
+                        setProveedores(prev => [...prev, foundProv]);
+                    }
+                } catch (err) {
+                    console.error("Error creando proveedor automatico:", err);
                 }
-                continue;
             }
-            
-            // SEGUNDO: Buscar si existe como MATERIA PRIMA
-            let foundMP = materiasPrimas.find(mp => mp.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
-            if (!foundMP && item.codigo) {
-                foundMP = materiasPrimas.find(mp => mp.codigo === item.codigo);
-            }
-            
-            if (foundMP) {
-                // Es una materia prima existente ✅
+
+            const currentProveedorId = foundProv ? foundProv.id : null;
+
+            let codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
+            const selloRecepcion = extraerSelloRecepcion(dteData);
+            const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
+
+            const itemsNoEncontrados = [];
+            const itemsProcesados = new Map();
+
+            for (const item of cuerpoDoc) {
+                let foundProd = productos.find(p => p.codigo === item.codigo);
+                if (!foundProd) {
+                    foundProd = productos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
+                }
+
+                if (foundProd) {
+                    const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
+                    const key = "prod_" + foundProd.id;
+
+                    if (itemsProcesados.has(key)) {
+                        const existente = itemsProcesados.get(key);
+                        existente.cantidad += parseFloat(item.cantidad);
+                        existente.subtotal = existente.cantidad * existente.precio_unitario;
+                    } else {
+                        itemsProcesados.set(key, {
+                            tipo: "producto",
+                            producto_id: foundProd.id,
+                            materia_prima_id: null,
+                            producto_nombre: foundProd.nombre,
+                            producto_codigo: foundProd.codigo,
+                            codigo_barras: foundProd.codigo_barras || null,
+                            descripcion: foundProd.nombre,
+                            cantidad: parseFloat(item.cantidad),
+                            precio_unitario: parseFloat(item.precioUni),
+                            precio_costo: parseFloat(item.precioUni),
+                            precio_venta: parseFloat(foundProd.precio || 0),
+                            subtotal: parseFloat(item.ventaGravada),
+                            unidad: unidadDesdeJson,
+                            es_materia_prima: false
+                        });
+                    }
+                    continue;
+                }
+
+                let foundMP = materiasPrimas.find(mp => mp.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
+                if (!foundMP && item.codigo) {
+                    foundMP = materiasPrimas.find(mp => mp.codigo === item.codigo);
+                }
+
+                if (foundMP) {
+                    const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
+                    const key = "mp_" + foundMP.id;
+
+                    if (itemsProcesados.has(key)) {
+                        const existente = itemsProcesados.get(key);
+                        existente.cantidad += parseFloat(item.cantidad);
+                        existente.subtotal = existente.cantidad * existente.precio_unitario;
+                    } else {
+                        itemsProcesados.set(key, {
+                            tipo: "materia_prima",
+                            producto_id: null,
+                            materia_prima_id: foundMP.id,
+                            producto_nombre: foundMP.nombre,
+                            producto_codigo: foundMP.codigo,
+                            codigo_barras: null,
+                            descripcion: foundMP.nombre,
+                            cantidad: parseFloat(item.cantidad),
+                            precio_unitario: parseFloat(item.precioUni),
+                            precio_costo: parseFloat(item.precioUni),
+                            precio_venta: 0,
+                            subtotal: parseFloat(item.ventaGravada),
+                            unidad: unidadDesdeJson,
+                            es_materia_prima: true
+                        });
+                    }
+                    continue;
+                }
+
                 const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
-                const key = `mp_${foundMP.id}`;
-                
-                if (itemsProcesados.has(key)) {
-                    const existente = itemsProcesados.get(key);
-                    existente.cantidad += parseFloat(item.cantidad);
-                    existente.subtotal = existente.cantidad * existente.precio_unitario;
-                } else {
-itemsProcesados.set(key, {
-    tipo: "producto",
-    producto_id: foundProd.id,
-    materia_prima_id: null,
-
-    producto_nombre: foundProd.nombre,
-    producto_codigo: foundProd.codigo,
-
-    // ✅ NUEVO
-    codigo_barras: foundProd.codigo_barras || null,
-
-    descripcion: foundProd.nombre,
-
-    cantidad: parseFloat(item.cantidad),
-
-    // ✅ COSTO
-    precio_unitario: parseFloat(item.precioUni),
-
-    // ✅ NUEVOS CAMPOS
-    precio_costo: parseFloat(item.precioUni),
-    precio_venta: parseFloat(foundProd.precio || 0),
-
-    subtotal: parseFloat(item.ventaGravada),
-
-    unidad: unidadDesdeJson,
-    es_materia_prima: false
-});
-                }
-                continue;
+                itemsNoEncontrados.push({
+                    nombre: item.descripcion,
+                    codigo: item.codigo || 'S/C',
+                    codigo_barras: item.codigo_barras || null,
+                    cantidad: item.cantidad,
+                    precio_costo: parseFloat(item.precioUni || 0),
+                    precio_venta: 0,
+                    subtotal: item.ventaGravada,
+                    unidad: unidadDesdeJson,
+                    item: item
+                });
             }
-            
-            // TERCERO: No existe ni como producto ni como materia prima
-itemsNoEncontrados.push({
-    nombre: item.descripcion,
-    codigo: item.codigo || 'S/C',
 
-    // ✅ NUEVO
-    codigo_barras: item.codigo_barras || null,
+            if (itemsNoEncontrados.length > 0) {
+                const nombresNoEncontrados = itemsNoEncontrados.map(i => i.codigo + " - " + i.nombre);
+                setProductosNoEncontradosMsg(nombresNoEncontrados);
+                const initialProductosData = {};
+                itemsNoEncontrados.forEach((item, idx) => {
+                    initialProductosData[idx] = {
+                        codigo_barras: item.codigo_barras || '',
+                        precio_venta: 0
+                    };
+                });
+                setProductosData(initialProductosData);
+                setPendingDteData({
+                    dteData,
+                    itemsNoEncontrados,
+                    foundProv,
+                    currentProveedorId,
+                    itemsProcesados: Array.from(itemsProcesados.values())
+                });
+                setShowDialog(true);
+                setIsLoading(false);
+                return;
+            }
 
-    cantidad: item.cantidad,
+            const nuevosDetalles = Array.from(itemsProcesados.values());
 
-    // ✅ COSTO REAL DEL DTE
-    precio_costo: parseFloat(item.precioUni || 0),
-
-    // ✅ PRECIO VENTA MANUAL
-    precio_venta: 0,
-
-    subtotal: item.ventaGravada,
-    unidad: item.uniMedida,
-    item: item
-});
-        }
-        
-        // ========== SI HAY ÍTEMS NO ENCONTRADOS, MOSTRAR DIÁLOGO ==========
-        if (itemsNoEncontrados.length > 0) {
-            const nombresNoEncontrados = itemsNoEncontrados.map(i => `${i.codigo} - ${i.nombre}`);
-            setProductosNoEncontradosMsg(nombresNoEncontrados);
-            setPendingDteData({ 
-                dteData, 
-                itemsNoEncontrados,  // Guardar los items completos
-                foundProv, 
-                currentProveedorId,
-                itemsProcesados: Array.from(itemsProcesados.values()) // Guardar los ya procesados
+            console.log("RESULTADO FINAL:");
+            nuevosDetalles.forEach(d => {
+                console.log("  " + (d.tipo === "materia_prima" ? "MP" : "Producto") + ": " + d.producto_nombre + ", Cantidad: " + d.cantidad + ", Subtotal: $" + d.subtotal.toFixed(2));
             });
-            setShowDialog(true);
+
+            setDetalles(nuevosDetalles);
+
+            const totalGravado = parseFloat(nuevosDetalles.reduce((sum, d) => sum + d.subtotal, 0).toFixed(2));
+            const fovialRedondeado = parseFloat(fovial.toFixed(2));
+            const cotransRedondeado = parseFloat(cotrans.toFixed(2));
+            const ivaRedondeado = parseFloat(iva.toFixed(2));
+            const exentasInternas = parseFloat((fovialRedondeado + cotransRedondeado).toFixed(2));
+            const totalCompras = parseFloat((totalGravado + ivaRedondeado + fovialRedondeado + cotransRedondeado).toFixed(2));
+
+            setFormData(prev => {
+                const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
+                const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
+
+                return {
+                    ...prev,
+                    fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
+                    numero_documento: dteData.identificacion?.numeroControl || "",
+                    codigo_generacion: codigoGeneracion,
+                    sello_recepcion: selloRecepcion,
+                    nrc: emisorNrc || "",
+                    nit: emisorNit || "",
+                    nombre_proveedor: dteData.emisor?.nombre || "",
+                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                    tipo_documento: tipoMap[tipoDteValue] || "CCF",
+                    gravadas_internas: totalGravado,
+                    credito_fiscal: ivaRedondeado,
+                    fovial: fovialRedondeado,
+                    cotrans: cotransRedondeado,
+                    exentas_internas: exentasInternas,
+                    total_compras: totalCompras
+                };
+            });
+
+            addToast({
+                type: 'success',
+                title: 'DTE Cargado Correctamente',
+                message: "Documento: " + (dteData.identificacion?.numeroControl || "N/A") + " - Total: $" + totalCompras,
+                duration: 5000
+            });
+
             setIsLoading(false);
-            return;
+        } catch (error) {
+            console.error("Error procesando DTE:", error);
+            setError("Error al procesar el archivo DTE: " + error.message);
+            setIsLoading(false);
         }
-        
-        // ========== SI NO HAY ÍTEMS NO ENCONTRADOS, PROCESAR DIRECTAMENTE ==========
-        const nuevosDetalles = Array.from(itemsProcesados.values());
-        
-        console.log("📊 RESULTADO FINAL:");
-        nuevosDetalles.forEach(d => {
-            console.log(`  ✅ ${d.tipo === "materia_prima" ? "MP" : "Producto"}: ${d.producto_nombre}, Cantidad: ${d.cantidad}, Subtotal: $${d.subtotal.toFixed(2)}`);
-        });
-        
-        setDetalles(nuevosDetalles);
-        
-        const totalGravado = parseFloat(nuevosDetalles.reduce((sum, d) => sum + d.subtotal, 0).toFixed(2));
-        const fovialRedondeado = parseFloat(fovial.toFixed(2));
-        const cotransRedondeado = parseFloat(cotrans.toFixed(2));
-        const ivaRedondeado = parseFloat(iva.toFixed(2));
-        const exentasInternas = parseFloat((fovialRedondeado + cotransRedondeado).toFixed(2));
-        const totalCompras = parseFloat((totalGravado + ivaRedondeado + fovialRedondeado + cotransRedondeado).toFixed(2));
-        
-        setFormData(prev => {
-            const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
-            const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
-            
-            return {
-                ...prev,
-                fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
-                numero_documento: dteData.identificacion?.numeroControl || "",
-                codigo_generacion: codigoGeneracion,
-                sello_recepcion: selloRecepcion,
-                nrc: emisorNrc || "",
-                nit: emisorNit || "",
-                nombre_proveedor: dteData.emisor?.nombre || "",
-                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                gravadas_internas: totalGravado,
-                credito_fiscal: ivaRedondeado,
-                fovial: fovialRedondeado,
-                cotrans: cotransRedondeado,
-                exentas_internas: exentasInternas,
-                total_compras: totalCompras
-            };
-        });
-        
-        addToast({ 
-            type: 'success', 
-            title: 'DTE Cargado Correctamente', 
-            message: `Documento: ${dteData.identificacion?.numeroControl || "N/A"} - Total: $${totalCompras}`,
-            duration: 5000
-        });
-        
-        setIsLoading(false);
-    } catch (error) {
-        console.error("Error procesando DTE:", error);
-        setError("Error al procesar el archivo DTE: " + error.message);
-        setIsLoading(false);
-    }
-};
+    };
     const handleChange = (e) => {
         const { name, value } = e.target;
-        
+
         if (name === 'proveedor_id') {
             const prov = proveedores.find(p => p.id.toString() === value);
-            setFormData(prev => ({ 
+            setFormData(prev => ({
                 ...prev,
                 [name]: value,
                 nombre_proveedor: prov ? prov.nombre : ""
@@ -1423,8 +1423,8 @@ itemsNoEncontrados.push({
     };
 
     const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('es-SV', { 
-            style: 'currency', 
+        return new Intl.NumberFormat('es-SV', {
+            style: 'currency',
             currency: 'USD',
             minimumFractionDigits: 2
         }).format(amount);
@@ -1465,119 +1465,210 @@ itemsNoEncontrados.push({
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
+    e.preventDefault();
+    setError("");
 
-        if (!formData.proveedor_id) return setError("Seleccione un proveedor.");
-        if (!formData.numero_documento) return setError("Ingrese el número de documento.");
+    if (!formData.proveedor_id) return setError("Seleccione un proveedor.");
+    if (!formData.numero_documento) return setError("Ingrese el numero de documento.");
 
-        setIsLoading(true);
+    setIsLoading(true);
 
-        try {
-            // Asegurar que cada detalle tenga unidad
-            const detallesConUnidad = detalles.map(d => ({
-                ...d,
-                unidad: d.unidad && d.unidad !== "" ? d.unidad : "59"
-            }));
-            
-            const payload = {
-                ...formData,
-                proveedor_id: parseInt(formData.proveedor_id),
-                monto: parseFloat(formData.total_compras),
-                monto_exento: parseFloat(formData.exentas_internas || 0),
-                iva: parseFloat(formData.credito_fiscal || 0),
-                locales: parseFloat(formData.gravadas_internas || 0),
-                importaciones: parseFloat(formData.gravadas_importaciones || 0),
-                exentas_internas: parseFloat(formData.exentas_internas || 0),
-                exentas_importaciones: parseFloat(formData.exentas_importaciones || 0),
-                gravadas_internas: parseFloat(formData.gravadas_internas || 0),
-                gravadas_internaciones: parseFloat(formData.gravadas_internaciones || 0),
-                gravadas_importaciones: parseFloat(formData.gravadas_importaciones || 0),
-                compras_sujetos_excluidos: parseFloat(formData.compras_sujetos_excluidos || 0),
-                credito_fiscal: parseFloat(formData.credito_fiscal || 0),
-                fovial: parseFloat(formData.fovial || 0),
-                cotrans: parseFloat(formData.cotrans || 0),
-                cesc: parseFloat(formData.cesc || 0),
-                anticipo_iva_percibido: parseFloat(formData.anticipo_iva_percibido || 0),
-                retencion: parseFloat(formData.retencion || 0),
-                percepcion: parseFloat(formData.percepcion || 0),
-                retencion_terceros: parseFloat(formData.retencion_terceros || 0),
-                detalles: detallesConUnidad.map(d => ({
-                    producto_id: d.producto_id || null,
-                    materia_prima_id: d.materia_prima_id || null,
-                    es_materia_prima: d.es_materia_prima || false,
-                    producto_codigo: d.producto_codigo || "",
-                    producto_nombre: d.producto_nombre || "",
-                    descripcion: d.descripcion || "",
-                    cantidad: parseFloat(d.cantidad || 0),
-                    precio_unitario: parseFloat(d.precio_unitario || 0),
-                    subtotal: parseFloat(d.subtotal || 0),
-                    tipo: d.tipo || "gasto",
-                    unidad: d.unidad || "59"
-                })),
-                dteData: currentDteData
-            };
+    try {
+        const detallesConUnidad = detalles.map(d => ({
+            ...d,
+            unidad: d.unidad && d.unidad !== "" ? d.unidad : "59",
+            codigo_barras: d.codigo_barras ?? null,
+            precio_venta: d.precio_venta ?? 0
+        }));
+        
+        const payload = {
+            ...formData,
+            proveedor_id: parseInt(formData.proveedor_id),
+            monto: parseFloat(formData.total_compras),
+            monto_exento: parseFloat(formData.exentas_internas || 0),
+            iva: parseFloat(formData.credito_fiscal || 0),
+            locales: parseFloat(formData.gravadas_internas || 0),
+            importaciones: parseFloat(formData.gravadas_importaciones || 0),
+            exentas_internas: parseFloat(formData.exentas_internas || 0),
+            exentas_importaciones: parseFloat(formData.exentas_importaciones || 0),
+            gravadas_internas: parseFloat(formData.gravadas_internas || 0),
+            gravadas_internaciones: parseFloat(formData.gravadas_internaciones || 0),
+            gravadas_importaciones: parseFloat(formData.gravadas_importaciones || 0),
+            compras_sujetos_excluidos: parseFloat(formData.compras_sujetos_excluidos || 0),
+            credito_fiscal: parseFloat(formData.credito_fiscal || 0),
+            fovial: parseFloat(formData.fovial || 0),
+            cotrans: parseFloat(formData.cotrans || 0),
+            cesc: parseFloat(formData.cesc || 0),
+            anticipo_iva_percibido: parseFloat(formData.anticipo_iva_percibido || 0),
+            retencion: parseFloat(formData.retencion || 0),
+            percepcion: parseFloat(formData.percepcion || 0),
+            retencion_terceros: parseFloat(formData.retencion_terceros || 0),
+            detalles: detallesConUnidad.map(d => ({
+                producto_id: d.producto_id || null,
+                materia_prima_id: d.materia_prima_id || null,
+                es_materia_prima: d.es_materia_prima || false,
+                producto_codigo: d.producto_codigo || "",
+                producto_nombre: d.producto_nombre || "",
+                descripcion: d.descripcion || "",
+                cantidad: parseFloat(d.cantidad || 0),
+                precio_unitario: parseFloat(d.precio_unitario || 0),
+                subtotal: parseFloat(d.subtotal || 0),
+                tipo: d.tipo || "gasto",
+                unidad: d.unidad || "59",
+                codigo_barras: d.codigo_barras || null,
+                precio_venta: d.precio_venta || 0,
+                precio_costo: d.precio_costo || d.precio_unitario || 0
+            })),
+            dteData: currentDteData
+        };
 
-            const response = await fetch(`${API_BASE_URL}/compras/add`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(payload),
-            });
+        const response = await fetch(API_BASE_URL + "/compras/add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(payload),
+        });
 
-            const data = await response.json();
+        const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(data.error || data.message || "Error al guardar la compra");
-            }
-
-            // Actualizar stock después de guardar la compra
-            const actualizaciones = await actualizarStockProductos(detallesConUnidad);
-            
-            const stockMessages = actualizaciones.map(a => 
-                `📦 ${a.nombre}: +${a.cantidadAgregada} ${getNombreUnidad(a.unidad)} → ${a.stock}`
-            );
-
-            const fechaActual = new Date().toLocaleDateString('es-SV', {
-                day: '2-digit', month: '2-digit', year: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-
-            addToast({
-                type: 'success',
-                title: '¡Compra registrada y stock actualizado!',
-                lines: [
-                    `📄 Documento: ${data.numero_documento}`,
-                    `💰 Total: ${formatCurrency(data.monto)}`,
-                    `📦 Stock actualizado: ${actualizaciones.length} productos`,
-                    ...stockMessages.slice(0, 3),
-                    ...(stockMessages.length > 3 ? [`... y ${stockMessages.length - 3} más`] : []),
-                    `🕐 ${fechaActual}`
-                ],
-                duration: 10000
-            });
-
-            if (isProcessingMultiple && currentDteIndex < pendingDtes.length - 1) {
-                const nextIndex = currentDteIndex + 1;
-                setCurrentDteIndex(nextIndex);
-                resetForm();
-                setTimeout(() => {
-                    procesarDteActual(pendingDtes[nextIndex]);
-                }, 500);
-            } else {
-                resetForm();
-                setPendingDtes([]);
-                setCurrentDteIndex(0);
-                setIsProcessingMultiple(false);
-            }
-
-        } catch (err) {
-            console.error(err);
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
+        if (!response.ok) {
+            throw new Error(data.error || data.message || "Error al guardar la compra");
         }
-    };
+
+        // ========== ACTUALIZAR STOCK + CODIGO DE BARRAS + PRECIO VENTA ==========
+        const actualizaciones = [];
+
+        for (const detalle of detallesConUnidad) {
+            if (detalle.tipo === "producto" && detalle.producto_id) {
+                const productoOriginal = productos.find(p => p.id === detalle.producto_id);
+                if (!productoOriginal) continue;
+
+                const codigoBarrasCambio =
+                    detalle.codigo_barras !== null &&
+                    detalle.codigo_barras !== undefined &&
+                    detalle.codigo_barras.toString().trim() !== '' &&
+                    detalle.codigo_barras.toString().trim() !== (productoOriginal.codigo_barras ?? '').toString().trim();
+
+                const precioVentaCambio =
+                    parseFloat(detalle.precio_venta ?? 0) > 0 &&
+                    parseFloat(detalle.precio_venta) !== parseFloat(productoOriginal.precio ?? 0);
+
+                const nuevoStock = (parseFloat(productoOriginal.stock) || 0) + parseFloat(detalle.cantidad);
+
+                // Mandamos el producto COMPLETO para no romper la validación del backend
+                const updateData = {
+                    nombre: productoOriginal.nombre,
+                    codigo: productoOriginal.codigo,
+                    codigo_barras: codigoBarrasCambio
+                        ? detalle.codigo_barras.toString().trim()
+                        : (productoOriginal.codigo_barras || null),
+                    precio_costo: productoOriginal.precio_costo || null,
+                    unidad: productoOriginal.unidad,
+                    precio: precioVentaCambio
+                        ? parseFloat(detalle.precio_venta)
+                        : parseFloat(productoOriginal.precio || 0),
+                    preciooferta: productoOriginal.preciooferta || 0,
+                    stock: nuevoStock,
+                    es_servicio: productoOriginal.es_servicio ?? false,
+                    idproveedor: productoOriginal.idproveedor || null,
+                };
+
+                console.log("Actualizando producto:", productoOriginal.nombre, {
+                    stock_anterior: productoOriginal.stock,
+                    stock_nuevo: nuevoStock,
+                    codigo_barras: updateData.codigo_barras,
+                    precio: updateData.precio,
+                });
+
+                try {
+                    const updateResponse = await fetch(
+                        API_BASE_URL + "/productos/updatePro/" + detalle.producto_id,
+                        {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify(updateData),
+                        }
+                    );
+
+                    if (updateResponse.ok) {
+                        console.log("Producto actualizado OK:", productoOriginal.nombre);
+                        setProductos(prev =>
+                            prev.map(p =>
+                                p.id === detalle.producto_id
+                                    ? {
+                                        ...p,
+                                        stock: nuevoStock,
+                                        codigo_barras: updateData.codigo_barras,
+                                        precio: updateData.precio,
+                                      }
+                                    : p
+                            )
+                        );
+                        actualizaciones.push({
+                            nombre: productoOriginal.nombre,
+                            cantidadAgregada: detalle.cantidad,
+                            stock: nuevoStock,
+                            unidad: detalle.unidad
+                        });
+                    } else {
+                        const errorText = await updateResponse.text();
+                        console.error("Error actualizando " + productoOriginal.nombre + ":", errorText);
+                        addToast({
+                            type: 'error',
+                            message: "Error actualizando " + productoOriginal.nombre,
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error en peticion para " + productoOriginal.nombre + ":", error);
+                }
+            }
+        }
+
+        const stockMessages = actualizaciones.map(a =>
+            a.nombre + ": +" + a.cantidadAgregada + " " + getNombreUnidad(a.unidad) + " → " + a.stock
+        );
+
+        const fechaActual = new Date().toLocaleDateString('es-SV', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+
+        addToast({
+            type: 'success',
+            title: 'Compra registrada y stock actualizado!',
+            lines: [
+                "Documento: " + data.numero_documento,
+                "Total: " + formatCurrency(data.monto),
+                "Productos actualizados: " + actualizaciones.length,
+                ...stockMessages.slice(0, 3),
+                ...(stockMessages.length > 3 ? ["... y " + (stockMessages.length - 3) + " mas"] : []),
+                fechaActual
+            ],
+            duration: 10000
+        });
+
+        if (isProcessingMultiple && currentDteIndex < pendingDtes.length - 1) {
+            const nextIndex = currentDteIndex + 1;
+            setCurrentDteIndex(nextIndex);
+            resetForm();
+            setTimeout(() => {
+                procesarDteActual(pendingDtes[nextIndex]);
+            }, 500);
+        } else {
+            resetForm();
+            setPendingDtes([]);
+            setCurrentDteIndex(0);
+            setIsProcessingMultiple(false);
+        }
+
+    } catch (err) {
+        console.error(err);
+        setError(err.message);
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -1588,15 +1679,32 @@ itemsNoEncontrados.push({
         }));
     };
 
+    const handleProductoDataChange = (index, field, value) => {
+        setProductosData(prev => ({
+            ...prev,
+            [index]: {
+                ...prev[index],
+                [field]: value
+            }
+        }));
+    };
+
     const handleDialogNo = () => {
         if (!pendingDteData) return;
 
-        const { dteData, foundProv, currentProveedorId } = pendingDteData;
-        
+        const { dteData, foundProv, currentProveedorId, itemsNoEncontrados, itemsProcesados } = pendingDteData;
+
         const emisorNit = dteData.emisor?.nit || null;
         const emisorNrc = dteData.emisor?.nrc || null;
-        
+
         const productosAcumulados = new Map();
+
+        if (itemsProcesados && itemsProcesados.length > 0) {
+            itemsProcesados.forEach(item => {
+                const key = item.tipo === "producto" ? "prod_" + item.producto_id : "mp_" + item.materia_prima_id;
+                productosAcumulados.set(key, item);
+            });
+        }
 
         const cuerpoDoc = dteData.cuerpoDocumento || [];
         for (const item of cuerpoDoc) {
@@ -1604,11 +1712,11 @@ itemsNoEncontrados.push({
             if (!foundProd) {
                 foundProd = productos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
             }
-            
+
             if (foundProd) {
                 const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
                 const key = foundProd.id;
-                
+
                 if (productosAcumulados.has(key)) {
                     const acumulado = productosAcumulados.get(key);
                     acumulado.cantidad += item.cantidad;
@@ -1626,12 +1734,13 @@ itemsNoEncontrados.push({
                     });
                 }
             } else {
-                const key = `gasto_${item.descripcion}`;
+                const key = "gasto_" + item.descripcion;
                 if (productosAcumulados.has(key)) {
                     const acumulado = productosAcumulados.get(key);
                     acumulado.cantidad += item.cantidad;
                     acumulado.subtotal = acumulado.cantidad * acumulado.precio_unitario;
                 } else {
+                    const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
                     productosAcumulados.set(key, {
                         tipo: "gasto",
                         producto_id: null,
@@ -1641,7 +1750,7 @@ itemsNoEncontrados.push({
                         cantidad: item.cantidad,
                         precio_unitario: item.precioUni,
                         subtotal: item.ventaGravada,
-                        unidad: ""
+                        unidad: unidadDesdeJson
                     });
                 }
             }
@@ -1652,10 +1761,10 @@ itemsNoEncontrados.push({
 
         if (nuevosDetalles.length > 0) {
             setDetalles(nuevosDetallesConsolidados);
-            addToast({ 
-                type: 'success', 
-                title: 'Productos cargados', 
-                message: `Se cargaron ${nuevosDetalles.filter(d => d.producto_id).length} productos y ${nuevosDetalles.filter(d => !d.producto_id).length} gastos.` 
+            addToast({
+                type: 'success',
+                title: 'Productos cargados',
+                message: "Se cargaron " + nuevosDetalles.filter(d => d.producto_id).length + " productos y " + nuevosDetalles.filter(d => !d.producto_id).length + " gastos."
             });
         }
 
@@ -1693,204 +1802,217 @@ itemsNoEncontrados.push({
             setPendingDteData(null);
             setProductosNoEncontradosMsg([]);
             setSelectedProductosToCreate({});
+            setProductosData({});
             setIsLoading(false);
         });
     };
 
-  const handleDialogYes = async () => {
-    if (!pendingDteData) return;
+    // ========== FUNCIÓN HANDLEDIALOGYES CORREGIDA CON DATOS DEL FORMULARIO ==========
+    const handleDialogYes = async () => {
+        if (!pendingDteData) return;
 
-    setIsLoading(true);
-    try {
-        // ✅ Usa itemsNoEncontrados en lugar de productosACrear
-        const { dteData, itemsNoEncontrados, foundProv, currentProveedorId } = pendingDteData;
-        
-        const emisorNit = dteData.emisor?.nit || null;
-        const emisorNrc = dteData.emisor?.nrc || null;
-        
-        let currentProductos = [...productos];
-        const productosAcumulados = new Map();
+        setIsLoading(true);
+        try {
+            const { dteData, itemsNoEncontrados, foundProv, currentProveedorId, itemsProcesados } = pendingDteData;
 
-        // 🔥 PASO 1: Crear SOLO los productos seleccionados que NO existen
-        // ✅ itemsNoEncontrados es un array de objetos, no de strings
-        for (let i = 0; i < itemsNoEncontrados.length; i++) {
-            if (selectedProductosToCreate[i]) {
-                const itemData = itemsNoEncontrados[i]; // ✅ Esto es un objeto con nombre, codigo, cantidad, precio, etc.
-                
-                try {
-                    console.log(`📦 Creando nuevo producto: ${itemData.nombre}`);
-                    
-                    const precioUnitario = parseFloat(itemData.precio);
-                    const cantidadOriginal = parseFloat(itemData.cantidad);
-                    
-                    // Determinar la unidad
-                    let unidad = mapearUnidadDesdeJson(itemData.unidad);
-                    
-                    const response = await fetch(`${API_BASE_URL}/productos/addPro`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify({
-                            nombre: itemData.nombre,
-                            codigo: itemData.codigo || `PROD-${Date.now()}`,
-                            // ✅ NUEVO
-                            codigo_barras: itemData.codigo_barras || null,
-                            unidad: unidad,
-                            // ✅ PRECIO VENTA
-                            precio: parseFloat(itemData.precio_venta || 0),
-                            // ✅ PRECIO COSTO
-                            precio_costo: parseFloat(itemData.precio_costo || precioUnitario),
-                            preciooferta: 0,
-                            stock: 0,
-                            es_servicio: false,
-                            idproveedor: currentProveedorId
-                        }),
-                    });
+            const emisorNit = dteData.emisor?.nit || null;
+            const emisorNrc = dteData.emisor?.nrc || null;
 
-                    if (response.ok) {
-                        const resJson = await response.json();
-                        const newProd = resJson.producto;
-                        currentProductos.push(newProd);
-                        setProductos(prev => [...prev, newProd]);
+            let currentProductos = [...productos];
+            const productosAcumulados = new Map();
 
-                        // ✅ Agregar al acumulador con la cantidad correcta
-                        const key = `prod_${newProd.id}`;
-                        const subtotalOriginal = cantidadOriginal * precioUnitario;
-                        
-                        console.log(`   ✅ Producto creado: ${newProd.nombre}, cantidad: ${cantidadOriginal}`);
-                        
+            if (itemsProcesados && itemsProcesados.length > 0) {
+                itemsProcesados.forEach(item => {
+                    const key = item.tipo === "producto" ? "prod_" + item.producto_id : "mp_" + item.materia_prima_id;
+                    productosAcumulados.set(key, item);
+                });
+            }
+
+            for (let i = 0; i < itemsNoEncontrados.length; i++) {
+                if (selectedProductosToCreate[i]) {
+                    const itemData = itemsNoEncontrados[i];
+                    const productoExtraData = productosData[i] || {};
+
+                    try {
+                        console.log("Creando nuevo producto: " + itemData.nombre);
+
+                        const precioUnitario = parseFloat(itemData.precio_costo || 0);
+                        const cantidadOriginal = parseFloat(itemData.cantidad || 0);
+                        const precioVenta = parseFloat(productoExtraData.precio_venta || 0);
+                        const codigoBarras = productoExtraData.codigo_barras || itemData.codigo_barras || null;
+
+                        let unidad = mapearUnidadDesdeJson(itemData.unidad);
+
+                        const response = await fetch(API_BASE_URL + "/productos/addPro", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                                nombre: itemData.nombre,
+                                codigo: itemData.codigo || ("PROD-" + Date.now()),
+                                codigo_barras: codigoBarras,
+                                unidad: unidad,
+                                precio: precioVenta,
+                                precio_costo: precioUnitario,
+                                preciooferta: 0,
+                                stock: 0,
+                                es_servicio: false,
+                                idproveedor: currentProveedorId
+                            }),
+                        });
+
+                        if (response.ok) {
+                            const resJson = await response.json();
+                            const newProd = resJson.producto;
+                            currentProductos.push(newProd);
+                            setProductos(prev => [...prev, newProd]);
+
+                            const key = "prod_" + newProd.id;
+                            const subtotalOriginal = cantidadOriginal * precioUnitario;
+
+                            console.log("Producto creado: " + newProd.nombre);
+                            console.log("   - ID: " + newProd.id);
+                            console.log("   - Codigo barras: " + codigoBarras);
+                            console.log("   - Precio venta: " + precioVenta);
+                            console.log("   - Precio costo: " + precioUnitario);
+
+                            productosAcumulados.set(key, {
+                                tipo: "producto",
+                                producto_id: newProd.id,
+                                producto_nombre: newProd.nombre,
+                                producto_codigo: newProd.codigo,
+                                codigo_barras: codigoBarras,
+                                cantidad: cantidadOriginal,
+                                precio_unitario: precioUnitario,
+                                precio_costo: precioUnitario,
+                                precio_venta: precioVenta,
+                                subtotal: subtotalOriginal,
+                                unidad: unidad
+                            });
+                        } else {
+                            const errorText = await response.text();
+                            console.error("Error creando producto:", errorText);
+                            addToast({ type: 'error', message: "Error creando producto: " + itemData.nombre });
+                        }
+                    } catch (err) {
+                        console.error("Error creando producto:", err);
+                    }
+                }
+            }
+
+            const cuerpoDoc = dteData.cuerpoDocumento || [];
+            for (const item of cuerpoDoc) {
+                let foundProd = currentProductos.find(p => p.codigo === item.codigo);
+                if (!foundProd) {
+                    foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
+                }
+
+                if (foundProd) {
+                    const key = "prod_" + foundProd.id;
+
+                    if (!productosAcumulados.has(key)) {
+                        const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
                         productosAcumulados.set(key, {
                             tipo: "producto",
                             producto_id: foundProd.id,
                             producto_nombre: foundProd.nombre,
                             producto_codigo: foundProd.codigo,
-                            // ✅ NUEVO
                             codigo_barras: foundProd.codigo_barras || null,
-                            cantidad: parseFloat(item.cantidad.toFixed(4)),
-                            // ✅ COSTO DEL DTE
-                            precio_unitario: parseFloat(item.precioUni.toFixed(4)),
-                            // ✅ NUEVOS CAMPOS
-                            precio_costo: parseFloat(item.precioUni.toFixed(4)),
-                            // ✅ ESTE ES EL PRECIO DE VENTA
+                            cantidad: parseFloat(item.cantidad),
+                            precio_unitario: parseFloat(item.precioUni),
+                            precio_costo: parseFloat(item.precioUni),
                             precio_venta: parseFloat(foundProd.precio || 0),
-                            subtotal: parseFloat(item.ventaGravada.toFixed(2)),
+                            subtotal: parseFloat(item.ventaGravada),
                             unidad: unidadDesdeJson
                         });
-                    } else {
-                        console.error("Error creando producto:", await response.text());
                     }
-                } catch (err) {
-                    console.error("Error creando producto:", err);
+                } else {
+                    const itemIndex = itemsNoEncontrados.findIndex(
+                        (ni, idx) => ni.nombre === item.descripcion && !selectedProductosToCreate[idx]
+                    );
+
+                    if (itemIndex === -1 || !selectedProductosToCreate[itemIndex]) {
+                        const key = "gasto_" + item.descripcion;
+                        if (!productosAcumulados.has(key)) {
+                            const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
+                            productosAcumulados.set(key, {
+                                tipo: "gasto",
+                                producto_id: null,
+                                producto_nombre: null,
+                                producto_codigo: null,
+                                descripcion: item.descripcion,
+                                cantidad: parseFloat(item.cantidad),
+                                precio_unitario: parseFloat(item.precioUni),
+                                precio_costo: parseFloat(item.precioUni),
+                                precio_venta: 0,
+                                codigo_barras: null,
+                                subtotal: parseFloat(item.ventaGravada),
+                                unidad: unidadDesdeJson
+                            });
+                        }
+                    }
                 }
             }
-        }
 
-        // 🔥 PASO 2: Procesar el resto de items (los que YA existían)
-        const cuerpoDoc = dteData.cuerpoDocumento || [];
-        for (const item of cuerpoDoc) {
-            // Buscar el producto en currentProductos (incluye los nuevos creados)
-            let foundProd = currentProductos.find(p => p.codigo === item.codigo);
-            if (!foundProd) {
-                foundProd = currentProductos.find(p => p.nombre?.toLowerCase() === item.descripcion?.toLowerCase());
-            }
-            
-            if (foundProd) {
-                const key = `prod_${foundProd.id}`;
-                
-                if (!productosAcumulados.has(key)) {
-                    const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
-                    productosAcumulados.set(key, {
-                        tipo: "producto",
-                        producto_id: foundProd.id,
-                        producto_nombre: foundProd.nombre,
-                        producto_codigo: foundProd.codigo,
-                        cantidad: parseFloat(item.cantidad.toFixed(4)),
-                        precio_unitario: parseFloat(item.precioUni.toFixed(4)),
-                        subtotal: parseFloat(item.ventaGravada.toFixed(2)),
-                        unidad: unidadDesdeJson
-                    });
-                }
-            } else {
-                // Si no es producto, procesar como gasto
-                const key = `gasto_${item.descripcion}`;
-                if (!productosAcumulados.has(key)) {
-                    productosAcumulados.set(key, {
-                        tipo: "gasto",
-                        descripcion: item.descripcion,
-                        cantidad: parseFloat(item.cantidad),
-                        precio_unitario: parseFloat(item.precioUni),
-                        subtotal: parseFloat(item.ventaGravada),
-                        unidad: ""
-                    });
-                }
-            }
-        }
+            const nuevosDetalles = Array.from(productosAcumulados.values());
+            setDetalles(nuevosDetalles);
 
-        // Convertir el Map a array de detalles
-        const nuevosDetalles = Array.from(productosAcumulados.values());
+            const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
+            const totalGravado = parseFloat(nuevosDetalles.reduce((sum, d) => sum + (d.subtotal || 0), 0).toFixed(2));
+            const fovialRedondeado = parseFloat(fovial.toFixed(2));
+            const cotransRedondeado = parseFloat(cotrans.toFixed(2));
+            const ivaRedondeado = parseFloat(iva.toFixed(2));
+            const exentasInternas = parseFloat((fovialRedondeado + cotransRedondeado).toFixed(2));
+            const totalCompras = parseFloat((totalGravado + ivaRedondeado + fovialRedondeado + cotransRedondeado).toFixed(2));
 
-        console.log("📊 RESULTADO FINAL:");
-        nuevosDetalles.forEach(d => {
-            console.log(`  ✅ ${d.producto_nombre || d.descripcion}: Cantidad = ${d.cantidad}, Subtotal = $${d.subtotal.toFixed(2)}`);
-        });
+            setFormData(prev => {
+                const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
+                const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
+                const selloRecepcion = extraerSelloRecepcion(dteData);
+                const codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
 
-        setDetalles(nuevosDetalles);
+                return {
+                    ...prev,
+                    fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
+                    numero_documento: dteData.identificacion?.numeroControl || "",
+                    codigo_generacion: codigoGeneracion,
+                    sello_recepcion: selloRecepcion,
+                    nrc: emisorNrc || prev.nrc,
+                    nit: emisorNit || prev.nit,
+                    nombre_proveedor: dteData.emisor?.nombre || prev.nombre_proveedor,
+                    proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
+                    tipo_documento: tipoMap[tipoDteValue] || "CCF",
+                    gravadas_internas: totalGravado,
+                    credito_fiscal: ivaRedondeado,
+                    fovial: fovialRedondeado,
+                    cotrans: cotransRedondeado,
+                    exentas_internas: exentasInternas,
+                    total_compras: totalCompras
+                };
+            });
 
-        // Extraer tributos y actualizar formData
-        const { fovial, cotrans, iva, cesc } = extraerTributos(dteData);
-        const totalGravado = parseFloat(nuevosDetalles.reduce((sum, d) => sum + d.subtotal, 0).toFixed(2));
-        const fovialRedondeado = parseFloat(fovial.toFixed(2));
-        const cotransRedondeado = parseFloat(cotrans.toFixed(2));
-        const ivaRedondeado = parseFloat(iva.toFixed(2));
-        const exentasInternas = parseFloat((fovialRedondeado + cotransRedondeado).toFixed(2));
-        const totalCompras = parseFloat((totalGravado + ivaRedondeado + fovialRedondeado + cotransRedondeado).toFixed(2));
+            closeDialog(() => {
+                setPendingDteData(null);
+                setProductosNoEncontradosMsg([]);
+                setSelectedProductosToCreate({});
+                setProductosData({});
+                setIsLoading(false);
+            });
 
-        setFormData(prev => {
-            const tipoMap = { "01": "FCF", "03": "CCF", "05": "NC", "06": "ND", "14": "FSE" };
-            const tipoDteValue = String(dteData.identificacion?.tipoDte || "").padStart(2, '0');
-            const selloRecepcion = extraerSelloRecepcion(dteData);
-            const codigoGeneracion = dteData.identificacion?.codigoGeneracion || dteData.codigoGeneracion || null;
-            
-            return {
-                ...prev,
-                fecha_emision: dteData.identificacion?.fecEmi || new Date().toISOString().split('T')[0],
-                numero_documento: dteData.identificacion?.numeroControl || "",
-                codigo_generacion: codigoGeneracion,
-                sello_recepcion: selloRecepcion,
-                nrc: emisorNrc || prev.nrc,
-                nit: emisorNit || prev.nit,
-                nombre_proveedor: dteData.emisor?.nombre || prev.nombre_proveedor,
-                proveedor_id: foundProv ? foundProv.id : prev.proveedor_id,
-                tipo_documento: tipoMap[tipoDteValue] || "CCF",
-                gravadas_internas: totalGravado,
-                credito_fiscal: ivaRedondeado,
-                fovial: fovialRedondeado,
-                cotrans: cotransRedondeado,
-                exentas_internas: exentasInternas,
-                total_compras: totalCompras
-            };
-        });
+            const nuevosCreados = Object.values(selectedProductosToCreate).filter(v => v).length;
+            addToast({
+                type: 'success',
+                title: 'Productos procesados',
+                message: "Se crearon " + nuevosCreados + " productos nuevos. Total productos en compra: " + nuevosDetalles.length,
+                duration: 5000
+            });
 
-        closeDialog(() => {
-            setPendingDteData(null);
-            setProductosNoEncontradosMsg([]);
-            setSelectedProductosToCreate({});
+        } catch (error) {
+            console.error("Error en handleDialogYes:", error);
+            addToast({ type: 'error', message: error.message || 'Error al crear los productos' });
             setIsLoading(false);
-        });
-
-        addToast({ 
-            type: 'success', 
-            title: 'Productos creados y cargados', 
-            message: `Se crearon ${Object.values(selectedProductosToCreate).filter(v => v).length} productos nuevos. Total productos: ${nuevosDetalles.length}`,
-            duration: 5000
-        });
-
-    } catch (error) {
-        console.error("Error:", error);
-        setError("Error al crear los productos.");
-        setIsLoading(false);
-    }
-};
+        }
+    };
 
     if (isLoadingData) {
         return (
@@ -1909,19 +2031,19 @@ itemsNoEncontrados.push({
             <Toast toasts={toasts} removeToast={removeToast} />
 
             <div className="flex flex-1 h-full overflow-hidden">
-                <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${!isMobile ? 'md:translate-x-0 md:w-64' : ''}`}>
+                <div className={"md:static fixed z-40 h-full transition-all duration-300 " + (sidebarOpen ? 'translate-x-0' : '-translate-x-full') + " " + (!isMobile ? 'md:translate-x-0 md:w-64' : '')}>
                     <div className="h-full overflow-y-auto">
                         <Sidebar />
                     </div>
                 </div>
 
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <Navbar 
-                        user={user} 
-                        hasHaciendaToken={hasHaciendaToken} 
-                        haciendaStatus={haciendaStatus} 
-                        onToggleSidebar={toggleSidebar} 
-                        sidebarOpen={sidebarOpen} 
+                    <Navbar
+                        user={user}
+                        hasHaciendaToken={hasHaciendaToken}
+                        haciendaStatus={haciendaStatus}
+                        onToggleSidebar={toggleSidebar}
+                        sidebarOpen={sidebarOpen}
                     />
 
                     <main className="flex-1 p-4 md:p-6 overflow-y-auto">
@@ -1947,7 +2069,7 @@ itemsNoEncontrados.push({
 
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                    <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Carga Automática</h2>
+                                    <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Carga Automatica</h2>
                                     <JsonDteUploader onDataLoaded={handleDteLoaded} />
                                 </div>
 
@@ -1956,15 +2078,15 @@ itemsNoEncontrados.push({
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Registro en Sistema</label>
-                                            <input 
+                                            <input
                                                 type="date" name="fecha" value={formData.fecha} onChange={handleChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 required
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Emisión del Documento</label>
-                                            <input 
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha Emision del Documento</label>
+                                            <input
                                                 type="date" name="fecha_emision" value={formData.fecha_emision} onChange={handleChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 required
@@ -1972,7 +2094,7 @@ itemsNoEncontrados.push({
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
-                                            <select 
+                                            <select
                                                 name="proveedor_id" value={formData.proveedor_id} onChange={handleChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 required
@@ -1985,7 +2107,7 @@ itemsNoEncontrados.push({
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Proveedor (Doc)</label>
-                                            <input 
+                                            <input
                                                 type="text" name="nombre_proveedor" value={formData.nombre_proveedor} onChange={handleChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 placeholder="Nombre en documento"
@@ -1993,7 +2115,7 @@ itemsNoEncontrados.push({
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">N° Documento</label>
-                                            <input 
+                                            <input
                                                 type="text" name="numero_documento" value={formData.numero_documento} onChange={handleChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 placeholder="Ej: FAC-001" required
@@ -2001,21 +2123,21 @@ itemsNoEncontrados.push({
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Tipo Documento</label>
-                                            <select 
+                                            <select
                                                 name="tipo_documento" value={formData.tipo_documento} onChange={handleChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                             >
-                                                <option value="CCF">Comprobante Crédito Fiscal</option>
+                                                <option value="CCF">Comprobante Credito Fiscal</option>
                                                 <option value="FCF">Factura Consumidor Final</option>
                                                 <option value="FSE">Factura Sujeto Excluido</option>
-                                                <option value="NC">Nota de Crédito</option>
-                                                <option value="ND">Nota de Débito</option>
-                                                <option value="DUA">Declaración de Mercancías (Importación)</option>
+                                                <option value="NC">Nota de Credito</option>
+                                                <option value="ND">Nota de Debito</option>
+                                                <option value="DUA">Declaracion de Mercancias (Importacion)</option>
                                             </select>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">NRC</label>
-                                            <input 
+                                            <input
                                                 type="text" name="nrc" value={formData.nrc} onChange={handleChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 placeholder="NRC del proveedor"
@@ -2023,7 +2145,7 @@ itemsNoEncontrados.push({
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">NIT</label>
-                                            <input 
+                                            <input
                                                 type="text" name="nit" value={formData.nit} onChange={handleChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 placeholder="NIT del proveedor"
@@ -2038,13 +2160,13 @@ itemsNoEncontrados.push({
                                                 </label>
                                                 <label className="inline-flex items-center">
                                                     <input type="radio" name="tipo_compra" value="importacion" checked={formData.tipo_compra === 'importacion'} onChange={handleChange} className="text-blue-600" />
-                                                    <span className="ml-2 text-gray-700">Importación</span>
+                                                    <span className="ml-2 text-gray-700">Importacion</span>
                                                 </label>
                                             </div>
                                         </div>
                                         <div className="md:col-span-3">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                                            <input 
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
+                                            <input
                                                 type="text" name="descripcion" value={formData.descripcion} onChange={handleChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 placeholder="Opcional"
@@ -2059,22 +2181,22 @@ itemsNoEncontrados.push({
                                         <div className="md:col-span-5 relative">
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Buscar Producto</label>
                                             <div className="relative">
-                                                <input 
+                                                <input
                                                     type="text" value={productSearch}
                                                     onChange={(e) => {
                                                         setProductSearch(e.target.value);
-                                                        if(selectedProduct && e.target.value !== selectedProduct.nombre) setSelectedProduct(null);
+                                                        if (selectedProduct && e.target.value !== selectedProduct.nombre) setSelectedProduct(null);
                                                     }}
                                                     className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                    placeholder="Nombre o código..."
+                                                    placeholder="Nombre o codigo..."
                                                 />
                                                 <FaSearch className="absolute left-3 top-3 text-gray-400" />
                                             </div>
                                             {productSearch && !selectedProduct && filteredProducts.length > 0 && (
                                                 <div className="absolute z-10 w-full bg-white border border-gray-300 mt-1 rounded-md shadow-lg max-h-48 overflow-y-auto">
                                                     {filteredProducts.map(prod => (
-                                                        <div 
-                                                            key={prod.id} 
+                                                        <div
+                                                            key={prod.id}
                                                             className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm"
                                                             onClick={() => handleSelectProduct(prod)}
                                                         >
@@ -2086,7 +2208,7 @@ itemsNoEncontrados.push({
                                         </div>
                                         <div className="md:col-span-2">
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
-                                            <input 
+                                            <input
                                                 type="number" value={addQuantity} onChange={(e) => setAddQuantity(e.target.value)}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 min="0.01" step="0.01"
@@ -2094,15 +2216,15 @@ itemsNoEncontrados.push({
                                         </div>
                                         <div className="md:col-span-3">
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Costo Unitario ($)</label>
-                                            <input 
+                                            <input
                                                 type="number" value={addPrice} onChange={(e) => setAddPrice(e.target.value)}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                                 min="0" step="0.01" placeholder="0.00"
                                             />
                                         </div>
                                         <div className="md:col-span-2">
-                                            <button 
-                                                type="button" 
+                                            <button
+                                                type="button"
                                                 onClick={() => {
                                                     if (selectedProduct) {
                                                         handleSelectProduct(selectedProduct);
@@ -2115,8 +2237,8 @@ itemsNoEncontrados.push({
                                             </button>
                                         </div>
                                         <div className="md:col-span-1">
-                                            <button 
-                                                type="button" 
+                                            <button
+                                                type="button"
                                                 onClick={() => setShowGastoModal(true)}
                                                 className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center"
                                             >
@@ -2124,8 +2246,8 @@ itemsNoEncontrados.push({
                                             </button>
                                         </div>
                                         <div className="md:col-span-1">
-                                            <button 
-                                                type="button" 
+                                            <button
+                                                type="button"
                                                 onClick={() => setShowMateriaPrimaModal(true)}
                                                 className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center"
                                             >
@@ -2133,90 +2255,229 @@ itemsNoEncontrados.push({
                                             </button>
                                         </div>
                                     </div>
+                                  <div className="mt-6 overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200 border">
+        <thead className="bg-gray-50">
+            <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Tipo</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Producto / Descripcion</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Cod. Barras
+                    <span className="ml-1 text-gray-400 font-normal normal-case">(editable)</span>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Unidad</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Cant.</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Costo Unit.</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Precio Venta
+                    <span className="ml-1 text-gray-400 font-normal normal-case">(editable)</span>
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Subtotal</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wide">Accion</th>
+            </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+            {detalles.length === 0 ? (
+                <tr>
+                    <td colSpan="9" className="px-4 py-8 text-center text-gray-400">
+                        <FaBoxOpen className="inline text-2xl mb-2 block mx-auto" />
+                        <p>No hay productos agregados.</p>
+                        <p className="text-xs mt-1">Carga un DTE o agrega productos manualmente.</p>
+                    </td>
+                </tr>
+            ) : (
+                detalles.map((item, idx) => (
+                    <tr 
+                        key={idx} 
+                        className={
+                            item.tipo === "producto" ? "hover:bg-blue-50 transition-colors" :
+                            item.tipo === "materia_prima" ? "hover:bg-green-50 transition-colors" :
+                            "hover:bg-amber-50 transition-colors"
+                        }
+                    >
+                        {/* TIPO */}
+                        <td className="px-4 py-3 text-sm whitespace-nowrap">
+                            {item.tipo === "producto" && (
+                                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">Producto</span>
+                            )}
+                            {item.tipo === "materia_prima" && (
+                                <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium">MP</span>
+                            )}
+                            {item.tipo === "gasto" && (
+                                <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full font-medium">Gasto</span>
+                            )}
+                        </td>
 
-                                    <div className="mt-6 overflow-x-auto">
-                                        <table className="min-w-full divide-y divide-gray-200 border">
-                                            <thead className="bg-gray-50">
-                                                <tr>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto / Descripción</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidad</th>
-                                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cant.</th>
-                                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Costo Unit.</th>
-                                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Precio Venta</th>
-                                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
-                                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acción</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="bg-white divide-y divide-gray-200">
-                                                {detalles.length === 0 ? (
-                                                    <tr>
-                                                        <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
-                                                            No hay productos agregados.
-                                                        </td>
-                                                    </tr>
-                                                ) : (
-                                                    detalles.map((item, idx) => (
-                                                        <tr key={idx}>
-                                                            <td className="px-4 py-3 text-sm">
-                                                                {item.tipo === "producto" && (
-                                                                    <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">Producto</span>
-                                                                )}
-                                                                {item.tipo === "materia_prima" && (
-                                                                    <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">MP</span>
-                                                                )}
-                                                                {item.tipo === "gasto" && (
-                                                                    <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">Gasto</span>
-                                                                )}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                                {item.producto_nombre || item.descripcion || "Sin descripción"}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm text-gray-500">
-                                                                {item.unidad ? getNombreUnidad(item.unidad) : "-"}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">{item.cantidad}</td>
-                                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">${parseFloat(item.precio_costo || item.precio_unitario || 0).toFixed(2)}</td>
-<td className="px-4 py-3 text-sm text-right">
-    <input
-        type="number"
-        min="0"
-        step="0.01"
-        value={item.precio_venta || 0}
-        onChange={(e) => {const nuevosDetalles = [...detalles];nuevosDetalles[idx] = {...nuevosDetalles[idx],precio_venta: parseFloat(e.target.value) || 0};setDetalles(nuevosDetalles);}}className="w-24 border border-gray-300 rounded px-2 py-1 text-right text-green-600 font-medium"/></td>
-                                                            <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">${parseFloat(item.subtotal || 0).toFixed(2)}</td>
-                                                            <td className="px-4 py-3 text-center">
-                                                                <div className="flex items-center justify-center gap-2">
-                                                                    <button 
-                                                                        type="button" 
-                                                                        onClick={() => handleOpenEditModal(idx)} 
-                                                                        className="text-blue-600 hover:text-blue-800 transition-colors"
-                                                                        title="Editar"
-                                                                    >
-                                                                        <FaEdit />
-                                                                    </button>
-                                                                    <button 
-                                                                        type="button" 
-                                                                        onClick={() => handleRemoveDetail(idx)} 
-                                                                        className="text-red-600 hover:text-red-800 transition-colors"
-                                                                        title="Eliminar"
-                                                                    >
-                                                                        <FaTrash />
-                                                                    </button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                        {/* NOMBRE */}
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                            <div className="font-medium">{item.producto_nombre || item.descripcion || "Sin descripcion"}</div>
+                            {item.producto_codigo && (
+                                <div className="text-xs text-gray-400">Cod: {item.producto_codigo}</div>
+                            )}
+                        </td>
+
+                        {/* CODIGO DE BARRAS — editable inline */}
+                        <td className="px-4 py-3 text-sm">
+                            <input
+                                type="text"
+                                value={item.codigo_barras || ''}
+                                onChange={(e) => {
+                                    const nuevosDetalles = [...detalles];
+                                    nuevosDetalles[idx] = {
+                                        ...nuevosDetalles[idx],
+                                        codigo_barras: e.target.value
+                                    };
+                                    setDetalles(nuevosDetalles);
+                                }}
+                                onBlur={(e) => {
+                                    if (e.target.value.trim()) {
+                                        addToast({
+                                            type: 'success',
+                                            message: "Codigo de barras actualizado: " + e.target.value.trim()
+                                        });
+                                    }
+                                }}
+                                className={
+                                    "w-36 border rounded px-2 py-1 text-sm transition-all focus:outline-none focus:ring-2 " +
+                                    (item.codigo_barras 
+                                        ? "border-blue-300 bg-blue-50 text-blue-800 focus:ring-blue-300 focus:border-blue-400" 
+                                        : "border-gray-300 bg-white text-gray-700 focus:ring-blue-300 focus:border-blue-400")
+                                }
+                                placeholder="Ingresar codigo..."
+                            />
+                            {item.codigo_barras && (
+                                <div className="text-xs text-blue-500 mt-0.5">✓ ingresado</div>
+                            )}
+                        </td>
+
+                        {/* UNIDAD */}
+                        <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                            {item.unidad ? getNombreUnidad(item.unidad) : "-"}
+                        </td>
+
+                        {/* CANTIDAD */}
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right whitespace-nowrap">
+                            {item.cantidad}
+                        </td>
+
+                        {/* COSTO UNITARIO */}
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right whitespace-nowrap">
+                            ${parseFloat(item.precio_costo || item.precio_unitario || 0).toFixed(2)}
+                        </td>
+
+                        {/* PRECIO VENTA — editable inline */}
+                        <td className="px-4 py-3 text-sm text-right">
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.precio_venta ?? 0}
+                                onChange={(e) => {
+                                    const nuevosDetalles = [...detalles];
+                                    nuevosDetalles[idx] = {
+                                        ...nuevosDetalles[idx],
+                                        precio_venta: parseFloat(e.target.value) || 0
+                                    };
+                                    setDetalles(nuevosDetalles);
+                                }}
+                                onBlur={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    if (val > 0) {
+                                        addToast({
+                                            type: 'success',
+                                            message: "Precio de venta actualizado: $" + val.toFixed(2)
+                                        });
+                                    }
+                                }}
+                                className={
+                                    "w-24 border rounded px-2 py-1 text-right text-sm font-medium transition-all focus:outline-none focus:ring-2 " +
+                                    ((item.precio_venta ?? 0) > 0
+                                        ? "border-green-300 bg-green-50 text-green-700 focus:ring-green-300 focus:border-green-400"
+                                        : "border-gray-300 bg-white text-gray-400 focus:ring-green-300 focus:border-green-400")
+                                }
+                            />
+                            {(item.precio_venta ?? 0) > 0 && (
+                                <div className="text-xs text-green-500 mt-0.5">✓ ingresado</div>
+                            )}
+                            {(item.precio_venta ?? 0) === 0 && item.tipo === "producto" && (
+                                <div className="text-xs text-amber-500 mt-0.5">⚠ sin precio</div>
+                            )}
+                        </td>
+
+                        {/* SUBTOTAL */}
+                        <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
+                            ${parseFloat(item.subtotal || 0).toFixed(2)}
+                        </td>
+
+                        {/* ACCIONES */}
+                        <td className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleOpenEditModal(idx)}
+                                    className="text-blue-500 hover:text-blue-700 transition-colors p-1 rounded hover:bg-blue-50"
+                                    title="Editar cantidad, unidad y precios"
+                                >
+                                    <FaEdit />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveDetail(idx)}
+                                    className="text-red-500 hover:text-red-700 transition-colors p-1 rounded hover:bg-red-50"
+                                    title="Eliminar"
+                                >
+                                    <FaTrash />
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                ))
+            )}
+        </tbody>
+
+        {/* FOOTER CON TOTALES */}
+        {detalles.length > 0 && (
+            <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                <tr>
+                    <td colSpan="7" className="px-4 py-3 text-sm font-semibold text-gray-700 text-right">
+                        Total ({detalles.length} {detalles.length === 1 ? 'item' : 'items'}):
+                    </td>
+                    <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">
+                        ${detalles.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0).toFixed(2)}
+                    </td>
+                    <td></td>
+                </tr>
+                {detalles.some(d => d.tipo === "producto" && (d.precio_venta ?? 0) === 0) && (
+                    <tr>
+                        <td colSpan="9" className="px-4 py-2">
+                            <div className="flex items-center gap-2 text-amber-600 text-xs bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                                <FaExclamationCircle className="flex-shrink-0" />
+                                <span>
+                                    Hay {detalles.filter(d => d.tipo === "producto" && (d.precio_venta ?? 0) === 0).length} producto(s) sin precio de venta. 
+                                    Podés ingresarlo en la columna "Precio Venta" o usando el botón <FaEdit className="inline" /> de editar.
+                                </span>
+                            </div>
+                        </td>
+                    </tr>
+                )}
+            </tfoot>
+        )}
+    </table>
+
+    {detalles.length > 0 && (
+        <p className="text-xs text-gray-400 mt-2 text-right flex items-center justify-end gap-1">
+            <FaInfoCircle />
+            Los campos "Cod. Barras" y "Precio Venta" se guardan al hacer clic fuera del input. 
+            Usá <FaEdit className="inline mx-0.5" /> para editar cantidad, unidad y costo.
+        </p>
+    )}
+</div>
                                 </div>
 
                                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                                     <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Totales y Retenciones</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                        
+
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Compras Gravadas</h3>
                                             {[
@@ -2258,16 +2519,16 @@ itemsNoEncontrados.push({
                                         <div className="space-y-4">
                                             <h3 className="text-sm font-bold text-gray-800">Impuestos</h3>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Crédito Fiscal (IVA)</label>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Credito Fiscal (IVA)</label>
                                                 <div className="relative">
                                                     <span className="absolute left-3 top-2 text-gray-500">$</span>
-                                                    <input 
-                                                        type="number" 
-                                                        name="credito_fiscal" 
-                                                        value={formData.credito_fiscal} 
+                                                    <input
+                                                        type="number"
+                                                        name="credito_fiscal"
+                                                        value={formData.credito_fiscal}
                                                         onChange={handleChange}
                                                         className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        min="0" step="0.01" 
+                                                        min="0" step="0.01"
                                                         placeholder="IVA 13%"
                                                     />
                                                 </div>
@@ -2276,13 +2537,13 @@ itemsNoEncontrados.push({
                                                 <label className="block text-xs font-medium text-gray-600 mb-1">FOVIAL</label>
                                                 <div className="relative">
                                                     <span className="absolute left-3 top-2 text-gray-500">$</span>
-                                                    <input 
-                                                        type="number" 
-                                                        name="fovial" 
-                                                        value={formData.fovial} 
+                                                    <input
+                                                        type="number"
+                                                        name="fovial"
+                                                        value={formData.fovial}
                                                         onChange={handleChange}
                                                         className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        min="0" step="0.01" 
+                                                        min="0" step="0.01"
                                                         placeholder="Fondo de vialidad"
                                                     />
                                                 </div>
@@ -2291,14 +2552,14 @@ itemsNoEncontrados.push({
                                                 <label className="block text-xs font-medium text-gray-600 mb-1">COTRANS</label>
                                                 <div className="relative">
                                                     <span className="absolute left-3 top-2 text-gray-500">$</span>
-                                                    <input 
-                                                        type="number" 
-                                                        name="cotrans" 
-                                                        value={formData.cotrans} 
+                                                    <input
+                                                        type="number"
+                                                        name="cotrans"
+                                                        value={formData.cotrans}
                                                         onChange={handleChange}
                                                         className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        min="0" step="0.01" 
-                                                        placeholder="Contribución transporte"
+                                                        min="0" step="0.01"
+                                                        placeholder="Contribucion transporte"
                                                     />
                                                 </div>
                                             </div>
@@ -2306,13 +2567,13 @@ itemsNoEncontrados.push({
                                                 <label className="block text-xs font-medium text-gray-600 mb-1">CESC</label>
                                                 <div className="relative">
                                                     <span className="absolute left-3 top-2 text-gray-500">$</span>
-                                                    <input 
-                                                        type="number" 
-                                                        name="cesc" 
-                                                        value={formData.cesc} 
+                                                    <input
+                                                        type="number"
+                                                        name="cesc"
+                                                        value={formData.cesc}
                                                         onChange={handleChange}
                                                         className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                                        min="0" step="0.01" 
+                                                        min="0" step="0.01"
                                                         placeholder="CESC"
                                                     />
                                                 </div>
@@ -2323,9 +2584,9 @@ itemsNoEncontrados.push({
                                             <h3 className="text-sm font-bold text-gray-800">Retenciones / Percepciones</h3>
                                             {[
                                                 { label: 'Anticipo IVA', name: 'anticipo_iva_percibido', ph: 'Anticipo' },
-                                                { label: 'Percepción', name: 'percepcion', ph: 'Percep.' },
-                                                { label: 'Retención (1%)', name: 'retencion', ph: 'Ret. 1%' },
-                                                { label: 'Retención Terceros', name: 'retencion_terceros', ph: 'Terceros' }
+                                                { label: 'Percepcion', name: 'percepcion', ph: 'Percep.' },
+                                                { label: 'Retencion (1%)', name: 'retencion', ph: 'Ret. 1%' },
+                                                { label: 'Retencion Terceros', name: 'retencion_terceros', ph: 'Terceros' }
                                             ].map(f => (
                                                 <div key={f.name}>
                                                     <label className="block text-xs font-medium text-gray-600 mb-1">{f.label}</label>
@@ -2350,17 +2611,17 @@ itemsNoEncontrados.push({
                                 </div>
 
                                 <div className="flex justify-end space-x-4 pt-4">
-                                    <button 
+                                    <button
                                         type="button"
                                         onClick={() => router.push('/dashboard/compras')}
                                         className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md font-medium transition-colors"
                                     >
                                         Cancelar
                                     </button>
-                                    <button 
+                                    <button
                                         type="submit"
                                         disabled={isLoading}
-                                        className={`px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium transition-colors flex items-center ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                        className={"px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium transition-colors flex items-center " + (isLoading ? 'opacity-70 cursor-not-allowed' : '')}
                                     >
                                         {isLoading ? (
                                             <>
@@ -2401,54 +2662,51 @@ itemsNoEncontrados.push({
                             <label className="block text-sm font-medium text-gray-700 mb-1">Producto</label>
                             <div className="bg-gray-100 rounded-xl px-4 py-3">
                                 <p className="font-medium text-gray-800">{tempProductData.nombre}</p>
-                                <p className="text-xs text-gray-500">Código: {tempProductData.codigo}</p>
+                                <p className="text-xs text-gray-500">Codigo: {tempProductData.codigo}</p>
                             </div>
                         </div>
 
-<div className="grid grid-cols-2 gap-3 mb-4">
-    {/* CANTIDAD */}
-    <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
-        <input
-            type="number"
-            value={tempCantidad}
-            onChange={(e) =>
-                setTempCantidad(parseFloat(e.target.value) || 0)
-            }
-            className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
-            min="0.01"
-            step="0.01"
-        />
-    </div>
-    {/* COSTO */}
-    <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Costo Unitario ($)</label>
-        <input
-            type="number"
-            value={tempPrecio}
-            onChange={(e) =>
-                setTempPrecio(parseFloat(e.target.value) || 0)
-            }
-            className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
-            min="0"
-            step="0.01"
-        />
-    </div>
-    {/* NUEVO PRECIO VENTA */}
-    <div className="col-span-2">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Precio Venta ($)</label>
-        <input
-            type="number"
-            value={tempPrecioVenta || 0}
-            onChange={(e) =>
-                setTempPrecioVenta(parseFloat(e.target.value) || 0)
-            }
-            className="w-full border border-green-300 focus:border-green-500 focus:ring-2 focus:ring-green-100 rounded-xl px-3 py-2 outline-none transition-all"
-            min="0"
-            step="0.01"
-        />
-    </div>
-</div>
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+                                <input
+                                    type="number"
+                                    value={tempCantidad}
+                                    onChange={(e) =>
+                                        setTempCantidad(parseFloat(e.target.value) || 0)
+                                    }
+                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                                    min="0.01"
+                                    step="0.01"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Costo Unitario ($)</label>
+                                <input
+                                    type="number"
+                                    value={tempPrecio}
+                                    onChange={(e) =>
+                                        setTempPrecio(parseFloat(e.target.value) || 0)
+                                    }
+                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                                    min="0"
+                                    step="0.01"
+                                />
+                            </div>
+                            <div className="col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Precio Venta ($)</label>
+                                <input
+                                    type="number"
+                                    value={tempPrecioVenta || 0}
+                                    onChange={(e) =>
+                                        setTempPrecioVenta(parseFloat(e.target.value) || 0)
+                                    }
+                                    className="w-full border border-green-300 focus:border-green-500 focus:ring-2 focus:ring-green-100 rounded-xl px-3 py-2 outline-none transition-all"
+                                    min="0"
+                                    step="0.01"
+                                />
+                            </div>
+                        </div>
 
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>
@@ -2490,7 +2748,7 @@ itemsNoEncontrados.push({
                 </div>
             )}
 
-            {/* MODAL PARA EDITAR DETALLE (Cantidad, Precio y Unidad) */}
+            {/* MODAL PARA EDITAR DETALLE */}
             {showEditModal && editDetailIndex !== null && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-gray-200">
@@ -2507,13 +2765,13 @@ itemsNoEncontrados.push({
                         </div>
 
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Producto / Descripción</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Producto / Descripcion</label>
                             <div className="bg-gray-100 rounded-xl px-4 py-3">
                                 <p className="font-medium text-gray-800">
-                                    {detalles[editDetailIndex]?.producto_nombre || detalles[editDetailIndex]?.descripcion || "Sin descripción"}
+                                    {detalles[editDetailIndex]?.producto_nombre || detalles[editDetailIndex]?.descripcion || "Sin descripcion"}
                                 </p>
                                 {detalles[editDetailIndex]?.tipo === "producto" && (
-                                    <p className="text-xs text-gray-500">Código: {detalles[editDetailIndex]?.producto_codigo}</p>
+                                    <p className="text-xs text-gray-500">Codigo: {detalles[editDetailIndex]?.producto_codigo}</p>
                                 )}
                             </div>
                         </div>
@@ -2524,58 +2782,72 @@ itemsNoEncontrados.push({
                                 <input
                                     type="number"
                                     value={editDetailData.cantidad}
-                                    onChange={(e) => setEditDetailData({...editDetailData, cantidad: parseFloat(e.target.value) || 0})}
+                                    onChange={(e) => setEditDetailData({ ...editDetailData, cantidad: parseFloat(e.target.value) || 0 })}
                                     className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
                                     min="0.01"
                                     step="0.01"
                                 />
                             </div>
-<div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">
-        Precio Costo ($)
-    </label>
-
-    <input
-        type="number"
-        value={editDetailData.precio_costo || 0}
-        onChange={(e) =>
-            setEditDetailData({
-                ...editDetailData,
-                precio_costo: parseFloat(e.target.value) || 0
-            })
-        }
-        className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
-        min="0"
-        step="0.01"
-    />
-</div>
-
-<div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">
-        Precio Venta ($)
-    </label>
-
-    <input
-        type="number"
-        value={editDetailData.precio_venta || 0}
-        onChange={(e) =>
-            setEditDetailData({
-                ...editDetailData,
-                precio_venta: parseFloat(e.target.value) || 0
-            })
-        }
-        className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
-        min="0"
-        step="0.01"
-    />
-</div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Precio Costo ($)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={editDetailData.precio_costo || 0}
+                                    onChange={(e) =>
+                                        setEditDetailData({
+                                            ...editDetailData,
+                                            precio_costo: parseFloat(e.target.value) || 0
+                                        })
+                                    }
+                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                                    min="0"
+                                    step="0.01"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Precio Venta ($)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={editDetailData.precio_venta || 0}
+                                    onChange={(e) =>
+                                        setEditDetailData({
+                                            ...editDetailData,
+                                            precio_venta: parseFloat(e.target.value) || 0
+                                        })
+                                    }
+                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                                    min="0"
+                                    step="0.01"
+                                />
+                            </div>
+                            <div className="col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Codigo de Barras
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editDetailData.codigo_barras || ''}
+                                    onChange={(e) =>
+                                        setEditDetailData({
+                                            ...editDetailData,
+                                            codigo_barras: e.target.value
+                                        })
+                                    }
+                                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
+                                    placeholder="Codigo de barras"
+                                />
+                            </div>
                         </div>
 
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>
                             <select
                                 value={editDetailData.unidad}
-                                onChange={(e) => setEditDetailData({...editDetailData, unidad: e.target.value})}
+                                onChange={(e) => setEditDetailData({ ...editDetailData, unidad: e.target.value })}
                                 className="w-full border text-black border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3 py-2 outline-none transition-all"
                             >
                                 {unidadesDisponibles.map(unidad => (
@@ -2589,7 +2861,7 @@ itemsNoEncontrados.push({
                         <div className="bg-gray-50 border rounded-xl p-3 flex justify-between text-sm mb-4">
                             <span className="text-gray-600">Nuevo Subtotal:</span>
                             <span className="font-semibold text-gray-900">
-                                ${((editDetailData.cantidad || 0) * (editDetailData.precio_unitario || 0)).toFixed(2)}
+                                ${((editDetailData.cantidad || 0) * (editDetailData.precio_costo || 0)).toFixed(2)}
                             </span>
                         </div>
 
@@ -2623,11 +2895,11 @@ itemsNoEncontrados.push({
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
-                                <input 
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Descripcion *</label>
+                                <input
                                     type="text"
                                     value={gastoData.descripcion}
-                                    onChange={(e) => setGastoData({...gastoData, descripcion: e.target.value})}
+                                    onChange={(e) => setGastoData({ ...gastoData, descripcion: e.target.value })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     placeholder="Ej: Gasolina Super, Servicio de Internet, Luz, Agua..."
                                     autoFocus
@@ -2635,10 +2907,10 @@ itemsNoEncontrados.push({
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
-                                <input 
+                                <input
                                     type="number"
                                     value={gastoData.cantidad}
-                                    onChange={(e) => setGastoData({...gastoData, cantidad: parseFloat(e.target.value) || 0})}
+                                    onChange={(e) => setGastoData({ ...gastoData, cantidad: parseFloat(e.target.value) || 0 })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     step="0.01"
                                     min="0.01"
@@ -2646,14 +2918,28 @@ itemsNoEncontrados.push({
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Precio Unitario ($)</label>
-                                <input 
+                                <input
                                     type="number"
                                     value={gastoData.precio_unitario}
-                                    onChange={(e) => setGastoData({...gastoData, precio_unitario: parseFloat(e.target.value) || 0})}
+                                    onChange={(e) => setGastoData({ ...gastoData, precio_unitario: parseFloat(e.target.value) || 0 })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     step="0.01"
                                     min="0"
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>
+                                <select
+                                    value={gastoData.unidad}
+                                    onChange={(e) => setGastoData({ ...gastoData, unidad: e.target.value })}
+                                    className="w-full border text-black border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    {unidadesDisponibles.map(unidad => (
+                                        <option key={unidad.codigo} value={unidad.codigo}>
+                                            {unidad.nombre}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="bg-gray-50 p-3 rounded-lg">
                                 <p className="text-sm text-gray-600">Subtotal: <span className="font-bold text-gray-900">${(gastoData.cantidad * gastoData.precio_unitario).toFixed(2)}</span></p>
@@ -2671,8 +2957,8 @@ itemsNoEncontrados.push({
                 </div>
             )}
 
-            {/* DIALOG PRODUCTOS NO ENCONTRADOS */}
-            {showDialog && (
+            {/* DIALOG PRODUCTOS NO ENCONTRADOS CON INPUTS DE CODIGO DE BARRAS Y PRECIO VENTA */}
+            {showDialog && pendingDteData && (
                 <div
                     className="fixed inset-0 bg-black flex items-center justify-center z-50"
                     style={{
@@ -2681,50 +2967,90 @@ itemsNoEncontrados.push({
                     }}
                 >
                     <div
-                        className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4"
+                        className="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
                         style={{
                             opacity: dialogClosing ? 0 : 1,
                             transform: dialogClosing ? 'scale(0.96) translateY(8px)' : 'scale(1) translateY(0)',
                             transition: 'opacity 0.28s ease, transform 0.28s ease'
                         }}
                     >
-                        <div className="bg-blue-50 border-b border-blue-100 px-6 py-4 rounded-t-xl flex items-center justify-between">
-                            <div>
-                                <h2 className="text-base font-semibold text-blue-800">
-                                    Productos no registrados
-                                </h2>
-                                <p className="text-xs text-blue-600 mt-0.5">
-                                    {productosNoEncontradosMsg.length} producto(s) del DTE no están en el inventario
-                                </p>
+                        <div className="bg-blue-50 border-b border-blue-100 px-6 py-4 rounded-t-xl sticky top-0 z-10">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-base font-semibold text-blue-800">
+                                        Productos no registrados en inventario
+                                    </h2>
+                                    <p className="text-xs text-blue-600 mt-0.5">
+                                        {pendingDteData.itemsNoEncontrados?.length || 0} producto(s) del DTE no estan registrados
+                                    </p>
+                                </div>
+                                <button onClick={handleDialogNo} className="text-blue-400 hover:text-blue-600 transition-colors">
+                                    <FaTimes size={16} />
+                                </button>
                             </div>
-                            <button onClick={handleDialogNo} className="text-blue-400 hover:text-blue-600 transition-colors">
-                                <FaTimes size={16} />
-                            </button>
                         </div>
 
                         <div className="px-6 py-4">
                             <p className="text-sm text-gray-600 mb-3">
-                                Selecciona cuáles deseas agregar:
+                                Selecciona los productos que deseas crear y completa sus datos:
                             </p>
 
-                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 max-h-56 overflow-y-auto space-y-1">
-                                {productosNoEncontradosMsg.map((item, idx) => (
-                                    <label key={idx} className="flex items-center p-2 hover:bg-white rounded-lg cursor-pointer transition-colors gap-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedProductosToCreate[idx] || false}
-                                            onChange={() => handleCheckboxChange(idx)}
-                                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer flex-shrink-0"
-                                        />
-                                        <span className="text-sm text-gray-700 leading-tight">
-                                            {item}
-                                        </span>
-                                    </label>
+                            <div className="space-y-4 max-h-96 overflow-y-auto">
+                                {pendingDteData.itemsNoEncontrados?.map((item, idx) => (
+                                    <div key={idx} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                        <div className="flex items-start gap-3 mb-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedProductosToCreate[idx] || false}
+                                                onChange={() => handleCheckboxChange(idx)}
+                                                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer mt-0.5 flex-shrink-0"
+                                            />
+                                            <div className="flex-1">
+                                                <div className="font-medium text-gray-900">{item.nombre}</div>
+                                                <div className="text-xs text-gray-500">Codigo original: {item.codigo}</div>
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    Cantidad: {item.cantidad} | Costo: ${parseFloat(item.precio_costo || 0).toFixed(2)}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {selectedProductosToCreate[idx] && (
+                                            <div className="grid grid-cols-2 gap-3 pl-8">
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                        Codigo de Barras
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={productosData[idx]?.codigo_barras || item.codigo_barras || ''}
+                                                        onChange={(e) => handleProductoDataChange(idx, 'codigo_barras', e.target.value)}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                                        placeholder="Codigo de barras (opcional)"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                        Precio de Venta ($)
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={productosData[idx]?.precio_venta || 0}
+                                                        onChange={(e) => handleProductoDataChange(idx, 'precio_venta', parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                                        placeholder="Precio de venta"
+                                                        required
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex justify-end gap-3 rounded-b-xl">
+                        <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex justify-end gap-3 rounded-b-xl sticky bottom-0">
                             <button
                                 onClick={handleDialogNo}
                                 className="px-4 py-2 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
@@ -2801,7 +3127,7 @@ itemsNoEncontrados.push({
                                         className="px-3 py-2 text-green-600 cursor-pointer hover:bg-green-50 text-sm transition"
                                         onClick={handleCreateMP}
                                     >
-                                        ➕ Crear "<span className="font-medium">{mpSearch}</span>"
+                                        + Crear "<span className="font-medium">{mpSearch}</span>"
                                     </div>
                                 )}
                             </div>
