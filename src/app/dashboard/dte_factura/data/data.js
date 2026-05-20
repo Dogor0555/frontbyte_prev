@@ -163,6 +163,8 @@ export const codactividad = [
       codigo: "09100",
       nombre: "Actividades de apoyo a la extracción de petróleo y gas natural",
     },
+    { codigo: "10791", nombre: "Elaboración de productos de café" 
+    },
     {
       codigo: "09900",
       nombre: "Actividades de apoyo a la explotación de minas y canteras",
