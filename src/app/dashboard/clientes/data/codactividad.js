@@ -1266,8 +1266,10 @@ export const codactividad = [
       codigo: "46699",
       nombre: "Venta al por mayor de productos intermedios y desechos ncp",
     },
-    { codigo: "46701", nombre: "Venta de algodón en oro" },
-    { codigo: "46900", nombre: "Venta al por mayor de otros productos" },
+    { codigo: "46701", nombre: "Venta de algodón en oro" 
+    },
+    { codigo: "46900", nombre: "Venta al por mayor de otros productos"
+    },
     {
       codigo: "46901",
       nombre: "Venta al por mayor de cohetes y otros productos pirotécnicos",
