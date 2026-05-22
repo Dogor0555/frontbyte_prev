@@ -91,251 +91,480 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
   };
 
 
-  const handleExportExcel = async () => {
-      setExporting(true);
-      try {
-          let datosParaExportar = libro;
-          
-          if (datosParaExportar.length === 0) {
-                const response = await fetch(
-                  `${API_BASE_URL}/libro-ventas-consumidores-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
-                  {
+const handleExportExcel = async () => {
+    setExporting(true);
+
+    try {
+        let datosParaExportar = libro;
+
+        if (datosParaExportar.length === 0) {
+            const response = await fetch(
+                `${API_BASE_URL}/libro-ventas-consumidores-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+                {
                     credentials: "include"
-                  }
-                );
-              
-              if (!response.ok) throw new Error("Error al cargar datos para exportar");
-              const data = await response.json();
-              datosParaExportar = Array.isArray(data.libro) ? data.libro : [];
-          }
+                }
+            );
 
-          if (datosParaExportar.length === 0) {
-              alert("No hay datos para exportar en el período seleccionado");
-              return;
-          }
+            if (!response.ok) {
+                throw new Error("Error al cargar datos para exportar");
+            }
 
-          const workbook = new ExcelJS.Workbook();
-          
-          const worksheet = workbook.addWorksheet('Libro de Ventas');
+            const data = await response.json();
 
-          worksheet.columns = [
-              { header: 'FECHA', key: 'fecha', width: 12 },
-              { header: 'DOCUMENTO EMITIDO DEL', key: 'doc_del' }, 
-              { header: 'DOCUMENTO EMITIDO AL', key: 'doc_al' },   
-              { header: 'CAJA SISTEMA', key: 'caja', width: 15 },
-              { header: 'VENTAS EXENTAS', key: 'exentas', width: 15 },
-              { header: 'VENTAS GRAVADAS', key: 'gravadas', width: 15 },
-              { header: 'EXPORTACIONES', key: 'exportaciones', width: 15 },
-              { header: 'TOTAL VENTAS PROPIAS', key: 'propias', width: 18 },
-              { header: 'VENTAS DE TERCEROS', key: 'terceros', width: 18 }
-          ];
+            datosParaExportar = Array.isArray(data.libro)
+                ? data.libro
+                : [];
+        }
 
-          const headerRow = worksheet.getRow(1);
-          headerRow.eachCell((cell, colNumber) => {
-              cell.font = { 
-                  color: { argb: 'FFFFFFFF' }, 
-                  bold: true,
-                  size: 11
-              };
-              cell.fill = {
-                  type: 'pattern',
-                  pattern: 'solid',
-                  fgColor: { argb: 'FF4472C4' } 
-              };
-              cell.alignment = { 
-                  vertical: 'middle', 
-                  horizontal: 'center'
-              };
-              cell.border = {
-                  top: { style: 'thin', color: { argb: 'FF000000' } },
-                  left: { style: 'thin', color: { argb: 'FF000000' } },
-                  bottom: { style: 'thin', color: { argb: 'FF000000' } },
-                  right: { style: 'thin', color: { argb: 'FF000000' } }
-              };
-          });
-          headerRow.height = 25;
+        if (datosParaExportar.length === 0) {
+            alert("No hay datos para exportar en el período seleccionado");
+            return;
+        }
 
-          datosParaExportar.forEach((dia, index) => {
-              const row = worksheet.addRow({
-                  fecha: dia.dia || '',
-                  doc_del: dia.documento_emitido_del || '',
-                  doc_al: dia.documento_emitido_al || '',
-                  caja: dia.numero_caja_sistema || '',
-                  exentas: dia.ventas_exentas || 0,
-                  gravadas: dia.ventas_internas_gravadas || 0,
-                  exportaciones: dia.exportaciones || 0,
-                  propias: dia.total_ventas_diarias_propias || 0,
-                  terceros: dia.ventas_cuenta_terceros || 0
-              });
+        const workbook = new ExcelJS.Workbook();
 
-              const isEvenRow = index % 2 === 0;
-              const fillColor = isEvenRow ? 'FFD9E1F2' : 'FFFFFFFF';
-              
-              row.eachCell((cell, colNumber) => {
-                  if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
-                      cell.fill = {
-                          type: 'pattern',
-                          pattern: 'solid',
-                          fgColor: { argb: fillColor }
-                      };
-                      
-                      cell.font = {
-                          color: { argb: 'FF000000' }, 
-                          size: 10
-                      };
-                      
-                      cell.border = {
-                          top: { style: 'thin', color: { argb: 'FF000000' } },
-                          left: { style: 'thin', color: { argb: 'FF000000' } },
-                          bottom: { style: 'thin', color: { argb: 'FF000000' } },
-                          right: { style: 'thin', color: { argb: 'FF000000' } }
-                      };
+        const worksheet = workbook.addWorksheet(
+            "Libro Ventas Consumidor Final",
+            {
+                pageSetup: {
+                    paperSize: 9,
+                    orientation: "landscape",
+                    fitToPage: true,
+                    fitToWidth: 1,
+                    fitToHeight: 0
+                }
+            }
+        );
 
-                      if (colNumber >= 5 && colNumber <= 9) {
-                          cell.numFmt = '#,##0.00';
-                          cell.alignment = { horizontal: 'right' };
-                      }
+        // =========================================
+        // COLUMNAS
+        // =========================================
+        worksheet.columns = [
+            { key: "fecha", width: 14 },
+            { key: "doc_del", width: 20 },
+            { key: "doc_al", width: 20 },
+            { key: "caja", width: 18 },
+            { key: "exentas", width: 16 },
+            { key: "gravadas", width: 18 },
+            { key: "exportaciones", width: 16 },
+            { key: "propias", width: 22 },
+            { key: "terceros", width: 20 }
+        ];
 
-                      if (colNumber === 1) {
-                          cell.alignment = { horizontal: 'center' };
-                      }
-                  }
-              });
-          });
+        // =========================================
+        // TITULO SUPERIOR
+        // =========================================
 
-          const calculateDocumentColumnsWidth = () => {
-              const columns = worksheet.columns;
-              
-              const documentColumns = [1, 2];
-              
-              documentColumns.forEach(colIndex => {
-                  let maxLength = 0;
-                  
-                  worksheet.eachRow((row, rowNumber) => {
-                      const cell = row.getCell(colIndex + 1); 
-                      
-                      if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
-                          const cellText = String(cell.value);
-                          const cellLength = cellText.length;
-                          
-                          if (cellLength > maxLength) {
-                              maxLength = cellLength;
-                          }
-                      }
-                  });
-                  
-                  const headerText = worksheet.getRow(1).getCell(colIndex + 1).value;
-                  const headerLength = headerText ? String(headerText).length : 0;
-                  maxLength = Math.max(maxLength, headerLength);
+        worksheet.mergeCells("A1:I1");
 
-                  let calculatedWidth = Math.max(
-                      maxLength * 1.2, 
-                      20, 
-                      60  
-                  );
-                  
-                  if (columns[colIndex]) {
-                      columns[colIndex].width = calculatedWidth;
-                  }
-              });
-          };
+        worksheet.getCell("A1").value =
+            "MARLENE DEL CARMEN CANIZALEZ DE MURILLO";
 
-          calculateDocumentColumnsWidth();
+        worksheet.getCell("A1").font = {
+            name: "Times New Roman",
+            size: 20,
+            bold: false
+        };
 
-          const worksheetResumen = workbook.addWorksheet('Resumen');
+        worksheet.getCell("A1").alignment = {
+            horizontal: "center",
+            vertical: "middle"
+        };
 
-          const fechaGeneracion = getCurrentDateElSalvador();
-          const datosResumen = [
-              ['LIBRO DE VENTAS A CONSUMIDORES - RESUMEN', ''],
-              ['', ''],
-              ['Fecha de generación:', fechaGeneracion.toLocaleDateString('es-SV')],
-              ['Período:', `${formatDate(fechaInicio)} - ${formatDate(fechaFin)}`],
-              ['', ''],
-              ['RESUMEN DE VENTAS', ''],
-              ['Días con ventas:', resumen.diasConVentas || 0],
-              ['Ventas Exentas:', resumen.totalVentasExentas || 0],
-              ['Ventas Gravadas:', resumen.totalVentasGravadas || 0],
-              ['Exportaciones:', resumen.totalExportaciones || 0],
-              ['Total Ventas Propias:', resumen.totalVentasPropias || 0],
-              ['Total Ventas de Terceros:', resumen.totalVentasTerceros || 0],
-              ['', ''],
-              ['TOTALES GENERALES', ''],
-              ['Ventas Exentas:', totales.ventasExentas],
-              ['Ventas Gravadas:', totales.ventasGravadas],
-              ['Exportaciones:', totales.exportaciones],
-              ['Total Ventas:', totales.totalVentas],
-              ['Ventas Terceros:', totales.ventasTerceros]
-          ];
+        worksheet.mergeCells("A2:I2");
 
-          datosResumen.forEach((fila, rowIndex) => {
-              const row = worksheetResumen.addRow(fila);
-              
-              row.eachCell((cell, colNumber) => {
-                  if (cell.value !== null && cell.value !== undefined && cell.value !== '') {
+        worksheet.getCell("A2").value =
+            "LIBRO DE VENTAS A CONSUMIDOR FINAL";
 
-                      if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
-                          if (colNumber === 1) { 
-                              cell.font = { 
-                                  color: { argb: 'FFFFFFFF' }, 
-                                  bold: true,
-                                  size: rowIndex === 0 ? 14 : 12
-                              };
-                              cell.fill = {
-                                  type: 'pattern',
-                                  pattern: 'solid',
-                                  fgColor: { argb: 'FF4472C4' }
-                              };
-                              cell.alignment = { horizontal: 'center' };
-                          }
-                      }
+        worksheet.getCell("A2").font = {
+            name: "Times New Roman",
+            size: 18,
+            bold: false
+        };
 
-                      if (colNumber === 2 && typeof cell.value === 'number') {
-                          cell.numFmt = '#,##0.00';
-                          cell.alignment = { horizontal: 'right' };
-                      }
+        worksheet.getCell("A2").alignment = {
+            horizontal: "center",
+            vertical: "middle"
+        };
 
-                      cell.border = {
-                          top: { style: 'thin', color: { argb: 'FF000000' } },
-                          left: { style: 'thin', color: { argb: 'FF000000' } },
-                          bottom: { style: 'thin', color: { argb: 'FF000000' } },
-                          right: { style: 'thin', color: { argb: 'FF000000' } }
-                      };
-                  }
-              });
+        // =========================================
+        // AÑO / MES / NRC / NIT
+        // =========================================
 
-              if (fila.some(cell => cell !== null && cell !== undefined && cell !== '')) {
-                  if (rowIndex === 0 || rowIndex === 5 || rowIndex === 13) {
-                      row.height = 25;
-                  }
-              }
-          });
+        const meses = [
+            "ENERO",
+            "FEBRERO",
+            "MARZO",
+            "ABRIL",
+            "MAYO",
+            "JUNIO",
+            "JULIO",
+            "AGOSTO",
+            "SEPTIEMBRE",
+            "OCTUBRE",
+            "NOVIEMBRE",
+            "DICIEMBRE"
+        ];
 
-          worksheetResumen.columns = [
-              { width: 25 },
-              { width: 20 }
-          ];
+        worksheet.getCell("A4").value = "AÑO:";
+        worksheet.getCell("B4").value =
+            new Date(fechaInicio).getFullYear();
 
-          const buffer = await workbook.xlsx.writeBuffer();
-          const blob = new Blob([buffer], { 
-              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-          });
-          
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `libro-ventas-consumidores-${fechaInicio}-a-${fechaFin}.xlsx`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-          
-      } catch (error) {
-          console.error("Error al exportar Excel:", error);
-          alert("Error al exportar Excel: " + error.message);
-      } finally {
-          setExporting(false);
-      }
-  };
+        worksheet.getCell("A5").value = "MES:";
+        worksheet.getCell("B5").value =
+            meses[new Date(fechaInicio).getMonth()];
+
+        worksheet.getCell("G4").value = "N.R.C.:";
+        worksheet.getCell("H4").value = "384823-0";
+
+        worksheet.getCell("G5").value = "N.I.T.:";
+        worksheet.getCell("H5").value =
+            "0309-070976-101-3";
+
+        ["A4", "A5", "G4", "G5"].forEach((cell) => {
+            worksheet.getCell(cell).font = {
+                bold: true,
+                size: 12
+            };
+        });
+
+        ["B4", "B5", "H4", "H5"].forEach((cell) => {
+            worksheet.getCell(cell).font = {
+                size: 12
+            };
+        });
+
+        // =========================================
+        // ENCABEZADOS TABLA
+        // =========================================
+
+        const headers = [
+            "FECHA",
+            "DOCUMENTO EMITIDO DEL",
+            "DOCUMENTO EMITIDO AL",
+            "CAJA SISTEMA",
+            "VENTAS EXENTAS",
+            "VENTAS GRAVADAS",
+            "EXPORTACIONES",
+            "TOTAL VENTAS PROPIAS",
+            "VENTAS DE TERCEROS"
+        ];
+
+        headers.forEach((header, index) => {
+            const cell = worksheet.getCell(7, index + 1);
+
+            cell.value = header;
+
+            cell.font = {
+                bold: true,
+                size: 10
+            };
+
+            cell.alignment = {
+                horizontal: "center",
+                vertical: "middle",
+                wrapText: true
+            };
+
+            cell.border = {
+                top: { style: "thin" },
+                left: { style: "thin" },
+                bottom: { style: "thin" },
+                right: { style: "thin" }
+            };
+        });
+
+        worksheet.getRow(7).height = 35;
+
+        // =========================================
+        // DATOS
+        // =========================================
+
+        datosParaExportar.forEach((dia) => {
+            const row = worksheet.addRow({
+                fecha: dia.dia || "",
+                doc_del:
+                    dia.documento_emitido_del || "",
+                doc_al:
+                    dia.documento_emitido_al || "",
+                caja:
+                    dia.numero_caja_sistema || "",
+                exentas:
+                    dia.ventas_exentas || 0,
+                gravadas:
+                    dia.ventas_internas_gravadas || 0,
+                exportaciones:
+                    dia.exportaciones || 0,
+                propias:
+                    dia.total_ventas_diarias_propias || 0,
+                terceros:
+                    dia.ventas_cuenta_terceros || 0
+            });
+
+            row.eachCell((cell, colNumber) => {
+                cell.font = {
+                    size: 10
+                };
+
+                cell.border = {
+                    top: { style: "thin" },
+                    left: { style: "thin" },
+                    bottom: { style: "thin" },
+                    right: { style: "thin" }
+                };
+
+                cell.alignment = {
+                    vertical: "middle"
+                };
+
+                if (colNumber >= 5 && colNumber <= 9) {
+                    cell.numFmt = "#,##0.00";
+
+                    cell.alignment = {
+                        horizontal: "right",
+                        vertical: "middle"
+                    };
+                }
+
+                if (colNumber === 1) {
+                    cell.alignment = {
+                        horizontal: "center",
+                        vertical: "middle"
+                    };
+                }
+            });
+        });
+
+        // =========================================
+        // TOTALES
+        // =========================================
+
+        const totalRow = worksheet.addRow({
+            caja: "TOTALES",
+            exentas:
+                totales.ventasExentas || 0,
+            gravadas:
+                totales.ventasGravadas || 0,
+            exportaciones:
+                totales.exportaciones || 0,
+            propias:
+                totales.totalVentas || 0,
+            terceros:
+                totales.ventasTerceros || 0
+        });
+
+        totalRow.eachCell((cell, colNumber) => {
+            cell.font = {
+                bold: true,
+                size: 10
+            };
+
+            cell.border = {
+                top: { style: "thin" },
+                left: { style: "thin" },
+                bottom: { style: "thin" },
+                right: { style: "thin" }
+            };
+
+            if (colNumber >= 5 && colNumber <= 9) {
+                cell.numFmt = "#,##0.00";
+            }
+        });
+        // =========================================
+        // RESUMEN DE VENTAS
+        // =========================================
+
+        const resumenRowStart =
+            worksheet.lastRow.number + 3;
+
+        // Título
+worksheet.mergeCells(
+    `G${resumenRowStart}:I${resumenRowStart}`
+);
+
+const resumenTitle =
+    worksheet.getCell(`G${resumenRowStart}`);
+
+        resumenTitle.value = "RESUMEN DE VENTAS";
+
+        resumenTitle.font = {
+            bold: true,
+            size: 12
+        };
+
+        resumenTitle.alignment = {
+            horizontal: "center",
+            vertical: "middle"
+        };
+
+        resumenTitle.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" }
+        };
+
+        // =========================================
+        // FILAS RESUMEN
+        // =========================================
+
+        const resumenVentas = [
+            [
+                "VENTAS NETAS(GRAVADAS)",
+                totales.ventasGravadas || 0
+            ],
+            [
+                "IVA DEBITO FISCAL",
+                totales.debitoFiscal || 0
+            ],
+            [
+                "VENTAS TOTALES",
+                totales.totalVentas || 0
+            ]
+        ];
+
+        resumenVentas.forEach((item, index) => {
+            const rowNumber =
+                resumenRowStart + index + 1;
+
+            // Texto
+worksheet.getCell(`G${rowNumber}`).value =
+    item[0];
+
+worksheet.getCell(`H${rowNumber}`).value =
+    "$";
+
+worksheet.getCell(`I${rowNumber}`).value =
+    item[1];
+
+            // ESTILOS
+["G", "H", "I"].forEach((col) => {
+                const cell =
+                    worksheet.getCell(
+                        `${col}${rowNumber}`
+                    );
+
+                cell.border = {
+                    top: { style: "thin" },
+                    left: { style: "thin" },
+                    bottom: { style: "thin" },
+                    right: { style: "thin" }
+                };
+
+                cell.font = {
+                    bold: index === 2,
+                    size: 11
+                };
+
+                cell.alignment = {
+                    vertical: "middle",
+                    horizontal:
+                        col === "F"
+                            ? "right"
+                            : "center"
+                };
+            });
+
+            // Formato moneda
+worksheet.getCell(
+    `I${rowNumber}`
+).numFmt = "#,##0.00";
+        });
+        // =========================================
+        // FIRMA
+        // =========================================
+
+// =========================================
+// FIRMA HORIZONTAL
+// =========================================
+
+// MISMA ALTURA DEL RESUMEN
+const firmaRow = resumenRowStart + 2;
+
+// Línea firma
+worksheet.mergeCells(
+    `A${firmaRow}:C${firmaRow}`
+);
+
+worksheet.getCell(
+    `A${firmaRow}`
+).value =
+    "__________________________________";
+
+worksheet.getCell(
+    `A${firmaRow}`
+).alignment = {
+    horizontal: "center"
+};
+
+// Texto firma
+worksheet.mergeCells(
+    `A${firmaRow + 1}:C${firmaRow + 1}`
+);
+
+worksheet.getCell(
+    `A${firmaRow + 1}`
+).value =
+    "FIRMA Y SELLO DEL CONTADOR";
+
+worksheet.getCell(
+    `A${firmaRow + 1}`
+).font = {
+    bold: true,
+    size: 10
+};
+
+worksheet.getCell(
+    `A${firmaRow + 1}`
+).alignment = {
+    horizontal: "center"
+};
+
+        // =========================================
+        // EXPORTAR
+        // =========================================
+
+        const buffer =
+            await workbook.xlsx.writeBuffer();
+
+        const blob = new Blob([buffer], {
+            type:
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        });
+
+        const url =
+            URL.createObjectURL(blob);
+
+        const link =
+            document.createElement("a");
+
+        link.href = url;
+
+        link.download =
+            `libro-ventas-consumidores-${fechaInicio}-a-${fechaFin}.xlsx`;
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error(
+            "Error al exportar Excel:",
+            error
+        );
+
+        alert(
+            "Error al exportar Excel: " +
+            error.message
+        );
+    } finally {
+        setExporting(false);
+    }
+};
 
   const handleExportPDF = async () => {
     setExportingPDF(true);
