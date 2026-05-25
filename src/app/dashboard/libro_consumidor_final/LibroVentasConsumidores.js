@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { FaSearch, FaFileAlt, FaCalendarAlt,  FaFilter,  FaFileExcel, FaSync, FaFilePdf } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaCalendarAlt, FaFilter, FaFileExcel, FaSync, FaFilePdf } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
@@ -10,7 +10,6 @@ import autoTable from "jspdf-autotable";
 import ExcelJS from 'exceljs';
 import { API_BASE_URL } from "@/lib/api";
 import ExportarLibroConsumidor from "../realizar_compra/components/ExportarLibroConsumidor";
-
 
 export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -37,6 +36,8 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
   const router = useRouter();
   const tableRef = useRef();
 
+  const [nombreContador, setNombreContador] = useState("");
+
   // Función para obtener la fecha actual en hora de El Salvador (UTC-6)
   const getCurrentDateElSalvador = () => {
     const ahora = new Date();
@@ -45,11 +46,37 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
     return horaElSalvador;
   };
 
+  const fetchNombreContador = async () => {
+    try {
+      if (user && user.nombre_contador) {
+        setNombreContador(user.nombre_contador);
+        return;
+      }
+      if (user && user.nombre) {
+        setNombreContador(user.nombre);
+        return;
+      }
+      const response = await fetch(`${API_BASE_URL}/usuario/datos-contador`, {
+        credentials: "include"
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setNombreContador(data.nombre_contador || data.nombre_usuario || "CONTADOR SIN REGISTRAR");
+      } else {
+        setNombreContador("CONTADOR SIN REGISTRAR");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      setNombreContador("CONTADOR SIN REGISTRAR");
+    }
+  };
+
   useEffect(() => {
     const hoy = getCurrentDateElSalvador();
     const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
     setFechaInicio(primerDiaMes.toISOString().split('T')[0]);
     setFechaFin(hoy.toISOString().split('T')[0]);
+    fetchNombreContador();
   }, []);
 
   useEffect(() => {
@@ -90,485 +117,222 @@ export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, ha
     }
   };
 
-
-const handleExportExcel = async () => {
+  const handleExportExcel = async () => {
     setExporting(true);
 
     try {
-        let datosParaExportar = libro;
+      let datosParaExportar = libro;
 
-        if (datosParaExportar.length === 0) {
-            const response = await fetch(
-                `${API_BASE_URL}/libro-ventas-consumidores-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
-                {
-                    credentials: "include"
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error("Error al cargar datos para exportar");
-            }
-
-            const data = await response.json();
-
-            datosParaExportar = Array.isArray(data.libro)
-                ? data.libro
-                : [];
-        }
-
-        if (datosParaExportar.length === 0) {
-            alert("No hay datos para exportar en el período seleccionado");
-            return;
-        }
-
-        const workbook = new ExcelJS.Workbook();
-
-        const worksheet = workbook.addWorksheet(
-            "Libro Ventas Consumidor Final",
-            {
-                pageSetup: {
-                    paperSize: 9,
-                    orientation: "landscape",
-                    fitToPage: true,
-                    fitToWidth: 1,
-                    fitToHeight: 0
-                }
-            }
+      if (datosParaExportar.length === 0) {
+        const response = await fetch(
+          `${API_BASE_URL}/libro-ventas-consumidores-rango?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`,
+          { credentials: "include" }
         );
 
-        // =========================================
-        // COLUMNAS
-        // =========================================
-        worksheet.columns = [
-            { key: "fecha", width: 14 },
-            { key: "doc_del", width: 20 },
-            { key: "doc_al", width: 20 },
-            { key: "caja", width: 18 },
-            { key: "exentas", width: 16 },
-            { key: "gravadas", width: 18 },
-            { key: "exportaciones", width: 16 },
-            { key: "propias", width: 22 },
-            { key: "terceros", width: 20 }
-        ];
+        if (!response.ok) {
+          throw new Error("Error al cargar datos para exportar");
+        }
 
-        // =========================================
-        // TITULO SUPERIOR
-        // =========================================
+        const data = await response.json();
+        datosParaExportar = Array.isArray(data.libro) ? data.libro : [];
+      }
 
-        worksheet.mergeCells("A1:I1");
+      if (datosParaExportar.length === 0) {
+        alert("No hay datos para exportar en el período seleccionado");
+        return;
+      }
 
-        worksheet.getCell("A1").value =
-            "MARLENE DEL CARMEN CANIZALEZ DE MURILLO";
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Libro Ventas Consumidor Final", {
+        pageSetup: {
+          paperSize: 9,
+          orientation: "landscape",
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0
+        }
+      });
 
-        worksheet.getCell("A1").font = {
-            name: "Times New Roman",
-            size: 20,
-            bold: false
-        };
+      // COLUMNAS
+      worksheet.columns = [
+        { key: "fecha", width: 14 },
+        { key: "doc_del", width: 20 },
+        { key: "doc_al", width: 20 },
+        { key: "caja", width: 18 },
+        { key: "exentas", width: 16 },
+        { key: "gravadas", width: 18 },
+        { key: "exportaciones", width: 16 },
+        { key: "propias", width: 22 },
+        { key: "terceros", width: 20 }
+      ];
 
-        worksheet.getCell("A1").alignment = {
-            horizontal: "center",
-            vertical: "middle"
-        };
+      // TITULO SUPERIOR
+      worksheet.mergeCells("A1:I1");
+      worksheet.getCell("A1").value = "MARLENE DEL CARMEN CANIZALEZ DE MURILLO";
+      worksheet.getCell("A1").font = { name: "Times New Roman", size: 20, bold: false };
+      worksheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
 
-        worksheet.mergeCells("A2:I2");
+      worksheet.mergeCells("A2:I2");
+      worksheet.getCell("A2").value = "LIBRO DE VENTAS A CONSUMIDOR FINAL";
+      worksheet.getCell("A2").font = { name: "Times New Roman", size: 18, bold: false };
+      worksheet.getCell("A2").alignment = { horizontal: "center", vertical: "middle" };
 
-        worksheet.getCell("A2").value =
-            "LIBRO DE VENTAS A CONSUMIDOR FINAL";
+      // AÑO / MES / NRC / NIT
+      const meses = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
 
-        worksheet.getCell("A2").font = {
-            name: "Times New Roman",
-            size: 18,
-            bold: false
-        };
+      worksheet.getCell("A4").value = "AÑO:";
+      worksheet.getCell("B4").value = new Date(fechaInicio).getFullYear();
+      worksheet.getCell("A5").value = "MES:";
+      worksheet.getCell("B5").value = meses[new Date(fechaInicio).getMonth()];
+      worksheet.getCell("G4").value = "N.R.C.:";
+      worksheet.getCell("H4").value = "384823-0";
+      worksheet.getCell("G5").value = "N.I.T.:";
+      worksheet.getCell("H5").value = "0309-070976-101-3";
 
-        worksheet.getCell("A2").alignment = {
-            horizontal: "center",
-            vertical: "middle"
-        };
+      ["A4", "A5", "G4", "G5"].forEach((cell) => {
+        worksheet.getCell(cell).font = { bold: true, size: 12 };
+      });
+      ["B4", "B5", "H4", "H5"].forEach((cell) => {
+        worksheet.getCell(cell).font = { size: 12 };
+      });
 
-        // =========================================
-        // AÑO / MES / NRC / NIT
-        // =========================================
+      // ENCABEZADOS TABLA
+      const headers = ["FECHA", "DOCUMENTO EMITIDO DEL", "DOCUMENTO EMITIDO AL", "CAJA SISTEMA", "VENTAS EXENTAS", "VENTAS GRAVADAS", "EXPORTACIONES", "TOTAL VENTAS PROPIAS", "VENTAS DE TERCEROS"];
 
-        const meses = [
-            "ENERO",
-            "FEBRERO",
-            "MARZO",
-            "ABRIL",
-            "MAYO",
-            "JUNIO",
-            "JULIO",
-            "AGOSTO",
-            "SEPTIEMBRE",
-            "OCTUBRE",
-            "NOVIEMBRE",
-            "DICIEMBRE"
-        ];
+      headers.forEach((header, index) => {
+        const cell = worksheet.getCell(7, index + 1);
+        cell.value = header;
+        cell.font = { bold: true, size: 10 };
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        cell.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
+      });
+      worksheet.getRow(7).height = 35;
 
-        worksheet.getCell("A4").value = "AÑO:";
-        worksheet.getCell("B4").value =
-            new Date(fechaInicio).getFullYear();
-
-        worksheet.getCell("A5").value = "MES:";
-        worksheet.getCell("B5").value =
-            meses[new Date(fechaInicio).getMonth()];
-
-        worksheet.getCell("G4").value = "N.R.C.:";
-        worksheet.getCell("H4").value = "384823-0";
-
-        worksheet.getCell("G5").value = "N.I.T.:";
-        worksheet.getCell("H5").value =
-            "0309-070976-101-3";
-
-        ["A4", "A5", "G4", "G5"].forEach((cell) => {
-            worksheet.getCell(cell).font = {
-                bold: true,
-                size: 12
-            };
+      // DATOS
+      datosParaExportar.forEach((dia) => {
+        const row = worksheet.addRow({
+          fecha: dia.dia || "",
+          doc_del: dia.documento_emitido_del || "",
+          doc_al: dia.documento_emitido_al || "",
+          caja: dia.numero_caja_sistema || "",
+          exentas: dia.ventas_exentas || 0,
+          gravadas: dia.ventas_internas_gravadas || 0,
+          exportaciones: dia.exportaciones || 0,
+          propias: dia.total_ventas_diarias_propias || 0,
+          terceros: dia.ventas_cuenta_terceros || 0
         });
 
-        ["B4", "B5", "H4", "H5"].forEach((cell) => {
-            worksheet.getCell(cell).font = {
-                size: 12
-            };
+        row.eachCell((cell, colNumber) => {
+          cell.font = { size: 10 };
+          cell.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
+          cell.alignment = { vertical: "middle" };
+          if (colNumber >= 5 && colNumber <= 9) {
+            cell.numFmt = "#,##0.00";
+            cell.alignment = { horizontal: "right", vertical: "middle" };
+          }
+          if (colNumber === 1) {
+            cell.alignment = { horizontal: "center", vertical: "middle" };
+          }
         });
+      });
 
-        // =========================================
-        // ENCABEZADOS TABLA
-        // =========================================
+      // TOTALES
+      const totales = getTotales();
+      const totalRow = worksheet.addRow({
+        caja: "TOTALES",
+        exentas: totales.ventasExentas || 0,
+        gravadas: totales.ventasGravadas || 0,
+        exportaciones: totales.exportaciones || 0,
+        propias: totales.totalVentas || 0,
+        terceros: totales.ventasTerceros || 0
+      });
 
-        const headers = [
-            "FECHA",
-            "DOCUMENTO EMITIDO DEL",
-            "DOCUMENTO EMITIDO AL",
-            "CAJA SISTEMA",
-            "VENTAS EXENTAS",
-            "VENTAS GRAVADAS",
-            "EXPORTACIONES",
-            "TOTAL VENTAS PROPIAS",
-            "VENTAS DE TERCEROS"
-        ];
+      totalRow.eachCell((cell, colNumber) => {
+        cell.font = { bold: true, size: 10 };
+        cell.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
+        if (colNumber >= 5 && colNumber <= 9) {
+          cell.numFmt = "#,##0.00";
+        }
+      });
 
-        headers.forEach((header, index) => {
-            const cell = worksheet.getCell(7, index + 1);
+      // RESUMEN DE VENTAS
+      const resumenRowStart = worksheet.lastRow.number + 3;
+      worksheet.mergeCells(`G${resumenRowStart}:I${resumenRowStart}`);
+      const resumenTitle = worksheet.getCell(`G${resumenRowStart}`);
+      resumenTitle.value = "RESUMEN DE VENTAS";
+      resumenTitle.font = { bold: true, size: 12 };
+      resumenTitle.alignment = { horizontal: "center", vertical: "middle" };
+      resumenTitle.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
 
-            cell.value = header;
+      const resumenVentas = [
+        ["VENTAS NETAS (GRAVADAS)", totales.ventasGravadas || 0],
+        ["IVA DEBITO FISCAL", (totales.ventasGravadas || 0) * 0.13],
+        ["VENTAS TOTALES", totales.totalVentas || 0]
+      ];
 
-            cell.font = {
-                bold: true,
-                size: 10
-            };
+      resumenVentas.forEach((item, index) => {
+        const rowNumber = resumenRowStart + index + 1;
+        worksheet.getCell(`G${rowNumber}`).value = item[0];
+        worksheet.getCell(`H${rowNumber}`).value = "$";
+        worksheet.getCell(`I${rowNumber}`).value = item[1];
+        worksheet.getCell(`I${rowNumber}`).numFmt = "#,##0.00";
 
-            cell.alignment = {
-                horizontal: "center",
-                vertical: "middle",
-                wrapText: true
-            };
-
-            cell.border = {
-                top: { style: "thin" },
-                left: { style: "thin" },
-                bottom: { style: "thin" },
-                right: { style: "thin" }
-            };
+        ["G", "H", "I"].forEach((col) => {
+          const cell = worksheet.getCell(`${col}${rowNumber}`);
+          cell.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
+          cell.font = { bold: index === 2, size: 11 };
+          cell.alignment = { vertical: "middle", horizontal: col === "H" ? "center" : "right" };
         });
+      });
 
-        worksheet.getRow(7).height = 35;
+      // =========================================
+      // FIRMA CON EL NOMBRE DEL CONTADOR
+      // =========================================
+      const contadorNombre = nombreContador || (user?.nombre_contador) || (user?.nombre) || "CONTADOR SIN REGISTRAR";
+      const firmaRow = resumenRowStart + 4;
 
-        // =========================================
-        // DATOS
-        // =========================================
+      // Línea para la firma
+      worksheet.mergeCells(`A${firmaRow}:C${firmaRow}`);
+      worksheet.getCell(`A${firmaRow}`).value = "__________________________________";
+      worksheet.getCell(`A${firmaRow}`).alignment = { horizontal: "center" };
+      worksheet.getCell(`A${firmaRow}`).font = { size: 10 };
 
-        datosParaExportar.forEach((dia) => {
-            const row = worksheet.addRow({
-                fecha: dia.dia || "",
-                doc_del:
-                    dia.documento_emitido_del || "",
-                doc_al:
-                    dia.documento_emitido_al || "",
-                caja:
-                    dia.numero_caja_sistema || "",
-                exentas:
-                    dia.ventas_exentas || 0,
-                gravadas:
-                    dia.ventas_internas_gravadas || 0,
-                exportaciones:
-                    dia.exportaciones || 0,
-                propias:
-                    dia.total_ventas_diarias_propias || 0,
-                terceros:
-                    dia.ventas_cuenta_terceros || 0
-            });
+      // NOMBRE DEL CONTADOR (EL VALOR REAL)
+      worksheet.mergeCells(`A${firmaRow + 1}:C${firmaRow + 1}`);
+      worksheet.getCell(`A${firmaRow + 1}`).value = contadorNombre;
+      worksheet.getCell(`A${firmaRow + 1}`).font = { bold: true, size: 10, name: "Times New Roman" };
+      worksheet.getCell(`A${firmaRow + 1}`).alignment = { horizontal: "center" };
 
-            row.eachCell((cell, colNumber) => {
-                cell.font = {
-                    size: 10
-                };
+      // TÍTULO "CONTADOR"
+      worksheet.mergeCells(`A${firmaRow + 2}:C${firmaRow + 2}`);
+      worksheet.getCell(`A${firmaRow + 2}`).value = "CONTADOR";
+      worksheet.getCell(`A${firmaRow + 2}`).font = { bold: true, size: 10, name: "Times New Roman" };
+      worksheet.getCell(`A${firmaRow + 2}`).alignment = { horizontal: "center" };
 
-                cell.border = {
-                    top: { style: "thin" },
-                    left: { style: "thin" },
-                    bottom: { style: "thin" },
-                    right: { style: "thin" }
-                };
-
-                cell.alignment = {
-                    vertical: "middle"
-                };
-
-                if (colNumber >= 5 && colNumber <= 9) {
-                    cell.numFmt = "#,##0.00";
-
-                    cell.alignment = {
-                        horizontal: "right",
-                        vertical: "middle"
-                    };
-                }
-
-                if (colNumber === 1) {
-                    cell.alignment = {
-                        horizontal: "center",
-                        vertical: "middle"
-                    };
-                }
-            });
-        });
-
-        // =========================================
-        // TOTALES
-        // =========================================
-
-        const totalRow = worksheet.addRow({
-            caja: "TOTALES",
-            exentas:
-                totales.ventasExentas || 0,
-            gravadas:
-                totales.ventasGravadas || 0,
-            exportaciones:
-                totales.exportaciones || 0,
-            propias:
-                totales.totalVentas || 0,
-            terceros:
-                totales.ventasTerceros || 0
-        });
-
-        totalRow.eachCell((cell, colNumber) => {
-            cell.font = {
-                bold: true,
-                size: 10
-            };
-
-            cell.border = {
-                top: { style: "thin" },
-                left: { style: "thin" },
-                bottom: { style: "thin" },
-                right: { style: "thin" }
-            };
-
-            if (colNumber >= 5 && colNumber <= 9) {
-                cell.numFmt = "#,##0.00";
-            }
-        });
-        // =========================================
-        // RESUMEN DE VENTAS
-        // =========================================
-
-        const resumenRowStart =
-            worksheet.lastRow.number + 3;
-
-        // Título
-worksheet.mergeCells(
-    `G${resumenRowStart}:I${resumenRowStart}`
-);
-
-const resumenTitle =
-    worksheet.getCell(`G${resumenRowStart}`);
-
-        resumenTitle.value = "RESUMEN DE VENTAS";
-
-        resumenTitle.font = {
-            bold: true,
-            size: 12
-        };
-
-        resumenTitle.alignment = {
-            horizontal: "center",
-            vertical: "middle"
-        };
-
-        resumenTitle.border = {
-            top: { style: "thin" },
-            left: { style: "thin" },
-            bottom: { style: "thin" },
-            right: { style: "thin" }
-        };
-
-        // =========================================
-        // FILAS RESUMEN
-        // =========================================
-
-        const resumenVentas = [
-            [
-                "VENTAS NETAS(GRAVADAS)",
-                totales.ventasGravadas || 0
-            ],
-            [
-                "IVA DEBITO FISCAL",
-                totales.debitoFiscal || 0
-            ],
-            [
-                "VENTAS TOTALES",
-                totales.totalVentas || 0
-            ]
-        ];
-
-        resumenVentas.forEach((item, index) => {
-            const rowNumber =
-                resumenRowStart + index + 1;
-
-            // Texto
-worksheet.getCell(`G${rowNumber}`).value =
-    item[0];
-
-worksheet.getCell(`H${rowNumber}`).value =
-    "$";
-
-worksheet.getCell(`I${rowNumber}`).value =
-    item[1];
-
-            // ESTILOS
-["G", "H", "I"].forEach((col) => {
-                const cell =
-                    worksheet.getCell(
-                        `${col}${rowNumber}`
-                    );
-
-                cell.border = {
-                    top: { style: "thin" },
-                    left: { style: "thin" },
-                    bottom: { style: "thin" },
-                    right: { style: "thin" }
-                };
-
-                cell.font = {
-                    bold: index === 2,
-                    size: 11
-                };
-
-                cell.alignment = {
-                    vertical: "middle",
-                    horizontal:
-                        col === "F"
-                            ? "right"
-                            : "center"
-                };
-            });
-
-            // Formato moneda
-worksheet.getCell(
-    `I${rowNumber}`
-).numFmt = "#,##0.00";
-        });
-        // =========================================
-        // FIRMA
-        // =========================================
-
-// =========================================
-// FIRMA HORIZONTAL
-// =========================================
-
-// MISMA ALTURA DEL RESUMEN
-const firmaRow = resumenRowStart + 2;
-
-// Línea firma
-worksheet.mergeCells(
-    `A${firmaRow}:C${firmaRow}`
-);
-
-worksheet.getCell(
-    `A${firmaRow}`
-).value =
-    "__________________________________";
-
-worksheet.getCell(
-    `A${firmaRow}`
-).alignment = {
-    horizontal: "center"
-};
-
-// Texto firma
-worksheet.mergeCells(
-    `A${firmaRow + 1}:C${firmaRow + 1}`
-);
-
-worksheet.getCell(
-    `A${firmaRow + 1}`
-).value =
-    "FIRMA Y SELLO DEL CONTADOR";
-
-worksheet.getCell(
-    `A${firmaRow + 1}`
-).font = {
-    bold: true,
-    size: 10
-};
-
-worksheet.getCell(
-    `A${firmaRow + 1}`
-).alignment = {
-    horizontal: "center"
-};
-
-        // =========================================
-        // EXPORTAR
-        // =========================================
-
-        const buffer =
-            await workbook.xlsx.writeBuffer();
-
-        const blob = new Blob([buffer], {
-            type:
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        });
-
-        const url =
-            URL.createObjectURL(blob);
-
-        const link =
-            document.createElement("a");
-
-        link.href = url;
-
-        link.download =
-            `libro-ventas-consumidores-${fechaInicio}-a-${fechaFin}.xlsx`;
-
-        document.body.appendChild(link);
-
-        link.click();
-
-        document.body.removeChild(link);
-
-        URL.revokeObjectURL(url);
+      // EXPORTAR
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `libro-ventas-consumidores-${fechaInicio}-a-${fechaFin}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
     } catch (error) {
-        console.error(
-            "Error al exportar Excel:",
-            error
-        );
-
-        alert(
-            "Error al exportar Excel: " +
-            error.message
-        );
+      console.error("Error al exportar Excel:", error);
+      alert("Error al exportar Excel: " + error.message);
     } finally {
-        setExporting(false);
+      setExporting(false);
     }
-};
+  };
 
   const handleExportPDF = async () => {
     setExportingPDF(true);
     try {
+      const contadorNombre = nombreContador || (user?.nombre_contador) || (user?.nombre) || "CONTADOR SIN REGISTRAR";
       const rowsPerPage = 15;
       const chunks = [];
       for (let i = 0; i < libroFiltrado.length; i += rowsPerPage) {
@@ -578,7 +342,6 @@ worksheet.getCell(
       const doc = new jsPDF('landscape');
       const pageWidth = doc.internal.pageSize.getWidth();
       const margin = 8;
-      
       const fechaGeneracion = getCurrentDateElSalvador();
       
       chunks.forEach((chunk, pageIndex) => {
@@ -605,6 +368,9 @@ worksheet.getCell(
           doc.text(`Ventas Exentas: ${formatCurrency(resumen.totalVentasExentas)}`, margin, 49);
           doc.text(`Ventas Gravadas: ${formatCurrency(resumen.totalVentasGravadas)}`, margin + 70, 42);
           doc.text(`Total Ventas: ${formatCurrency(resumen.totalVentasPropias)}`, margin + 70, 49);
+          
+          doc.setFontSize(8);
+          doc.text(`Contador: ${contadorNombre}`, margin, 56);
         }
         
         const tableData = chunk.map(dia => [
@@ -619,7 +385,7 @@ worksheet.getCell(
           formatCurrency(dia.ventas_cuenta_terceros)
         ]);
         
-        const startY = pageIndex === 0 ? 55 : 20;
+        const startY = pageIndex === 0 ? 62 : 20;
         
         autoTable(doc, {
           startY: startY,
@@ -642,6 +408,19 @@ worksheet.getCell(
           margin: { left: margin, right: margin }
         });
         
+        // Agregar firma al final de la última página
+        if (pageIndex === chunks.length - 1) {
+          const finalY = doc.lastAutoTable.finalY + 10;
+          doc.setFontSize(8);
+          doc.text("__________________________________", pageWidth / 2, finalY, { align: "center" });
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "bold");
+          doc.text(contadorNombre, pageWidth / 2, finalY + 6, { align: "center" });
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "normal");
+          doc.text("CONTADOR", pageWidth / 2, finalY + 12, { align: "center" });
+        }
+        
         doc.setFontSize(8);
         doc.setFont("helvetica", "italic");
         doc.text(
@@ -662,59 +441,48 @@ worksheet.getCell(
     }
   };
 
-const formatearFechaISO = (fecha) => {
-  if (!fecha) return "";
+  const formatearFechaISO = (fecha) => {
+    if (!fecha) return "";
+    if (fecha.includes("-")) return fecha;
+    const partes = fecha.split("/");
+    if (partes.length !== 3) return "";
+    const [mes, dia, anio] = partes;
+    return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+  };
 
-  // Si ya viene en formato ISO (yyyy-mm-dd), no tocar
-  if (fecha.includes("-")) return fecha;
-
-  // Si viene en formato dd/mm/yyyy o mm/dd/yyyy
-  const partes = fecha.split("/");
-
-  if (partes.length !== 3) return "";
-
-  const [mes, dia, anio] = partes;
-
-  return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
-};
-const descargarCSV = async () => {
-  try {
-    if (!fechaInicio || !fechaFin) {
-      return alert("Debes seleccionar un rango de fechas");
-    }
-
-    const params = new URLSearchParams({
-      fechaInicio: formatearFechaISO(fechaInicio),
-      fechaFin: formatearFechaISO(fechaFin),
-    });
-
-    const res = await fetch(
-      `${API_BASE_URL}/consumidor-final-csv?${params.toString()}`,
-      {
-        credentials: "include",
+  const descargarCSV = async () => {
+    try {
+      if (!fechaInicio || !fechaFin) {
+        return alert("Debes seleccionar un rango de fechas");
       }
-    );
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Respuesta del servidor:", text);
-      throw new Error("Error al descargar CSV");
+      const params = new URLSearchParams({
+        fechaInicio: formatearFechaISO(fechaInicio),
+        fechaFin: formatearFechaISO(fechaFin),
+      });
+
+      const res = await fetch(`${API_BASE_URL}/consumidor-final-csv?${params.toString()}`, {
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Respuesta del servidor:", text);
+        throw new Error("Error al descargar CSV");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Libro_Ventas_Consumidores_${fechaInicio}_${fechaFin}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("Error al descargar CSV");
     }
-
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Libro_Ventas_Consumidores_${fechaInicio}_${fechaFin}.csv`;
-    a.click();
-
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error(error);
-    alert("Error al descargar CSV");
-  }
-};
+  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -725,7 +493,6 @@ const descargarCSV = async () => {
     ? libro.filter((dia) => {
         if (!dia) return false;
         const searchLower = searchTerm.toLowerCase();
-
         return (
           (dia.documento_emitido_del?.toLowerCase() || "").includes(searchLower) ||
           (dia.documento_emitido_al?.toLowerCase() || "").includes(searchLower) ||
@@ -746,14 +513,14 @@ const descargarCSV = async () => {
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     try {
-        const fecha = new Date(dateString + 'T06:00:00');
-        return fecha.toLocaleDateString('es-SV', {
+      const fecha = new Date(dateString + 'T06:00:00');
+      return fecha.toLocaleDateString('es-SV', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
-        });
+      });
     } catch (e) {
-        return "-";
+      return "-";
     }
   };
 
@@ -867,13 +634,12 @@ const descargarCSV = async () => {
                     <FaSync className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                     {refreshing ? 'Actualizando...' : 'Actualizar'}
                   </button>
-<ExportarLibroConsumidor 
- descargarCSV={descargarCSV} 
- descargarExcel={handleExportExcel} 
-  descargarPDF={handleExportPDF}
-exporting={exporting} 
-/>
-
+                  <ExportarLibroConsumidor 
+                    descargarCSV={descargarCSV} 
+                    descargarExcel={handleExportExcel} 
+                    descargarPDF={handleExportPDF}
+                    exporting={exporting} 
+                  />
                 </div>
               </div>
 
