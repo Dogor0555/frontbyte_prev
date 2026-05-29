@@ -25,8 +25,8 @@ const VALIDACIONES_DOCUMENTO = {
     mensaje: "Formato de DUI inválido. Debe ser: 12345678-9"
   },
   "36": {
-    regex: /^\d{4}-\d{6}-\d{3}-\d{1}$/,
-    mensaje: "Formato de NIT inválido. Debe ser: 1234-123456-123-1"
+    regex: /^\d{4}\d{6}\d{3}\d{1}$/,
+    mensaje: "Formato de NIT inválido. Debe ser: 12341234561231"
   },
   "03": {
     regex: /^[A-Za-z0-9]{5,20}$/,
@@ -40,6 +40,14 @@ const VALIDACIONES_DOCUMENTO = {
     regex: /^\d{7}\d{1}$/,
     mensaje: "Formato de DUI inválido. Debe ser: 12345678-9"
   }
+};
+
+// Función para limpiar guiones del NIT
+const limpiarGuionesNIT = (numeroDocumento, tipoDocumento) => {
+  if (tipoDocumento === "36" && numeroDocumento) {
+    return numeroDocumento.replace(/-/g, '');
+  }
+  return numeroDocumento;
 };
 
 const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
@@ -177,8 +185,7 @@ const DatosEmisorReceptor = ({
     fetchActividadesEconomicas();
   }, [idEmisor]);
 
-  // Resto del código se mantiene igual...
-  // Cargar clientes al montar el componente
+  // Cargar clientes al montar el componente - AHORA SIN FILTRAR POR personanatural
   useEffect(() => {
       const fetchClientes = async () => {
         setLoadingClientes(true);
@@ -194,10 +201,9 @@ const DatosEmisorReceptor = ({
           if (response.ok) {
             const data = await response.json();
             if (data.success) {
-              const clientesFiltrados = data.data.filter(cliente => 
-                cliente.personanatural === true
-              );
-              setClientes(clientesFiltrados);
+              // ELIMINÉ el filtro de personanatural === true
+              // Ahora se muestran TODOS los clientes (naturales y jurídicos)
+              setClientes(data.data);
             }
           } else {
             console.error("Error en la respuesta:", response.status);
@@ -304,7 +310,11 @@ const DatosEmisorReceptor = ({
   };
 
   const handleNumeroDocumentoChange = (e) => {
-    const valor = e.target.value;
+    let valor = e.target.value;
+    
+    // Limpiar guiones si es NIT
+    valor = limpiarGuionesNIT(valor, tipoDocumentoReceptor);
+    
     let limite = LIMITES.NIT;
     
     switch (tipoDocumentoReceptor) {
@@ -362,6 +372,8 @@ const DatosEmisorReceptor = ({
           break;
         case "36":
           numeroDoc = clienteSeleccionado.nit || "";
+          // Limpiar guiones del NIT si viene con ellos
+          numeroDoc = limpiarGuionesNIT(numeroDoc, "36");
           break;
         case "03":
           numeroDoc = clienteSeleccionado.pasaporte || "";
@@ -371,6 +383,10 @@ const DatosEmisorReceptor = ({
           break;
         default:
           numeroDoc = clienteSeleccionado.nit || clienteSeleccionado.dui || clienteSeleccionado.pasaporte || clienteSeleccionado.carnetresidente || "";
+          // Si el tipo de documento es 36, limpiar guiones
+          if (clienteSeleccionado.tipodocumento === "36") {
+            numeroDoc = limpiarGuionesNIT(numeroDoc, "36");
+          }
       }
       
       setNumeroDocumentoReceptor(numeroDoc);
@@ -462,7 +478,6 @@ const DatosEmisorReceptor = ({
               )}
             </div>
 
-            {/* Resto de los campos del emisor... */}
             {/* Establecimiento / Dirección */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -535,7 +550,7 @@ const DatosEmisorReceptor = ({
         </div>
       )}
 
-      {/* Resto del componente para receptor (se mantiene igual)... */}
+      {/* Contenido del receptor */}
       {activeTab === "receptor" && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Datos del Receptor</h2>
@@ -614,7 +629,7 @@ const DatosEmisorReceptor = ({
                   errores.numeroDocumentoReceptor || errores.formatoDocumento ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder={
-                  tipoDocumentoReceptor === "36" ? "0000-000000-000-0" :
+                  tipoDocumentoReceptor === "36" ? "0000000000000" :
                   tipoDocumentoReceptor === "13" ? "00000000-0" :
                   tipoDocumentoReceptor === "03" ? "Número de Pasaporte" :
                   tipoDocumentoReceptor === "02" ? "Número de Carnet de Residente" :
