@@ -8,6 +8,7 @@ import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import BarcodeScanner from "../components/BarcodeScanner.jsx";
 import Scanner from "../components/Scanner.jsx";
+
 export default function Productos({ initialProductos = [], user, hasHaciendaToken = false, haciendaStatus = {} }) {
     const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -25,6 +26,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     const [errorMessage, setErrorMessage] = useState("");
     const [nombreError, setNombreError] = useState("");
     const [codigoError, setCodigoError] = useState("");
+    const [barcodeError, setBarcodeError] = useState("");
     
     // Estados para el menú de reportes
     const [showReportMenu, setShowReportMenu] = useState(false);
@@ -45,11 +47,13 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     const LIMITES = {
         NOMBRE: 100,
         CODIGO: 20,
+        CODIGO_BARRAS: 100,
         PRECIO: 10,
         STOCK: 10
     };
 
     const [formData, setFormData] = useState({
+        id: null,
         nombre: "",
         codigo: "",
         codigo_barras: "",
@@ -66,10 +70,9 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     const [selectedProveedor, setSelectedProveedor] = useState("");
     
     // Función para obtener el código real que se enviará al backend
-    // Si la unidad seleccionada es "Caja", devolvemos "99" (código de "Otra")
     const getCodigoUnidadBackend = (unidadSeleccionada) => {
         if (unidadSeleccionada === "Caja") {
-            return "99"; // Mismo código que "Otra"
+            return "99";
         }
         return unidadSeleccionada;
     };
@@ -115,7 +118,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         { codigo: "58", nombre: "Docena" },
         { codigo: "59", nombre: "Unidad" },
         { codigo: "99", nombre: "Otra" },
-        { codigo: "Caja", nombre: "Caja" } // "Caja" usa su propio código visible pero al backend irá como "99"
+        { codigo: "Caja", nombre: "Caja" }
     ]);
     const [proveedores, setProveedores] = useState([]);
     const [productToDelete, setProductToDelete] = useState(null);
@@ -152,8 +155,16 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
     const validateCodigo = (codigo) => {
         return codigo.length <= LIMITES.CODIGO;
     };
+
+    // Función para verificar si un código de barras ya existe
+    const checkIfBarcodeExists = (codigo_barras, id = null) => {
+        if (!codigo_barras) return false;
+        return productos && Array.isArray(productos) && productos.some(producto => 
+            producto.codigo_barras === codigo_barras && 
+            producto.id !== id
+        );
+    };
     
-    // Estado para controlar la apertura del escáner
     const [openScanner, setOpenScanner] = useState(false);
     const [productoEscaneado, setProductoEscaneado] = useState(null);
     const [stockEscaneo, setStockEscaneo] = useState("");
@@ -208,15 +219,31 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         }
     };
 
+    const handleBarcodeChange = (e) => {
+        const value = e.target.value.slice(0, LIMITES.CODIGO_BARRAS);
+        setFormData({ ...formData, codigo_barras: value });
+        
+        // Validación en tiempo real de código de barras duplicado
+        if (value && checkIfBarcodeExists(value, formData.id)) {
+            setBarcodeError(`⚠️ El código de barras "${value}" ya existe en otro producto`);
+        } else {
+            setBarcodeError("");
+        }
+    };
+
     const handleNumberChange = (e) => {
         const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value === '' ? 0 : parseFloat(value) || 0 });
+        const cleanValue = value.replace(',', '.');
+        const numValue = cleanValue === '' ? 0 : parseFloat(cleanValue);
+        setFormData({ ...formData, [name]: isNaN(numValue) ? 0 : numValue });
     };
 
     const handleStockChange = (e) => {
         const { name, value } = e.target;
-        if (validateStock(value)) {
-            setFormData({ ...formData, [name]: value });
+        const cleanValue = value.replace(',', '.');
+        const numValue = cleanValue === '' ? 0 : parseFloat(cleanValue);
+        if (!isNaN(numValue) && numValue >= 0) {
+            setFormData({ ...formData, [name]: numValue });
         }
     };
 
@@ -263,7 +290,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         setFilteredProductos(results);
     }, [searchTerm, productos]);
 
-    // Fetch proveedores
     const fetchProveedores = async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/proveedores/getAll`, {
@@ -321,7 +347,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         }
     };
 
-    // Función para descargar reportes
     const handleDownloadReport = async (format) => {
         setShowReportMenu(false);
         try {
@@ -379,6 +404,13 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
             return;
         }
 
+        // Validar código de barras duplicado
+        if (checkIfBarcodeExists(formData.codigo_barras)) {
+            setErrorMessage(`❌ El código de barras "${formData.codigo_barras}" ya está registrado en otro producto de esta sucursal.`);
+            setShowErrorModal(true);
+            return;
+        }
+
         const codigoUnidadBackend = getCodigoUnidadBackend(selectedUnidad);
 
         const producto = {
@@ -405,11 +437,19 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
             });
 
             if (!response.ok) {
-                throw new Error("Error al agregar el producto");
+                const errorData = await response.json();
+                if (errorData.message && (errorData.message.includes("código de barras") || errorData.message.includes("codigo_barras"))) {
+                    setErrorMessage(`❌ ${errorData.message}`);
+                } else {
+                    throw new Error("Error al agregar el producto");
+                }
+                setShowErrorModal(true);
+                return;
             }
 
             setShowAddModal(false);
             setFormData({
+                id: null,
                 nombre: "",
                 codigo: "",
                 codigo_barras: "",
@@ -422,6 +462,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
             });
             setSelectedUnidad("");
             setSelectedProveedor("");
+            setBarcodeError("");
             fetchProductos();
         } catch (error) {
             console.error("Error al agregar el producto:", error);
@@ -440,6 +481,13 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
 
         if (checkIfCodeExists(formData.codigo, formData.id)) {
             setErrorMessage("Este código ya pertenece a un producto. Por favor verifique los datos.");
+            setShowErrorModal(true);
+            return;
+        }
+
+        // Validar código de barras duplicado (excluyendo el producto actual)
+        if (checkIfBarcodeExists(formData.codigo_barras, formData.id)) {
+            setErrorMessage(`❌ El código de barras "${formData.codigo_barras}" ya está registrado en otro producto de esta sucursal.`);
             setShowErrorModal(true);
             return;
         }
@@ -472,11 +520,19 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error("ERROR BACKEND:", errorText);
+                
+                if (errorText.includes("codigo_barras") && errorText.includes("unique")) {
+                    setErrorMessage(`❌ El código de barras "${formData.codigo_barras}" ya está registrado en otro producto de esta sucursal.`);
+                    setShowErrorModal(true);
+                    return;
+                }
+                
                 throw new Error(errorText || "Error al actualizar el producto");
             }
 
             setShowEditModal(false);
             setFormData({
+                id: null,
                 nombre: "",
                 codigo: "",
                 codigo_barras: "",
@@ -489,6 +545,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
             });
             setSelectedUnidad("");
             setSelectedProveedor("");
+            setBarcodeError("");
             fetchProductos();
         } catch (error) {
             console.error("Error al actualizar el producto:", error);
@@ -588,6 +645,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         });
         setSelectedUnidad(producto.unidad);
         setSelectedProveedor(producto.idproveedor || "");
+        setBarcodeError("");
         setShowEditModal(true);
     };
 
@@ -783,9 +841,9 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.codigo}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.codigo_barras || "—"}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{getNombreUnidad(producto.unidad)}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.precio}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.precio_costo ? `$${producto.precio_costo}` : "—"}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.stock}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{typeof producto.precio === 'number' ? producto.precio.toFixed(2) : producto.precio}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.precio_costo ? `$${typeof producto.precio_costo === 'number' ? producto.precio_costo.toFixed(2) : producto.precio_costo}` : "—"}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{typeof producto.stock === 'number' ? producto.stock.toString() : producto.stock}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{getNombreProveedor(producto.idproveedor)}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                                                     <div className="flex justify-center items-center space-x-2">
@@ -880,11 +938,11 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-sm font-medium text-gray-500">Precio:</span>
-                                                <span className="text-sm text-gray-900">{producto.precio}</span>
+                                                <span className="text-sm text-gray-900">{typeof producto.precio === 'number' ? producto.precio.toFixed(2) : producto.precio}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-sm font-medium text-gray-500">Stock:</span>
-                                                <span className="text-sm text-gray-900">{producto.stock}</span>
+                                                <span className="text-sm text-gray-900">{typeof producto.stock === 'number' ? producto.stock.toString() : producto.stock}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-sm font-medium text-gray-500">Proveedor:</span>
@@ -945,7 +1003,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                             <form onSubmit={handleSaveNewProduct}>
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="nombre">
-                                        Nombre del Producto
+                                        Nombre del Producto *
                                     </label>
                                     <input
                                         type="text"
@@ -963,7 +1021,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="codigo">
-                                        Código
+                                        Código *
                                     </label>
                                     <input
                                         type="text"
@@ -988,10 +1046,13 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         id="codigo_barras"
                                         name="codigo_barras"
                                         value={formData.codigo_barras ?? ""}
-                                        onChange={(e) => setFormData({ ...formData, codigo_barras: e.target.value })}
+                                        onChange={handleBarcodeChange}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         placeholder="Ingrese el código de barras"
+                                        maxLength={LIMITES.CODIGO_BARRAS}
                                     />
+                                    {barcodeError && <p className="text-red-500 text-sm mt-1">{barcodeError}</p>}
+                                    <p className="text-xs text-gray-500 mt-1">{formData.codigo_barras?.length || 0}/{LIMITES.CODIGO_BARRAS} caracteres</p>
                                 </div>
 
                                 <div className="mb-4">
@@ -1015,7 +1076,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="unidad">
-                                        Unidad
+                                        Unidad *
                                     </label>
                                     <select
                                         id="unidad"
@@ -1056,7 +1117,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="precio">
-                                        Precio Venta
+                                        Precio Venta *
                                     </label>
                                     <input
                                         type="number"
@@ -1089,7 +1150,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="stock">
-                                        Stock
+                                        Stock *
                                     </label>
                                     <input
                                         type="number"
@@ -1120,7 +1181,8 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                     </button>
                                     <button
                                         type="submit"
-                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+                                        disabled={!!barcodeError}
+                                        className={`px-4 py-2 rounded-md transition-colors ${barcodeError ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                                     >
                                         Guardar
                                     </button>
@@ -1156,7 +1218,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                             <form onSubmit={handleUpdateProduct}>
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="nombre">
-                                        Nombre del Producto
+                                        Nombre del Producto *
                                     </label>
                                     <input
                                         type="text"
@@ -1174,7 +1236,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="codigo">
-                                        Código
+                                        Código *
                                     </label>
                                     <input
                                         type="text"
@@ -1199,10 +1261,12 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         id="codigo_barras"
                                         name="codigo_barras"
                                         value={formData.codigo_barras || ""}
-                                        onChange={(e) => setFormData({ ...formData, codigo_barras: e.target.value })}
+                                        onChange={handleBarcodeChange}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                        maxLength={100}
+                                        maxLength={LIMITES.CODIGO_BARRAS}
                                     />
+                                    {barcodeError && <p className="text-red-500 text-sm mt-1">{barcodeError}</p>}
+                                    <p className="text-xs text-gray-500 mt-1">{formData.codigo_barras?.length || 0}/{LIMITES.CODIGO_BARRAS} caracteres</p>
                                 </div>
                                 
                                 <div className="mb-4">
@@ -1226,7 +1290,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="unidad">
-                                        Unidad
+                                        Unidad *
                                     </label>
                                     <select
                                         id="unidad"
@@ -1267,7 +1331,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="precio">
-                                        Precio Venta
+                                        Precio Venta *
                                     </label>
                                     <input
                                         type="number"
@@ -1300,7 +1364,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="stock">
-                                        Stock
+                                        Stock *
                                     </label>
                                     <input
                                         type="number"
@@ -1331,7 +1395,8 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                     </button>
                                     <button
                                         type="submit"
-                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+                                        disabled={!!barcodeError}
+                                        className={`px-4 py-2 rounded-md transition-colors ${barcodeError ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                                     >
                                         Guardar Cambios
                                     </button>
@@ -1365,7 +1430,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                     Código: <span className="font-medium">{selectedProduct.codigo}</span>
                                 </p>
                                 <p className="text-sm text-gray-700 mb-4">
-                                    Stock actual: <span className="font-medium">{selectedProduct.stock}</span>
+                                    Stock actual: <span className="font-medium">{typeof selectedProduct.stock === 'number' ? selectedProduct.stock.toString() : selectedProduct.stock}</span>
                                 </p>
                             </div>
                             <form onSubmit={handleIncrementStock}>
@@ -1378,7 +1443,10 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         id="cantidad"
                                         name="cantidad"
                                         value={stockIncrement}
-                                        onChange={(e) => setStockIncrement(e.target.value)}
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(',', '.');
+                                            setStockIncrement(value);
+                                        }}
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
                                         min="0.0001"
@@ -1482,6 +1550,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         setShowAddModal(false);
                                         setShowEditModal(false);
                                         setFormData({
+                                            id: null,
                                             nombre: "",
                                             codigo: "",
                                             codigo_barras: "",
@@ -1494,6 +1563,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         });
                                         setSelectedUnidad("");
                                         setSelectedProveedor("");
+                                        setBarcodeError("");
                                     }}
                                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
                                 >
@@ -1502,7 +1572,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                             </div>
                         </div>
                     </div>
-                </div>
+    </div>
             )}
 
             {/* Modal de Error */}
@@ -1567,11 +1637,11 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-sm font-medium text-gray-500">Precio:</span>
-                                                    <span className="text-sm text-gray-900">{producto.precio}</span>
+                                                    <span className="text-sm text-gray-900">{typeof producto.precio === 'number' ? producto.precio.toFixed(2) : producto.precio}</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-sm font-medium text-gray-500">Stock:</span>
-                                                    <span className="text-sm text-gray-900">{producto.stock}</span>
+                                                    <span className="text-sm text-gray-900">{typeof producto.stock === 'number' ? producto.stock.toString() : producto.stock}</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-sm font-medium text-gray-500">Proveedor:</span>
@@ -1597,7 +1667,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                         </h2>
 
                         <div className="flex gap-6">
-                            {/* IZQUIERDA → SCANNER */}
                             <div className="w-1/2">
                                 <BarcodeScanner
                                     onDetected={(codigo) => {
@@ -1606,7 +1675,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                 />
                             </div>
 
-                            {/* DERECHA → INFO */}
                             <div className="w-1/2">
                                 {!productoEscaneado && (
                                     <p className="text-gray-500">
@@ -1622,13 +1690,11 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                                 : "Nuevo producto"}
                                         </h3>
 
-                                        {/* Código */}
                                         <p className="text-sm text-gray-500">Código:</p>
                                         <p className="font-mono mb-2">
                                             {productoEscaneado.codigo}
                                         </p>
 
-                                        {/* Nombre */}
                                         <input
                                             type="text"
                                             placeholder="Nombre del producto"
@@ -1642,22 +1708,21 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                             className="w-full border p-2 rounded mb-3"
                                         />
 
-                                        {/* PRECIO VENTA */}
                                         <input
                                             type="number"
                                             placeholder="Precio Venta"
                                             value={productoEscaneado.precio}
-                                            onChange={(e) =>
+                                            onChange={(e) => {
+                                                const value = e.target.value.replace(',', '.');
                                                 setProductoEscaneado({
                                                     ...productoEscaneado,
-                                                    precio: e.target.value,
-                                                })
-                                            }
+                                                    precio: value,
+                                                });
+                                            }}
                                             className="w-full border p-2 rounded mb-3"
                                             step="any"
                                         />
                                         
-                                        {/* PROVEEDOR */}
                                         <select
                                             value={productoEscaneado.idproveedor || ""}
                                             onChange={(e) =>
@@ -1677,30 +1742,29 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                                 ))}
                                         </select>
                                         
-                                        {/* Stock actual */}
                                         {productoEscaneado.existe && (
                                             <p className="text-sm mb-2">
                                                 Stock actual:{" "}
-                                                <strong>{productoEscaneado.stock}</strong>
+                                                <strong>{typeof productoEscaneado.stock === 'number' ? productoEscaneado.stock.toString() : productoEscaneado.stock}</strong>
                                             </p>
                                         )}
 
-                                        {/* Agregar stock */}
                                         <input
                                             type="number"
                                             placeholder="Cantidad"
                                             value={stockEscaneo}
-                                            onChange={(e) => setStockEscaneo(e.target.value)}
+                                            onChange={(e) => {
+                                                const value = e.target.value.replace(',', '.');
+                                                setStockEscaneo(value);
+                                            }}
                                             className="w-full border p-2 rounded mb-3"
                                             step="any"
                                             min="0"
                                         />
 
-                                        {/* BOTÓN */}
                                         <button
                                             onClick={async () => {
                                                 if (productoEscaneado.existe) {
-                                                    // 🔥 incrementar stock
                                                     await fetch(`${API_BASE_URL}/productos/incrementStock/${productoEscaneado.id}`, {
                                                         method: "PUT",
                                                         headers: {
@@ -1713,7 +1777,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                                         }),
                                                     });
                                                 } else {
-                                                    // 🔥 crear producto
                                                     await fetch(`${API_BASE_URL}/productos/addPro`, {
                                                         method: "POST",
                                                         headers: {
