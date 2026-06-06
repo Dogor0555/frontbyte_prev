@@ -210,9 +210,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
 
     const handleNumberChange = (e) => {
         const { name, value } = e.target;
-        if (validateNumber(value)) {
-            setFormData({ ...formData, [name]: value });
-        }
+        setFormData({ ...formData, [name]: value === '' ? 0 : parseFloat(value) || 0 });
     };
 
     const handleStockChange = (e) => {
@@ -250,20 +248,20 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         setFilteredProductos(initialProductos || []);
     }, [initialProductos]);
 
-useEffect(() => {
-    const term = searchTerm.toLowerCase();
+    useEffect(() => {
+        const term = searchTerm.toLowerCase();
 
-    const results = productos && Array.isArray(productos)
-        ? productos.filter((producto) =>
-            producto.id?.toString().includes(term) ||
-            producto.codigo?.toLowerCase().includes(term) ||
-            producto.codigo_barras?.toLowerCase().includes(term) ||
-            producto.nombre?.toLowerCase().includes(term)
-        )
-        : [];
+        const results = productos && Array.isArray(productos)
+            ? productos.filter((producto) =>
+                producto.id?.toString().includes(term) ||
+                producto.codigo?.toLowerCase().includes(term) ||
+                producto.codigo_barras?.toLowerCase().includes(term) ||
+                producto.nombre?.toLowerCase().includes(term)
+            )
+            : [];
 
-    setFilteredProductos(results);
-}, [searchTerm, productos]);
+        setFilteredProductos(results);
+    }, [searchTerm, productos]);
 
     // Fetch proveedores
     const fetchProveedores = async () => {
@@ -384,11 +382,15 @@ useEffect(() => {
         const codigoUnidadBackend = getCodigoUnidadBackend(selectedUnidad);
 
         const producto = {
-            ...formData,
+            nombre: formData.nombre,
+            codigo: formData.codigo,
+            codigo_barras: formData.codigo_barras || null,
             unidad: codigoUnidadBackend,
-            idproveedor: selectedProveedor || null,
+            precio: parseFloat(formData.precio),
+            precio_costo: parseFloat(formData.precio_costo || 0),
             stock: parseFloat(formData.stock),
-            precio: parseFloat(formData.precio)
+            es_servicio: formData.es_servicio,
+            idproveedor: selectedProveedor || null
         };
 
         try {
@@ -410,8 +412,10 @@ useEffect(() => {
             setFormData({
                 nombre: "",
                 codigo: "",
+                codigo_barras: "",
                 unidad: "",
                 precio: 0,
+                precio_costo: 0,
                 stock: 0,
                 es_servicio: false,
                 idproveedor: ""
@@ -442,15 +446,17 @@ useEffect(() => {
 
         const codigoUnidadBackend = getCodigoUnidadBackend(selectedUnidad);
 
-const producto = {
-    ...formData,
-    unidad: codigoUnidadBackend,
-    idproveedor: selectedProveedor || null,
-    stock: parseFloat(formData.stock),
-    precio: parseFloat(formData.precio),
-    precio_costo: parseFloat(formData.precio_costo || 0),
-    codigo_barras: formData.codigo_barras || ""
-};
+        const producto = {
+            nombre: formData.nombre,
+            codigo: formData.codigo,
+            codigo_barras: formData.codigo_barras || null,
+            unidad: codigoUnidadBackend,
+            precio: parseFloat(formData.precio),
+            precio_costo: parseFloat(formData.precio_costo || 0),
+            stock: parseFloat(formData.stock),
+            es_servicio: formData.es_servicio,
+            idproveedor: selectedProveedor || null
+        };
 
         try {
             const response = await fetch(`${API_BASE_URL}/productos/updatePro/${formData.id}`, {
@@ -463,25 +469,24 @@ const producto = {
                 body: JSON.stringify(producto),
             });
 
-if (!response.ok) {
-    const errorText = await response.text();
-    console.error("ERROR BACKEND:", errorText);
-
-    throw new Error(errorText || "Error al actualizar el producto");
-}
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("ERROR BACKEND:", errorText);
+                throw new Error(errorText || "Error al actualizar el producto");
+            }
 
             setShowEditModal(false);
-setFormData({
-    nombre: "",
-    codigo: "",
-    codigo_barras: "",
-    unidad: "",
-    precio: 0,
-    precio_costo: 0,
-    stock: 0,
-    es_servicio: false,
-    idproveedor: ""
-});
+            setFormData({
+                nombre: "",
+                codigo: "",
+                codigo_barras: "",
+                unidad: "",
+                precio: 0,
+                precio_costo: 0,
+                stock: 0,
+                es_servicio: false,
+                idproveedor: ""
+            });
             setSelectedUnidad("");
             setSelectedProveedor("");
             fetchProductos();
@@ -569,7 +574,18 @@ setFormData({
     };
 
     const handleEditClick = (producto) => {
-        setFormData(producto);
+        setFormData({
+            id: producto.id,
+            nombre: producto.nombre,
+            codigo: producto.codigo,
+            codigo_barras: producto.codigo_barras || "",
+            unidad: producto.unidad,
+            precio: producto.precio,
+            precio_costo: producto.precio_costo || 0,
+            stock: producto.stock,
+            es_servicio: producto.es_servicio,
+            idproveedor: producto.idproveedor || ""
+        });
         setSelectedUnidad(producto.unidad);
         setSelectedProveedor(producto.idproveedor || "");
         setShowEditModal(true);
@@ -730,7 +746,8 @@ setFormData({
                             <div className="relative">
                                 <input
                                     type="text"
-                                    placeholder="Buscar por ID, código, código barras o nombre"                                    value={searchTerm}
+                                    placeholder="Buscar por ID, código, código barras o nombre"
+                                    value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="text-gray-900 w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
@@ -961,21 +978,21 @@ setFormData({
                                     {codigoError && <p className="text-red-500 text-sm mt-1">{codigoError}</p>}
                                     <p className="text-xs text-gray-500 mt-1">{formData.codigo.length}/{LIMITES.CODIGO} caracteres</p>
                                 </div>
+                                
                                 <div className="mb-4">
-    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="codigo_barra">
-        Código de Barra
-    </label>
-
-    <input
-        type="text"
-        id="codigo_barra"
-        name="codigo_barra"
-        value={formData.codigo_barra ?? ""}
-        onChange={handleCodigoChange}
-        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        placeholder="Ingrese el código de barras"
-    />
-</div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="codigo_barras">
+                                        Código de Barra
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="codigo_barras"
+                                        name="codigo_barras"
+                                        value={formData.codigo_barras ?? ""}
+                                        onChange={(e) => setFormData({ ...formData, codigo_barras: e.target.value })}
+                                        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        placeholder="Ingrese el código de barras"
+                                    />
+                                </div>
 
                                 <div className="mb-4">
                                     <div className="flex items-center">
@@ -1038,42 +1055,37 @@ setFormData({
                                 </div>
 
                                 <div className="mb-4">
-<label
-    className="block text-sm font-medium text-gray-700 mb-1"
-    htmlFor="precio_venta"
->
-    Precio Venta
-</label>
-
-<input
-    type="number"
-    id="precio_venta"
-    name="precio_venta"
-    value={formData.precio_venta ?? ""}
-    onChange={handleNumberChange}
-    className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-    required
-    step="any"
-/>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="precio">
+                                        Precio Venta
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="precio"
+                                        name="precio"
+                                        value={formData.precio}
+                                        onChange={handleNumberChange}
+                                        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        required
+                                        step="any"
+                                        min="0"
+                                    />
                                 </div>
+                                
                                 <div className="mb-4">
-    <label
-        className="block text-sm font-medium text-gray-700 mb-1"
-        htmlFor="precio"
-    >
-        Precio Costo
-    </label>
-
-    <input
-        type="number"
-        id="precio"
-        name="precio"
-        value={formData.precio ?? ""}
-        onChange={handleNumberChange}
-        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        step="any"
-    />
-</div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="precio_costo">
+                                        Precio Costo
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="precio_costo"
+                                        name="precio_costo"
+                                        value={formData.precio_costo}
+                                        onChange={handleNumberChange}
+                                        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        step="any"
+                                        min="0"
+                                    />
+                                </div>
 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="stock">
@@ -1177,26 +1189,22 @@ setFormData({
                                     {codigoError && <p className="text-red-500 text-sm mt-1">{codigoError}</p>}
                                     <p className="text-xs text-gray-500 mt-1">{formData.codigo.length}/{LIMITES.CODIGO} caracteres</p>
                                 </div>
+                                
                                 <div className="mb-4">
-    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="codigo_barra">
-        Código de Barra
-    </label>
-
-    <input
-        type="text"
-        id="codigo_barras"
-        name="codigo_barras"
-        value={formData.codigo_barras || ""}
-        onChange={(e) =>
-            setFormData({
-                ...formData,
-                codigo_barras: e.target.value,
-            })
-        }
-        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        maxLength={100}
-    />
-</div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="codigo_barras">
+                                        Código de Barra
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="codigo_barras"
+                                        name="codigo_barras"
+                                        value={formData.codigo_barras || ""}
+                                        onChange={(e) => setFormData({ ...formData, codigo_barras: e.target.value })}
+                                        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        maxLength={100}
+                                    />
+                                </div>
+                                
                                 <div className="mb-4">
                                     <div className="flex items-center">
                                         <input
@@ -1215,6 +1223,7 @@ setFormData({
                                         Marque esta casilla si es un servicio en lugar de un producto físico.
                                     </p>
                                 </div>
+                                
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="unidad">
                                         Unidad
@@ -1235,6 +1244,7 @@ setFormData({
                                         ))}
                                     </select>
                                 </div>
+                                
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="proveedor">
                                         Proveedor
@@ -1254,9 +1264,10 @@ setFormData({
                                         )) : null}
                                     </select>
                                 </div>
+                                
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="precio">
-                                        Precio
+                                        Precio Venta
                                     </label>
                                     <input
                                         type="number"
@@ -1267,25 +1278,25 @@ setFormData({
                                         className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         required
                                         step="any"
+                                        min="0"
                                     />
                                 </div>
+                                
                                 <div className="mb-4">
-    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="precio_costo">
-        Precio Costo
-    </label>
-
-    <input
-        type="number"
-        id="precio_costo"
-        name="precio_costo"
-        value={formData.precio_costo || ""}
-        onChange={handleNumberChange}
-        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        required
-        step="any"
-        min="0"
-    />
-</div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="precio_costo">
+                                        Precio Costo
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="precio_costo"
+                                        name="precio_costo"
+                                        value={formData.precio_costo || 0}
+                                        onChange={handleNumberChange}
+                                        className="text-black w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        step="any"
+                                        min="0"
+                                    />
+                                </div>
 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="stock">
@@ -1303,6 +1314,7 @@ setFormData({
                                         step="any"
                                     />
                                 </div>
+                                
                                 <div className="flex justify-end gap-3 mt-6">
                                     <button
                                         type="button"
@@ -1472,8 +1484,10 @@ setFormData({
                                         setFormData({
                                             nombre: "",
                                             codigo: "",
+                                            codigo_barras: "",
                                             unidad: "",
                                             precio: 0,
+                                            precio_costo: 0,
                                             stock: 0,
                                             es_servicio: false,
                                             idproveedor: ""
@@ -1628,10 +1642,10 @@ setFormData({
                                             className="w-full border p-2 rounded mb-3"
                                         />
 
-                                        {/* PRECIO */}
+                                        {/* PRECIO VENTA */}
                                         <input
                                             type="number"
-                                            placeholder="Precio"
+                                            placeholder="Precio Venta"
                                             value={productoEscaneado.precio}
                                             onChange={(e) =>
                                                 setProductoEscaneado({
@@ -1642,6 +1656,7 @@ setFormData({
                                             className="w-full border p-2 rounded mb-3"
                                             step="any"
                                         />
+                                        
                                         {/* PROVEEDOR */}
                                         <select
                                             value={productoEscaneado.idproveedor || ""}
@@ -1661,6 +1676,7 @@ setFormData({
                                                     </option>
                                                 ))}
                                         </select>
+                                        
                                         {/* Stock actual */}
                                         {productoEscaneado.existe && (
                                             <p className="text-sm mb-2">
@@ -1706,10 +1722,14 @@ setFormData({
                                                         },
                                                         credentials: "include",
                                                         body: JSON.stringify({
-                                                            ...productoEscaneado,
+                                                            nombre: productoEscaneado.nombre,
+                                                            codigo: productoEscaneado.codigo,
+                                                            codigo_barras: productoEscaneado.codigo,
                                                             precio: parseFloat(productoEscaneado.precio),
+                                                            precio_costo: 0,
                                                             stock: parseFloat(stockEscaneo),
                                                             unidad: "59",
+                                                            es_servicio: false,
                                                             idproveedor: productoEscaneado.idproveedor || null,
                                                         }),
                                                     });
