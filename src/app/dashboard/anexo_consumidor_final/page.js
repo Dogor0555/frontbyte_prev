@@ -1,3 +1,4 @@
+//src/app/dashboard/anexo_consumidor_final/page.js
 import AnexoConsumidorFinalView from "./AnexoConsumidorFinal";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";

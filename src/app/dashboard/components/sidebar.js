@@ -53,7 +53,7 @@ import { useState, useEffect } from "react";
 import { API_BASE_URL } from "@/lib/api";
 import { usePathname } from "next/navigation";
 
-export default function Sidebar({ onOpenPerfil }) {
+export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -63,6 +63,7 @@ export default function Sidebar({ onOpenPerfil }) {
   const [permisos, setPermisos] = useState([]);
   const [loadingPermisos, setLoadingPermisos] = useState(true);
   const [headerExpanded, setHeaderExpanded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
   // Estados para el selector de empresas
   const [showEmpresaSelector, setShowEmpresaSelector] = useState(false);
@@ -85,6 +86,23 @@ export default function Sidebar({ onOpenPerfil }) {
     compras: false,
     soporte: false,
   });
+
+  // Detectar si es móvil
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Cerrar sidebar en móvil cuando se hace clic en un link
+  const handleNavigation = () => {
+    if (isMobile && onClose) {
+      onClose();
+    }
+  };
 
   useEffect(() => {
     const empleadoData = localStorage.getItem("empleado");
@@ -116,28 +134,25 @@ export default function Sidebar({ onOpenPerfil }) {
     verificarMultiplesEmpresas();
   }, []);
 
-  // En tu Sidebar.js, modifica la función verificarMultiplesEmpresas
-const verificarMultiplesEmpresas = async () => {
-  try {
-    setCargandoEmpresas(true);
-    const empresas = await getEmpresasUsuario();
-    setEmpresasDisponibles(empresas);
-    setTieneMultiplesEmpresas(empresas.length > 1);
-    console.log('Empresas disponibles:', empresas.length);
-    
-    // Si tiene múltiples, mostrar un pequeño indicador o notificación
-    if (empresas.length > 1) {
-      console.log('💼 Usuario con múltiples empresas. Puede cambiar usando el botón Cambiar Empresa');
+  const verificarMultiplesEmpresas = async () => {
+    try {
+      setCargandoEmpresas(true);
+      const empresas = await getEmpresasUsuario();
+      setEmpresasDisponibles(empresas);
+      setTieneMultiplesEmpresas(empresas.length > 1);
+      console.log('Empresas disponibles:', empresas.length);
+      
+      if (empresas.length > 1) {
+        console.log('💼 Usuario con múltiples empresas. Puede cambiar usando el botón Cambiar Empresa');
+      }
+    } catch (error) {
+      console.error('Error al verificar empresas:', error);
+      setTieneMultiplesEmpresas(false);
+    } finally {
+      setCargandoEmpresas(false);
     }
-  } catch (error) {
-    console.error('Error al verificar empresas:', error);
-    setTieneMultiplesEmpresas(false);
-  } finally {
-    setCargandoEmpresas(false);
-  }
-};
+  };
 
-  // Abrir modal de selector de empresas
   const abrirSelectorEmpresas = () => {
     const cargarEmpresas = async () => {
       setCargandoEmpresas(true);
@@ -154,58 +169,49 @@ const verificarMultiplesEmpresas = async () => {
     cargarEmpresas();
   };
 
- // En tu Sidebar.js, actualiza la función handleCambiarEmpresa
-const handleCambiarEmpresa = async (empresaSeleccionada) => {
-  setCambiandoEmpresa(true);
-  try {
-    console.log('🔄 Cambiando a empresa:', empresaSeleccionada.empresa.nombre);
-    
-    const result = await seleccionarEmpresa({
-      idEmpleado: empresaSeleccionada.idEmpleado,
-      idEmpresa: empresaSeleccionada.idEmpresa,
-      idSucursal: empresaSeleccionada.idSucursal
-    });
-    
-    console.log('✅ Resultado cambio:', result);
-    
-    if (result.success) {
-      // Actualizar localStorage
-      if (result.empleado) {
-        localStorage.setItem("empleado", JSON.stringify(result.empleado));
-        setEmpleado(result.empleado);
+  const handleCambiarEmpresa = async (empresaSeleccionada) => {
+    setCambiandoEmpresa(true);
+    try {
+      console.log('🔄 Cambiando a empresa:', empresaSeleccionada.empresa.nombre);
+      
+      const result = await seleccionarEmpresa({
+        idEmpleado: empresaSeleccionada.idEmpleado,
+        idEmpresa: empresaSeleccionada.idEmpresa,
+        idSucursal: empresaSeleccionada.idSucursal
+      });
+      
+      console.log('✅ Resultado cambio:', result);
+      
+      if (result.success) {
+        if (result.empleado) {
+          localStorage.setItem("empleado", JSON.stringify(result.empleado));
+          setEmpleado(result.empleado);
+        }
+        if (result.empresa) {
+          localStorage.setItem("empresa", JSON.stringify(result.empresa));
+          setEmpresa(result.empresa);
+        }
+        if (result.sucursal) {
+          localStorage.setItem("sucursal", JSON.stringify(result.sucursal));
+          setSucursal(result.sucursal);
+        }
+        
+        setShowEmpresaSelector(false);
+        await cargarPermisos();
+        
+        console.log(`✅ Cambiaste a la empresa: ${result.empresa.nombre}`);
+        window.location.reload();
+      } else {
+        console.error('❌ Error en respuesta:', result);
+        alert('Error al cambiar de empresa: ' + (result.mensaje || 'Intenta nuevamente'));
       }
-      if (result.empresa) {
-        localStorage.setItem("empresa", JSON.stringify(result.empresa));
-        setEmpresa(result.empresa);
-      }
-      if (result.sucursal) {
-        localStorage.setItem("sucursal", JSON.stringify(result.sucursal));
-        setSucursal(result.sucursal);
-      }
-      
-      // Cerrar modal
-      setShowEmpresaSelector(false);
-      
-      // Recargar permisos para la nueva empresa
-      await cargarPermisos();
-      
-      // Mostrar mensaje de éxito (opcional - puedes quitarlo después)
-      // Usar un toast o notificación en lugar de alert
-      console.log(`✅ Cambiaste a la empresa: ${result.empresa.nombre}`);
-      
-      // Recargar la página para aplicar todos los cambios
-      window.location.reload();
-    } else {
-      console.error('❌ Error en respuesta:', result);
-      alert('Error al cambiar de empresa: ' + (result.mensaje || 'Intenta nuevamente'));
+    } catch (error) {
+      console.error('❌ Error al cambiar de empresa:', error);
+      alert('Error al cambiar de empresa: ' + (error.message || 'Intenta nuevamente'));
+    } finally {
+      setCambiandoEmpresa(false);
     }
-  } catch (error) {
-    console.error('❌ Error al cambiar de empresa:', error);
-    alert('Error al cambiar de empresa: ' + (error.message || 'Intenta nuevamente'));
-  } finally {
-    setCambiandoEmpresa(false);
-  }
-};
+  };
 
   useEffect(() => {
     const determineOpenMenu = () => {
@@ -222,68 +228,59 @@ const handleCambiarEmpresa = async (empresaSeleccionada) => {
           pathname.includes('/dte_liquidacion')) {
         newOpenMenus.dtes = true;
       }
-      
       else if (pathname.includes('/facturas') && 
                !pathname.includes('sujeto_excluido') && 
                !pathname.includes('exportacion')) {
         newOpenMenus.facturas = true;
       }
-      
       else if (pathname.includes('/creditos') || 
                pathname.includes('/nota_debito')) {
         newOpenMenus.creditos = true;
       }
-      
       else if (pathname.includes('/notas_remision') || 
                pathname.includes('/anular_nota_remision')) {
         newOpenMenus.remision = true;
       }
-      
       else if (pathname.includes('/facturas_sujeto_excluido') || 
                pathname.includes('/anular_facturas_sujeto_excluido') ||
                pathname.includes('/sujeto_excluido')) {
         newOpenMenus.sujeto_excluido = true;
       }
-      
       else if (pathname.includes('/liquidacion') || 
                pathname.includes('/comprobantes_liquidacion') ||
                pathname.includes('/anular_liquidacion')) {
         newOpenMenus.liquidacion = true;
       }
-      
       else if (pathname.includes('/exportacion') || 
                pathname.includes('/facturas_exportacion') ||
                pathname.includes('/anular_factura_exportacion')) {
         newOpenMenus.exportacion = true;
       }
-      
       else if (pathname.includes('/contribuyente') || 
                pathname.includes('/libro_contribuyente') ||
                pathname.includes('/anexo_contribuyente') ||
                pathname.includes('/detalle_documentos_contribuyentes')) {
         newOpenMenus.contribuyentes = true;
       }
-      
       else if (pathname.includes('/consumidor_final') || 
                pathname.includes('/libro_consumidor_final') ||
                pathname.includes('/anexo_consumidor_final') ||
                pathname.includes('/detalle_documentos_consumidor_final')) {
         newOpenMenus.consumidorfinal = true;
       }
-      
       else if (pathname.includes('/compras') || 
                pathname.includes('/realizar_compra') ||
                pathname.includes('/registro_compras')) {
         newOpenMenus.compras = true;
       }
-      
       else if (pathname.includes('/soporte')) {
         newOpenMenus.soporte = true;
       }
-      
       else if (pathname.includes('/empleados') || 
                pathname.includes('/productos') || 
                pathname.includes('/clientes') ||
+               pathname.includes('/proveedores') ||
+               pathname.includes('/inventario') ||
                pathname.includes('/registro-eventos') ||
                pathname.includes('/configurar-pdf') ||
                pathname.includes('/configurar-tickets')) {
@@ -735,8 +732,8 @@ const handleCambiarEmpresa = async (empresaSeleccionada) => {
 
   return (
     <>
-      <aside className="bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 h-full w-64 shadow-2xl">
-        <div className="flex flex-col h-full">
+      <aside className="bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 h-full w-64 shadow-2xl flex-shrink-0">
+        <div className="flex flex-col h-full overflow-y-auto">
           {/* Header con selector de empresas */}
           <div 
             className={`
@@ -794,7 +791,7 @@ const handleCambiarEmpresa = async (empresaSeleccionada) => {
               {sucursal && (
                 <div className="flex items-center justify-center gap-1.5 mb-2">
                   <FaStore className="text-blue-300 text-xs" />
-                  <span className="text-blue-100 text-xs font-medium">
+                  <span className="text-blue-100 text-xs font-medium truncate max-w-[200px]">
                     {sucursal.nombre}
                   </span>
                 </div>
@@ -906,6 +903,7 @@ const handleCambiarEmpresa = async (empresaSeleccionada) => {
                               >
                                 <Link
                                   href={subHref}
+                                  onClick={handleNavigation}
                                   className={`
                                     flex items-center gap-3 px-3 py-2.5 text-blue-100 
                                     rounded-lg transition-all duration-200 ease-out relative group/sub
@@ -931,7 +929,10 @@ const handleCambiarEmpresa = async (empresaSeleccionada) => {
                     </div>
                   ) : onClick ? (
                     <button
-                      onClick={onClick}
+                      onClick={() => {
+                        onClick();
+                        handleNavigation();
+                      }}
                       className={`
                         w-full flex items-center gap-3 px-4 py-3 text-blue-100 
                         rounded-xl transition-all duration-300 ease-out relative group/item
@@ -947,6 +948,7 @@ const handleCambiarEmpresa = async (empresaSeleccionada) => {
                   ) : (
                     <Link
                       href={href}
+                      onClick={handleNavigation}
                       className={`
                         flex items-center gap-3 px-4 py-3 text-blue-100 
                         rounded-xl transition-all duration-300 ease-out relative group/item
@@ -988,7 +990,7 @@ const handleCambiarEmpresa = async (empresaSeleccionada) => {
                       {empleado.nombre}
                     </h3>
 
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="px-2.5 py-1 bg-blue-700/60 rounded-full text-blue-100 text-xs font-medium border border-blue-500/30 whitespace-nowrap">
                         {empleado.rol}
                       </span>
@@ -1008,6 +1010,7 @@ const handleCambiarEmpresa = async (empresaSeleccionada) => {
               <Link
                 href="/dashboard/editar_perfil"
                 scroll={false}
+                onClick={handleNavigation}
                 className={`
                   flex items-center justify-center gap-3 w-full px-4 py-3.5 
                   border rounded-xl transition-all duration-300 font-medium text-sm
@@ -1045,129 +1048,123 @@ const handleCambiarEmpresa = async (empresaSeleccionada) => {
             </button>
           </div>
         </div>
-      </aside>
 
-      {showEmpresaSelector && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3">
-    <div className="bg-gradient-to-b from-blue-900 to-blue-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-blue-600/40">
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-blue-700/60">
-        <div className="flex items-center gap-2.5">
-          <div className="bg-blue-600/50 p-1.5 rounded-lg">
-            <FaExchangeAlt className="text-white text-xs" />
-          </div>
-          <div>
-            <h2 className="text-white font-semibold text-sm">Cambiar empresa</h2>
-            <p className="text-blue-300 text-[11px]">Selecciona la empresa a acceder</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setShowEmpresaSelector(false)}
-          className="text-blue-400 hover:text-white transition-colors p-1"
-        >
-          <FaTimes size={12} />
-        </button>
-      </div>
-
-      {/* Body */}
-      <div className="p-3 max-h-80 overflow-y-auto space-y-1.5">
-        {cargandoEmpresas ? (
-          <div className="flex flex-col items-center justify-center py-8 gap-2">
-            <svg className="h-6 w-6 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-            <p className="text-xs text-blue-300">Cargando empresas...</p>
-          </div>
-        ) : empresasDisponibles.length === 0 ? (
-          <div className="text-center py-8">
-            <FaBuilding className="text-blue-500 text-2xl mx-auto mb-2" />
-            <p className="text-xs text-blue-300">No hay otras empresas disponibles</p>
-          </div>
-        ) : (
-          empresasDisponibles.map((emp, index) => {
-            const isCurrent = empresa && emp.idEmpresa === empresa.id;
-            return (
-              <div
-                key={index}
-                onClick={() => !isCurrent && !cambiandoEmpresa && handleCambiarEmpresa(emp)}
-                className={`
-                  flex items-start gap-3 p-2.5 rounded-xl border transition-all duration-200
-                  ${isCurrent
-                    ? 'bg-green-500/15 border-green-500/40 cursor-default'
-                    : 'bg-blue-800/40 border-blue-600/25 hover:bg-blue-700/50 hover:border-blue-500/40 cursor-pointer'
-                  }
-                  ${cambiandoEmpresa ? 'opacity-50 pointer-events-none' : ''}
-                `}
-              >
-                {/* Avatar */}
-                <div className={`
-                  w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 mt-0.5
-                  ${isCurrent
-                    ? 'bg-green-500/25 text-green-300'
-                    : 'bg-blue-600/50 text-blue-100'
-                  }
-                `}>
-                  {emp.empresa.nombre?.charAt(0).toUpperCase()}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  {/* Nombre + badge */}
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-white leading-tight">
-                      {emp.empresa.nombre}
-                    </p>
-                    {isCurrent && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/25 text-green-300 border border-green-500/30 flex-shrink-0 mt-0.5">
-                        Actual
-                      </span>
-                    )}
+        {/* Modal selector de empresas */}
+        {showEmpresaSelector && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3">
+            <div className="bg-gradient-to-b from-blue-900 to-blue-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-blue-600/40">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-blue-700/60">
+                <div className="flex items-center gap-2.5">
+                  <div className="bg-blue-600/50 p-1.5 rounded-lg">
+                    <FaExchangeAlt className="text-white text-xs" />
                   </div>
-
-                  {/* NIT */}
-                  <p className="text-[11px] text-blue-400 mt-0.5">
-                    NIT: {emp.empresa.nit}
-                  </p>
-
-                  {/* Sucursal y ambiente */}
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-[11px] text-blue-300 flex items-center gap-1">
-                      <FaStore size={9} className="flex-shrink-0" />
-                      {emp.sucursal.nombre}
-                    </p>
-                    <span className="text-blue-600">·</span>
-                    <p className={`text-[11px] flex-shrink-0 ${emp.empresa.ambiente === "01" ? 'text-green-400' : 'text-yellow-400'}`}>
-                      {emp.empresa.ambiente === "01" ? 'Producción' : 'Pruebas'}
-                    </p>
+                  <div>
+                    <h2 className="text-white font-semibold text-sm">Cambiar empresa</h2>
+                    <p className="text-blue-300 text-[11px]">Selecciona la empresa a acceder</p>
                   </div>
                 </div>
+                <button
+                  onClick={() => setShowEmpresaSelector(false)}
+                  className="text-blue-400 hover:text-white transition-colors p-1"
+                >
+                  <FaTimes size={12} />
+                </button>
+              </div>
 
-                {!isCurrent && (
-                  <FaChevronRight className="text-blue-500 text-xs flex-shrink-0 mt-1" />
+              {/* Body */}
+              <div className="p-3 max-h-80 overflow-y-auto space-y-1.5">
+                {cargandoEmpresas ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                    <svg className="h-6 w-6 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <p className="text-xs text-blue-300">Cargando empresas...</p>
+                  </div>
+                ) : empresasDisponibles.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FaBuilding className="text-blue-500 text-2xl mx-auto mb-2" />
+                    <p className="text-xs text-blue-300">No hay otras empresas disponibles</p>
+                  </div>
+                ) : (
+                  empresasDisponibles.map((emp, index) => {
+                    const isCurrent = empresa && emp.idEmpresa === empresa.id;
+                    return (
+                      <div
+                        key={index}
+                        onClick={() => !isCurrent && !cambiandoEmpresa && handleCambiarEmpresa(emp)}
+                        className={`
+                          flex items-start gap-3 p-2.5 rounded-xl border transition-all duration-200
+                          ${isCurrent
+                            ? 'bg-green-500/15 border-green-500/40 cursor-default'
+                            : 'bg-blue-800/40 border-blue-600/25 hover:bg-blue-700/50 hover:border-blue-500/40 cursor-pointer'
+                          }
+                          ${cambiandoEmpresa ? 'opacity-50 pointer-events-none' : ''}
+                        `}
+                      >
+                        <div className={`
+                          w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0 mt-0.5
+                          ${isCurrent
+                            ? 'bg-green-500/25 text-green-300'
+                            : 'bg-blue-600/50 text-blue-100'
+                          }
+                        `}>
+                          {emp.empresa.nombre?.charAt(0).toUpperCase()}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-semibold text-white leading-tight">
+                              {emp.empresa.nombre}
+                            </p>
+                            {isCurrent && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/25 text-green-300 border border-green-500/30 flex-shrink-0 mt-0.5">
+                                Actual
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-[11px] text-blue-400 mt-0.5">
+                            NIT: {emp.empresa.nit}
+                          </p>
+
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-[11px] text-blue-300 flex items-center gap-1">
+                              <FaStore size={9} className="flex-shrink-0" />
+                              {emp.sucursal.nombre}
+                            </p>
+                            <span className="text-blue-600">·</span>
+                            <p className={`text-[11px] flex-shrink-0 ${emp.empresa.ambiente === "01" ? 'text-green-400' : 'text-yellow-400'}`}>
+                              {emp.empresa.ambiente === "01" ? 'Producción' : 'Pruebas'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {!isCurrent && (
+                          <FaChevronRight className="text-blue-500 text-xs flex-shrink-0 mt-1" />
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
-            );
-          })
+
+              {/* Footer */}
+              <div className="px-3 py-2.5 border-t border-blue-700/60">
+                <button
+                  onClick={() => setShowEmpresaSelector(false)}
+                  disabled={cambiandoEmpresa}
+                  className="w-full py-2 rounded-lg bg-blue-700/40 hover:bg-blue-600/50 text-blue-200 text-xs font-medium transition-all disabled:opacity-50 border border-blue-600/30"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
         )}
-      </div>
+      </aside>
 
-      {/* Footer */}
-      <div className="px-3 py-2.5 border-t border-blue-700/60">
-        <button
-          onClick={() => setShowEmpresaSelector(false)}
-          disabled={cambiandoEmpresa}
-          className="w-full py-2 rounded-lg bg-blue-700/40 hover:bg-blue-600/50 text-blue-200 text-xs font-medium transition-all disabled:opacity-50 border border-blue-600/30"
-        >
-          Cancelar
-        </button>
-      </div>
-
-    </div>
-  </div>
-)}
-      {/* ESTILOS UNIFICADOS - Solo un bloque style jsx global */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;

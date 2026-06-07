@@ -1,3 +1,5 @@
+//src/app/dashboard/libro_consumidor_final/page.js
+
 import LibroVentasConsumidoresView from "./LibroVentasConsumidores";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";

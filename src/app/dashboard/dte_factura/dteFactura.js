@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner, FaEye } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
+import Navbar from "../components/navbar";
 import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
 import { codactividad } from "./data/data";
 import ClientListModal from "./components/modals/ClientListModal";
@@ -21,7 +22,7 @@ import { useReactToPrint } from 'react-to-print';
 import Handlebars from 'handlebars';
 import { API_BASE_URL } from "@/lib/api";
 
-export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
+export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario, hasHaciendaToken, haciendaStatus }) {
   // Estados para la factura
   const [cliente, setCliente] = useState(null);
   const [nombreCliente, setNombreCliente] = useState("");
@@ -40,6 +41,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [selectedClient, setSelectedClient] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
   const [numeroFactura, setNumeroFactura] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(""); 
@@ -113,6 +115,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [template, setTemplate] = useState(null);
+  const [activeTab, setActiveTab] = useState("detalles"); // Para tabs en móvil
 
   const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
     if (!tipoDocumento || !numeroDocumento.trim()) {
@@ -158,6 +161,11 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   }, [user]);
 
   const ticketRef = useRef();
+
+  // Función para toggle sidebar
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
 
   // Catálogo de unidades
   const [unidades, setUnidades] = useState([
@@ -579,11 +587,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         ventanosuj: 0.00,
         ventaexenta: esExento ? parseFloat(baseImponible.toFixed(6)) : 0.00,
         ventagravada: esGravado ? parseFloat(baseImponible.toFixed(6)) : 0.00,
-        preciouni: parseFloat(item.precioUnitario.toFixed(8)),
-        montodescu: parseFloat(descuentoItem.toFixed(8)),
-        ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(8)) : 0.00,
-        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(8)) : 0.00,
-        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(8)) : 0.00,
         tributos: null,
         psv: 0,
         nogravado: 0.00,
@@ -673,11 +676,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           codtributo: null,
           unimedida: item.unidadMedida || "59",
           descripcion: item.descripcion,
-          preciouni: parseFloat(item.precioUnitario.toFixed(6)),
-          montodescu: parseFloat(descuentoItem.toFixed(6)),
-          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(6)) : 0.00,
-          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(6)) : 0.00,
-          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(6)) : 0.00,
           preciouni: parseFloat(item.precioUnitario.toFixed(8)),
           montodescu: parseFloat(descuentoItem.toFixed(8)),
           ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(8)) : 0.00,
@@ -1026,12 +1024,13 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   };
 
   useEffect(() => {
-    const checkIsMobile = () => {
+    const checkResponsive = () => {
       setIsMobile(window.innerWidth <= 768);
+      setIsTablet(window.innerWidth > 768 && window.innerWidth <= 1024);
     };
-    checkIsMobile();
-    window.addEventListener("resize", checkIsMobile);
-    return () => window.removeEventListener("resize", checkIsMobile);
+    checkResponsive();
+    window.addEventListener("resize", checkResponsive);
+    return () => window.removeEventListener("resize", checkResponsive);
   }, []);
 
   useEffect(() => {
@@ -1406,261 +1405,273 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}>
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
+      {/* Sidebar - Responsive */}
+      <div 
+        className={`
+          fixed md:static z-40 h-full transition-all duration-300 ease-in-out
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          ${!isMobile ? "md:translate-x-0 md:w-64" : ""}
+        `}
+      >
         <Sidebar />
       </div>
 
+      {/* Overlay para móvil cuando sidebar está abierto */}
+      {sidebarOpen && isMobile && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Contenido principal */}
-      <div className="text-black flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-white shadow-sm">
-          <div className="flex items-center justify-between p-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Facturación</h1>
-              <p className="text-gray-600">Sistema de facturación electrónica</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <FechaHoraEmision onFechaHoraChange={handleFechaHoraChange} />
-            </div>
-          </div>
-        </header>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Navbar integrado */}
+        <Navbar
+          user={user}
+          hasHaciendaToken={hasHaciendaToken}
+          haciendaStatus={haciendaStatus}
+          onToggleSidebar={toggleSidebar}
+          sidebarOpen={sidebarOpen}
+        />
 
-        {/* Contenido principal con scroll */}
-        <main className="flex-1 overflow-y-auto p-4">
-          <div className="max-w-6xl mx-auto">
+        {/* Contenido con scroll */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
             {/* Tarjeta principal */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
               {/* Mostrar mensaje de error si existe */}
               {errorValidacion && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                <div className="bg-red-100 border border-red-400 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded mb-4 text-sm sm:text-base">
                   <div className="flex items-center">
-                    <FaExclamationTriangle className="mr-2" />
-                    <span>{errorValidacion}</span>
+                    <FaExclamationTriangle className="mr-2 flex-shrink-0" />
+                    <span className="break-words">{errorValidacion}</span>
                   </div>
                 </div>
               )}
 
-              {/* Datos del cliente */}
-              <DatosEmisorReceptor
-                tipoDocumentoReceptor={tipoDocumentoReceptor}
-                setTipoDocumentoReceptor={setTipoDocumentoReceptor}
-                numeroDocumentoReceptor={numeroDocumentoReceptor}
-                setNumeroDocumentoReceptor={setNumeroDocumentoReceptor}
-                nombreReceptor={nombreReceptor}
-                setNombreReceptor={setNombreReceptor}
-                direccionReceptor={direccionReceptor}
-                setDireccionReceptor={setDireccionReceptor}
-                correoReceptor={correoReceptor}
-                setCorreoReceptor={setCorreoReceptor}
-                telefonoReceptor={telefonoReceptor}
-                setTelefonoReceptor={setTelefonoReceptor}
-                complementoReceptor={complementoReceptor}
-                setComplementoReceptor={setComplementoReceptor}
-                idReceptor={idReceptor}
-                setIdReceptor={setIdReceptor}
-                
-                actividadEconomica={actividadEconomica}
-                setActividadEconomica={setActividadEconomica}
-                direccionEmisor={direccionEmisor}
-                setDireccionEmisor={setDireccionEmisor}
-                correoVendedor={correoVendedor}
-                setCorreoVendedor={setCorreoVendedor}
-                telefonoEmisor={telefonoEmisor}
-                setTelefonoEmisor={setTelefonoEmisor}
-                idEmisor={idEmisor}
+              {/* Datos del cliente - Responsive */}
+              <div className="mb-6">
+                <DatosEmisorReceptor
+                  tipoDocumentoReceptor={tipoDocumentoReceptor}
+                  setTipoDocumentoReceptor={setTipoDocumentoReceptor}
+                  numeroDocumentoReceptor={numeroDocumentoReceptor}
+                  setNumeroDocumentoReceptor={setNumeroDocumentoReceptor}
+                  nombreReceptor={nombreReceptor}
+                  setNombreReceptor={setNombreReceptor}
+                  direccionReceptor={direccionReceptor}
+                  setDireccionReceptor={setDireccionReceptor}
+                  correoReceptor={correoReceptor}
+                  setCorreoReceptor={setCorreoReceptor}
+                  telefonoReceptor={telefonoReceptor}
+                  setTelefonoReceptor={setTelefonoReceptor}
+                  complementoReceptor={complementoReceptor}
+                  setComplementoReceptor={setComplementoReceptor}
+                  idReceptor={idReceptor}
+                  setIdReceptor={setIdReceptor}
+                  
+                  actividadEconomica={actividadEconomica}
+                  setActividadEconomica={setActividadEconomica}
+                  direccionEmisor={direccionEmisor}
+                  setDireccionEmisor={setDireccionEmisor}
+                  correoVendedor={correoVendedor}
+                  setCorreoVendedor={setCorreoVendedor}
+                  telefonoEmisor={telefonoEmisor}
+                  setTelefonoEmisor={setTelefonoEmisor}
+                  idEmisor={idEmisor}
 
-                actividadesEconomicas={codactividad}
-              />
+                  actividadesEconomicas={codactividad}
+                />
+              </div>
 
-              {/* ========== NUEVO SELECTOR DE TIPO DE INGRESO ========== */}
-              <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+              {/* Selector de Tipo de Ingreso - Responsive */}
+              <div className="mb-6 p-3 sm:p-4 border border-gray-200 rounded-lg bg-gray-50">
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Tipo de Ingreso<span className="text-red-500">*</span>
                     </label>
                     <select
-  value={tipoIngresoRenta && descTipoIngresoRenta ? `${tipoIngresoRenta} - ${descTipoIngresoRenta}` : ""}
-  onChange={(e) => {
-    const val = e.target.value;
-    if (!val) {
-      setTipoIngresoRenta("");
-      setDescTipoIngresoRenta("");
-      return;
-    }
-    const dashIndex = val.indexOf(' - ');
-    if (dashIndex !== -1) {
-      setTipoIngresoRenta(val.substring(0, dashIndex));
-      setDescTipoIngresoRenta(val.substring(dashIndex + 3));
-    }
-  }}
-  className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-  required
->
-  <option value="">Seleccione el tipo de ingreso</option>
-  <option value="01 - Profesiones, Artes y Oficios">01 - Profesiones, Artes y Oficios</option>
-  <option value="02 - Actividades de Servicios">02 - Actividades de Servicios</option>
-  <option value="03 - Actividades Comerciales">03 - Actividades Comerciales</option>
-  <option value="04 - Actividades Industriales">04 - Actividades Industriales</option>
-  <option value="05 - Actividades Agropecuarias">05 - Actividades Agropecuarias</option>
-  <option value="06 - Utilidades y Dividendos">06 - Utilidades y Dividendos</option>
-  <option value="07 - Exportaciones de bienes">07 - Exportaciones de bienes</option>
-  <option value="08 - Servicios Realizados en el Exterior y Utilizados en El Salvador">08 - Servicios Realizados en el Exterior y Utilizados en El Salvador</option>
-  <option value="09 - Exportaciones de servicios">09 - Exportaciones de servicios</option>
-  <option value="10 - Otras Rentas Gravables">10 - Otras Rentas Gravables</option>
-  <option value="12 - Ingresos con retención informados en F14 y F910">12 - Ingresos con retención informados en F14 y F910</option>
-  <option value="13 - Sujetos pasivos excluidos (art. 6 LISR)">13 - Sujetos pasivos excluidos (art. 6 LISR)</option>
-</select>
-                  
+                      value={tipoIngresoRenta && descTipoIngresoRenta ? `${tipoIngresoRenta} - ${descTipoIngresoRenta}` : ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) {
+                          setTipoIngresoRenta("");
+                          setDescTipoIngresoRenta("");
+                          return;
+                        }
+                        const dashIndex = val.indexOf(' - ');
+                        if (dashIndex !== -1) {
+                          setTipoIngresoRenta(val.substring(0, dashIndex));
+                          setDescTipoIngresoRenta(val.substring(dashIndex + 3));
+                        }
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                      required
+                    >
+                      <option value="">Seleccione el tipo de ingreso</option>
+                      <option value="01 - Profesiones, Artes y Oficios">01 - Profesiones, Artes y Oficios</option>
+                      <option value="02 - Actividades de Servicios">02 - Actividades de Servicios</option>
+                      <option value="03 - Actividades Comerciales">03 - Actividades Comerciales</option>
+                      <option value="04 - Actividades Industriales">04 - Actividades Industriales</option>
+                      <option value="05 - Actividades Agropecuarias">05 - Actividades Agropecuarias</option>
+                      <option value="06 - Utilidades y Dividendos">06 - Utilidades y Dividendos</option>
+                      <option value="07 - Exportaciones de bienes">07 - Exportaciones de bienes</option>
+                      <option value="08 - Servicios Realizados en el Exterior y Utilizados en El Salvador">08 - Servicios Realizados en el Exterior y Utilizados en El Salvador</option>
+                      <option value="09 - Exportaciones de servicios">09 - Exportaciones de servicios</option>
+                      <option value="10 - Otras Rentas Gravables">10 - Otras Rentas Gravables</option>
+                      <option value="12 - Ingresos con retención informados en F14 y F910">12 - Ingresos con retención informados en F14 y F910</option>
+                      <option value="13 - Sujetos pasivos excluidos (art. 6 LISR)">13 - Sujetos pasivos excluidos (art. 6 LISR)</option>
+                    </select>
                   </div>
                 </div>
               </div>
 
-              {/* Detalle de Factura */}
-              <div className="text-black mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-800">Detalle de Factura</h2>
+              {/* Detalle de Factura - Responsive con scroll horizontal */}
+              <div className="mb-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Detalle de Factura</h2>
                   <button
                     onClick={openModalSelector}
-                    className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                    className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-md text-sm sm:text-base w-full sm:w-auto justify-center"
                   >
                     <FaPlus className="mr-2" />
                     Agregar Detalle
                   </button>
                 </div>
 
-                {/* Tabla de items */}
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Unidad de Medida</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Descripción</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Cantidad</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Precio</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Sub Total</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Gravado</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Exento</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Desc. Sujeto</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total Gravado</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total Exento</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total No Sujeto</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Total</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {items.length === 0 ? (
+                {/* Tabla de items - Scroll horizontal en móvil */}
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <div className="min-w-[1000px] md:min-w-full">
+                    <table className="w-full border-collapse text-sm">
+                      <thead className="bg-gray-50">
                         <tr>
-                          <td colSpan="13" className="px-4 py-4 text-center text-gray-500 border-b">
-                            No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.
-                          </td>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Unidad</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Descripción</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Cant.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Precio</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Sub Total</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Desc. Grav.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Desc. Exen.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Desc. Suj.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Total Grav.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Total Exen.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Total No Suj.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Total</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Acc.</th>
                         </tr>
-                      ) : (
-                        items.map((item) => {
-                          const subtotal = item.precioUnitario * item.cantidad;
-                      
-                          const totalGravado = (item.tipo === "producto" || item.tipo === "impuestos") 
-                            ? subtotal - (item.descuentoGravado || 0) 
-                            : 0;
-                            
-                          const totalExento = (item.tipo === "noAfecto") 
-                            ? subtotal - (item.descuentoExento || 0) 
-                            : 0;
-                            
-                          const totalNoSujeto = subtotal - (item.descuentoNoSujeto || 0);
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {items.length === 0 ? (
+                          <tr>
+                            <td colSpan="13" className="px-4 py-4 text-center text-gray-500 border-b text-sm">
+                              No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.
+                            </td>
+                          </tr>
+                        ) : (
+                          items.map((item) => {
+                            const subtotal = item.precioUnitario * item.cantidad;
+                        
+                            const totalGravado = (item.tipo === "producto" || item.tipo === "impuestos") 
+                              ? subtotal - (item.descuentoGravado || 0) 
+                              : 0;
+                              
+                            const totalExento = (item.tipo === "noAfecto") 
+                              ? subtotal - (item.descuentoExento || 0) 
+                              : 0;
+                              
+                            const totalNoSujeto = subtotal - (item.descuentoNoSujeto || 0);
 
-                          const totalItem = ((item.precioUnitario * item.cantidad) - item.descuentoGravado - item.descuentoExento - item.descuentoNoSujeto);
+                            const totalItem = ((item.precioUnitario * item.cantidad) - item.descuentoGravado - item.descuentoExento - item.descuentoNoSujeto);
 
-                          return (
-                            <tr key={item.id}>
-                              <td className="px-4 py-2 border-b">
-                                <span className="text-sm">
-                                  {item.unidadMedida} - {obtenerNombreUnidad(item.unidadMedida)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2 border-b">
-                                <input
-                                  type="text"
-                                  value={item.descripcion}
-                                  onChange={(e) => handleItemChange(item.id, "descripcion", e.target.value)}
-                                  className="w-full p-1 border border-gray-300 rounded"
-                                />
-                              </td>
-                              <td className="px-4 py-2 border-b">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={item.cantidad}
-                                  onChange={(e) => handleItemChange(item.id, "cantidad", parseFloat(e.target.value))}
-                                  className="w-20 p-1 border border-gray-300 rounded"
-                                />
-                              </td>
-                              <td className="px-4 py-2 border-b">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.000001"
-                                  value={item.precioUnitario}
-                                  onChange={(e) => handleItemChange(item.id, "precioUnitario", e.target.value === "" ? 0 : parseFloat(e.target.value))}
-                                  className="w-24 p-1 border border-gray-300 rounded"
-                                />
-                              </td>
-                              <td className="px-4 py-2 font-medium border-b">
-                                {formatMoney(subtotal)}
-                              </td>
-                              <td className="px-4 py-2 border-b text-center">
-                                <span className="text-sm text-red-600 font-medium">
-                                  {formatMoney(item.descuentoGravado || 0)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2 border-b text-center">
-                                <span className="text-sm text-red-600 font-medium">
-                                  {formatMoney(item.descuentoExento || 0)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2 border-b text-center">
-                                <span className="text-sm text-red-600 font-medium">
-                                  {formatMoney(item.descuentoNoSujeto || 0)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
-                                {formatMoney(totalGravado)}
-                              </td>
-                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
-                                {formatMoney(totalExento)}
-                              </td>
-                              <td className="px-4 py-2 border-b text-center text-green-600 font-medium">
-                                {formatMoney(totalNoSujeto)}
-                              </td>
-                              <td className="px-4 py-2 border-b text-center font-bold text-blue-700">
-                                {formatMoney(totalItem)}
-                              </td>
-                              <td className="px-4 py-2 border-b">
-                                <button
-                                  onClick={() => removeItem(item.id)}
-                                  className="text-red-600 hover:text-red-800"
-                                >
-                                  <FaTrash />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
+                            return (
+                              <tr key={item.id}>
+                                <td className="px-2 sm:px-4 py-2 border-b">
+                                  <span className="text-xs sm:text-sm">
+                                    {item.unidadMedida}
+                                  </span>
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b">
+                                  <input
+                                    type="text"
+                                    value={item.descripcion}
+                                    onChange={(e) => handleItemChange(item.id, "descripcion", e.target.value)}
+                                    className="w-full p-1 border border-gray-300 rounded text-xs sm:text-sm"
+                                  />
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={item.cantidad}
+                                    onChange={(e) => handleItemChange(item.id, "cantidad", parseFloat(e.target.value))}
+                                    className="w-16 sm:w-20 p-1 border border-gray-300 rounded text-xs sm:text-sm"
+                                  />
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.000001"
+                                    value={item.precioUnitario}
+                                    onChange={(e) => handleItemChange(item.id, "precioUnitario", e.target.value === "" ? 0 : parseFloat(e.target.value))}
+                                    className="w-20 sm:w-24 p-1 border border-gray-300 rounded text-xs sm:text-sm"
+                                  />
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 font-medium border-b text-xs sm:text-sm">
+                                  {formatMoney(subtotal)}
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center">
+                                  <span className="text-xs sm:text-sm text-red-600 font-medium">
+                                    {formatMoney(item.descuentoGravado || 0)}
+                                  </span>
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center">
+                                  <span className="text-xs sm:text-sm text-red-600 font-medium">
+                                    {formatMoney(item.descuentoExento || 0)}
+                                  </span>
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center">
+                                  <span className="text-xs sm:text-sm text-red-600 font-medium">
+                                    {formatMoney(item.descuentoNoSujeto || 0)}
+                                  </span>
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center text-green-600 font-medium text-xs sm:text-sm">
+                                  {formatMoney(totalGravado)}
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center text-green-600 font-medium text-xs sm:text-sm">
+                                  {formatMoney(totalExento)}
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center text-green-600 font-medium text-xs sm:text-sm">
+                                  {formatMoney(totalNoSujeto)}
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center font-bold text-blue-700 text-xs sm:text-sm">
+                                  {formatMoney(totalItem)}
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b">
+                                  <button
+                                    onClick={() => removeItem(item.id)}
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    <FaTrash className="text-sm" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 
-              {/* Totales */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-6 text-black">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
+              {/* Totales - Responsive grid */}
+              <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="space-y-2 text-sm sm:text-base">
+                    <div className="flex justify-between flex-wrap">
                       <span className="text-gray-700">Subtotal sin impuestos:</span>
                       <span className="font-medium">{formatMoney(sumaopesinimpues)}</span>
                     </div>
@@ -1673,19 +1684,19 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       return (
                         <>
                           {totalDescuentoGravado > 0 && (
-                            <div className="flex justify-between text-blue-600">
+                            <div className="flex justify-between text-blue-600 flex-wrap">
                               <span className="text-sm">Descuento ventas gravadas:</span>
                               <span className="text-sm font-medium">-{formatMoney(totalDescuentoGravado)}</span>
                             </div>
                           )}
                           {totalDescuentoExento > 0 && (
-                            <div className="flex justify-between text-blue-600">
+                            <div className="flex justify-between text-blue-600 flex-wrap">
                               <span className="text-sm">Descuento ventas exentas:</span>
                               <span className="text-sm font-medium">-{formatMoney(totalDescuentoExento)}</span>
                             </div>
                           )}
                           {totalDescuentoNoSujeto > 0 && (
-                            <div className="flex justify-between text-blue-600">
+                            <div className="flex justify-between text-blue-600 flex-wrap">
                               <span className="text-sm">Descuento ventas no sujetas:</span>
                               <span className="text-sm font-medium">-{formatMoney(totalDescuentoNoSujeto)}</span>
                             </div>
@@ -1694,24 +1705,24 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       );
                     })()}
                     
-                    <div className="flex justify-between text-red-600">
+                    <div className="flex justify-between text-red-600 flex-wrap">
                       <span className="text-gray-700">Total descuentos:</span>
                       <span className="font-medium">-{formatMoney(totaldescuento)}</span>
                     </div>
-                    <div className="flex justify-between pt-2 border-t border-gray-300">
+                    <div className="flex justify-between pt-2 border-t border-gray-300 flex-wrap">
                       <span className="text-gray-700 font-semibold">Sub Total después de descuentos:</span>
                       <span className="font-semibold">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
+                  <div className="space-y-2 text-sm sm:text-base">
+                    <div className="flex justify-between flex-wrap">
                       <span className="text-gray-700">Monto Total de la operación:</span>
                       <span className="font-medium">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
                     </div>
 
-                    <div className="space-y-1 pl-4 border-l-2 border-gray-300">
-                      <div className="flex justify-between text-sm">
+                    <div className="space-y-1 pl-2 sm:pl-4 border-l-2 border-gray-300">
+                      <div className="flex justify-between text-sm flex-wrap">
                         <span className="text-gray-600">Gravado:</span>
                         <span className="font-medium">
                           {formatMoney(
@@ -1719,7 +1730,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                           )}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-sm flex-wrap">
                         <span className="text-gray-600">Exento:</span>
                         <span className="font-medium">
                           {formatMoney(
@@ -1727,7 +1738,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                           )}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-sm flex-wrap">
                         <span className="text-gray-600">No Sujeto:</span>
                         <span className="font-medium">
                           {formatMoney(
@@ -1740,8 +1751,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     {Object.values(tributosDetallados)
                       .filter(tributo => tributo.codigo !== "20")
                       .map((tributo) => (
-                        <div key={tributo.codigo} className="flex justify-between text-sm">
-                          <span className="text-gray-600">
+                        <div key={tributo.codigo} className="flex justify-between text-sm flex-wrap">
+                          <span className="text-gray-600 break-words">
                             {tributo.codigo} - {tributo.descripcion}:
                           </span>
                           <span className="font-medium text-green-600">
@@ -1752,7 +1763,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     }
                     
                     {retencionIVA.aplicar && (
-                      <div className="flex justify-between text-sm text-red-600">
+                      <div className="flex justify-between text-sm text-red-600 flex-wrap">
                         <span className="text-gray-600">
                           Retención IVA ({retencionIVA.porcentaje}%):
                         </span>
@@ -1762,19 +1773,19 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       </div>
                     )}
                     
-                    <div className="flex justify-between pt-2 border-t border-gray-300">
-                      <span className="text-gray-900 font-bold text-lg">Total a pagar:</span>
-                      <span className="text-blue-800 font-bold text-lg">{formatMoney(total)}</span>
+                    <div className="flex justify-between pt-2 border-t border-gray-300 flex-wrap">
+                      <span className="text-gray-900 font-bold text-base sm:text-lg">Total a pagar:</span>
+                      <span className="text-blue-800 font-bold text-base sm:text-lg">{formatMoney(total)}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Retención de IVA */}
-              <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-gray-50">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">Retención de IVA</h3>
+              {/* Retención de IVA - Responsive */}
+              <div className="mb-6 p-3 sm:p-4 border border-gray-300 rounded-lg bg-gray-50">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Retención de IVA</h3>
                 
-                <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-6">
+                <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
                   <div className="flex items-center">
                     <input
                       type="checkbox"
@@ -1790,58 +1801,60 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       }}
                       className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
                     />
-                    <label htmlFor="aplicarRetencionIVA" className="ml-2 text-gray-700 font-medium">
+                    <label htmlFor="aplicarRetencionIVA" className="ml-2 text-gray-700 font-medium text-sm sm:text-base">
                       Aplicar Retención de IVA
                     </label>
                   </div>
 
                   {retencionIVA.aplicar && (
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          id="retencion1porciento"
-                          name="porcentajeRetencion"
-                          value="1"
-                          checked={retencionIVA.porcentaje === 1}
-                          onChange={(e) => {
-                            const nuevoPorcentaje = parseInt(e.target.value);
-                            setRetencionIVA(prev => ({
-                              ...prev,
-                              porcentaje: nuevoPorcentaje,
-                              monto: calcularRetencionIVA(nuevoPorcentaje)
-                            }));
-                          }}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label htmlFor="retencion1porciento" className="ml-2 text-gray-700">
-                          1%
-                        </label>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="retencion1porciento"
+                            name="porcentajeRetencion"
+                            value="1"
+                            checked={retencionIVA.porcentaje === 1}
+                            onChange={(e) => {
+                              const nuevoPorcentaje = parseInt(e.target.value);
+                              setRetencionIVA(prev => ({
+                                ...prev,
+                                porcentaje: nuevoPorcentaje,
+                                monto: calcularRetencionIVA(nuevoPorcentaje)
+                              }));
+                            }}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label htmlFor="retencion1porciento" className="ml-2 text-gray-700 text-sm">
+                            1%
+                          </label>
+                        </div>
+
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="retencion13porciento"
+                            name="porcentajeRetencion"
+                            value="13"
+                            checked={retencionIVA.porcentaje === 13}
+                            onChange={(e) => {
+                              const nuevoPorcentaje = parseInt(e.target.value);
+                              setRetencionIVA(prev => ({
+                                ...prev,
+                                porcentaje: nuevoPorcentaje,
+                                monto: calcularRetencionIVA(nuevoPorcentaje)
+                              }));
+                            }}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label htmlFor="retencion13porciento" className="ml-2 text-gray-700 text-sm">
+                            13% 
+                          </label>
+                        </div>
                       </div>
 
-                      <div className="flex items-center">
-                        <input
-                          type="radio"
-                          id="retencion13porciento"
-                          name="porcentajeRetencion"
-                          value="13"
-                          checked={retencionIVA.porcentaje === 13}
-                          onChange={(e) => {
-                            const nuevoPorcentaje = parseInt(e.target.value);
-                            setRetencionIVA(prev => ({
-                              ...prev,
-                              porcentaje: nuevoPorcentaje,
-                              monto: calcularRetencionIVA(nuevoPorcentaje)
-                            }));
-                          }}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label htmlFor="retencion13porciento" className="ml-2 text-gray-700">
-                          13% 
-                        </label>
-                      </div>
-
-                      <div className="ml-4">
+                      <div className="ml-0 sm:ml-4">
                         <span className="text-sm text-gray-600">Monto a retener:</span>
                         <span className="ml-2 font-semibold text-red-600">
                           {formatMoney(retencionIVA.monto)}
@@ -1852,7 +1865,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 </div>
 
                 {retencionIVA.aplicar && (
-                  <div className="mt-3 text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+                  <div className="mt-3 text-xs sm:text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
                     <p>
                       <FaInfoCircle className="inline mr-1 text-blue-500" />
                       Se aplicará retención del {retencionIVA.porcentaje}% sobre el total gravado de la factura.
@@ -1861,28 +1874,34 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 )}
               </div>
 
-              <FormaPago 
-                condicionPago={condicionPago}
-                setCondicionPago={setCondicionPago}
-                formasPago={formasPago}
-                setFormasPago={setFormasPago}
-                totalFactura={total}
-              />
+              {/* Forma de Pago y Datos de Entrega - Responsive grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <FormaPago 
+                    condicionPago={condicionPago}
+                    setCondicionPago={setCondicionPago}
+                    formasPago={formasPago}
+                    setFormasPago={setFormasPago}
+                    totalFactura={total}
+                  />
+                </div>
+                <div>
+                  <DatosEntrega 
+                    onDatosEntregaChange={handleDatosEntregaChange}
+                    receptorDocumento={numeroDocumentoReceptor}
+                    receptorNombre={nombreReceptor}
+                    emisorDocumento={emisorDocumento}
+                    emisorNombre={emisorNombre}
+                  />
+                </div>
+              </div>
 
-              <DatosEntrega 
-                onDatosEntregaChange={handleDatosEntregaChange}
-                receptorDocumento={numeroDocumentoReceptor}
-                receptorNombre={nombreReceptor}
-                emisorDocumento={emisorDocumento}
-                emisorNombre={emisorNombre}
-              />
-
-              {/* Botones de acción */}
-              <div className="flex justify-end space-x-4">
+              {/* Botones de acción - Responsive flex column en móvil */}
+              <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4">
                 <button 
                   onClick={handleConfirmarYGuardar}
                   disabled={guardandoFactura}
-                  className={`flex items-center px-4 py-2 rounded-md ${
+                  className={`flex items-center justify-center px-4 py-2 rounded-md text-sm sm:text-base w-full sm:w-auto ${
                     guardandoFactura 
                       ? "bg-gray-400 cursor-not-allowed" 
                       : "bg-green-600 hover:bg-green-700" 
@@ -1909,7 +1928,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         <Footer />
       </div>
 
-      {/* Modales... */}
+      {/* Modales... (todos los modales existentes) */}
       <SelectorModal
         isOpen={showModal && modalType === "selector"}
         onClose={() => setShowModal(false)}
@@ -1999,31 +2018,31 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       />
 
       {showClientDetails && selectedClient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-11/12 max-w-md">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Detalles del Cliente</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Detalles del Cliente</h2>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Nombre</label>
-                <p className="mt-1 p-2 bg-gray-50 rounded-md text-gray-900">{selectedClient.nombre}</p>
+                <p className="mt-1 p-2 bg-gray-50 rounded-md text-gray-900 text-sm break-words">{selectedClient.nombre}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Documento</label>
-                <p className="mt-1 p-2 bg-gray-50 rounded-md">
+                <p className="mt-1 p-2 bg-gray-50 rounded-md text-sm break-words">
                   {selectedClient.nit || selectedClient.dui || "N/A"}
                 </p>
               </div>
             </div>
-            <div className="mt-6 flex justify-end space-x-4">
+            <div className="mt-6 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-4">
               <button
                 onClick={() => setShowClientDetails(false)}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 w-full sm:w-auto"
               >
                 Cancelar
               </button>
               <button
                 onClick={selectCliente}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 w-full sm:w-auto"
               >
                 Seleccionar
               </button>
