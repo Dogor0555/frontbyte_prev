@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner, FaEye } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
+import Navbar from "../components/navbar";
 import Footer from "../components/footer";
 import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
 import { codactividad } from "./data/data";
@@ -15,13 +16,13 @@ import FormaPago from "./components/FormaPago";
 import DatosEntrega from "./components/DatosAdicionalesEntrega";
 import FechaHoraEmision from "./components/FechaHoraEmision";
 import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaModal";
-import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal"; // Reutilizamos el modal de factura
+import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal";
 import MensajeModal from "./components/MensajeModal";
 import { useReactToPrint } from 'react-to-print';
 import Handlebars from 'handlebars';
 import { API_BASE_URL } from "@/lib/api";
 
-export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
+export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario, hasHaciendaToken, haciendaStatus }) {
   const [cliente, setCliente] = useState(null);
   const [nombreCliente, setNombreCliente] = useState("");
   const [documentoCliente, setDocumentoCliente] = useState("");
@@ -86,17 +87,15 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [emisorNombre, setEmisorNombre] = useState("");
   const [tributosDetallados, setTributosDetallados] = useState({});
   
-  // Nuevo estado para retención de IVA
   const [retencionIVA, setRetencionIVA] = useState({
     aplicar: false,
-    porcentaje: 1, // 1% o 13%
+    porcentaje: 1,
     monto: 0
   });
   
-  // Nuevo estado para percepción de IVA
   const [percepcionIVA, setPercepcionIVA] = useState({
     aplicar: false,
-    porcentaje: 1, // 1%
+    porcentaje: 1,
     monto: 0
   });
   
@@ -168,18 +167,15 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     };
   };
 
-  // Función para calcular la retención de IVA
   const calcularRetencionIVA = (porcentaje = null) => {
     const porc = porcentaje !== null ? porcentaje : retencionIVA.porcentaje;
     
-    // Calcular base gravada después de descuentos
     const gravadasBase = items
       .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
       .reduce((sum, item) => sum + (item.ventaGravada || 0), 0);
     
     const gravadasConDescuento = Math.max(0, gravadasBase - descuentoGrabadasMonto);
     
-    // Calcular retención
     const montoRetencion = (gravadasConDescuento * porc) / 100;
     return parseFloat(montoRetencion.toFixed(2));
   };
@@ -552,7 +548,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setSearchTerm("");
     setTributosDetallados({});
     
-    // LIMPIAR ACTIVIDADES ECONÓMICAS DEL CLIENTE
     setActividadEconomicaCliente("");
     setActividadesEconomicasCliente([]);
   };
@@ -683,8 +678,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           codtributo: null,
           unimedida: item.unidadMedida || "59",
           descripcion: item.descripcion,
-          preciouni: parseFloat(item.precioUnitario.toFixed(8)), // Precio original
-          montodescu: parseFloat(item.descuento.toFixed(8)), // Descuento total
+          preciouni: parseFloat(item.precioUnitario.toFixed(8)),
+          montodescu: parseFloat(item.descuento.toFixed(8)),
           ventanosuj: parseFloat(baseNoSujeta.toFixed(8)),
           ventaexenta: parseFloat(baseExenta.toFixed(8)),
           ventagravada: parseFloat(baseGravada.toFixed(8)),
@@ -779,10 +774,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     
     const subtotalNeto = baseGravadaFinal + baseExentaFinal + baseNoSujetaNeto;
     
-    // Aplicar retención de IVA si está activa
     const montoRetencionIVA = retencionIVA.aplicar ? retencionIVA.monto : 0;
-
-    // Aplicar percepción de IVA si está activa
     const montoPercepcionIVA = percepcionIVA.aplicar ? percepcionIVA.monto : 0;
     
     const totalFinal = subtotalNeto + ivaCalculado - montoRetencionIVA + montoPercepcionIVA;
@@ -812,7 +804,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
     const descripcionActividad = actividadSeleccionada ? actividadSeleccionada.descripcion : "";
 
-    if (paraVistaPrevia) { // paraVistaPrevia
+    if (paraVistaPrevia) {
       const cuerpoDocumento = items.map((item, index) => {
         const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
         const esExento = item.tipo === "noAfecto";
@@ -848,7 +840,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           horEmi: horaEmision,
         },
         selloRecibido: "(Sello de recepción pendiente)",
-        barcodeDataUri: "", // El QR se genera en el backend
+        barcodeDataUri: "",
         emisor: {
           nombre: sucursalUsuario?.usuario?.nombre || "Nombre Emisor",
           nit: sucursalUsuario?.usuario?.nit || "0000-000000-000-0",
@@ -885,8 +877,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           totalExenta: parseFloat(baseExentaFinal.toFixed(2)),
           totalGravada: parseFloat(baseGravadaFinal.toFixed(2)),
           totalIva: parseFloat(ivaCalculado.toFixed(2)),
-          ivarete1: parseFloat(montoRetencionIVA.toFixed(2)), // RETENCIÓN IVA
-          ivaPercibido: parseFloat(montoPercepcionIVA.toFixed(2)), // PERCEPCIÓN IVA
+          ivarete1: parseFloat(montoRetencionIVA.toFixed(2)),
+          ivaPercibido: parseFloat(montoPercepcionIVA.toFixed(2)),
           totalPagar: parseFloat(totalFinal.toFixed(2)),
           montoTotalOperacion: parseFloat(montototaloperacion.toFixed(2)),
           descuGravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
@@ -926,9 +918,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       sumaopesinimpues: parseFloat(subtotalBruto.toFixed(2)),
       totaldescuento: parseFloat(descuentoTotal.toFixed(2)),
       valoriva: parseFloat(ivaCalculado.toFixed(2)),
-      subtotal: parseFloat(subtotalNeto.toFixed(2)), // CORREGIDO: Subtotal neto (sin IVA)
+      subtotal: parseFloat(subtotalNeto.toFixed(2)),
       ivapercibido: parseFloat(ivaCalculado.toFixed(2)),
-      ivarete1: retencionIVA.aplicar ? parseFloat(retencionIVA.monto.toFixed(2)) : 0.00, // RETENCIÓN IVA
+      ivarete1: retencionIVA.aplicar ? parseFloat(retencionIVA.monto.toFixed(2)) : 0.00,
       montototalope: parseFloat(montototaloperacion.toFixed(2)),
       totalotrosmnoafectos: parseFloat(baseExentaFinal.toFixed(2)),
       totalapagar: parseFloat(totalFinal.toFixed(2)),
@@ -939,7 +931,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       totalnosuj: parseFloat(baseNoSujetaNeto.toFixed(2)),
       totalexenta: parseFloat(baseExentaFinal.toFixed(2)),
       totalgravada: parseFloat(baseGravadaFinal.toFixed(2)),
-      subtotalventas: parseFloat(subtotalNeto.toFixed(2)), // CORREGIDO: Subtotal neto
+      subtotalventas: parseFloat(subtotalNeto.toFixed(2)),
 
       descunosuj: 0.00,
       descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
@@ -951,7 +943,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       descripciont: "",
       valort: 0.00,
 
-      ivaperci1: percepcionIVA.aplicar ? parseFloat(percepcionIVA.monto.toFixed(2)) : 0.00, // PERCEPCIÓN IVA
+      ivaperci1: percepcionIVA.aplicar ? parseFloat(percepcionIVA.monto.toFixed(2)) : 0.00,
       reterenta: 0.00,
 
       montototaloperacion: parseFloat(montototaloperacion.toFixed(2)),
@@ -1047,7 +1039,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     obtenerUltimoNumeroFactura();
   }, []);
 
-  // Efecto para actualizar el monto de retención cuando cambien los items o descuentos
   useEffect(() => {
     if (retencionIVA.aplicar) {
       const nuevoMonto = calcularRetencionIVA();
@@ -1058,7 +1049,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     }
   }, [items, descuentoGrabadasMonto, retencionIVA.porcentaje]);
 
-  // Efecto para actualizar el monto de percepción cuando cambien los items o descuentos
   useEffect(() => {
     if (percepcionIVA.aplicar) {
       const nuevoMonto = calcularPercepcionIVA();
@@ -1135,26 +1125,20 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     const tasaIVA = 0.13;
     const ivaCalculado = baseGravadaFinal * tasaIVA;
 
-    // Calcular retención de IVA si aplica
     const montoRetencionIVA = retencionIVA.aplicar ? calcularRetencionIVA() : 0;
-    
-    // Calcular percepción de IVA si aplica
     const montoPercepcionIVA = percepcionIVA.aplicar ? calcularPercepcionIVA() : 0;
 
     const descuentoTotal = descuentoItems + descuentoGrabadasMonto + descuentoExentasMonto;
     const subtotalNeto = baseGravadaFinal + baseExentaFinal + baseNoSujetaNeto;
     
-    // Calcular total final (Restar retención, Sumar percepción)
     const totalFinal = subtotalNeto + ivaCalculado - montoRetencionIVA + montoPercepcionIVA;
 
-    // Actualizar estado de retención
     if (retencionIVA.aplicar) {
       setRetencionIVA(prev => ({
         ...prev,
         monto: montoRetencionIVA
       }));
     }
-    // Actualizar estado de percepción
     if (percepcionIVA.aplicar) {
       setPercepcionIVA(prev => ({
         ...prev,
@@ -1323,7 +1307,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     }
   }, [sucursalUsuario, correoVendedor]);
 
-  const idEmisor =  sucursalUsuario.usuario.id;
+  const idEmisor = sucursalUsuario?.usuario?.id;
 
   const formatMoney = (value) => {
     if (value === undefined || value === null || isNaN(value)) {
@@ -1341,6 +1325,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const openModalSelector = () => {
     setModalType("selector");
     setShowModal(true);
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
   const selectTipoDetalle = (tipo) => {
@@ -1434,26 +1422,30 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}>
-        <Sidebar />
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
+      {/* Overlay para móvil cuando sidebar está abierto */}
+      {sidebarOpen && isMobile && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <div className={`fixed md:relative z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0" : ""}`}>
+        <Sidebar onClose={() => setSidebarOpen(false)} sidebarOpen={sidebarOpen} />
       </div>
 
-      <div className="text-black flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white shadow-sm">
-          <div className="flex items-center justify-between p-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Crédito Fiscal</h1>
-              <p className="text-gray-600">Sistema de facturación electrónica</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* <div className="bg-green-100 p-3 rounded-lg">
-                <p className="text-lg font-semibold text-green-600">N° {String(numeroFactura).padStart(4, '0')}</p>
-              </div> */}
-              <FechaHoraEmision onFechaHoraChange={handleFechaHoraChange} />
-            </div>
-          </div>
-        </header>
+      {/* Contenido principal */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Navbar */}
+        <Navbar 
+          user={user}
+          hasHaciendaToken={hasHaciendaToken}
+          haciendaStatus={haciendaStatus}
+          onToggleSidebar={toggleSidebar}
+          sidebarOpen={sidebarOpen}
+        />
 
         <main className="flex-1 overflow-y-auto p-4">
           <div className="max-w-6xl mx-auto">
@@ -1541,7 +1533,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         <tr><td colSpan="14" className="px-4 py-4 text-center text-gray-500 border-b">No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.</td></tr>
                       ) : (
                         items.map((item) => {
-                          // USAR LOS VALORES DIRECTOS QUE YA VIENEN CALCULADOS DEL MODAL
                           const subtotal = item.precioNeto * item.cantidad;
                           const totalGravado = item.ventaGravada || 0;
                           const totalExento = item.ventaExenta || 0;
@@ -1713,7 +1704,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       <span className="font-medium text-green-600">+{formatMoney(valoriva)}</span>
                     </div>
                     
-                    {/* Mostrar retención de IVA si aplica */}
                     {retencionIVA.aplicar && (
                       <div className="flex justify-between text-sm text-red-600">
                         <span className="text-gray-600">
@@ -1725,7 +1715,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                       </div>
                     )}
                     
-                    {/* Mostrar percepción de IVA si aplica */}
                     {percepcionIVA.aplicar && (
                       <div className="flex justify-between text-sm text-blue-600">
                         <span className="text-gray-600">
@@ -1764,7 +1753,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">Retención de IVA</h3>
                 
                 <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-6">
-                  {/* Checkbox para aplicar retención */}
                   <div className="flex items-center">
                     <input
                       type="checkbox"
@@ -1785,7 +1773,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     </label>
                   </div>
 
-                  {/* Selector de porcentaje */}
                   {retencionIVA.aplicar && (
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center">
@@ -1832,7 +1819,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         </label>
                       </div>
 
-                      {/* Mostrar monto calculado */}
                       <div className="ml-4">
                         <span className="text-sm text-gray-600">Monto a retener:</span>
                         <span className="ml-2 font-semibold text-red-600">
@@ -1858,7 +1844,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">Percepción de IVA</h3>
                 
                 <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-6">
-                  {/* Checkbox para aplicar percepción */}
                   <div className="flex items-center">
                     <input
                       type="checkbox"
@@ -1879,7 +1864,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     </label>
                   </div>
 
-                  {/* Selector de porcentaje */}
                   {percepcionIVA.aplicar && (
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center">
@@ -1904,7 +1888,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                         </label>
                       </div>
 
-                      {/* Mostrar monto calculado */}
                       <div className="ml-4">
                         <span className="text-sm text-gray-600">Monto a percibir:</span>
                         <span className="ml-2 font-semibold text-blue-600">
