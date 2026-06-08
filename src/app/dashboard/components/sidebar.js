@@ -732,7 +732,27 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
 
   return (
     <>
-      <aside className="bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 h-full w-64 shadow-2xl flex-shrink-0">
+      {/* ── OVERLAY para móvil ── */}
+      {isMobile && sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ── SIDEBAR ── */}
+      <aside
+        className={`
+          bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 
+          h-full w-64 shadow-2xl flex-shrink-0
+          transition-transform duration-300 ease-in-out
+          ${isMobile
+            ? `fixed top-0 left-0 z-50 h-screen ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+            : 'relative translate-x-0'
+          }
+        `}
+      >
         <div className="flex flex-col h-full overflow-y-auto">
           {/* Header con selector de empresas */}
           <div 
@@ -746,6 +766,17 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
             onMouseEnter={() => setHeaderExpanded(true)}
             onMouseLeave={() => setHeaderExpanded(false)}
           >
+            {/* Botón cerrar en móvil dentro del sidebar */}
+            {isMobile && (
+              <button
+                onClick={onClose}
+                className="absolute top-3 right-3 p-1.5 rounded-lg text-blue-300 hover:text-white hover:bg-blue-700/50 transition-all"
+                aria-label="Cerrar menú"
+              >
+                <FaTimes size={14} />
+              </button>
+            )}
+
             <div 
               className={`
                 bg-white relative rounded-full overflow-hidden 
