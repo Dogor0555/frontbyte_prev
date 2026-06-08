@@ -1436,7 +1436,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         <Sidebar onClose={() => setSidebarOpen(false)} sidebarOpen={sidebarOpen} />
       </div>
 
-      {/* Contenido principal */}
+      {/* Contenido principal   */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Navbar */}
         <Navbar 
