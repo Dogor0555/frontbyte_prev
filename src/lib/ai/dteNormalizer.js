@@ -35,9 +35,13 @@ REGLAS ESTRICTAS - SOLO PUEDES HACER ESTO:
    - Buscar en: SelloRecibido, selloRecibido, selloRecepcion.selloRecibido, responseMH.selloRecibido
    - Solo reubicar, NUNCA cambiar el valor
 
+6. DETECTAR CÓDIGOS FALTANTES:
+   - Si un producto tiene "codigo": null o "codigo": "", marcarlo como "SIN_CODIGO"
+   - Esto indica que el usuario debe asignar un código manualmente
+
 REGLAS PROHIBIDAS - NUNCA HAGAS ESTO:
 - NUNCA convertir unidades de medida (KG → 34, Litro → 23, etc.)
-- NUNCA completar campos faltantes
+- NUNCA completar campos faltantes (excepto marcar SIN_CODIGO)
 - NUNCA cambiar montos, precios, cantidades o impuestos
 - NUNCA crear productos o clasificar compras
 - NUNCA inferir nada que no esté explícito
@@ -88,7 +92,6 @@ function localNormalizer(dte) {
         nuevo.uniMedida = String(nuevo.uniMedida);
         cambios.push(`Item ${idx + 1}: uniMedida ${item.uniMedida} → "${nuevo.uniMedida}" (número a string)`);
       }
-      // Si ya es string, NO lo toques (aunque sea "KG", "Litro", etc.)
       
       if (typeof nuevo.cantidad === 'string' && !isNaN(parseFloat(nuevo.cantidad)) && isFinite(nuevo.cantidad)) {
         const original = nuevo.cantidad;
@@ -100,6 +103,12 @@ function localNormalizer(dte) {
         const original = nuevo.precioUni;
         nuevo.precioUni = parseFloat(nuevo.precioUni);
         cambios.push(`Item ${idx + 1}: precioUni "${original}" → ${nuevo.precioUni}`);
+      }
+
+      // DETECTAR CÓDIGO FALTANTE
+      if (nuevo.codigo === null || nuevo.codigo === undefined || nuevo.codigo === '') {
+        nuevo.codigo = 'SIN_CODIGO';
+        cambios.push(`Item ${idx + 1}: codigo faltante → "SIN_CODIGO" (requiere asignación manual)`);
       }
       
       return nuevo;
