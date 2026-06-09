@@ -2238,8 +2238,7 @@ const DuplicateCompraModal = ({ isOpen, onClose, compraData }) => {
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                                     <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Carga Automatica</h2>
-                                    <JsonDteUploader onDataLoaded={handleDteLoaded} />
-                                </div>
+<JsonDteUploader onDataLoaded={handleDteLoaded} productosExistentes={productos} />                                </div>
 
                                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                                     <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Datos Generales</h2>

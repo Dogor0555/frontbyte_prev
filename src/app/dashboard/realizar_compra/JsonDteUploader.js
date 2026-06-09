@@ -1,9 +1,10 @@
 "use client";
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { FaFileUpload, FaCheckCircle, FaExclamationCircle, FaMagic, FaTimes, FaCode } from 'react-icons/fa';
 import { normalizeDTE } from '@/lib/ai/dteNormalizer';
+import { API_BASE_URL } from '@/lib/api';
 
-export default function JsonDteUploader({ onDataLoaded }) {
+export default function JsonDteUploader({ onDataLoaded, productosExistentes = [] }) {
     const fileInputRef = useRef(null);
     const [status, setStatus] = useState('idle');
     const [message, setMessage] = useState('');
@@ -13,9 +14,26 @@ export default function JsonDteUploader({ onDataLoaded }) {
     const [modalData, setModalData] = useState(null);
     const [pendingFiles, setPendingFiles] = useState([]);
     
-    // Estado para productos sin código
-    const [itemsSinCodigo, setItemsSinCodigo] = useState([]);
+    // Estado para productos que NO existen en BD y NO tienen código
+    const [itemsFaltantesConCodigo, setItemsFaltantesConCodigo] = useState([]);
     const [codigosAsignados, setCodigosAsignados] = useState({});
+
+    // Función para verificar si un producto existe en la BD
+    const verificarProductoExistente = (item, productosBD) => {
+        // Buscar por código original (si tiene)
+        if (item.codigo && item.codigo !== 'SIN_CODIGO' && item.codigo !== null) {
+            const existente = productosBD.find(p => p.codigo === item.codigo);
+            if (existente) return { existe: true, producto: existente };
+        }
+        
+        // Buscar por nombre (descripción)
+        const existentePorNombre = productosBD.find(p => 
+            p.nombre?.toLowerCase() === item.descripcion?.toLowerCase()
+        );
+        if (existentePorNombre) return { existe: true, producto: existentePorNombre };
+        
+        return { existe: false, producto: null };
+    };
 
     const handleButtonClick = () => {
         fileInputRef.current?.click();
@@ -23,11 +41,37 @@ export default function JsonDteUploader({ onDataLoaded }) {
 
     const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
-    const showNormalizationModal = (dteData, fileName, rawData) => {
-        // Buscar productos SIN CÓDIGO
-        const sinCodigo = (dteData.cuerpoDocumento || [])
-            .map((item, idx) => ({ ...item, originalIndex: idx }))
-            .filter(item => !item.codigo || item.codigo === 'SIN_CODIGO' || item.codigo === null || item.codigo === '');
+    const showNormalizationModal = async (dteData, fileName, rawData) => {
+        // Obtener productos actuales de la BD (si no se pasaron como prop)
+        let productosBD = productosExistentes;
+        if (productosBD.length === 0) {
+            try {
+                const res = await fetch(API_BASE_URL + "/productos/getAll", { credentials: "include" });
+                if (res.ok) {
+                    const data = await res.json();
+                    productosBD = Array.isArray(data) ? data : (data?.data || []);
+                }
+            } catch (err) {
+                console.error("Error cargando productos:", err);
+            }
+        }
+        
+        // Analizar cada producto del DTE
+        const itemsAnalizados = (dteData.cuerpoDocumento || []).map((item, idx) => {
+            const { existe, producto } = verificarProductoExistente(item, productosBD);
+            return {
+                ...item,
+                originalIndex: idx,
+                yaExiste: existe,
+                productoExistente: producto,
+                tieneCodigoOriginal: item.codigo && item.codigo !== 'SIN_CODIGO' && item.codigo !== null
+            };
+        });
+        
+        // SOLO productos que NO existen en BD Y no tienen código (o tienen SIN_CODIGO)
+        const faltantes = itemsAnalizados.filter(item => 
+            !item.yaExiste && (!item.codigo || item.codigo === 'SIN_CODIGO' || item.codigo === null || item.codigo === '')
+        );
         
         const info = {
             fileName,
@@ -38,12 +82,12 @@ export default function JsonDteUploader({ onDataLoaded }) {
             fechaEmision: dteData.identificacion?.fecEmi || dteData.fecha_emision || 'No especificada',
             total: dteData.resumen?.totalPagar || dteData.total_compras || 0,
             cantidadItems: dteData.cuerpoDocumento?.length || 0,
-            items: dteData.cuerpoDocumento || [],
-            itemsSinCodigo: sinCodigo,
+            items: itemsAnalizados,
+            itemsFaltantes: faltantes,
             rawData
         };
         
-        setItemsSinCodigo(sinCodigo);
+        setItemsFaltantesConCodigo(faltantes);
         setCodigosAsignados({});
         setModalData(info);
         setShowModal(true);
@@ -59,7 +103,7 @@ export default function JsonDteUploader({ onDataLoaded }) {
     const aplicarCodigosAlDte = (dteData) => {
         const nuevoDte = JSON.parse(JSON.stringify(dteData));
         
-        itemsSinCodigo.forEach((item, idx) => {
+        itemsFaltantesConCodigo.forEach((item, idx) => {
             const codigoAsignado = codigosAsignados[idx];
             if (codigoAsignado && codigoAsignado.trim()) {
                 if (nuevoDte.cuerpoDocumento && nuevoDte.cuerpoDocumento[item.originalIndex]) {
@@ -80,9 +124,9 @@ export default function JsonDteUploader({ onDataLoaded }) {
             for (let i = 0; i < pendingFiles.length; i++) {
                 const file = pendingFiles[i];
                 
-                // Aplicar los códigos asignados al DTE
+                // Aplicar los códigos asignados al DTE (solo para el primer archivo por ahora)
                 let processedData = file.data;
-                if (i === 0 && itemsSinCodigo.length > 0) {
+                if (i === 0 && itemsFaltantesConCodigo.length > 0) {
                     processedData = aplicarCodigosAlDte(file.data);
                 }
                 
@@ -100,8 +144,9 @@ export default function JsonDteUploader({ onDataLoaded }) {
             
             if (successResults.length > 0) {
                 setStatus('success');
-                const codigosInfo = Object.values(codigosAsignados).filter(c => c).length;
-                setMessage(`${successResults.length} archivo(s) procesados - ${codigosInfo} código(s) asignados`);
+                const codigosInfo = Object.values(codigosAsignados).filter(c => c && c.trim()).length;
+                const productosExistentesInfo = modalData?.items?.filter(i => i.yaExiste).length || 0;
+                setMessage(`${successResults.length} archivo(s) procesados - ${codigosInfo} código(s) nuevos asignados, ${productosExistentesInfo} producto(s) ya existentes`);
                 
                 for (let i = 0; i < successResults.length; i++) {
                     await onDataLoaded(successResults.map(r => r.data));
@@ -115,7 +160,7 @@ export default function JsonDteUploader({ onDataLoaded }) {
         } finally {
             setIsCleaning(false);
             setPendingFiles([]);
-            setItemsSinCodigo([]);
+            setItemsFaltantesConCodigo([]);
             setCodigosAsignados({});
         }
     };
@@ -129,7 +174,7 @@ export default function JsonDteUploader({ onDataLoaded }) {
             setMessage(`${successResults.length} archivo(s) procesados (sin limpiar)`);
         }
         setPendingFiles([]);
-        setItemsSinCodigo([]);
+        setItemsFaltantesConCodigo([]);
         setCodigosAsignados({});
     };
 
@@ -181,7 +226,7 @@ export default function JsonDteUploader({ onDataLoaded }) {
 
         if (successResults.length > 0) {
             const firstFile = successResults[0];
-            showNormalizationModal(firstFile.data, firstFile.fileName, firstFile.data);
+            await showNormalizationModal(firstFile.data, firstFile.fileName, firstFile.data);
             setPendingFiles(successResults);
         }
 
@@ -236,7 +281,7 @@ export default function JsonDteUploader({ onDataLoaded }) {
                 )}
             </div>
 
-            {/* MODAL DE NORMALIZACIÓN - CON PREGUNTA DE CÓDIGOS */}
+            {/* MODAL - SOLO para productos que NO existen en BD */}
             {showModal && modalData && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -247,7 +292,9 @@ export default function JsonDteUploader({ onDataLoaded }) {
                                     <FaMagic className="text-purple-600 text-xl" />
                                     <div>
                                         <h2 className="text-lg font-semibold text-purple-800">
-                                            {itemsSinCodigo.length > 0 ? 'Asignar códigos a productos' : 'Limpiar documento con IA'}
+                                            {itemsFaltantesConCodigo.length > 0 
+                                                ? `Asignar códigos a ${itemsFaltantesConCodigo.length} producto(s) nuevo(s)` 
+                                                : 'Limpiar documento con IA'}
                                         </h2>
                                         <p className="text-sm text-purple-600">{modalData.fileName}</p>
                                     </div>
@@ -271,38 +318,43 @@ export default function JsonDteUploader({ onDataLoaded }) {
                                 </div>
                             </div>
 
-                            {/* PRODUCTOS SIN CÓDIGO - SECCIÓN PRINCIPAL */}
-                            {itemsSinCodigo.length > 0 && (
+                            {/* PRODUCTOS QUE NO EXISTEN Y NO TIENEN CÓDIGO */}
+                            {itemsFaltantesConCodigo.length > 0 && (
                                 <div className="mb-4">
                                     <div className="flex items-center gap-2 mb-3">
                                         <FaCode className="text-orange-500" />
-                                        <h3 className="font-semibold text-gray-800">⚠️ Productos sin código ({itemsSinCodigo.length})</h3>
-                                        <span className="text-xs text-gray-500">Asigna un código a cada producto</span>
+                                        <h3 className="font-semibold text-gray-800">⚠️ Productos nuevos sin código ({itemsFaltantesConCodigo.length})</h3>
+                                        <span className="text-xs text-gray-500">Asigna un código para cada producto nuevo</span>
                                     </div>
                                     
                                     <div className="space-y-3 max-h-80 overflow-y-auto">
-                                        {itemsSinCodigo.map((item, idx) => (
+                                        {itemsFaltantesConCodigo.map((item, idx) => (
                                             <div key={idx} className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                                                 <div className="mb-2">
                                                     <p className="font-medium text-gray-800">{item.descripcion}</p>
                                                     <p className="text-xs text-gray-500 mt-1">
-                                                        Cantidad: {item.cantidad} | Precio: ${item.precioUni}
+                                                        Cantidad: {item.cantidad} | Precio costo: ${item.precioUni}
                                                     </p>
+                                                    {item.codigo && item.codigo !== 'SIN_CODIGO' && (
+                                                        <p className="text-xs text-gray-400 mt-1">
+                                                            Código original en DTE: {item.codigo} (no existe en tu inventario)
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                        Código del producto *
+                                                        Código para el nuevo producto *
                                                     </label>
                                                     <input
                                                         type="text"
                                                         value={codigosAsignados[idx] || ''}
                                                         onChange={(e) => handleCodigoChange(idx, e.target.value)}
                                                         className="w-full px-3 py-2 border border-orange-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
-                                                        placeholder="Ej: PROD-001, ACEITE-001, etc."
+                                                        placeholder="Ej: PROD-001, ACEITE-001, KIT-001"
                                                         autoFocus={idx === 0}
                                                     />
                                                     <p className="text-xs text-gray-400 mt-1">
-                                                        Este código se usará para identificar este producto en el inventario
+                                                        Este código identificará el producto en tu inventario
                                                     </p>
                                                 </div>
                                             </div>
@@ -311,13 +363,14 @@ export default function JsonDteUploader({ onDataLoaded }) {
                                 </div>
                             )}
 
-                            {/* Lista de productos completos */}
+                            {/* Tabla de TODOS los productos con su estado */}
                             <div className="mb-4">
-                                <h3 className="font-semibold text-gray-700 mb-2">📦 Todos los productos del DTE</h3>
+                                <h3 className="font-semibold text-gray-700 mb-2">📦 Productos del DTE</h3>
                                 <div className="max-h-48 overflow-y-auto border rounded-lg">
                                     <table className="min-w-full text-sm">
                                         <thead className="bg-gray-100 sticky top-0">
                                             <tr>
+                                                <th className="px-3 py-2 text-left">Estado</th>
                                                 <th className="px-3 py-2 text-left">Código</th>
                                                 <th className="px-3 py-2 text-left">Descripción</th>
                                                 <th className="px-3 py-2 text-right">Cantidad</th>
@@ -325,30 +378,61 @@ export default function JsonDteUploader({ onDataLoaded }) {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {modalData.items.map((item, idx) => (
-                                                <tr key={idx} className={`border-t ${(!item.codigo || item.codigo === 'SIN_CODIGO') ? 'bg-orange-50' : ''}`}>
-                                                    <td className="px-3 py-2 font-mono text-xs">
-                                                        {item.codigo || '❌ SIN CÓDIGO'}
-                                                    </td>
-                                                    <td className="px-3 py-2 max-w-xs truncate">{item.descripcion}</td>
-                                                    <td className="px-3 py-2 text-right">{item.cantidad}</td>
-                                                    <td className="px-3 py-2 text-right">${item.precioUni || 0}</td>
-                                                </tr>
-                                            ))}
+                                            {modalData.items.map((item, idx) => {
+                                                let bgColor = '';
+                                                let estadoTexto = '';
+                                                let estadoColor = '';
+                                                
+                                                if (item.yaExiste) {
+                                                    bgColor = 'bg-green-50';
+                                                    estadoTexto = '✓ Existe';
+                                                    estadoColor = 'text-green-600';
+                                                } else if (!item.codigo || item.codigo === 'SIN_CODIGO') {
+                                                    bgColor = 'bg-orange-50';
+                                                    estadoTexto = '⚠️ Nuevo - requiere código';
+                                                    estadoColor = 'text-orange-600';
+                                                } else {
+                                                    bgColor = 'bg-blue-50';
+                                                    estadoTexto = '🆕 Nuevo - tiene código';
+                                                    estadoColor = 'text-blue-600';
+                                                }
+                                                
+                                                return (
+                                                    <tr key={idx} className={`border-t ${bgColor}`}>
+                                                        <td className={`px-3 py-2 text-xs font-medium ${estadoColor}`}>
+                                                            {estadoTexto}
+                                                        </td>
+                                                        <td className="px-3 py-2 font-mono text-xs">
+                                                            {item.codigo || '❌ SIN CÓDIGO'}
+                                                        </td>
+                                                        <td className="px-3 py-2 max-w-xs truncate">{item.descripcion}</td>
+                                                        <td className="px-3 py-2 text-right">{item.cantidad}</td>
+                                                        <td className="px-3 py-2 text-right">${item.precioUni || 0}</td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
 
-                            {/* Advertencia */}
-                            {itemsSinCodigo.length > 0 && (
-                                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-4">
-                                    <p className="text-sm text-yellow-700">
-                                        ⚠️ Los productos marcados en <span className="font-bold">naranja</span> no tienen código. 
-                                        Debes asignarles un código antes de continuar, o el sistema no podrá crearlos correctamente.
-                                    </p>
+                            {/* Resumen */}
+                            <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Productos que ya existen:</span>
+                                    <span className="font-medium text-green-600">{modalData.items?.filter(i => i.yaExiste).length || 0}</span>
                                 </div>
-                            )}
+                                <div className="flex justify-between text-sm mt-1">
+                                    <span className="text-gray-600">Productos nuevos (ya tienen código):</span>
+                                    <span className="font-medium text-blue-600">
+                                        {modalData.items?.filter(i => !i.yaExiste && i.codigo && i.codigo !== 'SIN_CODIGO').length || 0}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm mt-1">
+                                    <span className="text-gray-600">Productos nuevos (requieren código):</span>
+                                    <span className="font-medium text-orange-600">{itemsFaltantesConCodigo.length}</span>
+                                </div>
+                            </div>
 
                             {/* Info de limpieza IA */}
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -375,17 +459,17 @@ export default function JsonDteUploader({ onDataLoaded }) {
                             </button>
                             <button
                                 onClick={handleCleanConfirm}
-                                disabled={itemsSinCodigo.length > 0 && Object.values(codigosAsignados).filter(c => c && c.trim()).length !== itemsSinCodigo.length}
+                                disabled={itemsFaltantesConCodigo.length > 0 && Object.values(codigosAsignados).filter(c => c && c.trim()).length !== itemsFaltantesConCodigo.length}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                                    itemsSinCodigo.length > 0 && Object.values(codigosAsignados).filter(c => c && c.trim()).length !== itemsSinCodigo.length
+                                    itemsFaltantesConCodigo.length > 0 && Object.values(codigosAsignados).filter(c => c && c.trim()).length !== itemsFaltantesConCodigo.length
                                         ? 'bg-gray-400 cursor-not-allowed'
                                         : 'bg-purple-600 hover:bg-purple-700 text-white'
                                 }`}
                             >
                                 <FaMagic className="text-sm" />
-                                {itemsSinCodigo.length > 0 
-                                    ? `Asignar códigos (${Object.values(codigosAsignados).filter(c => c && c.trim()).length}/${itemsSinCodigo.length})`
-                                    : 'Limpiar con IA'}
+                                {itemsFaltantesConCodigo.length > 0 
+                                    ? `Asignar códigos (${Object.values(codigosAsignados).filter(c => c && c.trim()).length}/${itemsFaltantesConCodigo.length})`
+                                    : 'Procesar DTE'}
                             </button>
                         </div>
                     </div>
