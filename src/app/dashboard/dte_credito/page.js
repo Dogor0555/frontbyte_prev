@@ -25,8 +25,12 @@ export default async function CreditoFiscalPage() {
     redirect("/auth/login");
   }
 
-  // Obtener authStatus para sacar idsucursal
+  // Obtener authStatus para sacar idsucursal y estado de Hacienda
   const authStatus = await checkAuthStatus(cookie);
+
+  // ✅ Extraer estado de Hacienda igual que en dashboard/page.js
+  const hasHaciendaToken = authStatus?.hasHaciendaToken ?? false;
+  const haciendaStatus  = authStatus?.haciendaStatus  ?? null;
 
   // Datos iniciales
   let productos = [];
@@ -87,7 +91,9 @@ export default async function CreditoFiscalPage() {
         initialProductos={productos}
         initialClientes={clientesJuridicos}
         user={user}
-        sucursalUsuario={sucursalData} // 👈 igual que factura
+        sucursalUsuario={sucursalData}
+        hasHaciendaToken={hasHaciendaToken}
+        haciendaStatus={haciendaStatus}
       />
     </Suspense>
   );
