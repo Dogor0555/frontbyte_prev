@@ -1495,7 +1495,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                         </div>
                         <div className="px-6 py-4">
                             <p className="text-gray-700 mb-4">
-                                ¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.
+                                ¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede revertir.
                             </p>
                             <div className="flex justify-end gap-3">
                                 <button
