@@ -277,12 +277,12 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
     if (!['TRANSMITIDO', 'RE-TRANSMITIDO'].includes(factura.estado)) return false;
     
     if (factura.fechaemision && factura.horaemision) {
-      const fechaHoraStr = `${factura.fechaemision.split("T")[0]}T${factura.horaemision}Z`;
-      const fechaEmision = new Date(fechaHoraStr);
-      const ahora = new Date();
-      const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
-      return horasTranscurridas <= 24;
-    }
+  const fechaHoraStr = `${factura.fechaemision.split("T")[0]}T${factura.horaemision}Z`;
+  const fechaEmision = new Date(fechaHoraStr);
+  const ahora = new Date();
+  const diasTranscurridos = (ahora - fechaEmision) / (1000 * 60 * 60 * 24);
+  return diasTranscurridos <= 30; // o <= 30.44 para promedio de mes
+}
     
     return false;
   };
