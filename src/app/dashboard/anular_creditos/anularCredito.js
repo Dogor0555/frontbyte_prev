@@ -383,7 +383,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
           </div>
           <div>
             <div className="text-xs text-gray-500 mb-0.5">Control</div>
-            <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded truncate">
+            <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded break-all">
               {credito.ncontrol || 'N/A'}
             </div>
           </div>

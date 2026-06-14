@@ -411,13 +411,13 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div>
             <div className="text-xs text-gray-500 mb-0.5">Código</div>
-            <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded truncate">
+            <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded break-all">
               {factura.codigogen || 'N/A'}
             </div>
           </div>
           <div>
             <div className="text-xs text-gray-500 mb-0.5">Control</div>
-            <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded truncate">
+            <div className="text-xs font-mono text-gray-800 bg-gray-50 p-1 rounded break-all">
               {factura.ncontrol || 'N/A'}
             </div>
           </div>
