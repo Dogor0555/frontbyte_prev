@@ -27,6 +27,7 @@ export default function ProductModal({
   const [descuentoAplicado, setDescuentoAplicado] = useState(0);
   const [precioEditable, setPrecioEditable] = useState(0);
   const [errorDescuento, setErrorDescuento] = useState("");
+  const [descripcionPersonalizada, setDescripcionPersonalizada] = useState("");
 
   const calcularPreciso = (operacion, decimales = 10) => {
     return parseFloat(operacion.toFixed(decimales));
@@ -75,8 +76,10 @@ export default function ProductModal({
     if (productoSeleccionado) {
       setStockDisponible(productoSeleccionado.stock || 0);
       setPrecioEditable(parseFloat(productoSeleccionado.precio) || 0);
+      setDescripcionPersonalizada(productoSeleccionado.nombre || "");
     } else {
       setStockDisponible(0);
+      setDescripcionPersonalizada("");
     }
   }, [productoSeleccionado]);
 
@@ -217,6 +220,7 @@ export default function ProductModal({
     setDescuentoAplicado(0);
     setPrecioEditable(0);
     setErrorDescuento("");
+    setDescripcionPersonalizada("");
   };
 
   useEffect(() => {
@@ -450,7 +454,7 @@ export default function ProductModal({
     }
     
     onAddItem({
-      descripcion: productoSeleccionado.nombre,
+      descripcion: descripcionPersonalizada || productoSeleccionado.nombre,
       cantidad: cantidad,
       codigo: productoSeleccionado.codigo,
       precioUnitario: precioBrutoOriginal, 
@@ -618,10 +622,11 @@ export default function ProductModal({
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Nombre Producto</label>
                 <input
                   type="text"
-                  readOnly
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={productoSeleccionado ? productoSeleccionado.nombre : ""}
-                  placeholder="Seleccione un producto"
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={descripcionPersonalizada}
+                  onChange={(e) => setDescripcionPersonalizada(e.target.value)}
+                  placeholder="Descripción del producto o servicio"
+                  disabled={!productoSeleccionado}
                 />
               </div>
 
