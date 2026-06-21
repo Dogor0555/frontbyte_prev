@@ -241,6 +241,11 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
                pathname.includes('/anular_nota_remision')) {
         newOpenMenus.remision = true;
       }
+      else if (pathname.includes('/libro_sujeto_excluido') ||
+               pathname.includes('/anexo_sujeto_excluido') ||
+               pathname.includes('/detalle_documentos_sujeto_excluido')) {
+        newOpenMenus.sujetoexcluido = true;
+      }
       else if (pathname.includes('/facturas_sujeto_excluido') || 
                pathname.includes('/anular_facturas_sujeto_excluido') ||
                pathname.includes('/sujeto_excluido')) {
@@ -597,6 +602,33 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
       ],
       menuKey: "consumidorfinal",
       permiso: "Ventas a Consumidor Final"
+    },
+    {
+      name: "Ventas a Sujeto Excluido",
+      icon: <FaBook />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Libro de Ventas a Sujeto Excluido", 
+          icon: <FaBook />, 
+          href: "/dashboard/libro_sujeto_excluido",
+          permiso: "Libro de Ventas a Sujeto Excluido" 
+        },
+        { 
+          name: "Anexo de Sujeto Excluido", 
+          icon: <FaFileAlt />, 
+          href: "/dashboard/anexo_sujeto_excluido",
+          permiso: "Anexo de Sujeto Excluido" 
+        },
+        { 
+          name: "Detalle de Documentos", 
+          icon: <FaFilePdf />, 
+          href: "/dashboard/detalle_documentos_sujeto_excluido",
+          permiso: "Detalle de Documentos Sujeto Excluido" 
+        },
+      ],
+      menuKey: "sujetoexcluido",
+      permiso: "Ventas a Sujeto Excluido"
     },
     {
       name: "Compras",
