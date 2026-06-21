@@ -70,10 +70,10 @@ export default function EditClientModal({
       if (formData.tipodocumento === "02" && !formData.carnetresidente) {
         newErrors.carnetresidente = "El carnet de residente es obligatorio.";
       }
-    } else {
-      if (formData.tipodocumento === "36" && !formData.nit) {
-        newErrors.nit = "El NIT es obligatorio para personas jurídicas.";
-      }
+    }
+    
+    if (formData.tipodocumento === "36" && !formData.nit) {
+      newErrors.nit = "El NIT es obligatorio.";
     }
 
     // Validaciones comunes
@@ -128,7 +128,6 @@ export default function EditClientModal({
       tipodocumento: isNatural ? "13" : "36",
       ...(isNatural 
         ? { 
-            nit: "",
             nrc: "",
             giro: "",
             carnetresidente: "",
@@ -230,9 +229,9 @@ export default function EditClientModal({
               {tiposDocumento
                 .filter(doc => {
                   if (doc.codigo === "37") return true;
-                  if (formData.personanatural === undefined) return ["13", "03", "02"].includes(doc.codigo);
+                  if (formData.personanatural === undefined) return ["13", "03", "02", "36"].includes(doc.codigo);
                   return formData.personanatural 
-                    ? ["13", "03", "02"].includes(doc.codigo)
+                    ? ["13", "03", "02", "36"].includes(doc.codigo)
                     : ["36"].includes(doc.codigo);
                 })
                 .map((doc) => (
@@ -328,7 +327,7 @@ export default function EditClientModal({
                 </div>
               )}
 
-              {/* NIT - Solo para persona jurídica con tipo 36 */}
+              {/* NIT - Cuando el tipo de documento es NIT */}
               {formData.tipodocumento === "36" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

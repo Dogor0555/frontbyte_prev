@@ -94,23 +94,23 @@ export default function AddClientModal({
       if (formData.tipodocumento === "02" && !formData.carnetresidente) {
         newErrors.carnetresidente = "El carnet de residente es obligatorio.";
       }
-    } else {
-      // Validaciones para persona jurídica
-      if (formData.tipodocumento === "36" && !formData.nit) {
-        newErrors.nit = "El NIT es obligatorio para personas jurídicas.";
-      } else if (formData.tipodocumento === "36" && formData.nit) {
-        const digitos = formData.nit.replace(/-/g, '').length;
-        
-        if (digitos < 9 || digitos > 14) {
-          newErrors.nit = "El NIT debe tener entre 9 y 14 dígitos.";
-        } else if (digitos === 9) {
-          if (formData.nit.length !== 10 || !/^\d{8}-\d$/.test(formData.nit)) {
-            newErrors.nit = "El formato del NIT debe ser 00000000-0 para NITs antiguos.";
-          }
-        } else if (digitos === 14) {
-          if (formData.nit.length !== 17 || !/^\d{4}-\d{6}-\d{3}-\d$/.test(formData.nit)) {
-            newErrors.nit = "El formato del NIT debe ser 0000-000000-000-0.";
-          }
+    }
+    
+    // Validaciones de NIT (para ambos tipos de persona cuando el documento es NIT)
+    if (formData.tipodocumento === "36" && !formData.nit) {
+      newErrors.nit = "El NIT es obligatorio.";
+    } else if (formData.tipodocumento === "36" && formData.nit) {
+      const digitos = formData.nit.replace(/-/g, '').length;
+      
+      if (digitos < 9 || digitos > 14) {
+        newErrors.nit = "El NIT debe tener entre 9 y 14 dígitos.";
+      } else if (digitos === 9) {
+        if (formData.nit.length !== 10 || !/^\d{8}-\d$/.test(formData.nit)) {
+          newErrors.nit = "El formato del NIT debe ser 00000000-0 para NITs antiguos.";
+        }
+      } else if (digitos === 14) {
+        if (formData.nit.length !== 17 || !/^\d{4}-\d{6}-\d{3}-\d$/.test(formData.nit)) {
+          newErrors.nit = "El formato del NIT debe ser 0000-000000-000-0.";
         }
       }
     }
@@ -188,7 +188,6 @@ export default function AddClientModal({
       tipodocumento: isNatural ? "13" : "36", 
       ...(isNatural 
         ? { 
-            nit: "",
             nrc: "",
             giro: "",
             carnetresidente: "",
@@ -293,7 +292,7 @@ export default function AddClientModal({
                 .filter(doc => 
                   doc.codigo === "37" ? true :
                   formData.personanatural 
-                    ? ["13", "03", "02"].includes(doc.codigo) 
+                    ? ["13", "03", "02", "36"].includes(doc.codigo) 
                     : ["36"].includes(doc.codigo) 
                 )
                 .map((doc) => (
@@ -390,7 +389,7 @@ export default function AddClientModal({
                 </div>
               )}
 
-              {/* NIT - Solo para persona jurídica con tipo 36 */}
+              {/* NIT - Cuando el tipo de documento es NIT */}
               {formData.tipodocumento === "36" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
