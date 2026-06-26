@@ -221,7 +221,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
         throw new Error(data.descripcionMsg || data.error || "Error al anular crédito");
       }
 
-      setCreditos((prev) =>
+      setRows((prev) =>
         prev.map((credito) =>
           credito.iddtecredito === creditoId
             ? { ...credito, estado: "ANULADO" }
@@ -252,7 +252,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
       }
 
       const result = await response.json();
-      setCreditos(prev => prev.map(credito => 
+      setRows(prev => prev.map(credito => 
         credito.iddtecredito === creditoId 
           ? { ...credito, estado: result.estado || 'RE-TRANSMITIDO' }
           : credito
@@ -642,7 +642,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
 
               {/* Listado en formato tarjeta-crédito */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {creditosAMostrar.map((credito) => (
+                {rows.map((credito) => (
                   <div
                     key={credito.iddtefactura}
                     className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-200"
@@ -835,102 +835,56 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
                 ))}
               </div>
               
-              {/* Mostrar paginación SOLO cuando NO hay filtros activos */}
-              {!hayFiltros && creditosOrdenados.length > itemsPerPage && (
+              {meta.pages > 1 && (
                 <div className="flex justify-center mt-6">
                   <nav className="inline-flex rounded-md shadow">
-                    {/* Botón Anterior */}
                     <button
-                      onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
-                      disabled={currentPage === 1}
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
                       className={`px-3 py-1 rounded-l-md border ${
-                        currentPage === 1 
+                        page === 1 
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                           : 'bg-white text-gray-700 hover:bg-gray-50'
                       }`}
                     >
                       <FaChevronLeft className="text-sm" />
                     </button>
-                    
-                    {/* Botones de página - Responsive */}
                     {(() => {
                       const pages = [];
                       const maxVisiblePages = isMobile ? 3 : 5;
-                      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
+                      let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
+                      let endPage = Math.min(meta.pages, startPage + maxVisiblePages - 1);
                       if (endPage - startPage + 1 < maxVisiblePages) {
                         startPage = Math.max(1, endPage - maxVisiblePages + 1);
                       }
-
                       if (startPage > 1) {
                         pages.push(
-                          <button
-                            key={1}
-                            onClick={() => paginate(1)}
-                            className={`px-3 py-1 border-t border-b ${
-                              1 === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                            }`}
-                          >
-                            1
-                          </button>
+                          <button key={1} onClick={() => setPage(1)} className={`px-3 py-1 border-t border-b ${1 === page ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>1</button>
                         );
-                        
                         if (startPage > 2) {
-                          pages.push(
-                            <span key="ellipsis-start" className="px-2 py-1 border-t border-b bg-white text-gray-500">
-                              ...
-                            </span>
-                          );
+                          pages.push(<span key="start-ellipsis" className="px-2 py-1 border-t border-b bg-white text-gray-500">...</span>);
                         }
                       }
-                      
-                      // Páginas visibles
                       for (let i = startPage; i <= endPage; i++) {
                         pages.push(
-                          <button
-                            key={i}
-                            onClick={() => paginate(i)}
-                            className={`px-3 py-1 border-t border-b ${
-                              i === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                            }`}
-                          >
-                            {i}
-                          </button>
+                          <button key={i} onClick={() => setPage(i)} className={`px-3 py-1 border-t border-b ${i === page ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{i}</button>
                         );
                       }
-
-                      if (endPage < totalPages) {
-                        if (endPage < totalPages - 1) {
-                          pages.push(
-                            <span key="ellipsis-end" className="px-2 py-1 border-t border-b bg-white text-gray-500">
-                              ...
-                            </span>
-                          );
+                      if (endPage < meta.pages) {
+                        if (endPage < meta.pages - 1) {
+                          pages.push(<span key="end-ellipsis" className="px-2 py-1 border-t border-b bg-white text-gray-500">...</span>);
                         }
-                        
                         pages.push(
-                          <button
-                            key={totalPages}
-                            onClick={() => paginate(totalPages)}
-                            className={`px-3 py-1 border-t border-b ${
-                              totalPages === currentPage ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                            }`}
-                          >
-                            {totalPages}
-                          </button>
+                          <button key={meta.pages} onClick={() => setPage(meta.pages)} className={`px-3 py-1 border-t border-b ${meta.pages === page ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>{meta.pages}</button>
                         );
                       }
-                      
                       return pages;
                     })()}
-                    
-                    {/* Botón Siguiente */}
                     <button
-                      onClick={() => paginate(currentPage < totalPages ? currentPage + 1 : totalPages)}
-                      disabled={currentPage === totalPages}
+                      onClick={() => setPage(p => Math.min(meta.pages, p + 1))}
+                      disabled={page === meta.pages}
                       className={`px-3 py-1 rounded-r-md border ${
-                        currentPage === totalPages 
+                        page === meta.pages 
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                           : 'bg-white text-gray-700 hover:bg-gray-50'
                       }`}
@@ -942,7 +896,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
               )}
 
               {/* Mensaje cuando no hay resultados */}
-              {creditosOrdenados.length === 0 && (
+              {!loading && rows.length === 0 && (
                 <div className="text-center py-10">
                   <div className="text-gray-400 mb-3">
                     <FaFileAlt className="inline-block text-4xl" />
