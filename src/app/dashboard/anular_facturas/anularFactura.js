@@ -32,7 +32,7 @@ export default function AnularFacturaView({ user, hasHaciendaToken, haciendaStat
   useEffect(() => {
     const fetchFacturas = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/facturas/getAllDteFacturas`, {
+        const response = await fetch(`${API_BASE_URL}/facturas/getAllDteFacturas?limit=50`, {
           credentials: "include"
         });
         if (!response.ok) throw new Error("Error al cargar facturas");

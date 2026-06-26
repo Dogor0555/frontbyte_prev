@@ -39,7 +39,10 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, 
   // Debounce para searchTerm
   const [debouncedQ, setDebouncedQ] = useState("");
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(searchTerm), 350);
+    const t = setTimeout(() => {
+      setDebouncedQ(searchTerm);
+      setPage(1);
+    }, 500);
     return () => clearTimeout(t);
   }, [searchTerm]);
 
@@ -575,10 +578,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, 
                       placeholder="Buscar por código, cliente, número, documento..."
                       className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setPage(1);
-                      }}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
 

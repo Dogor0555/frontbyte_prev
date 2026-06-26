@@ -1,9 +1,10 @@
-// src/app/dashboard/facturas/page.js
+// src/app/dashboard/comprobantes_liquidacion/page.js
 import LiquidacionView from "./LiquidacionView.js";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
+import { API_BASE_URL } from "@/lib/api";
 
 export default async function FacturasPage() {
     // Obtener cookies en el servidor
@@ -16,11 +17,22 @@ export default async function FacturasPage() {
     // Verificar autenticación y obtener información completa
     const authStatus = await checkAuthStatus(cookie);
     
-    console.log("Usuario completo desde checkAuthStatus:", authStatus.user);
-    console.log("AuthStatus completo:", authStatus);
-    
     if (!authStatus.isAuthenticated || !authStatus.user) {
         redirect("/auth/login");
+    }
+
+    // Fetch initial data for server-side pagination
+    let initialFacturas = null;
+    try {
+        const res = await fetch(`${API_BASE_URL}/liquidacion?page=1&limit=6`, {
+            headers: { Cookie: cookie },
+            cache: "no-store"
+        });
+        if (res.ok) {
+            initialFacturas = await res.json();
+        }
+    } catch (e) {
+        console.error("Error fetching initial liquidacion data:", e);
     }
 
     // Pasar datos al Client Component
@@ -36,6 +48,7 @@ export default async function FacturasPage() {
                 user={authStatus.user}
                 hasHaciendaToken={authStatus.hasHaciendaToken}
                 haciendaStatus={authStatus.haciendaStatus}
+                initialFacturas={initialFacturas}
             />
         </Suspense>
     );

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaEye } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
@@ -8,43 +8,82 @@ import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../components/JsonViewer";
 
-export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaStatus } ) {
+export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaStatus, initialFacturas } ) {
   const [isMobile, setIsMobile] = useState(false);
-  const [facturas, setFacturas] = useState([]);
+  const [rows, setRows] = useState(initialFacturas?.data ?? []);
+  const [meta, setMeta] = useState(initialFacturas?.meta ?? { total: 0, page: 1, limit: 6, pages: 1 });
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
   const [ordenFecha, setOrdenFecha] = useState("reciente");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialFacturas?.data?.length);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [page, setPage] = useState(initialFacturas?.meta?.page ?? 1);
   const [pdfLoading, setPdfLoading] = useState(null);
   const [anulando, setAnulando] = useState(null);
   const [reTransmitiendo, setReTransmitiendo] = useState(null);
   const [jsonViewerData, setJsonViewerData] = useState(null);
   const [loadingJson, setLoadingJson] = useState(null);
   const [openDownloadMenu, setOpenDownloadMenu] = useState(null);
-  const itemsPerPage = 6;
+
+  // Debounce para searchTerm
+  const [debouncedQ, setDebouncedQ] = useState("");
+
+  const ITEMS_PER_PAGE = 6;
   const router = useRouter();
 
+  const hasInitialData = useRef(!!initialFacturas?.data?.length);
+  const isFirstRender = useRef(true);
+
   useEffect(() => {
-    const fetchFacturas = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/retencion`, {
-          credentials: "include"
-        });
-        if (!response.ok) throw new Error("Error al cargar comprobantes de retención DTE 07");
-        const data = await response.json();
-        setFacturas(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error("Error:", error);
-        alert("Error al cargar las retenciones DTE 07: " + error.message);
-        setFacturas([]);
-      } finally {
-        setLoading(false);
+    const t = setTimeout(() => {
+      setDebouncedQ(searchTerm);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      params.set("page", page);
+      params.set("limit", ITEMS_PER_PAGE);
+      if (debouncedQ) params.set("search", debouncedQ);
+      if (estadoFiltro) params.set("estado", estadoFiltro);
+      if (ordenFecha) params.set("ordenFecha", ordenFecha);
+
+      const response = await fetch(`${API_BASE_URL}/retencion?${params}`, {
+        credentials: "include"
+      });
+      if (!response.ok) throw new Error("Error al cargar comprobantes de retención DTE 07");
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+        setRows(data);
+        setMeta({ total: data.length, page: 1, limit: ITEMS_PER_PAGE, pages: 1 });
+      } else {
+        setRows(data?.data ?? []);
+        setMeta(data?.meta ?? { total: 0, page: 1, limit: ITEMS_PER_PAGE, pages: 1 });
       }
-    };
-    fetchFacturas();
-  }, []);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al cargar las retenciones DTE 07: " + error.message);
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, debouncedQ, estadoFiltro, ordenFecha]);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      if (!hasInitialData.current) {
+        load();
+      }
+    } else {
+      load();
+    }
+  }, [load]);
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -57,66 +96,7 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
     };
   }, []);
 
-  const ordenarFacturas = (facturas) => {
-    return [...facturas].sort((a, b) => {
-      if (ordenFecha === "reciente" || ordenFecha === "antigua") {
-        const crearFechaCompleta = (factura) => {
-          if (!factura.fechaemision) return new Date(0);
-          
-          if (factura.fechaemision.includes('T') && !factura.fechaemision.endsWith('Z')) {
-            return new Date(factura.fechaemision);
-          }
-          
-          const fechaStr = factura.fechaemision.split('T')[0];
-          const horaStr = factura.horaemision || '00:00:00';
 
-          const fechaHoraStr = `${fechaStr}T${horaStr}Z`;
-          return new Date(fechaHoraStr);
-        };
-
-        const fechaA = crearFechaCompleta(a);
-        const fechaB = crearFechaCompleta(b);
-        
-        if (ordenFecha === "reciente") {
-          return fechaB - fechaA; 
-        } else {
-          return fechaA - fechaB; 
-        }
-      } else if (ordenFecha === "numero") {
-        const numA = parseInt(a.numerofacturausuario) || 0;
-        const numB = parseInt(b.numerofacturausuario) || 0;
-        return numB - numA; 
-      }
-      
-      return 0;
-    });
-  };
-
-  const facturasFiltradas = Array.isArray(facturas)
-    ? facturas.filter((factura) => {
-        if (!factura) return false;
-        const searchLower = searchTerm.toLowerCase();
-
-        const matchSearch =
-          (factura.codigo?.toLowerCase() || "").includes(searchLower) ||
-          (factura.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
-          (factura.numerofacturausuario?.toString() || "").includes(searchTerm) ||
-          (factura.iddtefactura?.toString() || "").includes(searchTerm) ||
-          (factura.ncontrol?.toString() || "").includes(searchTerm);
-
-        const matchEstado = estadoFiltro ? factura.estado === estadoFiltro : true;
-
-        return matchSearch && matchEstado;
-      })
-    : [];
-
-  const facturasOrdenadas = ordenarFacturas(facturasFiltradas);
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = facturasOrdenadas.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(facturasOrdenadas.length / itemsPerPage);
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const formatCurrency = (amount) => new Intl.NumberFormat('es-SV', { style: 'currency', currency: 'USD' }).format(amount || 0);
   
@@ -206,7 +186,7 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
         throw new Error(data.descripcionMsg || data.error || "Error al anular retención");
       }
 
-      setFacturas((prev) =>
+      setRows((prev) =>
         prev.map((factura) =>
           factura.iddtefactura === facturaId
             ? { ...factura, estado: "ANULADO" }
@@ -237,7 +217,7 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
       }
 
       const result = await response.json();
-      setFacturas(prev => prev.map(factura => 
+      setRows(prev => prev.map(factura => 
         factura.iddtefactura === facturaId 
           ? { ...factura, estado: result.estado || 'RE-TRANSMITIDO' }
           : factura
@@ -408,8 +388,8 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Comprobantes de Retención (DTE 07)</h1>
                   <p className="text-gray-600">
-                    {facturas.length} {facturas.length === 1 ? "retención" : "retenciones"} registradas
-                    {searchTerm && ` (${facturasFiltradas.length} encontradas)`}
+                    {meta.total} {meta.total === 1 ? "retención" : "retenciones"} registradas
+                    {searchTerm && ` (${meta.total} encontradas)`}
                   </p>
                 </div>
 
@@ -423,7 +403,7 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                       value={searchTerm}
                       onChange={(e) => {
                         setSearchTerm(e.target.value);
-                        setCurrentPage(1);
+                        setPage(1);
                       }}
                     />
                   </div>
@@ -432,7 +412,7 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                     value={estadoFiltro}
                     onChange={(e) => {
                       setEstadoFiltro(e.target.value);
-                      setCurrentPage(1);
+                      setPage(1);
                     }}
                     className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
                   >
@@ -447,7 +427,7 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                     value={ordenFecha}
                     onChange={(e) => {
                       setOrdenFecha(e.target.value);
-                      setCurrentPage(1);
+                      setPage(1);
                     }}
                     className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                   >
@@ -459,7 +439,7 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
 
               {/* Listado en formato tarjeta-factura */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {currentItems.map((factura) => (
+                {rows.map((factura) => (
                   <div
                     key={factura.iddtefactura}
                     className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-200"
@@ -651,14 +631,14 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                   </div>
                 ))}
               </div>
-              {facturasOrdenadas.length > itemsPerPage && (
+              {meta.total > ITEMS_PER_PAGE && (
                 <div className="flex justify-center mt-6">
                   <nav className="inline-flex rounded-md shadow">
                     <button
-                      onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
-                      disabled={currentPage === 1}
+                      onClick={() => setPage(page > 1 ? page - 1 : 1)}
+                      disabled={page === 1}
                       className={`px-3 py-1 rounded-l-md border ${
-                        currentPage === 1 
+                        page === 1 
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                           : 'bg-white text-gray-700 hover:bg-gray-50'
                       }`}
@@ -669,8 +649,8 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                     {(() => {
                       const pages = [];
                       const maxVisiblePages = isMobile ? 3 : 5;
-                      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                      let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
+                      let endPage = Math.min(meta.pages, startPage + maxVisiblePages - 1);
 
                       if (endPage - startPage + 1 < maxVisiblePages) {
                         startPage = Math.max(1, endPage - maxVisiblePages + 1);
@@ -680,9 +660,9 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                         pages.push(
                           <button
                             key={1}
-                            onClick={() => paginate(1)}
+                            onClick={() => setPage(1)}
                             className={`px-3 py-1 border-t border-b ${
-                              1 === currentPage ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                              1 === page ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                             }`}
                           >
                             1
@@ -702,9 +682,9 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                         pages.push(
                           <button
                             key={i}
-                            onClick={() => paginate(i)}
+                            onClick={() => setPage(i)}
                             className={`px-3 py-1 border-t border-b ${
-                              i === currentPage ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                              i === page ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                             }`}
                           >
                             {i}
@@ -712,8 +692,8 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                         );
                       }
 
-                      if (endPage < totalPages) {
-                        if (endPage < totalPages - 1) {
+                      if (endPage < meta.pages) {
+                        if (endPage < meta.pages - 1) {
                           pages.push(
                             <span key="ellipsis-end" className="px-2 py-1 border-t border-b bg-white text-gray-500">
                               ...
@@ -723,13 +703,13 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                         
                         pages.push(
                           <button
-                            key={totalPages}
-                            onClick={() => paginate(totalPages)}
+                            key={meta.pages}
+                            onClick={() => setPage(meta.pages)}
                             className={`px-3 py-1 border-t border-b ${
-                              totalPages === currentPage ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                              meta.pages === page ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                             }`}
                           >
-                            {totalPages}
+                            {meta.pages}
                           </button>
                         );
                       }
@@ -738,10 +718,10 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                     })()}
                     
                     <button
-                      onClick={() => paginate(currentPage < totalPages ? currentPage + 1 : totalPages)}
-                      disabled={currentPage === totalPages}
+                      onClick={() => setPage(page < meta.pages ? page + 1 : meta.pages)}
+                      disabled={page === meta.pages}
                       className={`px-3 py-1 rounded-r-md border ${
-                        currentPage === totalPages 
+                        page === meta.pages 
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                           : 'bg-white text-gray-700 hover:bg-gray-50'
                       }`}
@@ -752,16 +732,16 @@ export default function RetencionDTE07View( { user, hasHaciendaToken, haciendaSt
                 </div>
               )}
 
-              {facturasOrdenadas.length === 0 && (
+              {rows.length === 0 && (
                 <div className="text-center py-10">
                   <div className="text-gray-400 mb-3">
                     <FaFileAlt className="inline-block text-4xl" />
                   </div>
                   <h3 className="text-lg font-medium text-gray-700">
-                    {facturas.length === 0 ? 'No hay retenciones registradas' : 'No se encontraron coincidencias'}
+                    {meta.total === 0 ? 'No hay retenciones registradas' : 'No se encontraron coincidencias'}
                   </h3>
                   <p className="text-gray-500 mt-1">
-                    {facturas.length === 0 ? 'Comienza creando tu primer comprobante de retención DTE 07' : 'Intenta con otros términos de búsqueda'}
+                    {meta.total === 0 ? 'Comienza creando tu primer comprobante de retención DTE 07' : 'Intenta con otros términos de búsqueda'}
                   </p>
                 </div>
               )}

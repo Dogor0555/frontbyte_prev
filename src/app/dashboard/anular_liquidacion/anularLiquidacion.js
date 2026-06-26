@@ -32,7 +32,7 @@ export default function AnularLiquidacionView({ user, hasHaciendaToken, hacienda
   useEffect(() => {
     const fetchFacturas = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/liquidacion`, {
+        const response = await fetch(`${API_BASE_URL}/liquidacion?limit=50`, {
           credentials: "include"
         });
         if (!response.ok) throw new Error("Error al cargar liquidaciones");

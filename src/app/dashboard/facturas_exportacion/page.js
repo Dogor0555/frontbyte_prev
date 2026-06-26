@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
+import { API_BASE_URL } from "@/lib/api";
 
 export default async function FacturaExportacionPage() {
     const cookieStore = await cookies();
@@ -17,6 +18,19 @@ export default async function FacturaExportacionPage() {
         redirect("/auth/login");
     }
 
+    let initialFacturas = null;
+    try {
+        const res = await fetch(`${API_BASE_URL}/exportacion?page=1&limit=6`, {
+            headers: { cookie },
+            cache: "no-store",
+        });
+        if (res.ok) {
+            initialFacturas = await res.json();
+        }
+    } catch (e) {
+        console.error("Error fetching initial facturas:", e);
+    }
+
     return (
         <Suspense
             fallback={
@@ -29,6 +43,7 @@ export default async function FacturaExportacionPage() {
                 user={authStatus.user}
                 hasHaciendaToken={authStatus.hasHaciendaToken}
                 haciendaStatus={authStatus.haciendaStatus}
+                initialFacturas={initialFacturas}
             />
         </Suspense>
     );

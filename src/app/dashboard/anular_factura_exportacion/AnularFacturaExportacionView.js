@@ -31,7 +31,7 @@ export default function AnularFacturaExportacionView({ user, hasHaciendaToken, h
   useEffect(() => {
     const fetchFacturas = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/exportacion`, {
+        const response = await fetch(`${API_BASE_URL}/exportacion?limit=50`, {
           credentials: "include"
         });
         if (!response.ok) throw new Error("Error al cargar facturas de exportación");

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
+import { API_BASE_URL } from "@/lib/api";
 
 export default async function FacturasExcluidasPage() {
     // Obtener cookies en el servidor
@@ -23,6 +24,25 @@ export default async function FacturasExcluidasPage() {
         redirect("/auth/login");
     }
 
+    // Obtener facturas iniciales del servidor
+    let initialFacturas = null;
+    try {
+        const response = await fetch(`${API_BASE_URL}/sujeto-excluido?page=1&limit=6`, {
+            headers: { Cookie: cookie },
+            cache: "no-store",
+        });
+        if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                initialFacturas = { data, meta: { total: data.length, page: 1, limit: 6, pages: 1 } };
+            } else {
+                initialFacturas = { data: data?.data ?? [], meta: data?.meta ?? { total: 0, page: 1, limit: 6, pages: 1 } };
+            }
+        }
+    } catch (error) {
+        console.error("Error fetching initial facturas excluidas:", error);
+    }
+
     // Pasar datos al Client Component
     return (
         <Suspense
@@ -36,6 +56,7 @@ export default async function FacturasExcluidasPage() {
                 user={authStatus.user}
                 hasHaciendaToken={authStatus.hasHaciendaToken}
                 haciendaStatus={authStatus.haciendaStatus}
+                initialFacturas={initialFacturas}
             />
         </Suspense>
     );

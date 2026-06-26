@@ -31,7 +31,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
   useEffect(() => {
     const fetchCreditos = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/creditos/getAllDteCreditos`, {
+        const response = await fetch(`${API_BASE_URL}/creditos/getAllDteCreditos?limit=50`, {
           credentials: "include"
         });
         if (!response.ok) throw new Error("Error al cargar créditos");

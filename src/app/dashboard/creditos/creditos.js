@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaEye, FaCalendarCheck } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
@@ -8,52 +8,88 @@ import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../components/JsonViewer";
 
-export default function CreditosView({ user, hasHaciendaToken, haciendaStatus }) {
+export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, initialCreditos }) {
   const [isMobile, setIsMobile] = useState(false);
-  const [creditos, setCreditos] = useState([]);
+  const [rows, setRows] = useState(initialCreditos?.data ?? []);
+  const [meta, setMeta] = useState(initialCreditos?.meta ?? { total: 0, page: 1, limit: 6, pages: 1 });
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
   const [ordenFecha, setOrdenFecha] = useState("reciente");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialCreditos?.data?.length);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [page, setPage] = useState(initialCreditos?.meta?.page ?? 1);
   const [pdfLoading, setPdfLoading] = useState(null);
   const [anulando, setAnulando] = useState(null);
   const [jsonViewerData, setJsonViewerData] = useState(null);
   const [loadingJson, setLoadingJson] = useState(null);
   const [reTransmitiendo, setReTransmitiendo] = useState(null);
   const [openDownloadMenu, setOpenDownloadMenu] = useState(null);
-  
+
   // Estados para el filtro de fecha
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   
-  const itemsPerPage = 6;
+  const ITEMS_PER_PAGE = 6;
   const router = useRouter();
 
+  // Debounce para searchTerm
+  const [debouncedQ, setDebouncedQ] = useState("");
   useEffect(() => {
-    const fetchCreditos = async () => {
-      try {
-        // Cambiar el endpoint para obtener créditos específicos
-        const response = await fetch(`${API_BASE_URL}/creditos/getAllDteCreditos`, {
-          credentials: "include"
-        });
-        if (!response.ok) throw new Error("Error al cargar créditos");
-        const data = await response.json();
-        
-        // Ajustar según la estructura de respuesta del endpoint de créditos
-        setCreditos(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error("Error:", error);
-        alert("Error al cargar los créditos: " + error.message);
-        setCreditos([]);
-      } finally {
-        setLoading(false);
+    const t = setTimeout(() => {
+      setDebouncedQ(searchTerm);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const hasInitialData = useRef(!!initialCreditos?.data?.length);
+  const isFirstRender = useRef(true);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      params.set("page", page);
+      params.set("limit", ITEMS_PER_PAGE);
+      if (debouncedQ) params.set("search", debouncedQ);
+      if (estadoFiltro) params.set("estado", estadoFiltro);
+      if (fechaInicio) params.set("fechaInicio", fechaInicio);
+      if (fechaFin) params.set("fechaFin", fechaFin);
+      params.set("ordenFecha", ordenFecha);
+
+      const response = await fetch(`${API_BASE_URL}/creditos/getAllDteCreditos?${params}`, {
+        credentials: "include"
+      });
+      if (!response.ok) throw new Error("Error al cargar créditos");
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+        setRows(data);
+        setMeta({ total: data.length, page: 1, limit: ITEMS_PER_PAGE, pages: 1 });
+      } else {
+        setRows(data?.data ?? []);
+        setMeta(data?.meta ?? { total: 0, page: 1, limit: ITEMS_PER_PAGE, pages: 1 });
       }
-    };
-    fetchCreditos();
-  }, []);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al cargar los créditos: " + error.message);
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, debouncedQ, estadoFiltro, fechaInicio, fechaFin, ordenFecha]);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      if (!hasInitialData.current) {
+        load();
+      }
+    } else {
+      load();
+    }
+  }, [load]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -70,111 +106,17 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus })
     };
   }, [showDatePicker]);
 
-  // Función para verificar si hay filtros activos
-  const hayFiltrosActivos = () => {
-    return searchTerm !== "" || estadoFiltro !== "" || fechaInicio !== "" || fechaFin !== "" || ordenFecha !== "reciente";
-  };
-
-  // Función para filtrar por fecha
-  const filtrarPorFecha = (credito) => {
-    if (!fechaInicio && !fechaFin) return true;
-    
-    if (!credito.fechaemision) return false;
-    
-    // Extraer solo la fecha (sin hora)
-    const fechaCredito = credito.fechaemision.split('T')[0];
-    
-    if (fechaInicio && fechaFin) {
-      return fechaCredito >= fechaInicio && fechaCredito <= fechaFin;
-    } else if (fechaInicio) {
-      return fechaCredito >= fechaInicio;
-    } else if (fechaFin) {
-      return fechaCredito <= fechaFin;
-    }
-    
-    return true;
-  };
-
-  const ordenarCreditos = (creditos) => {
-    return [...creditos].sort((a, b) => {
-      if (ordenFecha === "reciente" || ordenFecha === "antigua") {
-        const crearFechaCompleta = (credito) => {
-          if (!credito.fechaemision) return new Date(0);
-          
-          if (credito.fechaemision.includes('T') && !credito.fechaemision.endsWith('Z')) {
-            return new Date(credito.fechaemision);
-          }
-          
-          const fechaStr = credito.fechaemision.split('T')[0];
-          const horaStr = credito.horaemision || '00:00:00';
-
-          const fechaHoraStr = `${fechaStr}T${horaStr}Z`;
-          return new Date(fechaHoraStr);
-        };
-
-        const fechaA = crearFechaCompleta(a);
-        const fechaB = crearFechaCompleta(b);
-        
-        if (ordenFecha === "reciente") {
-          return fechaB - fechaA; 
-        } else {
-          return fechaA - fechaB; 
-        }
-      } else if (ordenFecha === "numero") {
-        const numA = parseInt(a.numerofacturausuario) || 0;
-        const numB = parseInt(b.numerofacturausuario) || 0;
-        return numB - numA; 
-      }
-      
-      return 0;
-    });
-  };
-
-  const creditosFiltrados = Array.isArray(creditos)
-    ? creditos.filter((credito) => {
-        if (!credito) return false;
-        const searchLower = searchTerm.toLowerCase();
-
-        const matchSearch =
-          (credito.codigo?.toLowerCase() || "").includes(searchLower) ||
-          (credito.nombrecibe?.toLowerCase() || "").includes(searchLower) ||
-          (credito.numerocreditousuario?.toString() || "").includes(searchTerm) ||
-          (credito.iddtecredito?.toString() || "").includes(searchTerm) ||
-          (credito.ncontrol?.toString() || "").includes(searchTerm) ||
-          (credito.numerofacturausuario?.toString() || "").includes(searchTerm);
-
-        const matchEstado = estadoFiltro ? credito.estado === estadoFiltro : true;
-        
-        // Aplicar filtro de fecha
-        const matchFecha = filtrarPorFecha(credito);
-
-        return matchSearch && matchEstado && matchFecha;
-      })
-    : [];
-
-  // Aplicar ordenamiento por fecha
-  const creditosOrdenados = ordenarCreditos(creditosFiltrados);
-
-  // Determinar qué créditos mostrar según si hay filtros activos
-  const hayFiltros = hayFiltrosActivos();
-  
-  // Si hay filtros activos, mostrar TODOS los créditos filtrados
-  // Si no hay filtros, mostrar solo los de la página actual
-  const creditosAMostrar = hayFiltros 
-    ? creditosOrdenados 
-    : creditosOrdenados.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  
-  const totalPages = Math.ceil(creditosOrdenados.length / itemsPerPage);
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const hayFiltros = searchTerm !== "" || estadoFiltro !== "" || fechaInicio !== "" || fechaFin !== "" || ordenFecha !== "reciente";
 
   // Función para limpiar filtros
   const limpiarFiltros = () => {
     setSearchTerm("");
+    setDebouncedQ("");
     setEstadoFiltro("");
     setFechaInicio("");
     setFechaFin("");
     setOrdenFecha("reciente");
-    setCurrentPage(1);
+    setPage(1);
   };
 
   // Función para establecer filtros rápidos

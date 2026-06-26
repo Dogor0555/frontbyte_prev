@@ -32,7 +32,7 @@ export default function AnularNotaRemisionView({ user, hasHaciendaToken, haciend
   useEffect(() => {
     const fetchFacturas = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/notasremision/`, {
+        const response = await fetch(`${API_BASE_URL}/notasremision/?limit=50`, {
           credentials: "include"
         });
         if (!response.ok) throw new Error("Error al cargar notas de remisión");

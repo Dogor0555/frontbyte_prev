@@ -1,32 +1,44 @@
-// src/app/dashboard/creditos/page.js
 import CreditosView from "./creditos.js";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { checkAuthStatus } from "../../services/auth";
+import { API_BASE_URL } from "@/lib/api";
 import { checkPermissionAndRedirect } from "../components/authorization.js";
 
 export default async function CreditosPage() {
     await checkPermissionAndRedirect("Ver Créditos");
 
-    // Obtener cookies en el servidor
     const cookieStore = await cookies();
     const cookie = cookieStore
         .getAll()
         .map((c) => `${c.name}=${c.value}`)
         .join("; ");
 
-    // Verificar autenticación y obtener información completa
     const authStatus = await checkAuthStatus(cookie);
-    
-    console.log("Usuario completo desde checkAuthStatus:", authStatus.user);
-    console.log("AuthStatus completo:", authStatus);
     
     if (!authStatus.isAuthenticated || !authStatus.user) {
         redirect("/auth/login");
     }
 
-    // Pasar datos al Client Component
+    let initialCreditos = { data: [], meta: { total: 0, page: 1, limit: 6, pages: 1 } };
+    try {
+        const resp = await fetch(`${API_BASE_URL}/creditos/getAllDteCreditos?page=1&limit=6`, {
+            method: "GET",
+            headers: { Cookie: cookie },
+            credentials: "include",
+            cache: "no-store",
+        });
+        if (resp.ok) {
+            const json = await resp.json();
+            initialCreditos = Array.isArray(json)
+                ? { data: json, meta: { total: json.length, page: 1, limit: 6, pages: 1 } }
+                : json;
+        }
+    } catch (error) {
+        console.error("Error al obtener créditos:", error);
+    }
+
     return (
         <Suspense
             fallback={
@@ -39,6 +51,7 @@ export default async function CreditosPage() {
                 user={authStatus.user}
                 hasHaciendaToken={authStatus.hasHaciendaToken}
                 haciendaStatus={authStatus.haciendaStatus}
+                initialCreditos={initialCreditos}
             />
         </Suspense>
     );

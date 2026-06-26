@@ -42,18 +42,18 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
       try {
         setLoading(true);
 
-        const facturasResponse = await fetch(`${API_BASE_URL}/creditos/getAllDteCreditos`, {
+        const facturasResponse = await fetch(`${API_BASE_URL}/creditos/getAllDteCreditos?limit=50`, {
           credentials: "include"
         });
         
         if (!facturasResponse.ok) throw new Error("Error al cargar facturas");
         const facturasData = await facturasResponse.json();
         
-        const notasDebitoResponse = await fetch(`${API_BASE_URL}/notasdebito/`, {
+        const notasDebitoResponse = await fetch(`${API_BASE_URL}/notasdebito/?limit=50`, {
           credentials: "include"
         });
 
-        const notasCreditoResponse = await fetch(`${API_BASE_URL}/notascredito/`, {
+        const notasCreditoResponse = await fetch(`${API_BASE_URL}/notascredito/?limit=50`, {
           credentials: "include"
         });
 
@@ -860,7 +860,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                     </div>
                     <div className="ml-3">
                       <p className="text-sm text-blue-700">
-                        <strong>Nota:</strong> Solo puedes generar notas de débito y crédito para facturas transmitidas con menos de 24 horas de antigüedad y que estén en estado "TRANSMITIDO" o "RE-TRANSMITIDO".
+                        <strong>Nota:</strong> Solo puedes generar notas de débito y crédito para facturas transmitidas con menos de 24 horas de antigüedad y que estén en estado &quot;TRANSMITIDO&quot; o &quot;RE-TRANSMITIDO&quot;.
                       </p>
                     </div>
                   </div>

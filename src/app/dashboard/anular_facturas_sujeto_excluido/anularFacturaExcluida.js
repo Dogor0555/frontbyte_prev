@@ -31,7 +31,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
   useEffect(() => {
     const fetchFacturasExcluidas = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/sujeto-excluido`, {
+        const response = await fetch(`${API_BASE_URL}/sujeto-excluido?limit=50`, {
           credentials: "include"
         });
         
