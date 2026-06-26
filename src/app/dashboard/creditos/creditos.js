@@ -423,8 +423,8 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Mis Créditos Fiscales</h1>
                   <p className="text-gray-600">
-                    {creditos.length} {creditos.length === 1 ? "documento" : "documentos"} registrados
-                    {hayFiltros && ` (${creditosOrdenados.length} encontrados)`}
+                    {meta.total} {meta.total === 1 ? "documento" : "documentos"} registrados
+                    {hayFiltros && ` (${meta.total} encontrados)`}
                   </p>
                 </div>
 
@@ -948,10 +948,10 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
                     <FaFileAlt className="inline-block text-4xl" />
                   </div>
                   <h3 className="text-lg font-medium text-gray-700">
-                    {creditos.length === 0 ? 'No hay créditos registrados' : 'No se encontraron coincidencias'}
+                    {meta.total === 0 ? 'No hay créditos registrados' : 'No se encontraron coincidencias'}
                   </h3>
                   <p className="text-gray-500 mt-1">
-                    {creditos.length === 0 ? 'Comienza creando tu primer crédito fiscal' : 'Intenta con otros términos de búsqueda o rango de fechas'}
+                    {meta.total === 0 ? 'Comienza creando tu primer crédito fiscal' : 'Intenta con otros términos de búsqueda o rango de fechas'}
                   </p>
                   {hayFiltros && (
                     <button
