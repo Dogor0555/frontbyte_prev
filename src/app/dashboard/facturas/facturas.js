@@ -1,5 +1,7 @@
+//src/app/dashboard/facturas/facturas.js
+
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaEye, FaCalendarCheck } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
@@ -8,15 +10,16 @@ import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../components/JsonViewer";
 
-export default function FacturasView( { user, hasHaciendaToken, haciendaStatus } ) {
+export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, initialFacturas } ) {
   const [isMobile, setIsMobile] = useState(false);
-  const [facturas, setFacturas] = useState([]);
+  const [rows, setRows] = useState(initialFacturas?.data ?? []);
+  const [meta, setMeta] = useState(initialFacturas?.meta ?? { total: 0, page: 1, limit: 6, pages: 1 });
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("");
   const [ordenFecha, setOrdenFecha] = useState("reciente");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialFacturas?.data?.length);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [page, setPage] = useState(initialFacturas?.meta?.page ?? 1);
   const [pdfLoading, setPdfLoading] = useState(null);
   const [anulando, setAnulando] = useState(null);
   const [reTransmitiendo, setReTransmitiendo] = useState(null);
@@ -30,62 +33,63 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
   const [fechaFin, setFechaFin] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   
-  const itemsPerPage = 6;
+  const ITEMS_PER_PAGE = 6;
   const router = useRouter();
 
+  // Debounce para searchTerm
+  const [debouncedQ, setDebouncedQ] = useState("");
   useEffect(() => {
-    const fetchFacturas = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/facturas/getAllDteFacturas`, {
-          credentials: "include"
-        });
-        if (!response.ok) throw new Error("Error al cargar facturas");
-        const data = await response.json();
-        setFacturas(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error("Error:", error);
-        alert("Error al cargar las facturas: " + error.message);
-        setFacturas([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchFacturas();
-  }, []);
+    const t = setTimeout(() => setDebouncedQ(searchTerm), 350);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
 
+  const hasInitialData = useRef(!!initialFacturas?.data?.length);
+  const isFirstRender = useRef(true);
 
-  useEffect(() => {
-  // Interceptor para logs globales de fetch
-  const originalFetch = window.fetch;
-  window.fetch = async (...args) => {
-    const [url, options] = args;
-    console.log("🌐 [FETCH] Solicitando:", url);
-    
-    const response = await originalFetch(...args);
-    
-    // Clonar la respuesta para no consumir el body original
-    const clonedResponse = response.clone();
-    
+  const load = useCallback(async () => {
     try {
-      const text = await clonedResponse.text();
-      console.log(`📦 [RESPONSE] ${url}:`, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        bodyPreview: text.substring(0, 500),
-        bodyLength: text.length
+      setLoading(true);
+      const params = new URLSearchParams();
+      params.set("page", page);
+      params.set("limit", ITEMS_PER_PAGE);
+      if (debouncedQ) params.set("search", debouncedQ);
+      if (estadoFiltro) params.set("estado", estadoFiltro);
+      if (fechaInicio) params.set("fechaInicio", fechaInicio);
+      if (fechaFin) params.set("fechaFin", fechaFin);
+      params.set("ordenFecha", ordenFecha);
+
+      const response = await fetch(`${API_BASE_URL}/facturas/getAllDteFacturas?${params}`, {
+        credentials: "include"
       });
-    } catch (e) {
-      console.error("Error leyendo respuesta:", e);
+      if (!response.ok) throw new Error("Error al cargar facturas");
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+        setRows(data);
+        setMeta({ total: data.length, page: 1, limit: ITEMS_PER_PAGE, pages: 1 });
+      } else {
+        setRows(data?.data ?? []);
+        setMeta(data?.meta ?? { total: 0, page: 1, limit: ITEMS_PER_PAGE, pages: 1 });
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error al cargar las facturas: " + error.message);
+      setRows([]);
+    } finally {
+      setLoading(false);
     }
-    
-    return response;
-  };
-  
-  return () => {
-    window.fetch = originalFetch;
-  };
-}, []);
+  }, [page, debouncedQ, estadoFiltro, fechaInicio, fechaFin, ordenFecha]);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      if (!hasInitialData.current) {
+        load();
+      }
+    } else {
+      load();
+    }
+  }, [load]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -102,125 +106,28 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
     };
   }, [showDatePicker]);
 
-  // Función para verificar si hay filtros activos
-  const hayFiltrosActivos = () => {
-    return searchTerm !== "" || estadoFiltro !== "" || fechaInicio !== "" || fechaFin !== "" || ordenFecha !== "reciente";
-  };
+  const hayFiltros = searchTerm !== "" || estadoFiltro !== "" || fechaInicio !== "" || fechaFin !== "" || ordenFecha !== "reciente";
 
-  // Función para filtrar por fecha
-  const filtrarPorFecha = (factura) => {
-    if (!fechaInicio && !fechaFin) return true;
-    
-    if (!factura.fechaemision) return false;
-    
-    // Extraer solo la fecha (sin hora)
-    const fechaFactura = factura.fechaemision.split('T')[0];
-    
-    if (fechaInicio && fechaFin) {
-      return fechaFactura >= fechaInicio && fechaFactura <= fechaFin;
-    } else if (fechaInicio) {
-      return fechaFactura >= fechaInicio;
-    } else if (fechaFin) {
-      return fechaFactura <= fechaFin;
-    }
-    
-    return true;
-  };
-
-  const ordenarFacturas = (facturas) => {
-    return [...facturas].sort((a, b) => {
-      if (ordenFecha === "reciente" || ordenFecha === "antigua") {
-        const crearFechaCompleta = (factura) => {
-          if (!factura.fechaemision) return new Date(0);
-          
-          if (factura.fechaemision.includes('T') && !factura.fechaemision.endsWith('Z')) {
-            return new Date(factura.fechaemision);
-          }
-          
-          const fechaStr = factura.fechaemision.split('T')[0];
-          const horaStr = factura.horaemision || '00:00:00';
-
-          const fechaHoraStr = `${fechaStr}T${horaStr}Z`;
-          return new Date(fechaHoraStr);
-        };
-
-        const fechaA = crearFechaCompleta(a);
-        const fechaB = crearFechaCompleta(b);
-        
-        if (ordenFecha === "reciente") {
-          return fechaB - fechaA; 
-        } else {
-          return fechaA - fechaB; 
-        }
-      } else if (ordenFecha === "numero") {
-        const numA = parseInt(a.numerofacturausuario) || 0;
-        const numB = parseInt(b.numerofacturausuario) || 0;
-        return numB - numA; 
-      }
-      
-      return 0;
-    });
-  };
-
-  const facturasFiltradas = Array.isArray(facturas)
-    ? facturas.filter((factura) => {
-        if (!factura) return false;
-        const searchLower = searchTerm.toLowerCase();
-
-        const matchSearch =
-          (factura.codigo?.toLowerCase() || "").includes(searchLower) ||
-          (factura.nombrentrega?.toLowerCase() || "").includes(searchLower) ||
-          (factura.numerofacturausuario?.toString() || "").includes(searchTerm) ||
-          (factura.iddtefactura?.toString() || "").includes(searchTerm) ||
-          (factura.ncontrol?.toString() || "").includes(searchTerm) ||
-          (factura.nombrecibe?.toLowerCase() || "").includes(searchLower) ||
-          // También buscar por documento del cliente
-          (factura.docuentrega?.toLowerCase() || "").includes(searchLower);
-
-        const matchEstado = estadoFiltro ? factura.estado === estadoFiltro : true;
-        
-        // Aplicar filtro de fecha
-        const matchFecha = filtrarPorFecha(factura);
-
-        return matchSearch && matchEstado && matchFecha;
-      })
-    : [];
-
-  const facturasOrdenadas = ordenarFacturas(facturasFiltradas);
-
-  // Determinar qué facturas mostrar según si hay filtros activos
-  const hayFiltros = hayFiltrosActivos();
-  
-  // Si hay filtros activos, mostrar TODAS las facturas filtradas
-  // Si no hay filtros, mostrar solo las de la página actual
-  const facturasAMostrar = hayFiltros 
-    ? facturasOrdenadas 
-    : facturasOrdenadas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  
-  const totalPages = Math.ceil(facturasOrdenadas.length / itemsPerPage);
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-  // Función para limpiar filtros
   const limpiarFiltros = () => {
     setSearchTerm("");
+    setDebouncedQ("");
     setEstadoFiltro("");
     setFechaInicio("");
     setFechaFin("");
     setOrdenFecha("reciente");
-    setCurrentPage(1);
+    setPage(1);
   };
 
-  // Función para establecer filtros rápidos
   const setFiltroRapido = (dias) => {
     const hoy = new Date();
-    const fechaFin = hoy.toISOString().split('T')[0];
+    const hoyStr = hoy.toISOString().split('T')[0];
     
-    const fechaInicio = new Date();
-    fechaInicio.setDate(hoy.getDate() - dias);
+    const inicio = new Date();
+    inicio.setDate(hoy.getDate() - dias);
     
-    setFechaInicio(fechaInicio.toISOString().split('T')[0]);
-    setFechaFin(fechaFin);
-    setCurrentPage(1);
+    setFechaInicio(inicio.toISOString().split('T')[0]);
+    setFechaFin(hoyStr);
+    setPage(1);
     setShowDatePicker(false);
   };
 
@@ -342,7 +249,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
         throw new Error(data.descripcionMsg || data.error || "Error al anular factura");
       }
 
-      setFacturas((prev) =>
+      setRows((prev) =>
         prev.map((factura) =>
           factura.iddtefactura === facturaId
             ? { ...factura, estado: "ANULADO" }
@@ -373,7 +280,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
       }
 
       const result = await response.json();
-      setFacturas(prev => prev.map(factura => 
+      setRows(prev => prev.map(factura => 
         factura.iddtefactura === facturaId 
           ? { ...factura, estado: result.estado || 'RE-TRANSMITIDO' }
           : factura
@@ -655,8 +562,8 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Mis Facturas</h1>
                   <p className="text-gray-600">
-                    {facturas.length} {facturas.length === 1 ? "documento" : "documentos"} registrados
-                    {hayFiltros && ` (${facturasOrdenadas.length} encontrados)`}
+                    {meta.total} {meta.total === 1 ? "documento" : "documentos"} registrados
+                    {hayFiltros && ` (${meta.total} encontrados)`}
                   </p>
                 </div>
 
@@ -670,7 +577,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                       value={searchTerm}
                       onChange={(e) => {
                         setSearchTerm(e.target.value);
-                        setCurrentPage(1);
+                        setPage(1);
                       }}
                     />
                   </div>
@@ -711,7 +618,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                               value={fechaInicio}
                               onChange={(e) => {
                                 setFechaInicio(e.target.value);
-                                setCurrentPage(1);
+                                setPage(1);
                               }}
                               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                               onClick={(e) => e.stopPropagation()}
@@ -726,7 +633,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                               value={fechaFin}
                               onChange={(e) => {
                                 setFechaFin(e.target.value);
-                                setCurrentPage(1);
+                                setPage(1);
                               }}
                               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                               onClick={(e) => e.stopPropagation()}
@@ -774,7 +681,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                                 e.stopPropagation();
                                 setFechaInicio("");
                                 setFechaFin("");
-                                setCurrentPage(1);
+                                setPage(1);
                               }}
                               className="text-xs text-red-600 hover:text-red-800"
                             >
@@ -800,7 +707,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                     value={estadoFiltro}
                     onChange={(e) => {
                       setEstadoFiltro(e.target.value);
-                      setCurrentPage(1);
+                      setPage(1);
                     }}
                     className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-green-500 focus:border-green-500 text-gray-700"
                   >
@@ -815,7 +722,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                     value={ordenFecha}
                     onChange={(e) => {
                       setOrdenFecha(e.target.value);
-                      setCurrentPage(1);
+                      setPage(1);
                     }}
                     className="px-3 py-2 border rounded-lg focus:ring-2 bg-white focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                   >
@@ -865,7 +772,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                       <button
                         onClick={() => {
                           setFechaInicio("");
-                          setCurrentPage(1);
+                          setPage(1);
                         }}
                         className="ml-1 hover:text-blue-600"
                       >
@@ -879,7 +786,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                       <button
                         onClick={() => {
                           setFechaFin("");
-                          setCurrentPage(1);
+                          setPage(1);
                         }}
                         className="ml-1 hover:text-blue-600"
                       >
@@ -892,7 +799,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
 
               {/* Listado en formato tarjeta-factura */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {facturasAMostrar.map((factura) => (
+                {rows.map((factura) => (
                   <div
                     key={factura.iddtefactura}
                     className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-200"
@@ -1104,15 +1011,14 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                 ))}
               </div>
 
-              {/* Mostrar paginación SOLO cuando NO hay filtros activos */}
-              {!hayFiltros && facturasOrdenadas.length > itemsPerPage && (
+              {meta.pages > 1 && (
                 <div className="flex justify-center mt-6">
                   <nav className="inline-flex rounded-md shadow">
                     <button
-                      onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
-                      disabled={currentPage === 1}
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
                       className={`px-3 py-1 rounded-l-md border ${
-                        currentPage === 1 
+                        page === 1 
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                           : 'bg-white text-gray-700 hover:bg-gray-50'
                       }`}
@@ -1123,8 +1029,8 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                     {(() => {
                       const pages = [];
                       const maxVisiblePages = isMobile ? 3 : 5;
-                      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                      let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
+                      let endPage = Math.min(meta.pages, startPage + maxVisiblePages - 1);
 
                       if (endPage - startPage + 1 < maxVisiblePages) {
                         startPage = Math.max(1, endPage - maxVisiblePages + 1);
@@ -1134,9 +1040,9 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                         pages.push(
                           <button
                             key={1}
-                            onClick={() => paginate(1)}
+                            onClick={() => setPage(1)}
                             className={`px-3 py-1 border-t border-b ${
-                              1 === currentPage ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                              1 === page ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                             }`}
                           >
                             1
@@ -1156,9 +1062,9 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                         pages.push(
                           <button
                             key={i}
-                            onClick={() => paginate(i)}
+                            onClick={() => setPage(i)}
                             className={`px-3 py-1 border-t border-b ${
-                              i === currentPage ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                              i === page ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                             }`}
                           >
                             {i}
@@ -1166,8 +1072,8 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                         );
                       }
 
-                      if (endPage < totalPages) {
-                        if (endPage < totalPages - 1) {
+                      if (endPage < meta.pages) {
+                        if (endPage < meta.pages - 1) {
                           pages.push(
                             <span key="ellipsis-end" className="px-2 py-1 border-t border-b bg-white text-gray-500">
                               ...
@@ -1177,13 +1083,13 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                         
                         pages.push(
                           <button
-                            key={totalPages}
-                            onClick={() => paginate(totalPages)}
+                            key={meta.pages}
+                            onClick={() => setPage(meta.pages)}
                             className={`px-3 py-1 border-t border-b ${
-                              totalPages === currentPage ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                              meta.pages === page ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                             }`}
                           >
-                            {totalPages}
+                            {meta.pages}
                           </button>
                         );
                       }
@@ -1192,10 +1098,10 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                     })()}
                     
                     <button
-                      onClick={() => paginate(currentPage < totalPages ? currentPage + 1 : totalPages)}
-                      disabled={currentPage === totalPages}
+                      onClick={() => setPage(p => Math.min(meta.pages, p + 1))}
+                      disabled={page === meta.pages}
                       className={`px-3 py-1 rounded-r-md border ${
-                        currentPage === totalPages 
+                        page === meta.pages 
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                           : 'bg-white text-gray-700 hover:bg-gray-50'
                       }`}
@@ -1206,16 +1112,16 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus }
                 </div>
               )}
 
-              {facturasOrdenadas.length === 0 && (
+              {!loading && rows.length === 0 && (
                 <div className="text-center py-10">
                   <div className="text-gray-400 mb-3">
                     <FaFileAlt className="inline-block text-4xl" />
                   </div>
                   <h3 className="text-lg font-medium text-gray-700">
-                    {facturas.length === 0 ? 'No hay facturas registradas' : 'No se encontraron coincidencias'}
+                    {meta.total === 0 ? 'No hay facturas registradas' : 'No se encontraron coincidencias'}
                   </h3>
                   <p className="text-gray-500 mt-1">
-                    {facturas.length === 0 ? 'Comienza creando tu primera factura' : 'Intenta con otros términos de búsqueda o rango de fechas'}
+                    {meta.total === 0 ? 'Comienza creando tu primera factura' : 'Intenta con otros términos de búsqueda o rango de fechas'}
                   </p>
                   {hayFiltros && (
                     <button
