@@ -357,7 +357,7 @@ export default function InventarioMP() {
     return (
         <div className="flex h-screen bg-blue-100">
             <Toast toasts={toasts} removeToast={removeToast} />
-            <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
             <div className="flex-1 flex flex-col overflow-hidden">
                 <Navbar />

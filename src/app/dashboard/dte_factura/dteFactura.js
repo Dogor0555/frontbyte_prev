@@ -1406,24 +1406,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-      {/* Sidebar - Responsive */}
-      <div 
-        className={`
-          fixed md:static z-40 h-full transition-all duration-300 ease-in-out
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          ${!isMobile ? "md:translate-x-0 md:w-64" : ""}
-        `}
-      >
-        <Sidebar />
-      </div>
-
-      {/* Overlay para móvil cuando sidebar está abierto */}
-      {sidebarOpen && isMobile && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-30"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Contenido principal */}
       <div className="flex-1 flex flex-col overflow-hidden">

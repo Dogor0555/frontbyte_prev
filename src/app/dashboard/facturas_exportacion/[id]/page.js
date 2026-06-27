@@ -6,6 +6,7 @@ import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../../components/JsonViewer";
+import Navbar from "../../components/navbar";
 
 export default function FacturaExportacionDetallePage() {
   const params = useParams();
@@ -20,6 +21,32 @@ export default function FacturaExportacionDetallePage() {
   const [loadingJson, setLoadingJson] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
+
+  const [user, setUser] = useState(null);
+  const [hasHaciendaToken, setHasHaciendaToken] = useState(false);
+  const [haciendaStatus, setHaciendaStatus] = useState({ seconds_left: 0 });
+
+  useEffect(() => {
+    const stored = localStorage.getItem("empleado");
+    if (stored) {
+      try {
+        setUser(JSON.parse(stored));
+      } catch (e) {}
+    }
+    const checkToken = async () => {
+      try {
+        const resp = await fetch(`${API_BASE_URL}/hacienda/token-check`, {
+          credentials: "include",
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          setHasHaciendaToken(true);
+          setHaciendaStatus({ seconds_left: data.expires_in || 86400 });
+        }
+      } catch (e) {}
+    };
+    checkToken();
+  }, []);
 
   useEffect(() => {
     const fetchDteData = async () => {
@@ -186,9 +213,7 @@ export default function FacturaExportacionDetallePage() {
   if (error) {
     return (
       <div className="flex min-h-screen bg-orange-50/50">
-        <div className="hidden md:block">
-          <Sidebar />
-        </div>
+        <Sidebar />
         
         <div className="flex-1 flex flex-col overflow-hidden">
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -213,9 +238,7 @@ export default function FacturaExportacionDetallePage() {
   if (!dteData) {
     return (
       <div className="flex min-h-screen bg-orange-50/50">
-        <div className="hidden md:block">
-          <Sidebar />
-        </div>
+        <Sidebar />
         
         <div className="flex-1 flex flex-col overflow-hidden">
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -256,16 +279,7 @@ export default function FacturaExportacionDetallePage() {
 
   return (
     <div className="flex min-h-screen bg-blue-50">
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
-      
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
-          onClick={toggleSidebar}
-        ></div>
-      )}
+      <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <button 
@@ -274,6 +288,17 @@ export default function FacturaExportacionDetallePage() {
         >
           ☰
         </button>
+
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+          <Navbar 
+            user={user}
+            hasHaciendaToken={hasHaciendaToken}
+            haciendaStatus={haciendaStatus}
+            onToggleSidebar={toggleSidebar}
+            sidebarOpen={sidebarOpen}
+          />
+        </div>
+
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">

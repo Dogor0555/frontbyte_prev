@@ -105,15 +105,7 @@ export default function SoportePage({ user, hasHaciendaToken, haciendaStatus }) 
 
   return (
     <div className="flex h-screen bg-gray-100 text-black overflow-hidden">
-      <div className={`fixed md:relative z-20 h-screen ${
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
-      } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}>
-        <Sidebar />
-      </div>
-
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden" onClick={() => setSidebarOpen(false)}></div>
-      )}
+      <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0">
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">

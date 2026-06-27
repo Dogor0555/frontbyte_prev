@@ -6,6 +6,7 @@ import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
 import JsonViewer from "../../components/JsonViewer";
+import Navbar from "../../components/navbar";
 
 export default function NotaDetallePage() {
   const params = useParams();
@@ -22,6 +23,32 @@ export default function NotaDetallePage() {
   const [jsonViewerData, setJsonViewerData] = useState(null);
   const [loadingJson, setLoadingJson] = useState(false);
   const router = useRouter();
+
+  const [user, setUser] = useState(null);
+  const [hasHaciendaToken, setHasHaciendaToken] = useState(false);
+  const [haciendaStatus, setHaciendaStatus] = useState({ seconds_left: 0 });
+
+  useEffect(() => {
+    const stored = localStorage.getItem("empleado");
+    if (stored) {
+      try {
+        setUser(JSON.parse(stored));
+      } catch (e) {}
+    }
+    const checkToken = async () => {
+      try {
+        const resp = await fetch(`${API_BASE_URL}/hacienda/token-check`, {
+          credentials: "include",
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          setHasHaciendaToken(true);
+          setHaciendaStatus({ seconds_left: data.expires_in || 86400 });
+        }
+      } catch (e) {}
+    };
+    checkToken();
+  }, []);
 
   const configNota = {
     debito: {
@@ -332,9 +359,7 @@ export default function NotaDetallePage() {
   if (error) {
     return (
       <div className="flex min-h-screen bg-gray-50">
-        <div className="hidden md:block">
-          <Sidebar />
-        </div>
+        <Sidebar />
         
         <div className="flex-1 flex flex-col overflow-hidden">
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -359,9 +384,7 @@ export default function NotaDetallePage() {
   if (!notaData) {
     return (
       <div className="flex min-h-screen bg-gray-50">
-        <div className="hidden md:block">
-          <Sidebar />
-        </div>
+        <Sidebar />
         
         <div className="flex-1 flex flex-col overflow-hidden">
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -404,16 +427,7 @@ export default function NotaDetallePage() {
 
   return (
     <div className="text-black flex min-h-screen bg-gray-50">
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
-      
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
-          onClick={toggleSidebar}
-        ></div>
-      )}
+      <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <button 
@@ -422,6 +436,16 @@ export default function NotaDetallePage() {
         >
           ☰
         </button>
+
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+          <Navbar 
+            user={user}
+            hasHaciendaToken={hasHaciendaToken}
+            haciendaStatus={haciendaStatus}
+            onToggleSidebar={toggleSidebar}
+            sidebarOpen={sidebarOpen}
+          />
+        </div>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="max-w-6xl mx-auto">

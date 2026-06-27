@@ -6,6 +6,7 @@ import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../../components/JsonViewer";
+import Navbar from "../../components/navbar";
 
 export default function LiquidacionDetallePage() {
   const params = useParams();
@@ -20,6 +21,32 @@ export default function LiquidacionDetallePage() {
   const [loadingJson, setLoadingJson] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
+
+  const [user, setUser] = useState(null);
+  const [hasHaciendaToken, setHasHaciendaToken] = useState(false);
+  const [haciendaStatus, setHaciendaStatus] = useState({ seconds_left: 0 });
+
+  useEffect(() => {
+    const stored = localStorage.getItem("empleado");
+    if (stored) {
+      try {
+        setUser(JSON.parse(stored));
+      } catch (e) {}
+    }
+    const checkToken = async () => {
+      try {
+        const resp = await fetch(`${API_BASE_URL}/hacienda/token-check`, {
+          credentials: "include",
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          setHasHaciendaToken(true);
+          setHaciendaStatus({ seconds_left: data.expires_in || 86400 });
+        }
+      } catch (e) {}
+    };
+    checkToken();
+  }, []);
 
   useEffect(() => {
     const fetchFactura = async () => {
@@ -186,9 +213,7 @@ export default function LiquidacionDetallePage() {
   if (error) {
     return (
       <div className="flex min-h-screen bg-blue-50">
-        <div className="hidden md:block">
-          <Sidebar />
-        </div>
+        <Sidebar />
         
         <div className="flex-1 flex flex-col overflow-hidden">
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -213,9 +238,7 @@ export default function LiquidacionDetallePage() {
   if (!facturaData) {
     return (
       <div className="flex min-h-screen bg-blue-50">
-        <div className="hidden md:block">
-          <Sidebar />
-        </div>
+        <Sidebar />
         
         <div className="flex-1 flex flex-col overflow-hidden">
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -256,28 +279,26 @@ export default function LiquidacionDetallePage() {
 
   return (
     <div className="flex min-h-screen bg-blue-50">
-      {/* Sidebar para desktop */}
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
-      
-      {/* Overlay para móvil */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
-          onClick={toggleSidebar}
-        ></div>
-      )}
+      <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       {/* Contenido principal */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Botón para abrir sidebar en móvil */}
         <button 
           onClick={toggleSidebar}
           className="md:hidden fixed left-2 top-2 z-10 p-2 rounded-md bg-white shadow-md text-gray-600"
         >
           ☰
         </button>
+
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+          <Navbar 
+            user={user}
+            hasHaciendaToken={hasHaciendaToken}
+            haciendaStatus={haciendaStatus}
+            onToggleSidebar={toggleSidebar}
+            sidebarOpen={sidebarOpen}
+          />
+        </div>
 
         {/* Contenido con scroll */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">

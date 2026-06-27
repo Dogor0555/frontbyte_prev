@@ -364,24 +364,8 @@ link.download = format === 'pdf' ? 'proveedores.pdf' : 'proveedores.xlsx';
 
     return (
         <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
-            {isMobile && sidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black bg-opacity-50 z-30"
-                    onClick={() => setSidebarOpen(false)}
-                ></div>
-            )}
-
             <div className="flex flex-1 h-full overflow-hidden">
-                {/* Sidebar fija con altura completa y scroll interno */}
-                <div
-                    className={`md:static fixed z-40 h-full transition-all duration-300 ${
-                        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-                    } ${!isMobile ? 'md:translate-x-0 md:w-64' : ''}`}
-                >
-                    <div className="h-full overflow-y-auto">
-                        <Sidebar />
-                    </div>
-                </div>
+                <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
                 {/* Contenido principal con scroll */}
                 <div className="flex-1 flex flex-col overflow-hidden">

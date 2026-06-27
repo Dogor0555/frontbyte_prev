@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { FaSearch, FaBars, FaPlus, FaTimes, FaEdit, FaTrash, FaFilePdf, FaFileExcel, FaSave, FaTimes as FaClose, FaBoxOpen, FaTruck, FaShoppingCart } from "react-icons/fa";
+import { FaSearch, FaBars, FaPlus, FaTimes, FaEdit, FaTrash, FaFilePdf, FaFileExcel, FaSave, FaTimes as FaClose, FaBoxOpen, FaTruck, FaShoppingCart, FaBox } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { addToast } from "../components/Toast";
 import BarcodeScanner from "../components/BarcodeScanner.jsx";
 import Scanner from "../components/Scanner.jsx";
 
@@ -294,9 +295,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         try {
             const response = await fetch(`${API_BASE_URL}/proveedores/getAll`, {
                 method: "GET",
-                headers: {
-                    Cookie: document.cookie,
-                },
                 credentials: "include",
             });
 
@@ -329,9 +327,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         try {
             const response = await fetch(`${API_BASE_URL}/productos/getAll`, {
                 method: "GET",
-                headers: {
-                    Cookie: document.cookie,
-                },
                 credentials: "include",
             });
 
@@ -356,7 +351,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
             
             const response = await fetch(endpoint, {
                 method: "GET",
-                headers: { Cookie: document.cookie },
                 credentials: "include",
             });
 
@@ -430,7 +424,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Cookie: document.cookie,
                 },
                 credentials: "include",
                 body: JSON.stringify(producto),
@@ -511,7 +504,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
-                    Cookie: document.cookie,
                 },
                 credentials: "include",
                 body: JSON.stringify(producto),
@@ -571,7 +563,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
-                    Cookie: document.cookie,
                 },
                 credentials: "include",
                 body: JSON.stringify({ cantidad: cantidad }),
@@ -611,9 +602,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
         try {
             const response = await fetch(`${API_BASE_URL}/productos/deletePro/${productoId}`, {
                 method: "DELETE",
-                headers: {
-                    Cookie: document.cookie,
-                },
                 credentials: "include",
             });
 
@@ -712,23 +700,8 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
 
     return (
         <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
-            {isMobile && sidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black bg-opacity-50 z-30"
-                    onClick={() => setSidebarOpen(false)}
-                ></div>
-            )}
-
             <div className="flex flex-1 h-full overflow-hidden">
-                <div
-                    className={`md:static fixed z-40 h-full transition-all duration-300 ${
-                        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-                    } ${!isMobile ? 'md:translate-x-0 md:w-64' : ''}`}
-                >
-                    <div className="h-full overflow-y-auto">
-                        <Sidebar />
-                    </div>
-                </div>
+                <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <Navbar 
@@ -835,7 +808,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                        {productosPagina && Array.isArray(productosPagina) && productosPagina.map((producto) => (
+                                        {productosPagina && Array.isArray(productosPagina) && productosPagina.length > 0 ? productosPagina.map((producto) => (
                                             <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.nombre}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{producto.codigo}</td>
@@ -871,7 +844,15 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ))}
+                                        )) : (
+                                            <tr>
+                                                <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
+                                                    <FaBox className="mx-auto text-4xl text-gray-300 mb-3" />
+                                                    <p className="text-sm font-medium">No hay productos registrados</p>
+                                                    <p className="text-xs text-gray-400 mt-1">Agrega tu primer producto usando el botón "Agregar"</p>
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
@@ -898,7 +879,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
 
                         <div className="md:hidden">
                             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                                {productosPagina && Array.isArray(productosPagina) && productosPagina.map((producto) => (
+                                {productosPagina && Array.isArray(productosPagina) && productosPagina.length > 0 ? productosPagina.map((producto) => (
                                     <div key={producto.id} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
                                         <div className="flex justify-between items-start">
                                             <h3 className="text-lg font-medium text-gray-900">{producto.nombre}</h3>
@@ -950,7 +931,12 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                             </div>
                                         </div>
                                     </div>
-                                ))}
+                                )) : (
+                                    <div className="text-center py-12 text-gray-500">
+                                        <FaBox className="mx-auto text-4xl text-gray-300 mb-3" />
+                                        <p className="text-sm font-medium">No hay productos registrados</p>
+                                    </div>
+                                )}
                             </div>
                             <div className="flex justify-center items-center py-4 space-x-2 mt-4">
                                 <button
@@ -1769,7 +1755,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                                         method: "PUT",
                                                         headers: {
                                                             "Content-Type": "application/json",
-                                                            Cookie: document.cookie,
                                                         },
                                                         credentials: "include",
                                                         body: JSON.stringify({
@@ -1781,7 +1766,6 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                                         method: "POST",
                                                         headers: {
                                                             "Content-Type": "application/json",
-                                                            Cookie: document.cookie,
                                                         },
                                                         credentials: "include",
                                                         body: JSON.stringify({
@@ -1798,7 +1782,7 @@ export default function Productos({ initialProductos = [], user, hasHaciendaToke
                                                     });
                                                 }
 
-                                                alert("Guardado ✅");
+                                                addToast("Guardado ✅");
 
                                                 setProductoEscaneado(null);
                                                 setStockEscaneo("");

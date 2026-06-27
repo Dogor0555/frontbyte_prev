@@ -9,6 +9,8 @@ import {
   FaTimes,
   FaSync
 } from 'react-icons/fa';
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api";
 
 export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggleSidebar, sidebarOpen }) {
@@ -22,6 +24,72 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
   const [isScrolled, setIsScrolled] = useState(false);
   const [showHaciendaTooltip, setShowHaciendaTooltip] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const pathname = usePathname();
+
+  const routeLabels = {
+    'dashboard': 'Dashboard',
+    'facturas': 'Facturas',
+    'creditos': 'Créditos Fiscales',
+    'notas_remision': 'Notas de Remisión',
+    'facturas_sujeto_excluido': 'Sujeto Excluido',
+    'facturas_exportacion': 'Exportación',
+    'comprobantes_liquidacion': 'Liquidación',
+    'comprobantes_retención': 'Retención',
+    'comprobantes_retencion': 'Retención',
+    'nota_debito': 'Nota de Débito',
+    'nota_credito': 'Nota de Crédito',
+    'dte_factura': 'Nueva Factura',
+    'dte_credito': 'Nuevo Crédito Fiscal',
+    'dte_exportacion': 'Nueva Exportación',
+    'dte_liquidacion': 'Nueva Liquidación',
+    'dte_nota_remision': 'Nueva Nota de Remisión',
+    'anular_factura': 'Anular Factura',
+    'anular_credito': 'Anular Crédito',
+    'anular_nota_remision': 'Anular Nota de Remisión',
+    'anular_sujeto_excluido': 'Anular Sujeto Excluido',
+    'anular_exportacion': 'Anular Exportación',
+    'anular_liquidacion': 'Anular Liquidación',
+    'anular_retencion': 'Anular Retención',
+    'anular_nota_debito': 'Anular Nota de Débito',
+    'anular_nota_credito': 'Anular Nota de Crédito',
+    'clientes': 'Clientes',
+    'productos': 'Productos',
+    'inventario': 'Inventario',
+    'sucursal': 'Sucursal',
+    'sucursales': 'Sucursales',
+    'editar_sucursal': 'Editar Sucursal',
+    'persona_natural': 'Persona Natural',
+    'sujeto_excluido': 'Sujeto Excluido',
+    'realizar_cotizacion': 'Cotización',
+    'realizar_compra': 'Compra',
+    'registro-eventos': 'Eventos',
+    'registro_compras': 'Registro Compras',
+    'configurar-pdf': 'Configurar PDF',
+    'libro_de_ventas': 'Libro de Ventas',
+    'libro_contribuyente': 'Libro Contribuyente',
+    'libro_consumidor_final': 'Libro Consumidor Final',
+    'libro_sujeto_excluido': 'Libro Sujeto Excluido',
+    'anexo_consumidor_final': 'Anexo Consumidor Final',
+    'anexo_contribuyente': 'Anexo Contribuyente',
+    'anexo_sujeto_excluido': 'Anexo Sujeto Excluido',
+    'detalle_documentos_consumidor_final': 'Detalle Documentos',
+    'detalle_documentos_contribuyentes': 'Detalle Documentos',
+    'detalle_documentos_sujeto_excluido': 'Detalle Documentos',
+    'emitir': 'Emitir',
+    'soporte': 'Soporte',
+    'nota_detalle': 'Detalle',
+  };
+
+  const breadcrumbs = pathname
+    .split('/')
+    .filter(Boolean)
+    .map((segment, i, arr) => {
+      if (/^\d+$/.test(segment)) return { label: 'Detalle', href: null };
+      const label = routeLabels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/[-_]/g, ' ');
+      const href = '/' + arr.slice(0, i + 1).join('/');
+      return { label, href };
+    });
 
   useEffect(() => {
     setHaciendaConnection({
@@ -175,12 +243,12 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
       <div className="flex items-center justify-between h-16 px-4 md:px-6">
         <div className="flex items-center space-x-3">
           <button
-            className={`
-              p-2 rounded-xl transition-all duration-300 ease-out
-              hover:bg-gradient-to-r hover:from-sky-500/20 hover:to-cyan-500/20
-              hover:shadow-md hover:scale-105
-              ${isMobile ? 'flex' : 'lg:hidden flex'}
-            `}
+              className={`
+                p-2 rounded-xl transition-all duration-300 ease-out
+                hover:bg-gradient-to-r hover:from-sky-500/20 hover:to-cyan-500/20
+                hover:shadow-md hover:scale-105
+                ${isMobile ? 'flex' : 'lg:hidden flex'}
+              `}
             onClick={onToggleSidebar}
             aria-label={sidebarOpen ? "Cerrar menú" : "Abrir menú"}
           >
@@ -190,24 +258,24 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
               <FaBars className="h-5 w-5 text-blue-700" />
             )}
           </button>
-          
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-xl shadow-lg">
-              <span className="text-white font-bold text-lg">B</span>
-            </div>
-            <div className={isSmallMobile ? 'hidden' : 'block'}>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-800 to-cyan-700 bg-clip-text text-transparent">
-                Sistema de Facturación
-              </h1>
-              <p className="text-xs text-gray-500 hidden sm:block">
-                Byte Fusion Soluciones
-              </p>
-            </div>
-          </div>
+
+          <nav className="hidden sm:flex items-center text-sm text-gray-500 ml-2 space-x-1.5 min-w-0">
+            {breadcrumbs.map((crumb, i) => (
+              <span key={i} className="flex items-center min-w-0">
+                {i > 0 && <span className="mx-1.5 text-gray-300 flex-shrink-0">›</span>}
+                {crumb.href ? (
+                  <Link href={crumb.href} className="hover:text-blue-600 transition-colors truncate whitespace-nowrap">
+                    {crumb.label}
+                  </Link>
+                ) : (
+                  <span className="text-gray-800 font-medium truncate whitespace-nowrap">{crumb.label}</span>
+                )}
+              </span>
+            ))}
+          </nav>
         </div>
 
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-3">
             <div 
               className={`
                 flex items-center px-3 py-2 rounded-xl transition-all duration-300 ease-out
@@ -290,7 +358,6 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
                 <FaSync className={`${isRefreshing ? 'animate-spin' : ''} ${isSmallMobile ? "text-xs" : "text-sm"}`} />
               </button>
             </div>
-          </div>
         </div>
       </div>
 

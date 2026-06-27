@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { FaSearch, FaBars, FaTimes, FaEdit, FaSave } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
+import Navbar from "../components/navbar";
 import { API_BASE_URL } from "@/lib/api";
 
 /* =========================================
@@ -97,6 +98,22 @@ export default function SucursalesSoloUna({ initialData, user }) {
   /* ---------- Layout / Responsive ---------- */
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [haciendaStatus, setHaciendaStatus] = useState({ seconds_left: 0 });
+
+  useEffect(() => {
+    const checkToken = async () => {
+      try {
+        const resp = await fetch(`${API_BASE_URL}/hacienda/token-check`, {
+          credentials: "include",
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          setHaciendaStatus({ seconds_left: data.expires_in || 86400 });
+        }
+      } catch (e) {}
+    };
+    checkToken();
+  }, []);
 
   useEffect(() => {
     const check = () => {
@@ -308,16 +325,20 @@ export default function SucursalesSoloUna({ initialData, user }) {
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
       {/* overlay móvil */}
-      {isMobile && sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30" onClick={() => setSidebarOpen(false)} />}
-
       <div className="flex flex-1 h-full">
-        {/* Sidebar */}
-        <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}>
-          <Sidebar />
-        </div>
+        <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
         {/* Panel derecho */}
         <div className="flex-1 flex flex-col">
+          <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+            <Navbar 
+              user={user}
+              hasHaciendaToken={haciendaStatus.seconds_left > 0}
+              haciendaStatus={haciendaStatus}
+              onToggleSidebar={toggleSidebar}
+              sidebarOpen={sidebarOpen}
+            />
+          </div>
           {/* Header */}
           <header className="sticky top-0 bg-white backdrop-blur-md bg-opacity-90 shadow-sm z-20">
             <div className="flex items-center justify-between h-16 px-4 md:px-6">

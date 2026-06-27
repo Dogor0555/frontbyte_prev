@@ -97,9 +97,9 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Cerrar sidebar en móvil cuando se hace clic en un link
+  // Cerrar sidebar al navegar
   const handleNavigation = () => {
-    if (isMobile && onClose) {
+    if (onClose) {
       onClose();
     }
   };
@@ -764,7 +764,7 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
 
   return (
     <>
-      {/* ── OVERLAY para móvil ── */}
+      {/* ── OVERLAY (solo móvil) ── */}
       {isMobile && sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
@@ -777,15 +777,16 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
       <aside
         className={`
           bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 
-          h-full w-64 shadow-2xl flex-shrink-0
+          w-64 shadow-2xl
+          fixed top-0 left-0 z-50 h-screen
           transition-transform duration-300 ease-in-out
           ${isMobile
-            ? `fixed top-0 left-0 z-50 h-screen ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
-            : 'relative translate-x-0'
+            ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full')
+            : 'translate-x-0'
           }
         `}
       >
-        <div className="flex flex-col h-full overflow-y-auto">
+        <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
           {/* Header con selector de empresas */}
           <div 
             className={`

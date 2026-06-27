@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { FaSearch, FaBars, FaUser, FaPlus, FaTimes, FaEdit, FaTrash, FaSave, FaTimes as FaClose } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
+import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 
@@ -11,6 +12,7 @@ export default function PersonaNatural({ initialPersonas = [], user }) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [haciendaStatus, setHaciendaStatus] = useState({ seconds_left: 0 });
     const [personas, setPersonas] = useState(initialPersonas || []);
     const [filteredPersonas, setFilteredPersonas] = useState(initialPersonas || []);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -178,6 +180,21 @@ export default function PersonaNatural({ initialPersonas = [], user }) {
         setPersonas(initialPersonas || []);
         setFilteredPersonas(initialPersonas || []);
     }, [initialPersonas]);
+
+    useEffect(() => {
+        const checkToken = async () => {
+            try {
+                const resp = await fetch(`${API_BASE_URL}/hacienda/token-check`, {
+                    credentials: "include",
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    setHaciendaStatus({ seconds_left: data.expires_in || 86400 });
+                }
+            } catch (e) {}
+        };
+        checkToken();
+    }, []);
 
     useEffect(() => {
         const results = personas && Array.isArray(personas) ? personas.filter(persona =>
@@ -603,25 +620,19 @@ export default function PersonaNatural({ initialPersonas = [], user }) {
 
     return (
         <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50 overflow-hidden">
-            {isMobile && sidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black bg-opacity-50 z-30"
-                    onClick={() => setSidebarOpen(false)}
-                ></div>
-            )}
-
             <div className="flex flex-1 h-full overflow-hidden">
-                <div
-                    className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen
-                        ? 'translate-x-0'
-                        : '-translate-x-full'
-                        } ${!isMobile ? 'md:translate-x-0 md:w-64' : ''
-                        }`}
-                >
-                    <Sidebar />
-                </div>
+                <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
                 <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+                        <Navbar 
+                            user={user}
+                            hasHaciendaToken={haciendaStatus.seconds_left > 0}
+                            haciendaStatus={haciendaStatus}
+                            onToggleSidebar={toggleSidebar}
+                            sidebarOpen={sidebarOpen}
+                        />
+                    </div>
                     <header className="sticky top-0 bg-white backdrop-blur-md bg-opacity-90 shadow-sm z-20">
                         <div className="flex items-center justify-between h-16 px-4 md:px-6">
                             <div className="flex items-center">

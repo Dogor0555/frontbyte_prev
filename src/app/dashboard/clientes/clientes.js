@@ -19,6 +19,7 @@ import {
   FaToggleOff,
   FaTrash,
   FaBars,
+  FaSpinner,
 } from "react-icons/fa";
 
 // Datos 
@@ -265,12 +266,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
 
     window.addEventListener("resize", checkMobile);
 
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-
     return () => {
-      clearTimeout(timer);
       window.removeEventListener("resize", checkMobile);
     };
   }, []);
@@ -317,11 +313,9 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
 
   const fetchClientes = async () => {
     try {
+      setIsLoading(true);
       const response = await fetch(`${API_BASE_URL}/clientes/getAllCli`, {
         method: "GET",
-        headers: {
-          Cookie: document.cookie,
-        },
         credentials: "include",
       });
 
@@ -336,6 +330,8 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
       setFilteredClientes(data.data || []);
     } catch (error) {
       console.error("Error al obtener los clientes:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -391,7 +387,6 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Cookie: document.cookie,
         },
         credentials: "include",
         body: JSON.stringify(datosEnviar),
@@ -477,7 +472,6 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Cookie: document.cookie,
           },
           credentials: "include",
           body: JSON.stringify(datosEnviar),
@@ -517,7 +511,6 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Cookie: document.cookie,
           },
           credentials: "include",
           body: JSON.stringify({ activo: nuevoEstado }),
@@ -560,9 +553,6 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
         `${API_BASE_URL}/clientes/deleteCli/${clienteId}`,
         {
           method: "DELETE",
-          headers: {
-            Cookie: document.cookie,
-          },
           credentials: "include",
         }
       );
@@ -648,21 +638,8 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
 
     return (
       <div className="flex flex-col h-screen bg-gradient-to-br from-indigo-50 to-blue-50 overflow-y-auto">
-        {isMobile && sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-30"
-            onClick={() => setSidebarOpen(false)}
-          ></div>
-        )}
-
         <div className="flex flex-1 h-full overflow-hidden">
-          <div
-            className={`md:static fixed z-40 h-full transition-all duration-300 ${
-              sidebarOpen ? "translate-x-0" : "-translate-x-full"
-            } ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}
-          >
-            <Sidebar />
-          </div>
+          <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
           <div className="flex-1 flex flex-col overflow-hidden">
             <Navbar 
@@ -706,7 +683,14 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                   </button>
                 </div>
               </div>
+
+              {isLoading && (
+                <div className="flex justify-center items-center py-20">
+                  <FaSpinner className="animate-spin text-blue-600 text-4xl" />
+                </div>
+              )}
               
+              {!isLoading && (
               <div className="flex-1 overflow-auto flex flex-col bg-white rounded-lg shadow border border-gray-200">
                 {/* Tabla para Desktop */}
                 <div className="hidden md:block overflow-auto">
@@ -978,6 +962,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                   </div>
                 </div>
               </div>
+              )}
             </div>
             <Footer />
           </div>

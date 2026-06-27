@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { FaPlus, FaTrash, FaSpinner, FaEye, FaInfoCircle } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
+import Navbar from "../components/navbar";
 import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
 import { codactividad } from "./data/data";
 import ClientListModal from "./components/modals/ClientListModal";
@@ -37,6 +38,8 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   const [selectedClient, setSelectedClient] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const [haciendaStatus, setHaciendaStatus] = useState({ seconds_left: 0 });
   const [numeroDocumento, setNumeroDocumento] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(""); 
@@ -802,6 +805,21 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   };
 
   useEffect(() => {
+    const checkToken = async () => {
+      try {
+        const resp = await fetch(`${API_BASE_URL}/hacienda/token-check`, {
+          credentials: "include",
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          setHaciendaStatus({ seconds_left: data.expires_in || 86400 });
+        }
+      } catch (e) {}
+    };
+    checkToken();
+  }, []);
+
+  useEffect(() => {
     const checkIsMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
@@ -1178,11 +1196,18 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}>
-        <Sidebar />
-      </div>
+      <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="text-black flex-1 flex flex-col overflow-hidden">
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+          <Navbar 
+            user={user}
+            hasHaciendaToken={haciendaStatus.seconds_left > 0}
+            haciendaStatus={haciendaStatus}
+            onToggleSidebar={toggleSidebar}
+            sidebarOpen={sidebarOpen}
+          />
+        </div>
         <header className="bg-white shadow-sm">
           <div className="flex items-center justify-between p-4">
             <div>

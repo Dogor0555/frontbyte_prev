@@ -717,17 +717,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
                 compraId={selectedDetalleId}
             />
 
-            {/* Sidebar */}
-            <div
-                className={`fixed md:relative z-20 h-screen transition-transform duration-200 ${
-                    sidebarOpen ? "translate-x-0" : "-translate-x-full"
-                } ${!isMobile ? "md:translate-x-0 md:w-64" : "w-64"}`}
-            >
-                <Sidebar />
-            </div>
-            {sidebarOpen && isMobile && (
-                <div className="fixed inset-0 bg-black/40 z-10" onClick={() => setSidebarOpen(false)} />
-            )}
+            <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
             {/* Contenido principal */}
             <div className="flex-1 flex flex-col min-w-0">

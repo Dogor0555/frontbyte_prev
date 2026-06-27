@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import FloatingChat from "./components/FloatingChat";
+import ToastContainer from "./components/Toast";
 
 export default function DashboardLayout({ children, modal }) {
   const [user, setUser] = useState(null);
@@ -20,12 +21,13 @@ export default function DashboardLayout({ children, modal }) {
   const showChat = !pathname?.includes("/soporte");
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen md:pl-64">
       {children}
       {/* Cualquier ruta que vaya al slot @modal se inyecta aquí como overlay */}
       {modal ?? null}
       {/* Chat flotante de soporte - aparece en todas las páginas excepto en /soporte */}
       {showChat && user && <FloatingChat user={user} />}
+      <ToastContainer />
     </div>
   );
 }

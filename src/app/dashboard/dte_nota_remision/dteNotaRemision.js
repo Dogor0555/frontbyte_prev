@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner, FaEye } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
+import Navbar from "../components/navbar";
 import Footer from "../components/footer";
 import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
 import { codactividad } from "./data/data";
@@ -1414,11 +1415,16 @@ export default function NotaRemisionView({ initialProductos = [], initialCliente
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <div className={`md:static fixed z-40 h-full transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${!isMobile ? "md:translate-x-0 md:w-64" : ""}`}>
-        <Sidebar />
-      </div>
+      <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="text-black flex-1 flex flex-col overflow-hidden">
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+          <Navbar 
+            user={user}
+            onToggleSidebar={toggleSidebar}
+            sidebarOpen={sidebarOpen}
+          />
+        </div>
         <header className="bg-white shadow-sm">
           <div className="flex items-center justify-between p-4">
             <div>

@@ -2192,18 +2192,10 @@ const DuplicateCompraModal = ({ isOpen, onClose, compraData }) => {
 
     return (
         <div className="text-black flex flex-col h-screen bg-gray-50">
-            {isMobile && sidebarOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-30" onClick={() => setSidebarOpen(false)}></div>
-            )}
-
             <Toast toasts={toasts} removeToast={removeToast} />
 
             <div className="flex flex-1 h-full overflow-hidden">
-                <div className={"md:static fixed z-40 h-full transition-all duration-300 " + (sidebarOpen ? 'translate-x-0' : '-translate-x-full') + " " + (!isMobile ? 'md:translate-x-0 md:w-64' : '')}>
-                    <div className="h-full overflow-y-auto">
-                        <Sidebar />
-                    </div>
-                </div>
+                <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <Navbar
