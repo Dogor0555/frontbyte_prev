@@ -115,7 +115,7 @@ export default function EmitirNotaCombined({ user, hasHaciendaToken, haciendaSta
   };
 
   const handleBack = () => {
-    router.back();
+    router.push('/dashboard/nota_debito');
   };
 
   const validarMontoNota = (monto, tipoNota, factura) => {

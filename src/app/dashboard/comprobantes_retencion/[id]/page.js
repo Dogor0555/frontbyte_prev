@@ -220,7 +220,7 @@ export default function LiquidacionDetallePage() {
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                 <p>{error}</p>
                 <button 
-                  onClick={() => router.back()} 
+                  onClick={() => router.push('/dashboard/comprobantes_retencion')} 
                   className="mt-2 bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded"
                 >
                   <FaArrowLeft className="inline mr-1" /> Volver
@@ -245,7 +245,7 @@ export default function LiquidacionDetallePage() {
               <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
                 <p>No se encontró la factura solicitada</p>
                 <button 
-                  onClick={() => router.back()} 
+                  onClick={() => router.push('/dashboard/comprobantes_retencion')} 
                   className="mt-2 bg-yellow-500 hover:bg-yellow-700 text-white py-1 px-3 rounded"
                 >
                   <FaArrowLeft className="inline mr-1" /> Volver
@@ -304,7 +304,7 @@ export default function LiquidacionDetallePage() {
           <div className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">
               <button 
-                onClick={() => router.back()}
+                onClick={() => router.push('/dashboard/comprobantes_retencion')}
                 className="flex items-center text-blue-600 hover:text-blue-800"
               >
                 <FaArrowLeft className="mr-1" /> Volver a liquidaciones
