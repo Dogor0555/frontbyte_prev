@@ -417,31 +417,52 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
     }
   };
   
+  const formatearFechaISO = (fecha) => {
+    if (!fecha) return "";
+    if (fecha.includes("-")) return fecha;
+    const partes = fecha.split("/");
+    if (partes.length !== 3) return "";
+    const [mes, dia, anio] = partes;
+    return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+  };
+
   const descargarCSVContribuyentes = async () => {
-  try {
-    if (!fechaInicio || !fechaFin) {
-      return alert("Debes seleccionar un rango de fechas");
+    try {
+      if (!fechaInicio || !fechaFin) {
+        return alert("Debes seleccionar un rango de fechas");
+      }
+
+      const params = new URLSearchParams({
+        fechaInicio: formatearFechaISO(fechaInicio),
+        fechaFin: formatearFechaISO(fechaFin),
+      });
+
+      const res = await fetch(
+        `${API_BASE_URL}/contribuyentes-csv?${params.toString()}`,
+        {
+          credentials: "include",
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Respuesta del servidor:", text);
+        throw new Error("Error al descargar CSV");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Libro_Ventas_Contribuyentes_${fechaInicio}_${fechaFin}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("Error al descargar CSV");
     }
-
-    const params = new URLSearchParams({ fechaInicio, fechaFin });
-const res = await fetch(
-  `${API_BASE_URL}/contribuyentes-csv?${params}`,
-  {
-    credentials: "include",
-  }
-);
-
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "libro_contribuyentes.csv";
-    a.click();
-  } catch (error) {
-    console.error(error);
-  }
-};
+  };
 
   const handleRefresh = () => {
     setRefreshing(true);
