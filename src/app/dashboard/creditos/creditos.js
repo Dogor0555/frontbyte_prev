@@ -684,9 +684,12 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
                         <p className="text-gray-900 text-sm font-medium truncate pl-3">
                           {credito.nombrecibe || 'Cliente no especificado'}
                         </p>
-                        {credito.docuentrega && (
-                          <p className="text-xs text-gray-500 pl-3 mt-0.5">DUI: {credito.docuentrega}</p>
-                        )}
+                        {(() => {
+                          const doc = credito.nit || credito.docuentrega;
+                          const valido = doc && doc !== "000000" && doc !== "000000-0" && doc !== "00000003" && doc !== "00000";
+                          if (!valido) return null;
+                          return <p className="text-xs text-gray-500 pl-3 mt-0.5">NIT: {doc}</p>;
+                        })()}
                       </div>
 
                       {/* Información de control */}

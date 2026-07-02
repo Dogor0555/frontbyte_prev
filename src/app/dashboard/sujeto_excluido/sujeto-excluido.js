@@ -107,6 +107,8 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   // NUEVO: Actividad económica del receptor
   const [actividadEconomicaReceptor, setActividadEconomicaReceptor] = useState("");
 
+  const [tipoCostoGasto, setTipoCostoGasto] = useState("");
+
   const unidades = [
     { codigo: "1", nombre: "metro" },
     { codigo: "2", nombre: "Yarda" },
@@ -235,6 +237,13 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       const mensaje = "Debe especificar al menos una forma de pago";
       setErrorValidacion(mensaje);
       mostrarModalMensaje("error", "Forma de Pago Requerida", mensaje);
+      return false;
+    }
+    
+    if (!tipoCostoGasto) {
+      const mensaje = "Debe seleccionar un Tipo de Costo/Gasto";
+      setErrorValidacion(mensaje);
+      mostrarModalMensaje("error", "Campo Requerido", mensaje);
       return false;
     }
     
@@ -746,6 +755,8 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
       // Campos para guardar en la base de datos
       actividad_economica_cliente: actividadEconomicaReceptor || null,
       desc_actividad_economica_cliente: codactividad.find(c => c.codigo === actividadEconomicaReceptor)?.nombre || null,
+
+      tipo_costo_gasto: tipoCostoGasto,
 
       documentofirmado: null
     };
@@ -1266,6 +1277,26 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
 
                 actividadesEconomicas={codactividad}
               />
+
+              <div className="bg-white rounded-lg shadow p-4 mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Costo/Gasto
+                </label>
+                <select
+                  value={tipoCostoGasto}
+                  onChange={(e) => setTipoCostoGasto(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                >
+                  <option value="" disabled>Seleccione una opción</option>
+                  <option value="1">1 - Gastos de Venta sin Donación</option>
+                  <option value="2">2 - Gastos de Administración sin Donación</option>
+                  <option value="3">3 - Gastos Financieros sin Donación</option>
+                  <option value="4">4 - Costo Artículos Producidos/Comprados Importaciones/Internaciones</option>
+                  <option value="5">5 - Costo Artículos Producidos/Comprados Interno</option>
+                  <option value="6">6 - Costos Indirectos de Fabricación</option>
+                  <option value="7">7 - Mano de obra</option>
+                </select>
+              </div>
 
               <div className="text-black mb-6">
                 <div className="flex items-center justify-between mb-4">
