@@ -45,11 +45,13 @@ import {
   FaHeadset,
   FaExchangeAlt,
   FaCheckCircle,
-  FaTimes 
+  FaTimes,
+  FaChevronLeft
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin, seleccionarEmpresa, getEmpresasUsuario } from "../../services/auth";
 import { addToast } from "./Toast";
+import { initSidebarState, setSidebarCollapsed } from "./sidebarState";
 import { useState, useEffect } from "react";
 import { API_BASE_URL } from "@/lib/api";
 import { usePathname } from "next/navigation";
@@ -65,7 +67,8 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
   const [loadingPermisos, setLoadingPermisos] = useState(true);
   const [headerExpanded, setHeaderExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  
+  const [collapsed, setCollapsed] = useState(false);
+  const [hoverExpand, setHoverExpand] = useState(false);
   // Estados para el selector de empresas
   const [showEmpresaSelector, setShowEmpresaSelector] = useState(false);
   const [empresasDisponibles, setEmpresasDisponibles] = useState([]);
@@ -99,6 +102,18 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  useEffect(() => {
+    setCollapsed(initSidebarState());
+  }, []);
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    setSidebarCollapsed(next);
+  };
+
+  const isReallyCollapsed = collapsed && !hoverExpand && !isMobile;
 
   // Cerrar sidebar al navegar
   const handleNavigation = () => {
@@ -784,14 +799,17 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
       <aside
         className={`
           bg-gradient-to-b from-blue-900 via-blue-900 to-blue-800 
-          w-64 shadow-2xl
+          shadow-2xl
           fixed top-0 left-0 z-50 h-screen
-          transition-transform duration-300 ease-in-out
+          transition-all duration-300 ease-in-out
+          ${isReallyCollapsed ? 'w-16' : 'w-64'}
           ${isMobile
             ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full')
             : 'translate-x-0'
           }
         `}
+        onMouseEnter={() => { if (collapsed && !isMobile) setHoverExpand(true); }}
+        onMouseLeave={() => { if (collapsed && !isMobile) setHoverExpand(false); }}
       >
         <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
           {/* Header con selector de empresas */}
@@ -799,12 +817,13 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
             className={`
               bg-gradient-to-br from-blue-800 via-blue-700 to-blue-800 
               flex flex-col items-center justify-center 
-              border-b border-blue-600/50 shadow-lg px-4
-              transition-all duration-500 ease-in-out overflow-hidden
-              ${headerExpanded ? 'py-6' : 'py-4'}
+              border-b border-blue-600/50 shadow-lg
+              transition-all duration-300 ease-in-out overflow-hidden
+              ${isReallyCollapsed ? 'py-3 px-1' : 'px-4'}
+              ${!isReallyCollapsed && (headerExpanded ? 'py-6' : 'py-4')}
             `}
-            onMouseEnter={() => setHeaderExpanded(true)}
-            onMouseLeave={() => setHeaderExpanded(false)}
+            onMouseEnter={() => !isReallyCollapsed && setHeaderExpanded(true)}
+            onMouseLeave={() => !isReallyCollapsed && setHeaderExpanded(false)}
           >
             {/* Botón cerrar en móvil dentro del sidebar */}
             {isMobile && (
@@ -821,20 +840,24 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
               className={`
                 bg-white relative rounded-full overflow-hidden 
                 shadow-xl ring-4 ring-blue-300/40 cursor-pointer
-                transition-all duration-500 ease-in-out
-                ${headerExpanded ? 'h-20 w-20 mb-4' : 'h-14 w-14 mb-2'}
+                transition-all duration-300 ease-in-out flex-shrink-0
+                ${isReallyCollapsed 
+                  ? 'h-9 w-9 mb-1' 
+                  : (headerExpanded ? 'h-20 w-20 mb-4' : 'h-14 w-14 mb-2')
+                }
               `}
               onClick={abrirSelectorEmpresas}
             >
               <Image 
                 src={logo} 
                 alt="Byte Fusion Soluciones" 
-                fill 
+                width={isReallyCollapsed ? 36 : 80}
+                height={isReallyCollapsed ? 36 : 80}
                 className="object-cover p-1" 
               />
             </div>
             
-            <div className="text-center w-full">
+            {!isReallyCollapsed && <div className="text-center w-full">
               <div 
                 className="flex items-center justify-center gap-2 mb-1 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={abrirSelectorEmpresas}
@@ -917,6 +940,7 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
                 )}
               </div>
             </div>
+            }
           </div>
 
           <nav className="flex-1 py-5 px-3 overflow-y-auto custom-scrollbar">
@@ -927,29 +951,30 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
                     <div className="group">
                       <button
                         className={`
-                          w-full flex items-center justify-between px-4 py-3 
-                          text-blue-100 rounded-xl transition-all duration-300 ease-out
+                          w-full flex items-center justify-between rounded-xl transition-all duration-300 ease-out
+                          ${isReallyCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3'}
                           ${openMenus[menuKey] 
                             ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 border-l-4 border-blue-300 scale-[1.02]' 
-                            : 'hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]'
+                            : 'text-blue-100 hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]'
                           }
                         `}
-                        onClick={() => toggleMenu(menuKey)}
+                        onClick={() => !isReallyCollapsed && toggleMenu(menuKey)}
+                        title={isReallyCollapsed ? name : ''}
                       >
-                        <div className="flex items-center gap-3">
-                          <span className={`text-lg transition-transform duration-300 ${openMenus[menuKey] ? 'scale-110' : ''}`}>
-                            {icon}
-                          </span>
-                          <span className="font-medium text-sm">{name}</span>
-                        </div>
-                        <span className={`
-                          text-sm transition-all duration-300 ease-out
-                          ${openMenus[menuKey] ? 'rotate-180 text-white' : 'text-blue-300'}
-                        `}>
-                          <FaChevronDown />
+                        <span className={`text-lg transition-transform duration-300 ${openMenus[menuKey] && !isReallyCollapsed ? 'scale-110' : ''}`}>
+                          {icon}
                         </span>
+                        {!isReallyCollapsed && (
+                          <>
+                            <span className="font-medium text-sm">{name}</span>
+                            <span className={`text-sm transition-all duration-300 ease-out ${openMenus[menuKey] ? 'rotate-180 text-white' : 'text-blue-300'}`}>
+                              <FaChevronDown />
+                            </span>
+                          </>
+                        )}
                       </button>
                       
+                      {!isReallyCollapsed && (
                       <div className={`
                         overflow-hidden transition-all duration-400 ease-out
                         ${openMenus[menuKey] ? 'max-h-[500px] opacity-100 mt-2 mb-2' : 'max-h-0 opacity-0 mt-0'}
@@ -997,6 +1022,7 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
                           </ul>
                         </div>
                       </div>
+                      )}
                     </div>
                   ) : onClick ? (
                     <button
@@ -1004,39 +1030,48 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
                         onClick();
                         handleNavigation();
                       }}
+                      title={isReallyCollapsed ? name : ''}
                       className={`
-                        w-full flex items-center gap-3 px-4 py-3 text-blue-100 
-                        rounded-xl transition-all duration-300 ease-out relative group/item
+                        w-full flex items-center gap-3 text-blue-100 
+                        rounded-xl transition-all duration-300 ease-out relative
                         hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]
+                        ${isReallyCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3 group/item'}
                       `}
                     >
-                      <span className="text-lg">
-                        {icon}
-                      </span>
-                      <span className="font-medium text-sm flex-1 text-left">{name}</span>
-                      <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                      <span className="text-lg">{icon}</span>
+                      {!isReallyCollapsed && <span className="font-medium text-sm flex-1 text-left">{name}</span>}
+                      {!isReallyCollapsed && <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/item:opacity-100 transition-opacity" />}
                     </button>
                   ) : (
                     <Link
                       href={href}
                       onClick={handleNavigation}
+                      title={isReallyCollapsed ? name : ''}
                       className={`
-                        flex items-center gap-3 px-4 py-3 text-blue-100 
-                        rounded-xl transition-all duration-300 ease-out relative group/item
-                        ${isActive(href) 
+                        flex items-center gap-3 text-blue-100 
+                        rounded-xl transition-all duration-300 ease-out relative
+                        ${isReallyCollapsed 
+                          ? 'px-2 py-3 justify-center'
+                          : 'px-4 py-3 group/item'
+                        }
+                        ${!isReallyCollapsed && isActive(href) 
                           ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 border-l-4 border-blue-300 scale-[1.02]' 
                           : 'hover:bg-gradient-to-r hover:from-blue-700/50 hover:to-blue-600/50 hover:text-white hover:shadow-md hover:scale-[1.01]'
                         }
                       `}
                     >
-                      <span className={`text-lg transition-transform duration-300 ${isActive(href) ? 'scale-110' : ''}`}>
+                      <span className={`text-lg transition-transform duration-300 ${!isReallyCollapsed && isActive(href) ? 'scale-110' : ''}`}>
                         {icon}
                       </span>
-                      <span className="font-medium text-sm flex-1">{name}</span>
-                      {isActive(href) ? (
-                        <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
-                      ) : (
-                        <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                      {!isReallyCollapsed && (
+                        <>
+                          <span className="font-medium text-sm flex-1">{name}</span>
+                          {isActive(href) ? (
+                            <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
+                          ) : (
+                            <FaChevronRight className="text-xs text-blue-300 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                          )}
+                        </>
                       )}
                     </Link>
                   )}
@@ -1045,7 +1080,7 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
             </ul>
           </nav>
 
-          {empleado && (
+          {empleado && !isReallyCollapsed && (
             <div className="p-4 border-t border-blue-600/50 bg-gradient-to-br from-blue-800/90 to-blue-700/90 backdrop-blur-sm">
               <div className="bg-gradient-to-r from-blue-900/40 to-blue-800/40 rounded-xl p-4 border border-blue-600/30 shadow-lg hover:shadow-xl hover:border-blue-500/50 transition-all duration-300">
                 <div className="flex items-center gap-4">
@@ -1076,7 +1111,7 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
             </div>
           )}
 
-          {empleado && (
+          {empleado && !isReallyCollapsed && (
             <div className="bg-gradient-to-br from-blue-800/90 to-blue-700/90 p-4 border-t border-blue-600/50">
               <Link
                 href="/dashboard/editar_perfil"
@@ -1102,20 +1137,31 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
           )}
 
           <div className="bg-gradient-to-br from-blue-800/90 to-blue-700/90 p-4 border-t border-blue-600/50">
+            {!isMobile && (
+              <button
+                onClick={toggleCollapsed}
+                className="flex items-center justify-center gap-2 w-full px-2 py-2.5 mb-2 text-blue-300 border border-blue-500/30 rounded-lg transition-all duration-200 font-medium text-xs hover:bg-blue-700/50 hover:text-white hover:border-blue-400/50"
+                title={collapsed ? 'Expandir menu' : 'Colapsar menu'}
+              >
+                <FaChevronLeft className={`transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} size={14} />
+                {!isReallyCollapsed && <span>{collapsed ? 'Expandir' : 'Colapsar'}</span>}
+              </button>
+            )}
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
+              title={isReallyCollapsed ? 'Cerrar sesion' : ''}
               className={`
-                flex items-center justify-center gap-3 w-full px-4 py-3.5 
-                text-blue-200 border border-red-500/50 rounded-xl 
+                flex items-center gap-3 w-full text-blue-200 border border-red-500/50 rounded-xl 
                 transition-all duration-300 font-medium text-sm
                 hover:bg-gradient-to-r hover:from-red-600/70 hover:to-red-500/70 
                 hover:text-white hover:border-red-400 hover:shadow-lg hover:shadow-red-500/20
                 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed
+                ${isReallyCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3.5 justify-center'}
               `}
             >
               <FaSignOutAlt className={`text-base ${isLoggingOut ? "animate-spin" : ""}`} />
-              <span>{isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}</span>
+              {!isReallyCollapsed && <span>{isLoggingOut ? "Cerrando sesion..." : "Cerrar Sesion"}</span>}
             </button>
           </div>
         </div>

@@ -811,7 +811,7 @@ const handleGenerarNota = async () => {
                     <div className="ml-3">
                       <p className="text-sm text-blue-700">
                         <strong>Importante:</strong> Las notas de débito/crédito solo pueden generarse para 
-                        facturas transmitidas con menos de 32 horas de antigüedad y que estén en estado 
+                        facturas transmitidas con menos de 48 horas de antigüedad y que estén en estado 
                         "TRANSMITIDO" o "RE-TRANSMITIDO".
                       </p>
                     </div>

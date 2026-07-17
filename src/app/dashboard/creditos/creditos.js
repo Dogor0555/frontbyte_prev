@@ -160,7 +160,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
       const fechaEmision = new Date(credito.fechaemision);
       const ahora = new Date();
       const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
-      return horasTranscurridas <= 32;
+      return horasTranscurridas <= 48;
     }
     
     return false;

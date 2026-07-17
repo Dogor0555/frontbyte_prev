@@ -181,7 +181,7 @@ export default function FacturasExportacionView( { user, hasHaciendaToken, hacie
       const fechaEmision = new Date(fechaHoraStr);
       const ahora = new Date();
       const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
-      return horasTranscurridas <= 32;
+      return horasTranscurridas <= 48;
     }
     
     return false;

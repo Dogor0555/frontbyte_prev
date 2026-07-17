@@ -73,7 +73,7 @@ export default function AnularFacturaExportacionView({ user, hasHaciendaToken, h
           const fechaEmision = new Date(factura.fechaemision);
           const horasTranscurridas = (salvadorTime - fechaEmision) / (1000 * 60 * 60);
           
-          return horasTranscurridas <= 32;
+          return horasTranscurridas <= 48;
       }
       
       return false;
@@ -646,7 +646,7 @@ export default function AnularFacturaExportacionView({ user, hasHaciendaToken, h
                     </div>
                     <div className="ml-3">
                       <p className="text-sm text-yellow-700">
-                        <strong>Nota:</strong> Solo puedes invalidar facturas de exportación que hayan sido transmitidas en las últimas 32 horas y que no estén ya invalidadas.
+                        <strong>Nota:</strong> Solo puedes invalidar facturas de exportación que hayan sido transmitidas en las últimas 48 horas y que no estén ya invalidadas.
                       </p>
                     </div>
                   </div>
@@ -674,7 +674,7 @@ export default function AnularFacturaExportacionView({ user, hasHaciendaToken, h
                     </h3>
                     <p className="text-gray-500 mt-1">
                       {facturas.length === 0
-                        ? 'Todos los documentos transmitidos en las últimas 32 horas aparecerán aquí'
+                        ? 'Todos los documentos transmitidos en las últimas 48 horas aparecerán aquí'
                         : 'Intenta con otros términos de búsqueda'}
                     </p>
                   </div>

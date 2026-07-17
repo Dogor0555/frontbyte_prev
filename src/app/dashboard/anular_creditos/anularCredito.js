@@ -73,7 +73,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
       const fechaEmision = new Date(credito.fechaemision);
       const horasTranscurridas = (salvadorTime - fechaEmision) / (1000 * 60 * 60);
           
-      return horasTranscurridas <= 32;
+      return horasTranscurridas <= 48;
     }
     
     return false;
@@ -645,7 +645,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
                     </div>
                     <div className="ml-3">
                       <p className="text-sm text-yellow-700">
-                        <strong>Nota:</strong> Solo puedes anular créditos que hayan sido transmitidos en las últimas 32 horas y que no estén ya anulados.
+                        <strong>Nota:</strong> Solo puedes anular créditos que hayan sido transmitidos en las últimas 48 horas y que no estén ya anulados.
                       </p>
                     </div>
                   </div>
@@ -673,7 +673,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
                     </h3>
                     <p className="text-gray-500 mt-1">
                       {creditos.length === 0 
-                        ? 'Todos los créditos transmitidos en las últimas 32 horas aparecerán aquí' 
+                        ? 'Todos los créditos transmitidos en las últimas 48 horas aparecerán aquí' 
                         : 'Intenta con otros términos de búsqueda'}
                     </p>
                   </div>

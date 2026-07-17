@@ -118,7 +118,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
       
       const fechaEmision = new Date(factura.fechaemision);
       const horasTranscurridas = (salvadorTime - fechaEmision) / (1000 * 60 * 60);
-      return horasTranscurridas <= 32;
+      return horasTranscurridas <= 48;
     }
     
     return false;
@@ -849,7 +849,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                     </div>
                     <div className="ml-3">
                       <p className="text-sm text-blue-700">
-                        <strong>Nota:</strong> Solo puedes generar notas de débito y crédito para facturas transmitidas con menos de 32 horas de antigüedad y que estén en estado &quot;TRANSMITIDO&quot; o &quot;RE-TRANSMITIDO&quot;.
+                        <strong>Nota:</strong> Solo puedes generar notas de débito y crédito para facturas transmitidas con menos de 48 horas de antigüedad y que estén en estado &quot;TRANSMITIDO&quot; o &quot;RE-TRANSMITIDO&quot;.
                       </p>
                     </div>
                   </div>
@@ -877,7 +877,7 @@ export default function NotaDebitoView({ user, hasHaciendaToken, haciendaStatus 
                     </h3>
                     <p className="text-gray-500 mt-1">
                       {facturas.length === 0 
-                        ? 'Las facturas transmitidas con menos de 32 horas aparecerán aquí' 
+                        ? 'Las facturas transmitidas con menos de 48 horas aparecerán aquí' 
                         : 'Intenta con otros términos de búsqueda'}
                     </p>
                   </div>

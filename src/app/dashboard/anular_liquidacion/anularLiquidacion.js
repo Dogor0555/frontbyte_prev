@@ -74,7 +74,7 @@ export default function AnularLiquidacionView({ user, hasHaciendaToken, hacienda
           const fechaEmision = new Date(factura.fechaemision);
           const horasTranscurridas = (salvadorTime - fechaEmision) / (1000 * 60 * 60);
           
-          return horasTranscurridas <= 32;
+          return horasTranscurridas <= 48;
       }
       
       return false;
@@ -647,7 +647,7 @@ export default function AnularLiquidacionView({ user, hasHaciendaToken, hacienda
                     </div>
                     <div className="ml-3">
                       <p className="text-sm text-yellow-700">
-                        <strong>Nota:</strong> Solo puedes invalidar liquidaciones que hayan sido transmitidas en las últimas 32 horas y que no estén ya invalidadas.
+                        <strong>Nota:</strong> Solo puedes invalidar liquidaciones que hayan sido transmitidas en las últimas 48 horas y que no estén ya invalidadas.
                       </p>
                     </div>
                   </div>
@@ -675,7 +675,7 @@ export default function AnularLiquidacionView({ user, hasHaciendaToken, hacienda
                     </h3>
                     <p className="text-gray-500 mt-1">
                       {facturas.length === 0 
-                        ? 'Todas las liquidaciones transmitidas en las últimas 32 horas aparecerán aquí' 
+                        ? 'Todas las liquidaciones transmitidas en las últimas 48 horas aparecerán aquí' 
                         : 'Intenta con otros términos de búsqueda'}
                     </p>
                   </div>
