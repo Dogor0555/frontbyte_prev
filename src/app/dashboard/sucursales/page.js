@@ -25,7 +25,7 @@ export default async function PageSucursales() {
     }
 
     // Verificar si el usuario es administrador
-    if (authStatus.user.rol !== "...") {
+    if (authStatus.user.rol !== "Administrador") {
         console.log("Redirigiendo - Usuario no es admin. Rol:", authStatus.user.rol);
         redirect("/dashboard/unauthorized");
     }

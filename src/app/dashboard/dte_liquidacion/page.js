@@ -12,7 +12,7 @@ export default async function LiquidacionPage() {
   // await checkPermissionAndRedirect("DTE Liquidacion");
 
   // Leer cookies del request (SSR)
-  const cookieStore = cookies(); // no es necesario 'await'
+  const cookieStore = await cookies();
   const cookie = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)

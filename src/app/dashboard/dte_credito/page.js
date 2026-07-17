@@ -13,7 +13,7 @@ export default async function CreditoFiscalPage() {
   await checkPermissionAndRedirect("DTE Crédito");
 
   // Obtener cookies
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const cookie = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)

@@ -10,7 +10,7 @@ import { checkPermissionAndRedirect } from "../components/authorization.js";
 export default async function FacturacionPage() {
   await checkPermissionAndRedirect("DTE Factura");
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const cookie = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)

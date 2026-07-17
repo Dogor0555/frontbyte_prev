@@ -8,7 +8,7 @@ import { checkAuth } from "../../../lib/auth";
 import { checkAuthStatus } from "../../services/auth";
 
 export default async function SujetoExcluidoPage() {
-  const cookieStore = cookies(); 
+  const cookieStore = await cookies();
   const cookie = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)

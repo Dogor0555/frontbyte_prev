@@ -13,7 +13,7 @@ export default async function NotaRemisionPage() {
   await checkPermissionAndRedirect("DTE Nota de Remisión");
 
   // Obtener cookies
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const cookie = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)

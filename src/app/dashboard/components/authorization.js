@@ -10,7 +10,7 @@ import { API_BASE_URL } from "@/lib/api";
  * @param {string} requiredPermission - El nombre del permiso necesario para acceder a la página.
  */
 export async function checkPermissionAndRedirect(requiredPermission) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const allCookies = cookieStore.getAll();
   
   if (allCookies.length === 0) {
