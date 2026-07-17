@@ -18,8 +18,6 @@ import FechaHoraEmision from "./components/FechaHoraEmision";
 import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaModal";
 import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal"; // Reutilizamos el modal de factura
 import MensajeModal from "./components/MensajeModal";
-import { useReactToPrint } from 'react-to-print';
-import Handlebars from 'handlebars';
 import { API_BASE_URL } from "@/lib/api";
 
 export default function NotaRemisionView({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
@@ -422,9 +420,11 @@ export default function NotaRemisionView({ initialProductos = [], initialCliente
   };
 
   useEffect(() => {
-    fetch('/templates/plantilla_factura.hbs')
-      .then(response => response.text())
-      .then(text => {
+    const init = async () => {
+      try {
+        const Handlebars = (await import('handlebars')).default;
+        const response = await fetch('/templates/plantilla_factura.hbs');
+        const text = await response.text();
         Handlebars.registerHelper('two', (value) => {
           if (value === undefined || value === null || isNaN(value)) return "0.00";
           const numValue = typeof value === 'number' ? value : parseFloat(value);
@@ -448,8 +448,11 @@ export default function NotaRemisionView({ initialProductos = [], initialCliente
         });
         
         setTemplate(() => Handlebars.compile(text));
-      })
-      .catch(error => console.error("Error al cargar la plantilla de vista previa:", error));
+      } catch (error) {
+        console.error("Error al cargar la plantilla de vista previa:", error);
+      }
+    };
+    init();
   }, []);
 
   const handleConfirmarYGuardar = () => {

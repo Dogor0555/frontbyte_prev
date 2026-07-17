@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, CameraOff } from "lucide-react";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import Scanner from "./Scanner.jsx";
 
 function playBeep() {
@@ -76,6 +75,7 @@ export default function BarcodeScanner({
 
     setTimeout(async () => {
         try {
+        const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
         const element = document.getElementById("barcode-qr-reader");
 
         if (!element) {

@@ -71,6 +71,8 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
   const [cargandoEmpresas, setCargandoEmpresas] = useState(false);
   const [cambiandoEmpresa, setCambiandoEmpresa] = useState(false);
   const [tieneMultiplesEmpresas, setTieneMultiplesEmpresas] = useState(false);
+  const [showTransitionLoader, setShowTransitionLoader] = useState(false);
+  const [transitionEmpresa, setTransitionEmpresa] = useState(null);
   
   const [openMenus, setOpenMenus] = useState({
     dtes: false,
@@ -199,8 +201,12 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
         setShowEmpresaSelector(false);
         await cargarPermisos();
         
-        console.log(`✅ Cambiaste a la empresa: ${result.empresa.nombre}`);
-        window.location.reload();
+        setTransitionEmpresa(result.empresa.nombre);
+        setShowTransitionLoader(true);
+        
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else {
         console.error('❌ Error en respuesta:', result);
         alert('Error al cambiar de empresa: ' + (result.mensaje || 'Intenta nuevamente'));
@@ -1260,7 +1266,49 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
         .animate-fadeInUp {
           animation: fadeInUp 0.3s ease-out;
         }
+        
+        @keyframes loadingBar {
+          0% { width: 0%; }
+          50% { width: 70%; }
+          100% { width: 100%; }
+        }
+        
+        .animate-loadingBar {
+          animation: loadingBar 1.5s ease-in-out;
+        }
       `}</style>
+
+      {showTransitionLoader && (
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 transition-opacity duration-500">
+          <div className="flex flex-col items-center gap-5 animate-fadeInUp">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-2xl bg-blue-600/30 flex items-center justify-center border border-blue-500/30">
+                <FaBuilding className="text-blue-300 text-2xl" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-blue-900">
+                <FaExchangeAlt className="text-white text-[10px]" />
+              </div>
+            </div>
+
+            <div className="text-center">
+              <p className="text-blue-200 text-sm font-medium mb-1">Cambiando a</p>
+              <p className="text-white text-lg font-bold">{transitionEmpresa}</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <p className="text-blue-300 text-xs">Preparando sistema...</p>
+            </div>
+
+            <div className="w-48 h-1 bg-blue-700/50 rounded-full overflow-hidden mt-2">
+              <div className="h-full bg-blue-400 rounded-full animate-loadingBar" />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

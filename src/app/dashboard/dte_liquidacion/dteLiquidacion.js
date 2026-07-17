@@ -18,8 +18,6 @@ import FechaHoraEmision from "./components/FechaHoraEmision";
 import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaModal";
 import MensajeModal from "./components/MensajeModal";
 import VistaPreviaModal from "./components/modals/VistaPreviaModal"; // Reutilizaremos el contenedor del modal
-import { useReactToPrint } from 'react-to-print';
-import Handlebars from 'handlebars';
 import { API_BASE_URL } from "@/lib/api";
 
 export default function LiquidacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
@@ -401,9 +399,11 @@ const descargarTicketFactura = async (idFactura) => {
   };
 
   useEffect(() => {
-    fetch('/templates/plantilla_factura.hbs')
-      .then(response => response.text())
-      .then(text => {
+    const init = async () => {
+      try {
+        const Handlebars = (await import('handlebars')).default;
+        const response = await fetch('/templates/plantilla_factura.hbs');
+        const text = await response.text();
         Handlebars.registerHelper('two', (value) => {
           if (value === undefined || value === null || isNaN(value)) return "0.00";
           const numValue = typeof value === 'number' ? value : parseFloat(value);
@@ -426,8 +426,11 @@ const descargarTicketFactura = async (idFactura) => {
           return unidad ? unidad.nombre : '';
         });
         setTemplate(() => Handlebars.compile(text));
-      })
-      .catch(error => console.error("Error al cargar la plantilla de vista previa:", error));
+      } catch (error) {
+        console.error("Error al cargar la plantilla de vista previa:", error);
+      }
+    };
+    init();
   }, []);
 
   const handleConfirmarYGuardar = () => {

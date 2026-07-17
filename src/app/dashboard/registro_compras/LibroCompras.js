@@ -9,9 +9,6 @@ import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import EditarCompraModal from "./components/EditarCompraModal";
 import DetalleCompraModal from "./components/DetalleCompraModal";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import ExcelJS from "exceljs";
 import { API_BASE_URL } from "@/lib/api";
 import ExportarAnexoCompras from "./components/ExportarAnexoCompras.jsx";
 
@@ -344,6 +341,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
         if (!libroFiltrado.length) return alert("No hay datos para exportar");
         setExporting(true);
         try {
+            const { default: ExcelJS } = await import('exceljs');
             const wb = new ExcelJS.Workbook();
             const ws = wb.addWorksheet("Registro de Compras");
             ws.columns = [
@@ -474,6 +472,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
         setExporting(true);
 
         try {
+            const { default: ExcelJS } = await import('exceljs');
             const wb = new ExcelJS.Workbook();
             const ws = wb.addWorksheet("Anexo Compras");
 
@@ -602,9 +601,11 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     };
 
     // ── Exportar PDF ──────────────────────────────────────────────────────────
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
         setExportingPDF(true);
         try {
+            const { default: jsPDF } = await import('jspdf');
+            const { default: autoTable } = await import('jspdf-autotable');
             const doc = new jsPDF("landscape");
             doc.setFontSize(16);
             doc.text("REGISTRO DE COMPRAS", 14, 15);

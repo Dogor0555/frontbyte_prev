@@ -6,9 +6,6 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import ExcelJS from 'exceljs';
 import ExportarLibroContribuyentes from "./components/ExportarLibroContribuyentes";
 
 export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, haciendaStatus }) {
@@ -98,6 +95,7 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
   const handleExportExcel = async () => {
     setExporting(true);
     try {
+      const { default: ExcelJS } = await import('exceljs');
       let datosParaExportar = libro;
       
       if (datosParaExportar.length === 0) {
@@ -319,6 +317,8 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
   const handleExportPDF = async () => {
     setExportingPDF(true);
     try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
       const rowsPerPage = 12;
       const chunks = [];
       for (let i = 0; i < libroFiltrado.length; i += rowsPerPage) {

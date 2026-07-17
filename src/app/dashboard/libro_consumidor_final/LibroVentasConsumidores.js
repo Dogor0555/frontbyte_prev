@@ -7,9 +7,6 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import ExcelJS from 'exceljs';
 import { API_BASE_URL } from "@/lib/api";
 import ExportarLibroConsumidor from "../realizar_compra/components/ExportarLibroConsumidor";
 
@@ -128,6 +125,7 @@ const handleExportExcel = async () => {
   setExporting(true);
 
   try {
+    const { default: ExcelJS } = await import('exceljs');
 
     // =========================================
     // OBTENER NOMBRE CONTADOR
@@ -782,6 +780,8 @@ const handleExportExcel = async () => {
   const handleExportPDF = async () => {
     setExportingPDF(true);
     try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
       const contadorNombre = nombreContador || (user?.nombre_contador) || (user?.nombre) || "CONTADOR SIN REGISTRAR";
       const rowsPerPage = 15;
       const chunks = [];

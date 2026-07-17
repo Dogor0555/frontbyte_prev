@@ -17,7 +17,6 @@ import DatosEntrega from "./components/DatosAdicionalesEntrega";
 import FechaHoraEmision from "./components/FechaHoraEmision";
 import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal";
 import MensajeModal from "./components/MensajeModal";
-import Handlebars from 'handlebars';
 import { API_BASE_URL } from "@/lib/api";
 
 export default function SujetoExcluidoViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
@@ -178,9 +177,11 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
   };
 
   useEffect(() => {
-    fetch('/templates/plantilla_factura.hbs')
-      .then(response => response.text())
-      .then(text => {
+    const init = async () => {
+      try {
+        const Handlebars = (await import('handlebars')).default;
+        const response = await fetch('/templates/plantilla_factura.hbs');
+        const text = await response.text();
         Handlebars.registerHelper('two', (value) => {
           if (value === undefined || value === null || isNaN(value)) return "0.00";
           const numValue = typeof value === 'number' ? value : parseFloat(value);
@@ -204,11 +205,12 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
         });
         
         setTemplate(() => Handlebars.compile(text));
-      })
-      .catch(error => {
+      } catch (error) {
         console.error("Error al cargar la plantilla de vista previa:", error);
         mostrarModalMensaje("error", "Error de plantilla", "No se pudo cargar la plantilla para la vista previa.");
-      });
+      }
+    };
+    init();
   }, []);
 
   const validarDatosDocumento = () => {

@@ -5,8 +5,6 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { API_BASE_URL } from "@/lib/api";
 
 export default function LibroVentasView({ user, hasHaciendaToken, haciendaStatus }) {
@@ -112,6 +110,8 @@ export default function LibroVentasView({ user, hasHaciendaToken, haciendaStatus
 const handleExportPDF = async () => {
   setExportingPDF(true);
   try {
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
     // Calcular cuántas filas caben por página
     const rowsPerPage = 25; // Ajustar según necesidad
     

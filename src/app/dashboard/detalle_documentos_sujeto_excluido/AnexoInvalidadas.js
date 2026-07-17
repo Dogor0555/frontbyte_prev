@@ -6,9 +6,6 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import ExcelJS from 'exceljs';
 
 export default function AnexoSujetoExcluidoInvalidadasView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -91,6 +88,7 @@ export default function AnexoSujetoExcluidoInvalidadasView({ user, hasHaciendaTo
   const handleExportExcel = async () => {
     setExporting(true);
     try {
+      const { default: ExcelJS } = await import('exceljs');
       let datosParaExportar = documentos;
       
       if (datosParaExportar.length === 0) {
@@ -314,6 +312,8 @@ export default function AnexoSujetoExcluidoInvalidadasView({ user, hasHaciendaTo
   const handleExportPDF = async () => {
     setExportingPDF(true);
     try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
       const rowsPerPage = 15;
       const chunks = [];
       for (let i = 0; i < documentosFiltrados.length; i += rowsPerPage) {
