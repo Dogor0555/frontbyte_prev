@@ -7,6 +7,7 @@ import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import { addToast } from "../components/Toast";
 
 export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -51,7 +52,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
         }
       } catch (error) {
         console.error("Error:", error);
-        alert("Error al cargar las facturas de sujeto excluido: " + error.message);
+        addToast("Error al cargar las facturas de sujeto excluido: " + error.message, "error");
         setFacturas([]);
         setFacturasInvalidadas([]);
       } finally {
@@ -75,7 +76,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
       const fechaEmision = new Date(factura.fechaemision);
       const horasTranscurridas = (salvadorTime - fechaEmision) / (1000 * 60 * 60);
       
-      return horasTranscurridas <= 24;
+      return horasTranscurridas <= 32;
     }
     
     return false;
@@ -190,12 +191,12 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
         setFacturasInvalidadas((prev) => [facturaConInvalidacion, ...prev]);
       }
 
-      alert("Factura de sujeto excluido anulada exitosamente");
+      addToast("Factura de sujeto excluido anulada exitosamente", "success");
       setShowModal(false);
       setMotivoAnulacion("");
     } catch (error) {
       console.error("Error al anular:", error);
-      alert("Error: " + error.message);
+      addToast("Error: " + error.message, "error");
     } finally {
       setAnulando(null);
     }
@@ -239,7 +240,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
 
     } catch (error) {
       console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
+      addToast("Error al generar el PDF: " + error.message, "error");
     } finally {
       setPdfLoading(null);
     }
@@ -276,7 +277,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
 
     } catch (error) {
       console.error('Error descargando JSON:', error);
-      alert(`Error al descargar JSON: ${error.message}`);
+      addToast(`Error al descargar JSON: ${error.message}`, "error");
     } finally {
       setPdfLoading(null);
     }
@@ -675,7 +676,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-yellow-700">
-                      <strong>Nota:</strong> Solo puedes anular facturas de sujeto excluido que hayan sido transmitidas en las últimas 24 horas y que no estén ya anuladas.
+                      <strong>Nota:</strong> Solo puedes anular facturas de sujeto excluido que hayan sido transmitidas en las últimas 32 horas y que no estén ya anuladas.
                     </p>
                   </div>
                 </div>
@@ -705,7 +706,7 @@ export default function AnularFacturaExcluidaView({ user, hasHaciendaToken, haci
                   </h3>
                   <p className="text-gray-500 mt-1">
                     {facturas.length === 0 
-                      ? 'Todas las facturas de sujeto excluido transmitidas en las últimas 24 horas aparecerán aquí' 
+                      ? 'Todas las facturas de sujeto excluido transmitidas en las últimas 32 horas aparecerán aquí' 
                       : 'Intenta con otros términos de búsqueda'}
                   </p>
                 </div>

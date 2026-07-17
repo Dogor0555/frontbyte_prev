@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FaSignOutAlt } from 'react-icons/fa';
 import LoadingSpinner from './LoadingSpinner';
+import { addToast } from "../dashboard/components/Toast";
 
 export default function LogoutButton({ className = "" }) {
     const router = useRouter();
@@ -26,7 +27,7 @@ export default function LogoutButton({ className = "" }) {
             }
         } catch (error) {
             console.error('Error al cerrar sesión:', error);
-            alert('Ocurrió un error al cerrar sesión. Por favor intente nuevamente.');
+            addToast('Ocurrió un error al cerrar sesión. Por favor intente nuevamente.', "error");
         } finally {
             setIsLoggingOut(false);
         }

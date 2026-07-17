@@ -8,6 +8,7 @@ import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import { addToast } from "../components/Toast";
 import ExportarLibroConsumidor from "../realizar_compra/components/ExportarLibroConsumidor";
 
 export default function LibroVentasConsumidoresView({ user, hasHaciendaToken, haciendaStatus }) {
@@ -113,7 +114,7 @@ useEffect(() => {
       });
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cargar el libro de ventas: " + error.message);
+      addToast("Error al cargar el libro de ventas: " + error.message, "error");
       setLibro([]);
     } finally {
       setLoading(false);
@@ -213,8 +214,8 @@ const handleExportExcel = async () => {
 
     if (datosParaExportar.length === 0) {
 
-      alert(
-        "No hay datos para exportar en el período seleccionado"
+      addToast(
+        "No hay datos para exportar en el período seleccionado", "warning"
       );
 
       return;
@@ -766,9 +767,9 @@ const handleExportExcel = async () => {
       error
     );
 
-    alert(
+    addToast(
       "Error al exportar Excel: " +
-      error.message
+      error.message, "error"
     );
 
   } finally {
@@ -885,7 +886,7 @@ const handleExportExcel = async () => {
       
     } catch (error) {
       console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
+      addToast("Error al generar el PDF: " + error.message, "error");
     } finally {
       setExportingPDF(false);
     }
@@ -903,7 +904,7 @@ const handleExportExcel = async () => {
   const descargarCSV = async () => {
     try {
       if (!fechaInicio || !fechaFin) {
-        return alert("Debes seleccionar un rango de fechas");
+        return addToast("Debes seleccionar un rango de fechas", "warning");
       }
 
       const params = new URLSearchParams({
@@ -930,7 +931,7 @@ const handleExportExcel = async () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error(error);
-      alert("Error al descargar CSV");
+      addToast("Error al descargar CSV", "error");
     }
   };
 

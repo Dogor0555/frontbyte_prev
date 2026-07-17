@@ -6,6 +6,7 @@ import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import { addToast } from "../components/Toast";
 
 export default function LibroVentasView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -68,7 +69,7 @@ export default function LibroVentasView({ user, hasHaciendaToken, haciendaStatus
       });
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cargar las ventas: " + error.message);
+      addToast("Error al cargar las ventas: " + error.message, "error");
       setVentas([]);
     } finally {
       setLoading(false);
@@ -100,7 +101,7 @@ export default function LibroVentasView({ user, hasHaciendaToken, haciendaStatus
       
     } catch (error) {
       console.error("Error al exportar:", error);
-      alert("Error al exportar Excel: " + error.message);
+      addToast("Error al exportar Excel: " + error.message, "error");
     } finally {
       setExporting(false);
     }
@@ -208,7 +209,7 @@ const handleExportPDF = async () => {
     
   } catch (error) {
     console.error("Error al generar PDF:", error);
-    alert("Error al generar el PDF: " + error.message);
+    addToast("Error al generar el PDF: " + error.message, "error");
   } finally {
     setExportingPDF(false);
   }

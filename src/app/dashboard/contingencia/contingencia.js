@@ -7,6 +7,7 @@ import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import { addToast } from "../components/Toast";
 
 export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -39,7 +40,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
         }
       } catch (error) {
         console.error("Error:", error);
-        alert("Error al cargar las facturas en contingencia: " + error.message);
+        addToast("Error al cargar las facturas en contingencia: " + error.message, "error");
         setFacturas([]);
       } finally {
         setLoading(false);
@@ -189,28 +190,28 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
       const tokenCheckResult = await tokenCheckResponse.json();
       
       if (!tokenCheckResult.ok) {
-        alert("Error en la verificación del token de Hacienda");
+        addToast("Error en la verificación del token de Hacienda", "error");
         return;
       }
       
       if (!tokenCheckResult.existesesion) {
-        alert("No se puede generar el lote de contingencia: No hay sesión activa con Hacienda. Por favor, configure las credenciales primero.");
+        addToast("No se puede generar el lote de contingencia: No hay sesión activa con Hacienda. Por favor, configure las credenciales primero.", "error");
         return;
       }
       
       if (!tokenCheckResult.valid) {
-        alert("No se puede generar el lote de contingencia: El token de Hacienda ha expirado. Por favor, renueve las credenciales.");
+        addToast("No se puede generar el lote de contingencia: El token de Hacienda ha expirado. Por favor, renueve las credenciales.", "error");
         return;
       }
       
     } catch (error) {
       console.error('Error verificando token de Hacienda:', error);
-      alert("No se puede generar el lote de contingencia: Error al verificar la conexión con Hacienda. " + error.message);
+      addToast("No se puede generar el lote de contingencia: Error al verificar la conexión con Hacienda. " + error.message, "error");
       return;
     }
 
     if (facturasFiltradas.length === 0) {
-      alert("No hay documentos disponibles para generar el lote");
+      addToast("No hay documentos disponibles para generar el lote", "warning");
       return;
     }
     
@@ -225,7 +226,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
 
       if (response.ok) {
         const resultado = await response.json();
-        alert(`Lote de contingencia generado exitosamente para ${facturasFiltradas.length} documentos`);
+        addToast(`Lote de contingencia generado exitosamente para ${facturasFiltradas.length} documentos`, "success");
         window.location.reload();
       } else {
         const errorData = await response.json();
@@ -233,7 +234,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
       }
     } catch (error) {
       console.error('Error generando lote:', error);
-      alert('Error al generar el lote: ' + error.message);
+      addToast('Error al generar el lote: ' + error.message, "error");
     } finally {
       setGenerandoLote(false);
     }
@@ -277,7 +278,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
 
     } catch (error) {
       console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
+      addToast("Error al generar el PDF: " + error.message, "error");
     } finally {
       setPdfLoading(null);
     }
@@ -314,7 +315,7 @@ export default function ContingenciaView({ user, hasHaciendaToken, haciendaStatu
 
     } catch (error) {
       console.error('Error descargando JSON:', error);
-      alert(`Error al descargar JSON: ${error.message}`);
+      addToast(`Error al descargar JSON: ${error.message}`, "error");
     } finally {
       setPdfLoading(null);
     }

@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { addToast } from "../dashboard/components/Toast";
 
 const DescargaMasiva = () => {
 
@@ -10,7 +11,7 @@ const DescargaMasiva = () => {
       console.log("TOKEN:", token);
 
       if (!token) {
-        alert("No estás autenticado");
+        addToast("No estás autenticado", "error");
         return;
       }
 
@@ -27,7 +28,7 @@ const DescargaMasiva = () => {
       if (!response.ok) {
         const error = await response.json();
         console.error("Error backend:", error);
-        alert(error.mensaje || "Error al descargar");
+        addToast(error.mensaje || "Error al descargar", "error");
         return;
       }
 
@@ -45,7 +46,7 @@ const DescargaMasiva = () => {
 
     } catch (error) {
       console.error("Error:", error);
-      alert("Error en la descarga");
+      addToast("Error en la descarga", "error");
     }
   };
 

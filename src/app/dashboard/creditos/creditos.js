@@ -7,6 +7,7 @@ import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../components/JsonViewer";
+import { addToast } from "../components/Toast";
 
 export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, initialCreditos }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -73,7 +74,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cargar los créditos: " + error.message);
+      addToast("Error al cargar los créditos: " + error.message, "error")
       setRows([]);
     } finally {
       setLoading(false);
@@ -159,7 +160,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
       const fechaEmision = new Date(credito.fechaemision);
       const ahora = new Date();
       const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
-      return horasTranscurridas <= 24;
+      return horasTranscurridas <= 32;
     }
     
     return false;
@@ -181,7 +182,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
       setJsonViewerData(data);
     } catch (error) {
       console.error('Error cargando JSON:', error);
-      alert(`Error al cargar JSON: ${error.message}`);
+      addToast(`Error al cargar JSON: ${error.message}`, "error")
     } finally {
       setLoadingJson(null);
     }
@@ -229,10 +230,10 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
         )
       );
 
-      alert("Crédito anulado exitosamente");
+      addToast("Crédito anulado exitosamente", "success")
     } catch (error) {
       console.error("Error al anular:", error);
-      alert("Error: " + error.message);
+      addToast("Error: " + error.message, "error")
     } finally {
       setAnulando(null);
     }
@@ -258,10 +259,10 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
           : credito
       ));
       
-      alert('Re-transmisión exitosa');
+      addToast('Re-transmisión exitosa', "success")
     } catch (error) {
       console.error('Error en re-transmisión:', error);
-      alert('Error: ' + error.message);
+      addToast('Error: ' + error.message, "error")
     } finally {
       setReTransmitiendo(null);
     }
@@ -302,7 +303,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
 
     } catch (error) {
       console.error('Error descargando JSON:', error);
-      alert(`Error al descargar JSON: ${error.message}`);
+      addToast(`Error al descargar JSON: ${error.message}`, "error")
     } finally {
       setPdfLoading(null);
     }
@@ -346,7 +347,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
 
     } catch (error) {
       console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
+      addToast("Error al generar el PDF: " + error.message, "error")
     } finally {
       setPdfLoading(null);
     }

@@ -6,6 +6,7 @@ import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import { addToast } from "../components/Toast";
 
 export default function AnexoContribuyenteView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -73,7 +74,7 @@ export default function AnexoContribuyenteView({ user, hasHaciendaToken, haciend
       });
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cargar los documentos: " + error.message);
+      addToast("Error al cargar los documentos: " + error.message, "error");
       setDocumentos([]);
     } finally {
       setLoading(false);
@@ -101,7 +102,7 @@ export default function AnexoContribuyenteView({ user, hasHaciendaToken, haciend
       }
 
       if (datosParaExportar.length === 0) {
-        alert("No hay datos para exportar en el período seleccionado");
+        addToast("No hay datos para exportar en el período seleccionado", "warning");
         return;
       }
 
@@ -316,7 +317,7 @@ export default function AnexoContribuyenteView({ user, hasHaciendaToken, haciend
       
     } catch (error) {
       console.error("Error al exportar Excel:", error);
-      alert("Error al exportar Excel: " + error.message);
+      addToast("Error al exportar Excel: " + error.message, "error");
     } finally {
       setExporting(false);
     }
@@ -425,7 +426,7 @@ export default function AnexoContribuyenteView({ user, hasHaciendaToken, haciend
       
     } catch (error) {
       console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
+      addToast("Error al generar el PDF: " + error.message, "error");
     } finally {
       setExportingPDF(false);
     }

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { FaPlus, FaTrash, FaMoneyBill, FaCreditCard, FaExchangeAlt, FaFileInvoiceDollar, FaSyncAlt } from "react-icons/fa";
+import { addToast } from "../../components/Toast";
 
 export default function FormaPago({ 
   condicionPago, 
@@ -94,14 +95,14 @@ export default function FormaPago({
 
   const agregarFormaPago = () => {
     if (!montoPago || parseFloat(montoPago) <= 0) {
-      alert("Ingrese un monto válido");
+      addToast("Ingrese un monto válido", "warning");
       return;
     }
 
     const monto = parseFloat(montoPago);
     
     if (monto > montoRestante) {
-      alert("El monto no puede ser mayor al saldo pendiente");
+      addToast("El monto no puede ser mayor al saldo pendiente", "warning");
       return;
     }
 

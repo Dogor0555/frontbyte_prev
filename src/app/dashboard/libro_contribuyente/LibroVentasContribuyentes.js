@@ -6,6 +6,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { addToast } from "../components/Toast";
 import ExportarLibroContribuyentes from "./components/ExportarLibroContribuyentes";
 
 export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, haciendaStatus }) {
@@ -84,7 +85,7 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
       });
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cargar el libro de ventas a contribuyentes: " + error.message);
+      addToast("Error al cargar el libro de ventas a contribuyentes: " + error.message, "error");
       setLibro([]);
     } finally {
       setLoading(false);
@@ -112,7 +113,7 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
       }
 
       if (datosParaExportar.length === 0) {
-        alert("No hay datos para exportar en el período seleccionado");
+        addToast("No hay datos para exportar en el período seleccionado", "warning");
         return;
       }
 
@@ -308,7 +309,7 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
       
     } catch (error) {
       console.error("Error al exportar Excel:", error);
-      alert("Error al exportar Excel: " + error.message);
+      addToast("Error al exportar Excel: " + error.message, "error");
     } finally {
       setExporting(false);
     }
@@ -411,7 +412,7 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
       
     } catch (error) {
       console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
+      addToast("Error al generar el PDF: " + error.message, "error");
     } finally {
       setExportingPDF(false);
     }
@@ -429,7 +430,7 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
   const descargarCSVContribuyentes = async () => {
     try {
       if (!fechaInicio || !fechaFin) {
-        return alert("Debes seleccionar un rango de fechas");
+        return addToast("Debes seleccionar un rango de fechas", "warning");
       }
 
       const params = new URLSearchParams({
@@ -460,7 +461,7 @@ export default function LibroVentasContribuyentesView({ user, hasHaciendaToken, 
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error(error);
-      alert("Error al descargar CSV");
+      addToast("Error al descargar CSV", "error");
     }
   };
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaPlus, FaTrash, FaPercent } from "react-icons/fa";
+import { addToast } from "../../../components/Toast";
 
 export default function ProductModal({
   isOpen,
@@ -174,7 +175,7 @@ export default function ProductModal({
 
   const agregarTributo = () => {
     if (impuestoSeleccionado === "20") {
-      alert("No puede agregar IVA en documentos de sujeto excluido");
+      addToast("No puede agregar IVA en documentos de sujeto excluido", "warning");
       return;
     }
     
@@ -194,7 +195,7 @@ export default function ProductModal({
     if (!existe) {
       setTributos([...tributos, nuevoTributo]);
     } else {
-      alert("Este impuesto ya ha sido agregado");
+      addToast("Este impuesto ya ha sido agregado", "warning");
     }
   };
 
@@ -214,13 +215,13 @@ export default function ProductModal({
 
   const handleAgregarItem = () => {
     if (!descripcion.trim()) {
-      alert("Por favor ingrese una descripción para el item");
+      addToast("Por favor ingrese una descripción para el item", "warning");
       return;
     }
 
     // Validar descuento antes de agregar
     if (!validarDescuento(valorDescuento, cantidad)) {
-      alert("El descuento no puede ser mayor al precio del item");
+      addToast("El descuento no puede ser mayor al precio del item", "warning");
       return;
     }
 

@@ -7,6 +7,7 @@ import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../components/JsonViewer";
+import { addToast } from "../components/Toast";
 
 export default function FacturasExcluidasView({ user, hasHaciendaToken, haciendaStatus, initialFacturas }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -74,7 +75,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cargar las facturas excluidas: " + error.message);
+      addToast("Error al cargar las facturas excluidas: " + error.message, "error")
       setRows([]);
     } finally {
       setLoading(false);
@@ -159,7 +160,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
       const fechaEmision = new Date(fechaHoraStr);
       const ahora = new Date();
       const horasTranscurridas = (ahora - fechaEmision) / (1000 * 60 * 60);
-      return horasTranscurridas <= 24;
+      return horasTranscurridas <= 32;
     }
 
     return false;
@@ -189,7 +190,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
       setJsonViewerData(data);
     } catch (error) {
       console.error('Error cargando JSON:', error);
-      alert(`Error al cargar JSON: ${error.message}`);
+      addToast(`Error al cargar JSON: ${error.message}`, "error")
     } finally {
       setLoadingJson(null);
     }
@@ -215,10 +216,10 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
           : factura
       ));
 
-      alert('Transmisión exitosa');
+      addToast('Transmisión exitosa', "success")
     } catch (error) {
       console.error('Error en transmisión:', error);
-      alert('Error: ' + error.message);
+      addToast('Error: ' + error.message, "error")
     } finally {
       setTransmitiendo(null);
     }
@@ -262,10 +263,10 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
         )
       );
 
-      alert("Factura anulada exitosamente");
+      addToast("Factura anulada exitosamente", "success")
     } catch (error) {
       console.error("Error al anular:", error);
-      alert("Error: " + error.message);
+      addToast("Error: " + error.message, "error")
     } finally {
       setAnulando(null);
     }
@@ -291,10 +292,10 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
           : factura
       ));
 
-      alert('Re-transmisión exitosa');
+      addToast('Re-transmisión exitosa', "success")
     } catch (error) {
       console.error('Error en re-transmisión:', error);
-      alert('Error: ' + error.message);
+      addToast('Error: ' + error.message, "error")
     } finally {
       setReTransmitiendo(null);
     }
@@ -334,7 +335,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
 
     } catch (error) {
       console.error('Error descargando JSON:', error);
-      alert(`Error al descargar JSON: ${error.message}`);
+      addToast(`Error al descargar JSON: ${error.message}`, "error")
     } finally {
       setJsonLoading(null);
     }
@@ -378,7 +379,7 @@ export default function FacturasExcluidasView({ user, hasHaciendaToken, hacienda
 
     } catch (error) {
       console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
+      addToast("Error al generar el PDF: " + error.message, "error")
     } finally {
       setPdfLoading(null);
     }

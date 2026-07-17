@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FaTimes, FaPlus } from "react-icons/fa";
+import { addToast } from "../../../components/Toast";
 
 export default function NonTaxableModal({
   isOpen,
@@ -13,7 +14,7 @@ export default function NonTaxableModal({
 
   const handleAgregarItem = () => {
     if (!descripcion.trim() || monto <= 0) {
-      alert("Por favor complete todos los campos requeridos");
+      addToast("Por favor complete todos los campos requeridos", "warning");
       return;
     }
 

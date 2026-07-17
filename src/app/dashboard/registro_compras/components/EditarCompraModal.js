@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaSave, FaTrash, FaPlus, FaEdit, FaCheck } from "react-icons/fa";
 import { API_BASE_URL } from "@/lib/api";
+import { addToast } from "../../components/Toast";
 
 export default function EditarCompraModal({ isOpen, onClose, compraId, onSuccess }) {
     const [loading, setLoading] = useState(false);
@@ -243,7 +244,7 @@ export default function EditarCompraModal({ isOpen, onClose, compraId, onSuccess
 
     const handleAddDetail = () => {
         if (!selectedProduct) return;
-        if (addQuantity <= 0) return alert("La cantidad debe ser mayor a 0");
+        if (addQuantity <= 0) return addToast("La cantidad debe ser mayor a 0", "warning");
 
         const cantidad = parseFloat(addQuantity) || 0;
         const precio = parseFloat(addPrice) || 0;

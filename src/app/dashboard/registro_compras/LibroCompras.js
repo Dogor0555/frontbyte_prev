@@ -10,6 +10,7 @@ import Navbar from "../components/navbar";
 import EditarCompraModal from "./components/EditarCompraModal";
 import DetalleCompraModal from "./components/DetalleCompraModal";
 import { API_BASE_URL } from "@/lib/api";
+import { addToast } from "../components/Toast";
 import ExportarAnexoCompras from "./components/ExportarAnexoCompras.jsx";
 
 // ─── Períodos rápidos ────────────────────────────────────────────────────────
@@ -260,7 +261,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
 
     // ── Acciones ──────────────────────────────────────────────────────────────
     const handleEdit = (id) => {
-        if (!id) return alert("Registro sin ID válido");
+        if (!id) return addToast("Registro sin ID válido", "warning");
         setSelectedCompraId(id);
         setModalOpen(true);
     };
@@ -272,7 +273,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
     };
 
     const handleDelete = async (id) => {
-        if (!id) return alert("Registro sin ID válido");
+        if (!id) return addToast("Registro sin ID válido", "warning");
         if (!confirm("¿Eliminar esta compra? La acción no se puede deshacer.")) return;
         setDeletingId(id);
         try {
@@ -284,7 +285,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             if (!res.ok) throw new Error(data.error || "Error al eliminar");
             fetchLibroConFechas(fechaInicio, fechaFin);
         } catch (err) {
-            alert("Error: " + err.message);
+            addToast("Error: " + err.message, "error");
         } finally {
             setDeletingId(null);
         }
@@ -338,7 +339,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
 
     // ── Exportar Excel ────────────────────────────────────────────────────────
     const handleExportExcel = async () => {
-        if (!libroFiltrado.length) return alert("No hay datos para exportar");
+        if (!libroFiltrado.length) return addToast("No hay datos para exportar", "warning");
         setExporting(true);
         try {
             const { default: ExcelJS } = await import('exceljs');
@@ -441,7 +442,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             URL.revokeObjectURL(url);
         } catch (err) {
             console.error(err);
-            alert("Error al exportar Excel");
+            addToast("Error al exportar Excel", "error");
         } finally {
             setExporting(false);
         }
@@ -449,7 +450,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
 
     const descargarCSV = async () => {
         try {
-            if (!fechaInicio || !fechaFin) return alert("Debes seleccionar un rango de fechas");
+            if (!fechaInicio || !fechaFin) return addToast("Debes seleccionar un rango de fechas", "warning");
             const params = new URLSearchParams({ fechaInicio, fechaFin });
             const res = await fetch(`${API_BASE_URL}/reporte/compras-csv?${params.toString()}`, { credentials: "include" });
             if (!res.ok) throw new Error("Error al descargar CSV");
@@ -462,12 +463,12 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error(error);
-            alert("Error al descargar CSV");
+            addToast("Error al descargar CSV", "error");
         }
     };
 
     const descargarExcel = async () => {
-        if (!libroFiltrado.length) return alert("No hay datos");
+        if (!libroFiltrado.length) return addToast("No hay datos", "warning");
 
         setExporting(true);
 
@@ -594,7 +595,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
 
         } catch (error) {
             console.error(error);
-            alert("Error al exportar Excel");
+            addToast("Error al exportar Excel", "error");
         } finally {
             setExporting(false);
         }
@@ -681,7 +682,7 @@ export default function LibroComprasView({ user, hasHaciendaToken, haciendaStatu
             doc.save(`registro-compras-${fechaInicio}-a-${fechaFin}.pdf`);
         } catch (err) {
             console.error(err);
-            alert("Error al exportar PDF");
+            addToast("Error al exportar PDF", "error");
         } finally {
             setExportingPDF(false);
         }

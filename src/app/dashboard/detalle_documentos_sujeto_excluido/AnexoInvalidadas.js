@@ -6,6 +6,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
+import { addToast } from "../components/Toast";
 
 export default function AnexoSujetoExcluidoInvalidadasView({ user, hasHaciendaToken, haciendaStatus }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -77,7 +78,7 @@ export default function AnexoSujetoExcluidoInvalidadasView({ user, hasHaciendaTo
       
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cargar los documentos invalidados: " + error.message);
+      addToast("Error al cargar los documentos invalidados: " + error.message, "error");
       setDocumentos([]);
     } finally {
       setLoading(false);
@@ -105,7 +106,7 @@ export default function AnexoSujetoExcluidoInvalidadasView({ user, hasHaciendaTo
       }
 
       if (datosParaExportar.length === 0) {
-        alert("No hay datos para exportar en el período seleccionado");
+        addToast("No hay datos para exportar en el período seleccionado", "warning");
         return;
       }
 
@@ -303,7 +304,7 @@ export default function AnexoSujetoExcluidoInvalidadasView({ user, hasHaciendaTo
       
     } catch (error) {
       console.error("Error al exportar Excel:", error);
-      alert("Error al exportar Excel: " + error.message);
+      addToast("Error al exportar Excel: " + error.message, "error");
     } finally {
       setExporting(false);
     }
@@ -402,7 +403,7 @@ export default function AnexoSujetoExcluidoInvalidadasView({ user, hasHaciendaTo
       
     } catch (error) {
       console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
+      addToast("Error al generar el PDF: " + error.message, "error");
     } finally {
       setExportingPDF(false);
     }

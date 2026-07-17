@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { FaTimes, FaPlus, FaSearch, FaTrash, FaDollarSign, FaBox } from "react-icons/fa";
+import { addToast } from "../../components/Toast";
 
 export default function ModalDetallesCompra({
   isOpen,
@@ -71,17 +72,17 @@ export default function ModalDetallesCompra({
 
   const agregarProducto = () => {
     if (!productoSeleccionado) {
-      alert("Por favor seleccione un producto");
+      addToast("Por favor seleccione un producto", "warning");
       return;
     }
 
     if (!cantidad || cantidad <= 0) {
-      alert("La cantidad debe ser mayor a 0");
+      addToast("La cantidad debe ser mayor a 0", "warning");
       return;
     }
 
     if (!precioUnitario || parseFloat(precioUnitario) <= 0) {
-      alert("El precio unitario debe ser mayor a 0");
+      addToast("El precio unitario debe ser mayor a 0", "warning");
       return;
     }
 
@@ -107,7 +108,7 @@ export default function ModalDetallesCompra({
 
   const guardarDetalles = () => {
     if (detalles.length === 0) {
-      alert("Agregue al menos un producto");
+      addToast("Agregue al menos un producto", "warning");
       return;
     }
 

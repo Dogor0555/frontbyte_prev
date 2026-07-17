@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaPlus, FaSearch, FaExclamationTriangle, FaTrash, FaPercent } from "react-icons/fa";
+import { addToast } from "../../../components/Toast";
 
 export default function ProductModal({
   isOpen,
@@ -296,12 +297,12 @@ export default function ProductModal({
     if (!productoSeleccionado) return;
     
     if (tipoVenta === "3") {
-      alert("No puede agregar tributos a un producto No Sujeto");
+      addToast("No puede agregar tributos a un producto No Sujeto", "warning");
       return;
     }
     
     if (tipoVenta === "2" && impuestoSeleccionado === "20") {
-      alert("No puede agregar IVA a un producto exento");
+      addToast("No puede agregar IVA a un producto exento", "warning");
       return;
     }
     
@@ -322,13 +323,13 @@ export default function ProductModal({
     if (!existe) {
       setTributos([...tributos, nuevoTributo]);
     } else {
-      alert("Este impuesto ya ha sido agregado");
+      addToast("Este impuesto ya ha sido agregado", "warning");
     }
   };
 
   const eliminarTributo = (codigo) => {
     if (tipoVenta === "1" && codigo === "20") {
-      alert("No puede eliminar el IVA de un producto gravado");
+      addToast("No puede eliminar el IVA de un producto gravado", "warning");
       return;
     }
     
@@ -386,12 +387,12 @@ const calcularTotal = () => {
 
   const handleAgregarItem = () => {
     if (!productoSeleccionado) {
-      alert("Por favor seleccione un producto");
+      addToast("Por favor seleccione un producto", "warning");
       return;
     }
 
     if (!validarDescuento(valorDescuento, productoSeleccionado, cantidad, precioEditable)) {
-      alert("El descuento no puede ser mayor al precio del item");
+      addToast("El descuento no puede ser mayor al precio del item", "warning");
       return;
     }
 

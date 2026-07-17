@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, CameraOff } from "lucide-react";
+import { addToast } from "./Toast";
 import Scanner from "./Scanner.jsx";
 
 function playBeep() {
@@ -145,9 +146,7 @@ export default function BarcodeScanner({
         setCameraError(errorMsg);
         setIsActive(false);
 
-        alert(
-            `❌ Error activando cámara:\n${errorMsg}\n\nVerifica:\n• Permisos de cámara\n• Que tengas cámara conectada\n• Usar HTTPS o localhost`
-        );
+        addToast(`Error activando cámara: ${errorMsg}`, "error");
 
         if (onError) {
             onError(errorMsg);

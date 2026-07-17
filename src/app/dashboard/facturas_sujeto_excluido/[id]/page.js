@@ -6,6 +6,7 @@ import Footer from "../../components/footer";
 import { useRouter, useParams } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import Navbar from "../../components/navbar";
+import { addToast } from "../../components/Toast";
 
 export default function FacturaExcluidaDetallePage() {
   const params = useParams();
@@ -138,7 +139,7 @@ export default function FacturaExcluidaDetallePage() {
 
     } catch (error) {
       console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
+      addToast("Error al generar el PDF: " + error.message, "error")
     } finally {
       setGenerandoPDF(false);
     }
@@ -182,7 +183,7 @@ export default function FacturaExcluidaDetallePage() {
 
     } catch (error) {
       console.error("Error al generar ticket:", error);
-      alert("Error al generar el ticket: " + error.message);
+      addToast("Error al generar el ticket: " + error.message, "error")
     } finally {
       setGenerandoTicket(false);
     }

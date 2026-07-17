@@ -49,6 +49,7 @@ import {
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin, seleccionarEmpresa, getEmpresasUsuario } from "../../services/auth";
+import { addToast } from "./Toast";
 import { useState, useEffect } from "react";
 import { API_BASE_URL } from "@/lib/api";
 import { usePathname } from "next/navigation";
@@ -209,11 +210,11 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
         }, 1500);
       } else {
         console.error('❌ Error en respuesta:', result);
-        alert('Error al cambiar de empresa: ' + (result.mensaje || 'Intenta nuevamente'));
+        addToast('Error al cambiar de empresa: ' + (result.mensaje || 'Intenta nuevamente'), "error");
       }
     } catch (error) {
       console.error('❌ Error al cambiar de empresa:', error);
-      alert('Error al cambiar de empresa: ' + (error.message || 'Intenta nuevamente'));
+      addToast('Error al cambiar de empresa: ' + (error.message || 'Intenta nuevamente'), "error");
     } finally {
       setCambiandoEmpresa(false);
     }

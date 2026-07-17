@@ -9,6 +9,7 @@ import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../components/JsonViewer";
+import { addToast } from "../components/Toast";
 
 export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, initialFacturas } ) {
   const [isMobile, setIsMobile] = useState(false);
@@ -76,7 +77,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, 
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cargar las facturas: " + error.message);
+      addToast("Error al cargar las facturas: " + error.message, "error")
       setRows([]);
     } finally {
       setLoading(false);
@@ -217,7 +218,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, 
       setJsonViewerData(data);
     } catch (error) {
       console.error('Error cargando JSON:', error);
-      alert(`Error al cargar JSON: ${error.message}`);
+      addToast(`Error al cargar JSON: ${error.message}`, "error")
     } finally {
       setLoadingJson(null);
     }
@@ -260,10 +261,10 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, 
         )
       );
 
-      alert("Factura anulada exitosamente");
+      addToast("Factura anulada exitosamente", "success")
     } catch (error) {
       console.error("Error al anular:", error);
-      alert("Error: " + error.message);
+      addToast("Error: " + error.message, "error")
     } finally {
       setAnulando(null);
     }
@@ -289,10 +290,10 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, 
           : factura
       ));
       
-      alert('Re-transmisión exitosa');
+      addToast('Re-transmisión exitosa', "success")
     } catch (error) {
       console.error('Error en re-transmisión:', error);
-      alert('Error: ' + error.message);
+      addToast('Error: ' + error.message, "error")
     } finally {
       setReTransmitiendo(null);
     }
@@ -330,7 +331,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, 
 
     } catch (error) {
       console.error('Error descargando JSON:', error);
-      alert(`Error al descargar JSON: ${error.message}`);
+      addToast(`Error al descargar JSON: ${error.message}`, "error")
     } finally {
       setPdfLoading(null);
     }
@@ -377,7 +378,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, 
 
     } catch (error) {
       console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
+      addToast("Error al generar el PDF: " + error.message, "error")
     } finally {
       setPdfLoading(null);
     }
@@ -481,14 +482,14 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, 
     setTimeout(() => URL.revokeObjectURL(urlObj), 100);
     
     console.log("✅ [PDF Masivo] Descarga exitosa - Archivo:", filename);
-    alert("Descarga completada exitosamente");
+    addToast("Descarga completada exitosamente", "success")
 
   } catch (error) {
     console.error("🔴 [PDF Masivo] ERROR CATASTRÓFICO:", error);
     console.error("🔴 Stack trace:", error.stack);
     
     // Mostrar alerta con el error real del backend
-    alert(`Error en descarga masiva:\n${error.message}`);
+    addToast(`Error en descarga masiva:\n${error.message}`, "error")
   } finally {
     setPdfLoading(null);
   }

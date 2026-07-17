@@ -8,6 +8,7 @@ import { useRouter, useParams } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../../components/JsonViewer";
 import Navbar from "../../components/navbar";
+import { addToast } from "../../components/Toast";
 
 export default function FacturaDetallePage() {
   const params = useParams();
@@ -95,7 +96,7 @@ export default function FacturaDetallePage() {
       setJsonViewerData(data);
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al cargar JSON: " + error.message);
+      addToast("Error al cargar JSON: " + error.message, "error")
     }
   };
 
@@ -131,7 +132,7 @@ export default function FacturaDetallePage() {
       URL.revokeObjectURL(pdfUrl);
     } catch (error) {
       console.error("Error al generar PDF:", error);
-      alert("Error al generar el PDF: " + error.message);
+      addToast("Error al generar el PDF: " + error.message, "error")
     } finally {
       setGenerandoPDF(false);
     }
@@ -171,7 +172,7 @@ export default function FacturaDetallePage() {
 
     } catch (error) {
       console.error("Error al generar ticket:", error);
-      alert("Error al generar el ticket: " + error.message);
+      addToast("Error al generar el ticket: " + error.message, "error")
     } finally {
       setGenerandoTicket(false);
     }
