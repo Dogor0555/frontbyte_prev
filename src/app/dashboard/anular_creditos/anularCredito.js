@@ -73,7 +73,7 @@ export default function AnularCreditoView({ user, hasHaciendaToken, haciendaStat
       const fechaEmision = new Date(credito.fechaemision);
       const horasTranscurridas = (salvadorTime - fechaEmision) / (1000 * 60 * 60);
           
-      return horasTranscurridas <= 32;
+      return horasTranscurridas <= 48;
     }
     
     return false;
