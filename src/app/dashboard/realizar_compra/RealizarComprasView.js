@@ -1948,11 +1948,17 @@ const [duplicateCompraData, setDuplicateCompraData] = useState(null);
                         });
                     }
                 } else {
-                    const itemIndex = itemsNoEncontrados.findIndex(
-                        (ni, idx) => ni.nombre === item.descripcion && !selectedProductosToCreate[idx]
+                    const yaEnDetalle = [...productosAcumulados.values()].some(
+                        d => (d.tipo === "producto" || d.tipo === "materia_prima") &&
+                             d.producto_nombre?.toLowerCase() === item.descripcion?.toLowerCase()
                     );
 
-                    if (itemIndex === -1 || !selectedProductosToCreate[itemIndex]) {
+                    const itemIndex = itemsNoEncontrados.findIndex(
+                        (ni) => ni.nombre === item.descripcion
+                    );
+                    const esSeleccionado = itemIndex !== -1 && selectedProductosToCreate[itemIndex];
+
+                    if (!yaEnDetalle && !esSeleccionado) {
                         const key = "gasto_" + item.descripcion;
                         if (!productosAcumulados.has(key)) {
                             const unidadDesdeJson = mapearUnidadDesdeJson(item.uniMedida);
