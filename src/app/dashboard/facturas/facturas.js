@@ -704,6 +704,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, 
                     <option value="TRANSMITIDO">TRANSMITIDO</option>
                     <option value="RE-TRANSMITIDO">RE-TRANSMITIDO</option>
                     <option value="CONTINGENCIA">CONTINGENCIA</option>
+                    <option value="PENDIENTE">PENDIENTE</option>
                   </select>
 
                   <select
@@ -807,6 +808,7 @@ export default function FacturasView( { user, hasHaciendaToken, haciendaStatus, 
                           factura.estado === 'RE-TRANSMITIDO' ? 'bg-blue-500/30 text-blue-100' :
                           factura.estado === 'CONTINGENCIA' ? 'bg-yellow-500/30 text-yellow-100' :
                           factura.estado === 'ANULADO' ? 'bg-red-500/30 text-red-100' :
+                          factura.estado === 'PENDIENTE' ? 'bg-gray-500/30 text-gray-100' :
                           'bg-gray-500/30 text-gray-100'
                         }`}>
                           {factura.estado?.toUpperCase() || 'PENDIENTE'}
