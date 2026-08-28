@@ -33,6 +33,7 @@ import {
   FaPercent,
   FaSortAmountDown,
   FaTruck,
+  FaList,
 } from "react-icons/fa";
 
 import { API_BASE_URL } from "@/lib/api";
@@ -326,6 +327,9 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
   const [ventas, setVentas] = useState([]);
   const [topProd, setTopProd] = useState([]);
   const [topCli, setTopCli] = useState([]);
+  const [topProdAll, setTopProdAll] = useState([]);
+  const [modalProductosOpen, setModalProductosOpen] = useState(false);
+  const [loadingProductosAll, setLoadingProductosAll] = useState(false);
   const [trib, setTrib] = useState([]);
   const [facturas, setFacturas] = useState({ data: [], meta: { p: 1, pages: 1, limit: 20, total: 0 } });
 
@@ -379,6 +383,21 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
   }, [filters, fetchAll]);
 
   const onPage = (p) => fetchAll(p);
+
+  const abrirModalProductos = useCallback(async () => {
+    setModalProductosOpen(true);
+    setLoadingProductosAll(true);
+    const q = buildQuery({ ...normalizeFilters(filters), limit: 10000 });
+    try {
+      const { data } = await getJSON(`/reportes/top-productos?${q}`, { cookie });
+      setTopProdAll(data || []);
+    } catch (e) {
+      console.error(e);
+      setTopProdAll([]);
+    } finally {
+      setLoadingProductosAll(false);
+    }
+  }, [filters, cookie]);
 
   const csvHref = useMemo(
     () => `${API_BASE_URL}/reportes/facturas.csv?${buildQuery(normalizeFilters(filters))}`,
@@ -847,6 +866,14 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                   rows={topProd?.map((r) => [r.codigo, r.descripcion, fmtInt(r.cantidad), fmtMoney(r.monto)])}
                   loading={loading}
                   colAlign={["left", "left", "right", "right"]}
+                  action={
+                    <button
+                      onClick={abrirModalProductos}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-200 transition-colors flex items-center gap-1 flex-shrink-0"
+                    >
+                      <FaList className="text-[10px]" /> Todos
+                    </button>
+                  }
                 />
                 <CompactTable
                   title="Resumen Tributos"
@@ -1007,6 +1034,93 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
             </div>
           </main>
 
+          {modalProductosOpen && (
+            <div
+              className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-6 overflow-y-auto"
+              onClick={() => setModalProductosOpen(false)}
+            >
+              <div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-4 sm:my-8 flex flex-col max-h-[85vh]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <FaBoxes className="text-white text-sm" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-gray-900 leading-tight">Todos los productos vendidos</h3>
+                      <p className="text-xs text-gray-500 truncate">
+                        {topProdAll?.length || 0} productos · {formatDateRange(desde)} – {formatDateRange(hasta)}
+                        {tipodte ? ` · ${getTipoDTENombre(tipodte)}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setModalProductosOpen(false)}
+                    className="text-gray-400 hover:text-gray-700 transition-colors p-1 flex-shrink-0"
+                    aria-label="Cerrar"
+                  >
+                    <FaTimesCircle className="text-xl" />
+                  </button>
+                </div>
+
+                <div className="p-3 sm:p-4 flex-1 overflow-y-auto min-h-0">
+                  {loadingProductosAll ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={i} className="border border-gray-100 rounded-xl p-3 space-y-2">
+                          <div className="h-3 bg-gray-100 rounded animate-pulse w-16" />
+                          <div className="h-3 bg-gray-100 rounded animate-pulse w-3/4" />
+                          <div className="h-3 bg-gray-100 rounded animate-pulse w-24" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : topProdAll?.length === 0 ? (
+                    <div className="text-center py-10 text-gray-400">
+                      <FaBoxes className="mx-auto text-3xl text-gray-200 mb-2" />
+                      <p className="text-sm">No se encontraron productos vendidos en el período</p>
+                    </div>
+                  ) : (
+                    <table className="min-w-full text-xs">
+                      <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
+                        <tr>
+                          <th className="px-3 py-2.5 text-left font-bold text-gray-500 uppercase tracking-wide text-[10px]">#</th>
+                          <th className="px-3 py-2.5 text-left font-bold text-gray-500 uppercase tracking-wide text-[10px]">Código</th>
+                          <th className="px-3 py-2.5 text-left font-bold text-gray-500 uppercase tracking-wide text-[10px]">Descripción</th>
+                          <th className="px-3 py-2.5 text-right font-bold text-gray-500 uppercase tracking-wide text-[10px]">Cant.</th>
+                          <th className="px-3 py-2.5 text-right font-bold text-gray-500 uppercase tracking-wide text-[10px]">Monto</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {topProdAll.map((r, i) => (
+                          <tr key={i} className="hover:bg-blue-50/40 transition-colors">
+                            <td className="px-3 py-2 text-gray-400 font-bold">{i + 1}</td>
+                            <td className="px-3 py-2 font-mono text-gray-600 text-[10px]">{r.codigo}</td>
+                            <td className="px-3 py-2 text-gray-800 font-medium max-w-[300px] truncate" title={r.descripcion}>{r.descripcion}</td>
+                            <td className="px-3 py-2 text-right font-bold text-gray-700">{fmtInt(r.cantidad)}</td>
+                            <td className="px-3 py-2 text-right font-bold text-blue-600 whitespace-nowrap">{fmtMoney(r.monto)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {!loadingProductosAll && topProdAll?.length > 0 && (
+                  <div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
+                    <span className="text-xs text-gray-600">
+                      Mostrando {fmtInt(topProdAll.length)} productos
+                    </span>
+                    <span className="text-xs font-bold text-blue-600">
+                      Total: {fmtMoney(topProdAll.reduce((a, r) => a + (Number(r.monto) || 0), 0))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <Footer />
         </div>
       </div>
@@ -1037,15 +1151,16 @@ function MetricCard({ title, value, loading = false, icon, color = "#3b82f6", hi
   );
 }
 
-function CompactTable({ title, subtitle, icon, headers = [], rows = [], loading = false, colAlign = [] }) {
+function CompactTable({ title, subtitle, icon, headers = [], rows = [], loading = false, colAlign = [], action }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
         <span className="text-sm">{icon}</span>
-        <div>
+        <div className="flex-1 min-w-0">
           <h3 className="text-sm font-bold text-gray-900">{title}</h3>
           {subtitle && <p className="text-[10px] text-gray-400">{subtitle}</p>}
         </div>
+        {action}
       </div>
       <div className="overflow-auto max-h-[220px]">
         <table className="min-w-full text-xs">
