@@ -330,9 +330,6 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
   const [modalProductosOpen, setModalProductosOpen] = useState(false);
   const [loadingProductosAll, setLoadingProductosAll] = useState(false);
   const [topCli, setTopCli] = useState([]);
-  const [topProdAll, setTopProdAll] = useState([]);
-  const [modalProductosOpen, setModalProductosOpen] = useState(false);
-  const [loadingProductosAll, setLoadingProductosAll] = useState(false);
   const [trib, setTrib] = useState([]);
   const [facturas, setFacturas] = useState({ data: [], meta: { p: 1, pages: 1, limit: 20, total: 0 } });
 
@@ -402,8 +399,6 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
     }
   }, [filters, cookie]);
 
-<<<<<<< Updated upstream
-=======
   const generarProductosPDF = useCallback(async () => {
     if (!topProdAll?.length) return;
     try {
@@ -480,7 +475,6 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
     }
   }, [topProdAll, desde, hasta]);
 
->>>>>>> Stashed changes
   const csvHref = useMemo(
     () => `${API_BASE_URL}/reportes/facturas.csv?${buildQuery(normalizeFilters(filters))}`,
     [filters]
@@ -1189,16 +1183,6 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                   )}
                 </div>
 
-<<<<<<< Updated upstream
-                {!loadingProductosAll && topProdAll?.length > 0 && (
-                  <div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
-                    <span className="text-xs text-gray-600">
-                      Mostrando {fmtInt(topProdAll.length)} productos
-                    </span>
-                    <span className="text-xs font-bold text-blue-600">
-                      Total: {fmtMoney(topProdAll.reduce((a, r) => a + (Number(r.monto) || 0), 0))}
-                    </span>
-=======
                 {!loadingProductosAll && (
                   <div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
                     <span className="text-xs text-gray-600">
@@ -1219,7 +1203,6 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                       <FaFilePdf className="text-sm" />
                       Generar PDF
                     </button>
->>>>>>> Stashed changes
                   </div>
                 )}
               </div>
