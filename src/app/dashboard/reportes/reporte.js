@@ -326,6 +326,9 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
   const [resumenPorTipo, setResumenPorTipo] = useState(null);
   const [ventas, setVentas] = useState([]);
   const [topProd, setTopProd] = useState([]);
+  const [topProdAll, setTopProdAll] = useState([]);
+  const [modalProductosOpen, setModalProductosOpen] = useState(false);
+  const [loadingProductosAll, setLoadingProductosAll] = useState(false);
   const [topCli, setTopCli] = useState([]);
   const [topProdAll, setTopProdAll] = useState([]);
   const [modalProductosOpen, setModalProductosOpen] = useState(false);
@@ -399,6 +402,85 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
     }
   }, [filters, cookie]);
 
+<<<<<<< Updated upstream
+=======
+  const generarProductosPDF = useCallback(async () => {
+    if (!topProdAll?.length) return;
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const { default: autoTable } = await import("jspdf-autotable");
+
+      const doc = new jsPDF("landscape");
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 8;
+
+      doc.setFontSize(15);
+      doc.setFont("helvetica", "bold");
+      doc.text("PRODUCTOS VENDIDOS", pageWidth / 2, 12, { align: "center" });
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(
+        `Período: ${formatDateRange(desde)} - ${formatDateRange(hasta)}`,
+        margin,
+        19
+      );
+      doc.text(
+        `Generado: ${new Date().toLocaleDateString("es-SV")}`,
+        pageWidth - margin,
+        19,
+        { align: "right" }
+      );
+
+      const rows = topProdAll.map((r, i) => [
+        i + 1,
+        String(r.codigo ?? ""),
+        String(r.descripcion ?? ""),
+        fmtInt(r.cantidad),
+        fmtMoney(r.monto),
+      ]);
+
+      autoTable(doc, {
+        startY: 23,
+        margin: { left: margin, right: margin },
+        head: [["#", "Código", "Descripción", "Cantidad", "Monto"]],
+        body: rows,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [37, 99, 235] },
+        columnStyles: {
+          0: { cellWidth: 12 },
+          1: { cellWidth: 45 },
+          3: { cellWidth: 25, halign: "right" },
+          4: { cellWidth: 40, halign: "right" },
+        },
+        didDrawPage: () => {
+          const pageCount = doc.internal.getNumberOfPages();
+          doc.setFontSize(8);
+          doc.text(
+            `Página ${pageCount}`,
+            pageWidth - margin,
+            doc.internal.pageSize.getHeight() - 4,
+            { align: "right" }
+          );
+        },
+      });
+
+      const finalY = doc.lastAutoTable?.finalY || 23;
+      const totalMonto = topProdAll.reduce((a, r) => a + (Number(r.monto) || 0), 0);
+      doc.setFont("helvetica", "bold");
+      doc.text(
+        `Total de productos: ${topProdAll.length}    Total vendido: ${fmtMoney(totalMonto)}`,
+        margin,
+        Math.min(finalY + 8, doc.internal.pageSize.getHeight() - 6)
+      );
+
+      doc.save(`productos-vendidos_${desde}_a_${hasta}.pdf`);
+    } catch (e) {
+      console.error("Error al generar PDF de productos:", e);
+    }
+  }, [topProdAll, desde, hasta]);
+
+>>>>>>> Stashed changes
   const csvHref = useMemo(
     () => `${API_BASE_URL}/reportes/facturas.csv?${buildQuery(normalizeFilters(filters))}`,
     [filters]
@@ -1107,6 +1189,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                   )}
                 </div>
 
+<<<<<<< Updated upstream
                 {!loadingProductosAll && topProdAll?.length > 0 && (
                   <div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
                     <span className="text-xs text-gray-600">
@@ -1115,6 +1198,28 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                     <span className="text-xs font-bold text-blue-600">
                       Total: {fmtMoney(topProdAll.reduce((a, r) => a + (Number(r.monto) || 0), 0))}
                     </span>
+=======
+                {!loadingProductosAll && (
+                  <div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
+                    <span className="text-xs text-gray-600">
+                      {topProdAll?.length > 0
+                        ? `Mostrando ${fmtInt(topProdAll.length)} productos`
+                        : ""}
+                      {topProdAll?.length > 0 && (
+                        <span className="ml-2 font-bold text-blue-600">
+                          Total: {fmtMoney(topProdAll.reduce((a, r) => a + (Number(r.monto) || 0), 0))}
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      onClick={generarProductosPDF}
+                      disabled={!topProdAll?.length}
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <FaFilePdf className="text-sm" />
+                      Generar PDF
+                    </button>
+>>>>>>> Stashed changes
                   </div>
                 )}
               </div>
