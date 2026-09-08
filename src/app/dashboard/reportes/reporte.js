@@ -400,6 +400,16 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
     }
   }, [filters, cookie]);
 
+  const topProdAllFiltrados = useMemo(() => {
+    const term = busquedaProducto.trim().toLowerCase();
+    if (!term || !topProdAll?.length) return topProdAll || [];
+    return topProdAll.filter(
+      (r) =>
+        String(r.codigo || "").toLowerCase().includes(term) ||
+        String(r.descripcion || "").toLowerCase().includes(term)
+    );
+  }, [topProdAll, busquedaProducto]);
+
   const generarProductosPDF = useCallback(async () => {
     const lista = topProdAllFiltrados?.length ? topProdAllFiltrados : topProdAll;
     if (!lista?.length) return;
@@ -631,16 +641,6 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
   }, [resumenPorTipo]);
 
   const tipoActivoInfo = tiposDTE.find((t) => t.codigo === tipodte);
-
-  const topProdAllFiltrados = useMemo(() => {
-    const term = busquedaProducto.trim().toLowerCase();
-    if (!term || !topProdAll?.length) return topProdAll || [];
-    return topProdAll.filter(
-      (r) =>
-        String(r.codigo || "").toLowerCase().includes(term) ||
-        String(r.descripcion || "").toLowerCase().includes(term)
-    );
-  }, [topProdAll, busquedaProducto]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
