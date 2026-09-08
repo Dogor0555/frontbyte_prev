@@ -329,6 +329,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
   const [topProdAll, setTopProdAll] = useState([]);
   const [modalProductosOpen, setModalProductosOpen] = useState(false);
   const [loadingProductosAll, setLoadingProductosAll] = useState(false);
+  const [busquedaProducto, setBusquedaProducto] = useState("");
   const [topCli, setTopCli] = useState([]);
   const [trib, setTrib] = useState([]);
   const [facturas, setFacturas] = useState({ data: [], meta: { p: 1, pages: 1, limit: 20, total: 0 } });
@@ -400,7 +401,8 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
   }, [filters, cookie]);
 
   const generarProductosPDF = useCallback(async () => {
-    if (!topProdAll?.length) return;
+    const lista = topProdAllFiltrados?.length ? topProdAllFiltrados : topProdAll;
+    if (!lista?.length) return;
     try {
       const { default: jsPDF } = await import("jspdf");
       const { default: autoTable } = await import("jspdf-autotable");
@@ -427,7 +429,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
         { align: "right" }
       );
 
-      const rows = topProdAll.map((r, i) => [
+      const rows = lista.map((r, i) => [
         i + 1,
         String(r.codigo ?? ""),
         String(r.descripcion ?? ""),
@@ -461,10 +463,10 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
       });
 
       const finalY = doc.lastAutoTable?.finalY || 23;
-      const totalMonto = topProdAll.reduce((a, r) => a + (Number(r.monto) || 0), 0);
+      const totalMonto = lista.reduce((a, r) => a + (Number(r.monto) || 0), 0);
       doc.setFont("helvetica", "bold");
       doc.text(
-        `Total de productos: ${topProdAll.length}    Total vendido: ${fmtMoney(totalMonto)}`,
+        `Total de productos: ${lista.length}    Total vendido: ${fmtMoney(totalMonto)}`,
         margin,
         Math.min(finalY + 8, doc.internal.pageSize.getHeight() - 6)
       );
@@ -473,7 +475,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
     } catch (e) {
       console.error("Error al generar PDF de productos:", e);
     }
-  }, [topProdAll, desde, hasta]);
+  }, [topProdAllFiltrados, topProdAll, desde, hasta]);
 
   const csvHref = useMemo(
     () => `${API_BASE_URL}/reportes/facturas.csv?${buildQuery(normalizeFilters(filters))}`,
@@ -629,6 +631,16 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
   }, [resumenPorTipo]);
 
   const tipoActivoInfo = tiposDTE.find((t) => t.codigo === tipodte);
+
+  const topProdAllFiltrados = useMemo(() => {
+    const term = busquedaProducto.trim().toLowerCase();
+    if (!term || !topProdAll?.length) return topProdAll || [];
+    return topProdAll.filter(
+      (r) =>
+        String(r.codigo || "").toLowerCase().includes(term) ||
+        String(r.descripcion || "").toLowerCase().includes(term)
+    );
+  }, [topProdAll, busquedaProducto]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -1142,6 +1154,17 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                 </div>
 
                 <div className="p-3 sm:p-4 flex-1 overflow-y-auto min-h-0">
+                  {!loadingProductosAll && topProdAll?.length > 0 && (
+                    <div className="relative mb-3">
+                      <FaSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                      <input
+                        value={busquedaProducto}
+                        onChange={(e) => setBusquedaProducto(e.target.value)}
+                        placeholder="Buscar por código o descripción..."
+                        className="w-full pl-7 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none"
+                      />
+                    </div>
+                  )}
                   {loadingProductosAll ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {Array.from({ length: 8 }).map((_, i) => (
@@ -1169,7 +1192,7 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {topProdAll.map((r, i) => (
+                        {topProdAllFiltrados.map((r, i) => (
                           <tr key={i} className="hover:bg-blue-50/40 transition-colors">
                             <td className="px-3 py-2 text-gray-400 font-bold">{i + 1}</td>
                             <td className="px-3 py-2 font-mono text-gray-600 text-[10px]">{r.codigo}</td>
@@ -1178,6 +1201,13 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                             <td className="px-3 py-2 text-right font-bold text-blue-600 whitespace-nowrap">{fmtMoney(r.monto)}</td>
                           </tr>
                         ))}
+                        {topProdAllFiltrados?.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="px-4 py-8 text-center text-gray-400">
+                              No se encontraron productos con " {busquedaProducto} "
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   )}
@@ -1187,11 +1217,11 @@ export default function Reportes({ user, cookie, hasHaciendaToken, haciendaStatu
                   <div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
                     <span className="text-xs text-gray-600">
                       {topProdAll?.length > 0
-                        ? `Mostrando ${fmtInt(topProdAll.length)} productos`
+                        ? `Mostrando ${fmtInt(topProdAllFiltrados.length)} de ${fmtInt(topProdAll.length)} productos`
                         : ""}
-                      {topProdAll?.length > 0 && (
+                      {topProdAllFiltrados?.length > 0 && (
                         <span className="ml-2 font-bold text-blue-600">
-                          Total: {fmtMoney(topProdAll.reduce((a, r) => a + (Number(r.monto) || 0), 0))}
+                          Total: {fmtMoney(topProdAllFiltrados.reduce((a, r) => a + (Number(r.monto) || 0), 0))}
                         </span>
                       )}
                     </span>
