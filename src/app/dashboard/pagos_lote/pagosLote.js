@@ -25,16 +25,30 @@ export default function PagosLoteView({ user, sucursalUsuario, hasHaciendaToken,
   const fmtMoney = (n) => Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const txtVal = (v) => (v == null ? "" : typeof v === "object" ? v.nombre || v.descripcion || "" : String(v));
 
-  const calcularMontos = (monto, tipo) => {
-    if (tipo === "03") {
-      const ventaGravada = monto / 1.13;
-      return { ventaGravada, ventaExenta: 0, iva: monto - ventaGravada };
-    }
-    return { ventaGravada: 0, ventaExenta: monto, iva: 0 };
+  const calcularMontos = (monto, tipo, capital = 0, interes = 0) => {
+    // Tanto DTE-01 como DTE-03: IVA INCLUIDO en el monto total
+    // totalPagar = capital + interes + IVA = monto
+    // interes = (monto - capital) / 1.13
+    const totalnogravado = Number(capital);
+    const ventagravada = (Number(monto) - Number(capital)) / 1.13;
+    const iva = ventagravada * 0.13;
+    return {
+      ventaGravada: Math.round(ventagravada * 100) / 100,
+      ventaExenta: 0,
+      noGravado: totalnogravado,
+      iva: Math.round(iva * 100) / 100,
+      totalGravada: Math.round(ventagravada * 100) / 100,
+      totalNoGravado: totalnogravado,
+      subTotalVentas: Math.round(ventagravada * 100) / 100,
+      montoTotalOperacion: Math.round((ventagravada + iva) * 100) / 100,
+      totalPagar: Number(monto),
+    };
   };
 
+  const [cuotaActual, setCuotaActual] = useState(null);
+
   const seleccionar = async (id) => {
-    if (!id) { setCreditoId(""); setDetalle(null); setPagos([]); return; }
+    if (!id) { setCreditoId(""); setDetalle(null); setPagos([]); setCuotaActual(null); return; }
     setCreditoId(id);
     setLoading(true);
     try {
@@ -42,7 +56,17 @@ export default function PagosLoteView({ user, sucursalUsuario, hasHaciendaToken,
         fetch(`${API_BASE_URL}/creditos-lote/${id}`, { credentials: "include" }),
         fetch(`${API_BASE_URL}/pagos-lote/credito/${id}`, { credentials: "include" }),
       ]);
-      if (cr.ok) setDetalle(await cr.json());
+      if (cr.ok) {
+        const data = await cr.json();
+        setDetalle(data);
+        const cuotasPend = data.cuotas?.filter((c) => c.estado !== "pagada") || [];
+        if (cuotasPend.length > 0) {
+          setCuotaActual(cuotasPend[0]);
+          setForm((prev) => ({ ...prev, monto_pago: String(Number(cuotasPend[0].monto_total).toFixed(2)) }));
+        } else {
+          setCuotaActual(null);
+        }
+      }
       if (pr.ok) setPagos(await pr.json());
     } catch (_) { addToast("Error al cargar", "error"); }
     setLoading(false);
@@ -50,6 +74,10 @@ export default function PagosLoteView({ user, sucursalUsuario, hasHaciendaToken,
 
   const construirBody = () => {
     const body = { idcredito: Number(creditoId), ...form, monto_pago: Number(form.monto_pago) };
+    if (cuotaActual) {
+      body.monto_capital = Number(cuotaActual.monto_capital);
+      body.monto_interes = Number(cuotaActual.monto_interes);
+    }
     if (generarDte && (tipoDte === "01" || tipoDte === "03")) {
       body.generar_dte = true;
       body.tipo_dte = tipoDte;
@@ -96,18 +124,65 @@ export default function PagosLoteView({ user, sucursalUsuario, hasHaciendaToken,
       const lotesTxt = detalle.lotes_asignados?.map((la) => la.lote?.codigo_lote).filter(Boolean).join(", ");
       const cuotasPend = detalle.cuotas?.filter((c) => c.estado !== "pagada") || [];
       const totalCuotas = detalle.cuotas?.length || detalle.plazo_meses || 0;
-      const cuotaActual = totalCuotas - cuotasPend.length + 1;
-      const descripcion = `Cuota ${cuotaActual}/${totalCuotas} - Credito #${creditoId}${lotesTxt ? " - Lote(s): " + lotesTxt : ""}`;
+      const cuotaNum = totalCuotas - cuotasPend.length + 1;
       const tieneNit = !!(cliente?.nit && String(cliente.nit).trim());
+
+      const capital = cuotaActual ? Number(cuotaActual.monto_capital) : 0;
+      const interes = cuotaActual ? Number(cuotaActual.monto_interes) : 0;
 
       const suc = sucursalUsuario || {};
       const dirEmisor = suc.direccion
         ? [txtVal(suc.direccion.complemento), txtVal(suc.direccion.municipio), txtVal(suc.direccion.departamento)].filter(Boolean).join(", ")
         : [txtVal(user?.complemento), txtVal(user?.municipio), txtVal(user?.departamento)].filter(Boolean).join(", ");
 
+      const items = [
+        {
+          numItem: 1,
+          tipoItem: 2,
+          cantidad: 1,
+          codigo: "3225",
+          uniMedida: 99,
+          descripcion: `Capital - Cuota ${cuotaNum}/${totalCuotas} - Credito #${creditoId}${lotesTxt ? " - Lote(s): " + lotesTxt : ""}`,
+          precioUni: 0,
+          montoDescu: 0,
+          ventaNoSuj: 0,
+          ventaExenta: 0,
+          ventaGravada: 0,
+          psv: 0,
+          noGravado: capital,
+          numeroDocumento: null,
+          codTributo: null,
+          tributos: null,
+        },
+        {
+          numItem: 2,
+          tipoItem: 2,
+          cantidad: 1,
+          codigo: "3210",
+          uniMedida: 99,
+          descripcion: "Intereses Corrientes",
+          precioUni: interes,
+          montoDescu: 0,
+          ventaNoSuj: 0,
+          ventaExenta: 0,
+          ventaGravada: interes,
+          tributos: ["20"],
+          psv: 0,
+          noGravado: 0,
+          numeroDocumento: null,
+          codTributo: null,
+        },
+      ];
+
+      const montos = calcularMontos(monto, tipoDte, capital, interes);
+
       setDtePreview({
         monto,
-        montos: calcularMontos(monto, tipoDte),
+        capital,
+        interes,
+        cuotaNum,
+        totalCuotas,
+        montos,
         emisor: {
           nombre: suc.nombre || suc.nombrecomercial || user?.empresa || user?.nombre || "-",
           nit: suc.nit || user?.nit || "-",
@@ -129,14 +204,9 @@ export default function PagosLoteView({ user, sucursalUsuario, hasHaciendaToken,
           telefono: cliente?.telefono || "-",
           correo: cliente?.correo || "-",
         },
-        items: [
-          {
-            numItem: 1,
-            cantidad: 1,
-            descripcion,
-            precioUni: monto,
-          },
-        ],
+        items,
+        saldoAnterior: Number(detalle.monto_financiado) || 0,
+        saldoActual: (Number(detalle.monto_financiado) || 0) - capital,
       });
       setShowDteModal(true);
     } catch (_) {
@@ -147,7 +217,10 @@ export default function PagosLoteView({ user, sucursalUsuario, hasHaciendaToken,
 
   const handleTipoDteChange = (valor) => {
     setTipoDte(valor);
-    setDtePreview((prev) => (prev ? { ...prev, montos: calcularMontos(prev.monto, valor) } : prev));
+    setDtePreview((prev) => {
+      if (!prev) return prev;
+      return { ...prev, montos: calcularMontos(prev.monto, valor, prev.capital, prev.interes) };
+    });
   };
 
   const confirmarDte = async () => {
@@ -169,7 +242,9 @@ export default function PagosLoteView({ user, sucursalUsuario, hasHaciendaToken,
   const cuotasPendientes = detalle?.cuotas?.filter((c) => c.estado !== "pagada") || [];
   const cuotaMensual = Number(detalle?.cuota_mensual || 0);
   const totalPendiente = cuotasPendientes.reduce((s, c) => s + Number(c.monto_total) - Number(c.monto_pagado), 0);
-  const montos = dtePreview ? dtePreview.montos : calcularMontos(Number(form.monto_pago) || 0, tipoDte);
+  const montos = dtePreview
+    ? dtePreview.montos
+    : calcularMontos(Number(form.monto_pago) || 0, tipoDte, cuotaActual ? Number(cuotaActual.monto_capital) : 0, cuotaActual ? Number(cuotaActual.monto_interes) : 0);
 
   return (
     <div className="flex h-screen text-black bg-blue-50 overflow-hidden">
@@ -236,7 +311,7 @@ export default function PagosLoteView({ user, sucursalUsuario, hasHaciendaToken,
                       <option value="01">DTE-01 Consumidor Final</option>
                     </select>
                     <p className="text-[11px] text-gray-400">
-                      {tipoDte === "03" ? "Se generará un crédito fiscal por el monto del pago (gravado al 13% IVA)" : "Se generará una factura de consumidor final (exenta)"}
+                      Capital como monto no gravado, intereses gravados al 13% IVA
                     </p>
                   </div>
                 )}
@@ -368,20 +443,22 @@ export default function PagosLoteView({ user, sucursalUsuario, hasHaciendaToken,
                   <thead>
                     <tr className="bg-gray-50 text-left text-gray-500">
                       <th className="px-3 py-2 w-8">#</th>
+                      <th className="px-3 py-2">Codigo</th>
                       <th className="px-3 py-2">Descripción</th>
                       <th className="px-3 py-2 text-center w-14">Cant.</th>
-                      <th className="px-3 py-2 text-right w-24">Precio Unit.</th>
-                      <th className="px-3 py-2 text-right w-28">Ventas</th>
+                      <th className="px-3 py-2 text-right w-24">Gravada</th>
+                      <th className="px-3 py-2 text-right w-24">No Gravado</th>
                     </tr>
                   </thead>
                   <tbody>
                     {dtePreview.items.map((it) => (
                       <tr key={it.numItem} className="border-t odd:bg-white even:bg-gray-50">
                         <td className="px-3 py-2">{it.numItem}</td>
+                        <td className="px-3 py-2 font-mono text-[10px]">{it.codigo}</td>
                         <td className="px-3 py-2">{it.descripcion}</td>
                         <td className="px-3 py-2 text-center">{it.cantidad}</td>
-                        <td className="px-3 py-2 text-right">${fmtMoney(it.precioUni)}</td>
-                        <td className="px-3 py-2 text-right font-medium">${fmtMoney(tipoDte === "03" ? montos.ventaGravada : montos.ventaExenta)}</td>
+                        <td className="px-3 py-2 text-right font-medium">{it.ventaGravada > 0 ? `$${fmtMoney(it.ventaGravada)}` : "-"}</td>
+                        <td className="px-3 py-2 text-right font-medium">{it.noGravado > 0 ? `$${fmtMoney(it.noGravado)}` : "-"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -389,12 +466,19 @@ export default function PagosLoteView({ user, sucursalUsuario, hasHaciendaToken,
               </div>
 
               <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-1.5">
-                <div className="flex justify-between"><span className="text-gray-500">Subtotal gravada:</span><span className="font-medium">${fmtMoney(montos.ventaGravada)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Venta exenta:</span><span className="font-medium">${fmtMoney(montos.ventaExenta)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">IVA 13%:</span><span className="font-medium">${fmtMoney(montos.iva)}</span></div>
-                <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold">Total a pagar:</span><span className="font-bold text-green-700 text-base">${fmtMoney(dtePreview.monto)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Condición:</span><span className="font-medium">Contado</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Forma de pago:</span><span className="font-medium">Transferencia</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Venta gravada (Intereses):</span><span className="font-medium">${fmtMoney(montos.ventaGravada)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">No gravado (Capital):</span><span className="font-medium">${fmtMoney(montos.noGravado)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">IVA 13% (solo intereses):</span><span className="font-medium">${fmtMoney(montos.iva)}</span></div>
+                <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold">Total a pagar:</span><span className="font-bold text-green-700 text-base">${fmtMoney(montos.totalPagar)}</span></div>
+                {dtePreview.saldoAnterior > 0 && (
+                  <>
+                    <div className="flex justify-between border-t pt-2 mt-2"><span className="text-gray-500">Saldo anterior:</span><span className="font-medium">${fmtMoney(dtePreview.saldoAnterior)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Abono a capital:</span><span className="font-medium text-blue-600">-${fmtMoney(dtePreview.capital)}</span></div>
+                    <div className="flex justify-between"><span className="font-bold">Saldo actual:</span><span className="font-bold text-green-700">${fmtMoney(dtePreview.saldoActual)}</span></div>
+                  </>
+                )}
+                <div className="flex justify-between"><span className="text-gray-500">Condición:</span><span className="font-medium">Crédito</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Forma de pago:</span><span className="font-medium">Cuota mensual</span></div>
               </div>
 
               <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 border-t pt-4">
