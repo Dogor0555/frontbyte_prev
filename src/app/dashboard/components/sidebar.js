@@ -91,6 +91,7 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
     exportacion: false,
     compras: false,
     soporte: false,
+    lotificacion: false,
   });
 
   // Detectar si es móvil
@@ -678,6 +679,45 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
       icon: <FaChartLine />, 
       href: "/dashboard/reportes",
       permiso: "Reportes" 
+    },
+    {
+      name: "Lotificación",
+      icon: <FaMapMarkerAlt />,
+      href: "#",
+      subMenu: [
+        { 
+          name: "Dashboard Lotificación", 
+          icon: <FaChartBar />, 
+          href: "/dashboard/dashboard_lotes",
+          permiso: "Dashboard Lotes" 
+        },
+        { 
+          name: "Gestión de Lotes", 
+          icon: <FaMapMarkerAlt />, 
+          href: "/dashboard/lotes",
+          permiso: "Lotes" 
+        },
+        { 
+          name: "Créditos Lote", 
+          icon: <FaCreditCard />, 
+          href: "/dashboard/creditos_lote",
+          permiso: "Créditos Lote" 
+        },
+        { 
+          name: "Registrar Pagos", 
+          icon: <FaReceipt />, 
+          href: "/dashboard/pagos_lote",
+          permiso: "Registrar Pagos Lote" 
+        },
+        { 
+          name: "Estados de Cuenta", 
+          icon: <FaFileInvoice />, 
+          href: "/dashboard/estados_cuenta",
+          permiso: "Ver Estados Cuenta" 
+        },
+      ],
+      menuKey: "lotificacion",
+      permiso: "Lotificación"
     },
     { 
       name: "Editar Sucursal", 
