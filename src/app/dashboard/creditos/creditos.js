@@ -1,12 +1,13 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaEye, FaCalendarCheck } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaUser, FaCalendarAlt, FaDownload, FaChevronDown, FaFileCode, FaFilePdf, FaChevronLeft, FaChevronRight, FaBan, FaSync, FaSortAmountDown, FaSortAmountUpAlt, FaEye, FaCalendarCheck, FaEnvelope } from "react-icons/fa";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import JsonViewer from "../components/JsonViewer";
+import ReenviarCorreoModal from "./ReenviarCorreoModal";
 import { addToast } from "../components/Toast";
 
 export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, initialCreditos }) {
@@ -25,6 +26,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
   const [loadingJson, setLoadingJson] = useState(null);
   const [reTransmitiendo, setReTransmitiendo] = useState(null);
   const [openDownloadMenu, setOpenDownloadMenu] = useState(null);
+  const [creditoCorreo, setCreditoCorreo] = useState(null);
 
   // Estados para el filtro de fecha
   const [fechaInicio, setFechaInicio] = useState("");
@@ -733,7 +735,7 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
                       </button>
 
                       {/* Botones de acción */}
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap justify-end">
                         {/* Botón de Ver JSON */}
                         <button
                           onClick={() => handleViewJSON(credito.iddtefactura)}
@@ -819,6 +821,27 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
                         >
                           <FaFileCode className="mr-1 text-xs" />
                           JSON
+                        </button>
+
+                        {/* Botón de Reenviar correo de emisión */}
+                        <button
+                          onClick={() => setCreditoCorreo(credito)}
+                          disabled={!(credito.documentofirmado && credito.documentofirmado !== "null") || credito.estado === 'ANULADO'}
+                          className={`flex items-center px-2 py-1 rounded text-xs font-medium ${
+                            (!(credito.documentofirmado && credito.documentofirmado !== "null") || credito.estado === 'ANULADO')
+                              ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                              : 'bg-blue-500 hover:bg-blue-600 text-white'
+                          }`}
+                          title={
+                            !(credito.documentofirmado && credito.documentofirmado !== "null")
+                              ? "No se puede reenviar: Crédito no firmado"
+                              : credito.estado === 'ANULADO'
+                                ? "No se puede reenviar: Crédito anulado"
+                                : "Reenviar el correo de emisión (PDF y JSON adjuntos)"
+                          }
+                        >
+                          <FaEnvelope className="mr-1 text-xs" />
+                          Correo
                         </button>
                       </div>
                     </div>
@@ -920,6 +943,13 @@ export default function CreditosView({ user, hasHaciendaToken, haciendaStatus, i
         <JsonViewer 
           data={jsonViewerData} 
           onClose={() => setJsonViewerData(null)} 
+        />
+      )}
+      {/* Modal de reenvío de correo de emisión */}
+      {creditoCorreo && (
+        <ReenviarCorreoModal
+          credito={creditoCorreo}
+          onClose={() => setCreditoCorreo(null)}
         />
       )}
     </div>
