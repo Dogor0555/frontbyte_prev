@@ -6,7 +6,6 @@ export default function ProductModal({
   isOpen,
   onClose,
   onAddItem,
-  onBackToSelector,
   productosCargados,
   cargandoProductos,
   errorCargaProductos,
@@ -936,14 +935,7 @@ useEffect(() => {
           </div>
         </div>
 
-        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-between items-center flex-shrink-0">
-          <button
-            onClick={onBackToSelector}
-            className="px-6 py-2.5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors font-medium"
-          >
-            Volver al Selector
-          </button>
-          
+        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end items-center flex-shrink-0">
           <div className="flex space-x-3">
             <button
               onClick={handleClose}

@@ -7,7 +7,6 @@ import Navbar from "../components/navbar";
 import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
 import { codactividad } from "./data/data";
 import ClientListModal from "./components/modals/ClientListModal";
-import SelectorModal from "./components/modals/SelectorModal";
 import ProductModal from "./components/modals/ProductModal";
 import NonTaxableModal from "./components/modals/NonTaxableModal";
 import TaxModal from "./components/modals/TaxModal";
@@ -64,6 +63,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
   const [complementoReceptor, setComplementoReceptor] = useState("");
   const [tipoDocumentoLabel, setTipoDocumentoLabel] = useState("Documento");
   const [idReceptor, setIdReceptor] = useState(null);
+  const [creandoConsumidorFinal, setCreandoConsumidorFinal] = useState(false);
+  const [focusReceptorSignal, setFocusReceptorSignal] = useState(0);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [descuentoGrabadasMonto, setDescuentoGrabadasMonto] = useState(0);
   const [descuentoExentasMonto, setDescuentoExentasMonto] = useState(0);
@@ -1271,6 +1272,74 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     setShowClientDetails(false);
   };
 
+  const handleConsumidorFinal = async () => {
+    if (creandoConsumidorFinal) return;
+
+    setCreandoConsumidorFinal(true);
+
+    try {
+      let clienteCF = Array.isArray(clientes)
+        ? clientes.find(
+            (c) =>
+              String(c?.tipodocumento ?? "") === "37" &&
+              String(c?.dui ?? "") === "00000000"
+          )
+        : null;
+
+      if (clienteCF && !clienteCF.idcliente) {
+        clienteCF = null;
+      }
+
+      if (!clienteCF) {
+        const response = await fetch(`${API_BASE_URL}/clientes/addCli`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            personanatural: true,
+            tipodocumento: "37",
+            nombre: "Consumidor Final",
+          }),
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data?.success || !data?.data?.idcliente) {
+          throw new Error(
+            data?.message || "No se pudo crear el cliente Consumidor Final"
+          );
+        }
+
+        clienteCF = data.data;
+        setClientes((prev) => [...prev, clienteCF]);
+      }
+
+      setCliente(clienteCF);
+      setNombreCliente("Consumidor Final");
+      setDocumentoCliente("00000000");
+      setTipoDocumentoReceptor("37");
+      setNumeroDocumentoReceptor("00000000");
+      setNombreReceptor("Consumidor Final");
+      setDireccionReceptor("");
+      setCorreoReceptor("");
+      setTelefonoReceptor("");
+      setComplementoReceptor("");
+      setTipoDocumentoLabel("37");
+      setIdReceptor(clienteCF.idcliente);
+      setFocusReceptorSignal((prev) => prev + 1);
+    } catch (error) {
+      console.error("Error al preparar Consumidor Final:", error);
+      mostrarModalMensaje(
+        "error",
+        "Consumidor Final",
+        "No se pudo preparar el receptor Consumidor Final.",
+        error.message
+      );
+    } finally {
+      setCreandoConsumidorFinal(false);
+    }
+  };
+
   const handleItemChange = (id, field, value) => {
     const updatedItems = items.map((item) => {
       if (item.id === id) {
@@ -1333,13 +1402,9 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     })}`;
   };
 
-  const openModalSelector = () => {
-    setModalType("selector");
+  const openProductModal = () => {
+    setModalType("producto");
     setShowModal(true);
-  };
-
-  const selectTipoDetalle = (tipo) => {
-    setModalType(tipo);
   };
 
   const agregarItemDesdeModal = (tipo, datos) => {
@@ -1439,6 +1504,30 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
               {/* Datos del cliente - Responsive */}
               <div className="mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mb-3">
+                  <span className="text-xs text-gray-500 sm:mr-2">
+                    Receptor: tipo 37 / documento 00000000
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleConsumidorFinal}
+                    disabled={creandoConsumidorFinal}
+                    className={`flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium text-white ${
+                      creandoConsumidorFinal
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                  >
+                    {creandoConsumidorFinal ? (
+                      <>
+                        <FaSpinner className="mr-2 animate-spin" />
+                        Preparando...
+                      </>
+                    ) : (
+                      "Usar Consumidor Final"
+                    )}
+                  </button>
+                </div>
                 <DatosEmisorReceptor
                   tipoDocumentoReceptor={tipoDocumentoReceptor}
                   setTipoDocumentoReceptor={setTipoDocumentoReceptor}
@@ -1456,6 +1545,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                   setComplementoReceptor={setComplementoReceptor}
                   idReceptor={idReceptor}
                   setIdReceptor={setIdReceptor}
+                  focusReceptorSignal={focusReceptorSignal}
                   
                   actividadEconomica={actividadEconomica}
                   setActividadEconomica={setActividadEconomica}
@@ -1519,7 +1609,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
                   <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Detalle de Factura</h2>
                   <button
-                    onClick={openModalSelector}
+                    onClick={openProductModal}
                     className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-md text-sm sm:text-base w-full sm:w-auto justify-center"
                   >
                     <FaPlus className="mr-2" />
@@ -1915,12 +2005,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       </div>
 
       {/* Modales... (todos los modales existentes) */}
-      <SelectorModal
-        isOpen={showModal && modalType === "selector"}
-        onClose={() => setShowModal(false)}
-        onSelectTipoDetalle={selectTipoDetalle}
-      />
-
       <ProductModal
         isOpen={showModal && modalType === "producto"}
         onClose={() => {
@@ -1929,7 +2013,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           setTotalModal(0);
         }}
         onAddItem={(itemData) => agregarItemDesdeModal("producto", itemData)}
-        onBackToSelector={() => setModalType("selector")}
         productosCargados={productosCargados}
         cargandoProductos={cargandoProductos}
         errorCargaProductos={errorCargaProductos}

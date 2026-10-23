@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { API_BASE_URL } from "@/lib/api";
 
 const LIMITES = {
@@ -96,6 +96,7 @@ const DatosEmisorReceptor = ({
   // Nuevo estado para idReceptor
   idReceptor,
   setIdReceptor,
+  focusReceptorSignal,
 
   idEmisor
 
@@ -107,6 +108,7 @@ const DatosEmisorReceptor = ({
   const [filteredClientes, setFilteredClientes] = useState([]);
   const [showClientList, setShowClientList] = useState(false);
   const [loadingClientes, setLoadingClientes] = useState(false);
+  const nombreReceptorRef = useRef(null);
   
   const [actividadesEconomicas, setActividadesEconomicas] = useState([]);
   const [loadingActividades, setLoadingActividades] = useState(false);
@@ -217,6 +219,22 @@ const DatosEmisorReceptor = ({
 
       fetchClientes();
     }, []);
+
+  useEffect(() => {
+    if (!focusReceptorSignal) return;
+
+    setActiveTab("receptor");
+    setSearchTerm("");
+    setShowClientList(false);
+    setFilteredClientes([]);
+    setErrores({});
+
+    const timer = setTimeout(() => {
+      nombreReceptorRef.current?.focus();
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [focusReceptorSignal]);
 
   useEffect(() => {
     if (searchTerm.trim() === "") {
@@ -669,6 +687,7 @@ const DatosEmisorReceptor = ({
                 type="text"
                 value={nombreReceptor}
                 onChange={handleNombreReceptorChange}
+                ref={nombreReceptorRef}
                 className={`w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
                   errores.nombreReceptor ? 'border-red-500' : 'border-gray-300'
                 }`}
