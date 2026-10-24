@@ -63,6 +63,7 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
   const [empleado, setEmpleado] = useState(null);
   const [empresa, setEmpresa] = useState(null);
   const [sucursal, setSucursal] = useState(null);
+  const [empresaLogo, setEmpresaLogo] = useState(null);
   const [permisos, setPermisos] = useState([]);
   const [loadingPermisos, setLoadingPermisos] = useState(true);
   const [headerExpanded, setHeaderExpanded] = useState(false);
@@ -152,6 +153,52 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
     cargarPermisos();
     verificarMultiplesEmpresas();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setEmpresaLogo(null);
+
+    const cargarLogoEmpresa = async () => {
+      if (!empresa?.id) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/usuarios/getLogo/${empresa.id}`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        let logoSrc = null;
+        if (typeof data.logo === "string" && data.logo.startsWith("data:image/")) {
+          logoSrc = data.logo;
+        } else if (data.logo?.type === "Buffer" && Array.isArray(data.logo.data)) {
+          const decoded = new TextDecoder().decode(new Uint8Array(data.logo.data));
+          if (decoded.startsWith("data:image/")) logoSrc = decoded;
+        }
+
+        if (active) setEmpresaLogo(logoSrc);
+      } catch (error) {
+        console.error("Error al cargar el logo de la empresa:", error);
+      }
+    };
+
+    cargarLogoEmpresa();
+    return () => {
+      active = false;
+    };
+  }, [empresa?.id]);
+
+  useEffect(() => {
+    const handleLogoUpdated = (event) => {
+      if (Number(event.detail?.empresaId) !== Number(empresa?.id)) return;
+      setEmpresaLogo(event.detail?.logo || null);
+    };
+
+    window.addEventListener("empresa-logo-updated", handleLogoUpdated);
+    return () => window.removeEventListener("empresa-logo-updated", handleLogoUpdated);
+  }, [empresa?.id]);
 
   const verificarMultiplesEmpresas = async () => {
     try {
@@ -895,11 +942,13 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
               onClick={abrirSelectorEmpresas}
             >
               <Image 
-                src={logo} 
-                alt="Byte Fusion Soluciones" 
+                src={empresaLogo || logo}
+                alt={empresa?.nombre ? `Logo de ${empresa.nombre}` : "Byte Fusion Soluciones"}
                 width={isReallyCollapsed ? 36 : 80}
                 height={isReallyCollapsed ? 36 : 80}
-                className="object-cover p-1" 
+                unoptimized={Boolean(empresaLogo)}
+                onError={() => setEmpresaLogo(null)}
+                className="h-full w-full object-contain p-1"
               />
             </div>
             

@@ -288,7 +288,10 @@ export default function ConfigurarPdf({
 
       setOkMsg("Logo actualizado correctamente");
       setLogoHasChanged(true);
-      
+      window.dispatchEvent(new CustomEvent("empresa-logo-updated", {
+        detail: { empresaId: user.id, logo: compressedBase64 }
+      }));
+
       await loadUserLogo();
   
     } catch (err) {
@@ -323,6 +326,9 @@ export default function ConfigurarPdf({
       setLogoPreview(null);
       setLogoHasChanged(true);
       setOkMsg("Logo eliminado correctamente");
+      window.dispatchEvent(new CustomEvent("empresa-logo-updated", {
+        detail: { empresaId: user.id, logo: null }
+      }));
       
     } catch (err) {
       console.error("[configurar-pdf] Error al eliminar logo:", err);
