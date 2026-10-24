@@ -681,6 +681,12 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
       permiso: "Reportes" 
     },
     {
+      name: "Rentabilidad",
+      icon: <FaChartBar />,
+      href: "/dashboard/rentabilidad",
+      permiso: "Rentabilidad"
+    },
+    {
       name: "Lotificación",
       icon: <FaMapMarkerAlt />,
       href: "#",

@@ -9,7 +9,10 @@ import { API_BASE_URL } from "@/lib/api";
  * 
  * @param {string} requiredPermission - El nombre del permiso necesario para acceder a la página.
  */
-export async function checkPermissionAndRedirect(requiredPermission) {
+export async function checkPermissionAndRedirect(
+  requiredPermission,
+  { allowAdministration = true } = {}
+) {
   const cookieStore = await cookies();
   const allCookies = cookieStore.getAll();
   
@@ -38,7 +41,7 @@ export async function checkPermissionAndRedirect(requiredPermission) {
     const userPermissions = data.permisos || [];
     console.log('Permisos del usuario:', userPermissions);
 
-    const isAdmin = userPermissions.includes("Administración");
+    const isAdmin = allowAdministration && userPermissions.includes("Administración");
     const hasPermission = userPermissions.includes(requiredPermission);
 
     if (!isAdmin && !hasPermission) {

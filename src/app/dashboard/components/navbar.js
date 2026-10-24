@@ -65,6 +65,7 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
     'realizar_compra': 'Compra',
     'registro-eventos': 'Eventos',
     'registro_compras': 'Registro Compras',
+    'rentabilidad': 'Rentabilidad',
     'configurar-pdf': 'Configurar PDF',
     'libro_de_ventas': 'Libro de Ventas',
     'libro_contribuyente': 'Libro Contribuyente',
