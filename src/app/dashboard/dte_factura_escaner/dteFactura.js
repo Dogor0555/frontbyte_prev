@@ -1,0 +1,2497 @@
+"use client";
+import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
+import { FaPlus, FaTrash, FaSave, FaPrint, FaFileDownload, FaSearch, FaRegCalendarAlt, FaTags, FaUserEdit, FaShoppingCart, FaInfoCircle, FaExclamationTriangle, FaTimes, FaMoneyBill, FaPercent, FaSpinner, FaEye, FaBarcode, FaCheckCircle } from "react-icons/fa";
+import logo from "../../images/logoo.png";
+import Sidebar from "../components/sidebar";
+import Footer from "../components/footer";
+import Navbar from "../components/navbar";
+import DatosEmisorReceptor from "../dte_factura/components/DatosEmisorReceptor";
+import { codactividad } from "../dte_factura/data/data";
+import ClientListModal from "../dte_factura/components/modals/ClientListModal";
+import ProductModal from "../dte_factura/components/modals/ProductModal";
+import NonTaxableModal from "../dte_factura/components/modals/NonTaxableModal";
+import TaxModal from "../dte_factura/components/modals/TaxModal";
+import DiscountModal from "../dte_factura/components/modals/DiscountModal";
+import FormaPago from "../dte_factura/components/FormaPago";
+import DatosEntrega from "../dte_factura/components/DatosAdicionalesEntrega";
+import FechaHoraEmision from "../dte_factura/components/FechaHoraEmision";
+import ConfirmacionFacturaModal from "../dte_factura/components/modals/ConfirmacionFacturaModal";
+import MensajeModal from "../dte_factura/components/MensajeModal";
+import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal";
+import { API_BASE_URL } from "@/lib/api";
+
+export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario, hasHaciendaToken, haciendaStatus, scannerMode = false }) {
+  // Estados para la factura
+  const [cliente, setCliente] = useState(null);
+  const [nombreCliente, setNombreCliente] = useState("");
+  const [documentoCliente, setDocumentoCliente] = useState("");
+  const [condicionPago, setCondicionPago] = useState("Contado");
+  const [fechaVencimiento, setFechaVencimiento] = useState("");
+  const [items, setItems] = useState([]);
+  const [sumaopesinimpues, setSumaopesinimpues] = useState(0);
+  const [totaldescuento, setTotaldescuento] = useState(0);
+  const [ventasgrabadas, setVentasgrabadas] = useState(0);
+  const [valoriva, setValoriva] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showClientList, setShowClientList] = useState(false);
+  const [showClientDetails, setShowClientDetails] = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  const [numeroFactura, setNumeroFactura] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(""); 
+  const [clientes, setClientes] = useState(initialClientes);
+  const [productos, setProductos] = useState(initialProductos);
+  const [productosCargados, setProductosCargados] = useState([]);
+  const [productoSeleccionado, setProductoSeleccionado] = useState(null);
+  const [cargandoProductos, setCargandoProductos] = useState(false);
+  const [errorCargaProductos, setErrorCargaProductos] = useState(null);
+  // --- Emisor (vendedor logueado) ---
+  const [actividadEconomica, setActividadEconomica] = useState("");
+  const [direccionEmisor, setDireccionEmisor] = useState("");
+  const [correoVendedor, setCorreoVendedor] = useState("");
+  const [telefonoEmisor, setTelefonoEmisor] = useState("");
+  // --- Receptor (cliente de la factura) ---
+  const [tipoDocumentoReceptor, setTipoDocumentoReceptor] = useState("");
+  const [numeroDocumentoReceptor, setNumeroDocumentoReceptor] = useState("");
+  const [nombreReceptor, setNombreReceptor] = useState("");
+  const [direccionReceptor, setDireccionReceptor] = useState("");
+  const [correoReceptor, setCorreoReceptor] = useState("");
+  const [telefonoReceptor, setTelefonoReceptor] = useState("");
+  const [complementoReceptor, setComplementoReceptor] = useState("");
+  const [tipoDocumentoLabel, setTipoDocumentoLabel] = useState("Documento");
+  const [idReceptor, setIdReceptor] = useState(null);
+  const [creandoConsumidorFinal, setCreandoConsumidorFinal] = useState(false);
+  const [focusReceptorSignal, setFocusReceptorSignal] = useState(0);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [descuentoGrabadasMonto, setDescuentoGrabadasMonto] = useState(0);
+  const [descuentoExentasMonto, setDescuentoExentasMonto] = useState(0);
+  const [exentasConDescuentoState, setExentasConDescuentoState] = useState(0);
+  const [gravadasSinDescuentoState, setGravadasSinDescuentoState] = useState(0);
+  const [exentasSinDescuentoState, setExentasSinDescuentoState] = useState(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [formasPago, setFormasPago] = useState([]);
+  const [guardandoFactura, setGuardandoFactura] = useState(false);
+  const [datosEntrega, setDatosEntrega] = useState({
+    emisorDocumento: "",
+    emisorNombre: "",
+    receptorDocumento: "",
+    receptorNombre: ""
+  });
+  const [fechaHoraEmision, setFechaHoraEmision] = useState({
+    fechaEmision: "",
+    horaEmision: ""
+  });
+  const [totalModal, setTotalModal] = useState(0);
+  const [errorValidacion, setErrorValidacion] = useState("");
+  const [emisorDocumento, setEmisorDocumento] = useState("");
+  const [emisorNombre, setEmisorNombre] = useState("");
+  const [tributosDetallados, setTributosDetallados] = useState({});
+
+  // ========== NUEVOS ESTADOS PARA TIPO DE INGRESO ==========
+  const [tipoIngresoRenta, setTipoIngresoRenta] = useState("");
+  const [descTipoIngresoRenta, setDescTipoIngresoRenta] = useState("");
+
+  // Nuevo estado para retención de IVA
+  const [retencionIVA, setRetencionIVA] = useState({
+    aplicar: false,
+    porcentaje: 1,
+    monto: 0
+  });
+
+  // Nuevos estados para el MensajeModal
+  const [mostrarMensaje, setMostrarMensaje] = useState(false);
+  const [mensajeConfig, setMensajeConfig] = useState({
+    tipo: "exito",
+    titulo: "",
+    mensaje: "",
+    detalles: "",
+    idFactura: null
+  });
+  const [descargandoTicket, setDescargandoTicket] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [template, setTemplate] = useState(null);
+  const [activeTab, setActiveTab] = useState("detalles"); // Para tabs en móvil
+  const [codigoEscaneo, setCodigoEscaneo] = useState("");
+  const [estadoEscaneo, setEstadoEscaneo] = useState({
+    tipo: initialProductos.length > 0 ? "listo" : "error",
+    mensaje: initialProductos.length > 0
+      ? "Lector listo. Escanee un producto."
+      : "No hay productos cargados. Recargue la vista antes de escanear."
+  });
+  const [empresaLogo, setEmpresaLogo] = useState(null);
+
+  const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
+    if (!tipoDocumento || !numeroDocumento.trim()) {
+      return { valido: false, mensaje: "El número de documento es requerido" };
+    }
+
+    const VALIDACIONES_DOCUMENTO = {
+      "13": { regex: /^\d{8}-\d{1}$/, mensaje: "Formato de DUI inválido. Debe ser: 12345678-9" },
+      "36": { regex: /^\d{4}\d{6}\d{3}\d{1}$/, mensaje: "Formato de NIT inválido. Debe ser: 12341234561231" },
+      "03": { regex: /^[A-Za-z0-9]{5,20}$/, mensaje: "Pasaporte debe contener solo letras y números (5-20 caracteres)" },
+      "02": { regex: /^[A-Za-z0-9]{5,20}$/, mensaje: "Carnet de residente debe contener solo letras y números (5-20 caracteres)" },
+      "37":{ regex: /^\d{7}\d{1}$/, mensaje: "Formato de DUI inválido. Debe ser: 12345678-9" }
+    };
+
+    const validacion = VALIDACIONES_DOCUMENTO[tipoDocumento];
+    if (!validacion) {
+      return { valido: false, mensaje: "Tipo de documento no válido" };
+    }
+
+    if (!validacion.regex.test(numeroDocumento)) {
+      return { valido: false, mensaje: validacion.mensaje };
+    }
+
+    return { valido: true, mensaje: "" };
+  };
+
+  // Inicializar correo desde user o, si no hay, desde localStorage
+  useEffect(() => {
+    const fromUser =
+      (user && (user.correoEmpleado || user.emailemp || user.email)) || "";
+
+    if (fromUser) {
+      setCorreoVendedor(fromUser);
+      return;
+    }
+
+    try {
+      const emp = JSON.parse(localStorage.getItem("empleado"));
+      if (emp?.correo) setCorreoVendedor(emp.correo);
+    } catch {
+      /* ignore */
+    }
+  }, [user]);
+
+  const ticketRef = useRef();
+  const scannerInputRef = useRef(null);
+  const itemsRef = useRef([]);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    if (!scannerMode) return undefined;
+
+    const empresaId = sucursalUsuario?.usuario?.id || user?.id;
+    if (!empresaId) return undefined;
+
+    let active = true;
+    const cargarLogoEmpresa = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/usuarios/getLogo/${empresaId}`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store"
+        });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        let logoSrc = null;
+        if (typeof data.logo === "string" && data.logo.startsWith("data:image/")) {
+          logoSrc = data.logo;
+        } else if (data.logo?.type === "Buffer" && Array.isArray(data.logo.data)) {
+          const decoded = new TextDecoder().decode(new Uint8Array(data.logo.data));
+          if (decoded.startsWith("data:image/")) logoSrc = decoded;
+        }
+
+        if (active) setEmpresaLogo(logoSrc);
+      } catch (error) {
+        console.error("Error al cargar el logo de la empresa:", error);
+      }
+    };
+
+    cargarLogoEmpresa();
+    return () => {
+      active = false;
+    };
+  }, [scannerMode, sucursalUsuario?.usuario?.id, user?.id]);
+
+  useEffect(() => {
+    if (!scannerMode) return undefined;
+
+    const empresaId = sucursalUsuario?.usuario?.id || user?.id;
+    const handleLogoUpdated = (event) => {
+      if (Number(event.detail?.empresaId) !== Number(empresaId)) return;
+      setEmpresaLogo(event.detail?.logo || null);
+    };
+
+    window.addEventListener("empresa-logo-updated", handleLogoUpdated);
+    return () => window.removeEventListener("empresa-logo-updated", handleLogoUpdated);
+  }, [scannerMode, sucursalUsuario?.usuario?.id, user?.id]);
+
+  // Función para toggle sidebar
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  // Catálogo de unidades
+  const [unidades, setUnidades] = useState([
+    { codigo: "1", nombre: "metro" },
+    { codigo: "2", nombre: "Yarda" },
+    { codigo: "6", nombre: "milímetro" },
+    { codigo: "10", nombre: "Hectárea" },
+    { codigo: "13", nombre: "metro cuadrado" },
+    { codigo: "15", nombre: "Vara cuadrada" },
+    { codigo: "18", nombre: "metro cúbico" },
+    { codigo: "20", nombre: "Barril" },
+    { codigo: "22", nombre: "Galón" },
+    { codigo: "23", nombre: "Litro" },
+    { codigo: "24", nombre: "Botella" },
+    { codigo: "26", nombre: "Mililitro" },
+    { codigo: "30", nombre: "Tonelada" },
+    { codigo: "32", nombre: "Quintal" },
+    { codigo: "33", nombre: "Arroba" },
+    { codigo: "34", nombre: "Kilogramo" },
+    { codigo: "36", nombre: "Libra" },
+    { codigo: "37", nombre: "Onza troy" },
+    { codigo: "38", nombre: "Onza" },
+    { codigo: "39", nombre: "Gramo" },
+    { codigo: "40", nombre: "Miligramo" },
+    { codigo: "42", nombre: "Megawatt" },
+    { codigo: "43", nombre: "Kilowatt" },
+    { codigo: "44", nombre: "Watt" },
+    { codigo: "45", nombre: "Megavoltio-amperio" },
+    { codigo: "46", nombre: "Kilovoltio-amperio" },
+    { codigo: "47", nombre: "Voltio-amperio" },
+    { codigo: "49", nombre: "Gigawatt-hora" },
+    { codigo: "50", nombre: "Megawatt-hora" },
+    { codigo: "51", nombre: "Kilowatt-hora" },
+    { codigo: "52", nombre: "Watt-hora" },
+    { codigo: "53", nombre: "Kilovoltio" },
+    { codigo: "54", nombre: "Voltio" },
+    { codigo: "55", nombre: "Kilómetro" },
+    { codigo: "56", nombre: "Medio millar" },
+    { codigo: "57", nombre: "Ciento" },
+    { codigo: "58", nombre: "Docena" },
+    { codigo: "59", nombre: "Unidad" },
+    { codigo: "99", nombre: "Otra" },
+  ]);
+
+  // Función para mostrar mensajes
+  const mostrarModalMensaje = (tipo, titulo, mensaje, detalles = "", idFactura = null) => {
+    setMensajeConfig({
+      tipo,
+      titulo,
+      mensaje,
+      detalles,
+      idFactura
+    });
+    setMostrarMensaje(true);
+  };
+
+  const descargarTicketFactura = async (idFactura) => {
+    setDescargandoTicket(true);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/${idFactura}/ver-compacto`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        const newTab = window.open(url, '_blank');
+        
+        if (!newTab) {
+          throw new Error('El navegador bloqueó la nueva pestaña. Por favor, permite ventanas emergentes.');
+        }
+        
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = `factura_${idFactura}.pdf`;
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+          }
+        }
+        
+        mostrarModalMensaje(
+          "exito", 
+          "Ticket Abierto", 
+          "El ticket de la factura se ha abierto en una nueva pestaña.",
+          `Archivo: ${filename}`
+        );
+        
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 5000);
+        
+      } else {
+        throw new Error('Error al generar el ticket');
+      }
+    } catch (error) {
+      console.error('Error al abrir ticket:', error);
+      mostrarModalMensaje(
+        "error",
+        "Error al Abrir Ticket",
+        "No se pudo abrir el ticket de la factura.",
+        error.message
+      );
+    } finally {
+      setDescargandoTicket(false);
+    }
+  };
+
+  const validarDatosFactura = () => {
+    if (!nombreReceptor.trim()) {
+      const mensaje = "El nombre del cliente es obligatorio";
+      setErrorValidacion(mensaje);
+      mostrarModalMensaje("error", "Datos Incompletos", mensaje);
+      return false;
+    }
+    
+    if (!numeroDocumentoReceptor.trim()) {
+      const mensaje = "El documento del cliente es obligatorio";
+      setErrorValidacion(mensaje);
+      mostrarModalMensaje("error", "Datos Incompletos", mensaje);
+      return false;
+    }
+
+    if (tipoDocumentoReceptor) {
+      const validacionDocumento = validarFormatoDocumento(tipoDocumentoReceptor, numeroDocumentoReceptor);
+      if (!validacionDocumento.valido) {
+        const mensaje = `Documento inválido: ${validacionDocumento.mensaje}`;
+        setErrorValidacion(mensaje);
+        mostrarModalMensaje("error", "Documento Inválido", mensaje);
+        return false;
+      }
+    }
+    
+    if (items.length === 0) {
+      const mensaje = "Debe agregar al menos un item a la factura";
+      setErrorValidacion(mensaje);
+      mostrarModalMensaje("error", "Factura Vacía", mensaje);
+      return false;
+    }
+    
+    if (formasPago.length === 0) {
+      const mensaje = "Debe especificar al menos una forma de pago";
+      setErrorValidacion(mensaje);
+      mostrarModalMensaje("error", "Forma de Pago Requerida", mensaje);
+      return false;
+    }
+
+    // Validar tipo de ingreso
+    if (!tipoIngresoRenta) {
+      const mensaje = "Debe seleccionar el Tipo de Ingreso para Declaración de Renta";
+      setErrorValidacion(mensaje);
+      mostrarModalMensaje("error", "Datos Incompletos", mensaje);
+      return false;
+    }
+    
+    setErrorValidacion("");
+    return true;
+  };
+
+  const guardarFactura = async () => {
+    if (guardandoFactura) return;
+    
+    if (!validarDatosFactura()) {
+      return;
+    }
+    
+    try {
+      setGuardandoFactura(true); 
+      
+      const datosFactura = prepararDatosFactura();
+      
+      console.log("=========================================");
+      console.log("📤 ENCABEZADO A ENVIAR:");
+      console.log(JSON.stringify(datosFactura, null, 2));
+      console.log("=========================================");
+      
+      if (!datosFactura.formapago) {
+        mostrarModalMensaje(
+          "error",
+          "Error de Validación",
+          "No se pudo determinar la forma de pago"
+        );
+        setGuardandoFactura(false);
+        return;
+      }
+      
+      const responseEncabezado = await fetch(`${API_BASE_URL}/facturas/encabezado`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(datosFactura)
+      });
+
+      console.log("=========================================");
+      console.log("📥 RESPUESTA ENCABEZADO:");
+      console.log("Status:", responseEncabezado.status);
+      const responseTextEncabezado = await responseEncabezado.text();
+      console.log("Body:", responseTextEncabezado);
+      console.log("=========================================");
+
+      if (responseEncabezado.ok) {
+        const result = JSON.parse(responseTextEncabezado);
+        console.log("Encabezado de factura guardado:", result);
+        
+        const detallesResult = await guardarDetallesFactura(result.iddtefactura);
+        
+        if (detallesResult) {
+          setShowConfirmModal(false);
+          
+          let mensajeTitulo = "Factura Guardada";
+          let mensajeDetalles = "";
+          let idFacturaParaDescarga = result.iddtefactura;
+
+          if (detallesResult.contingencia && detallesResult.aviso) {
+            mensajeTitulo = "Factura en Contingencia";
+            mensajeDetalles = `${detallesResult.aviso}\n${detallesResult.message}`;
+          } else if (detallesResult.transmitido) {
+            mensajeTitulo = "Factura Transmitida";
+            mensajeDetalles = `Factura ${result.ncontrol} guardada y transmitida exitosamente`;
+          } else {
+            mensajeDetalles = `Factura ${result.ncontrol} guardada exitosamente`;
+          }
+          
+          mostrarModalMensaje(
+            "exito",
+            mensajeTitulo,
+            "La factura se ha procesado correctamente.",
+            mensajeDetalles,
+            idFacturaParaDescarga
+          );
+          
+          reiniciarEstados();
+          setShowPreviewModal(false);
+        }
+      } else {
+        throw new Error(`Error del servidor: ${responseTextEncabezado}`);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      mostrarModalMensaje(
+        "error",
+        "Error al Guardar",
+        "No se pudo guardar la factura.",
+        error.message
+      );
+      setShowPreviewModal(false);
+    } finally {
+      setGuardandoFactura(false);
+    }
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const Handlebars = (await import('handlebars')).default;
+        const response = await fetch('/templates/plantilla_factura.hbs');
+        const text = await response.text();
+        Handlebars.registerHelper('two', (value) => {
+          if (value === undefined || value === null || isNaN(value)) return "0.00";
+          const numValue = typeof value === 'number' ? value : parseFloat(value);
+          return numValue.toFixed(2);
+        });
+
+        Handlebars.registerHelper('money', (value) => {
+          if (value === undefined || value === null || isNaN(value)) return "$0.00";
+          const numValue = typeof value === 'number' ? value : parseFloat(value);
+          return `$${numValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        });
+
+        Handlebars.registerHelper('isContado', (value) => {
+          return value === 1;
+        });
+
+        Handlebars.registerHelper('unitName', (codigoUnidad) => {
+          if (!codigoUnidad) return '';
+          const unidad = unidades.find(u => u.codigo === codigoUnidad.toString());
+          return unidad ? unidad.nombre : '';
+        });
+        setTemplate(() => Handlebars.compile(text));
+      } catch (error) {
+        console.error("Error al cargar la plantilla de vista previa:", error);
+      }
+    };
+    init();
+  }, []);
+
+  const handleConfirmarYGuardar = () => {
+    if (guardandoFactura) return;
+
+    if (!validarDatosFactura()) {
+      return;
+    }
+
+    if (!template) {
+      mostrarModalMensaje("error", "Plantilla no cargada", "La plantilla para la vista previa aún no está lista. Intente de nuevo en unos segundos.");
+      return;
+    }
+
+    const datosParaPlantilla = prepararDatosFactura(true);
+    setPreviewHtml(template(datosParaPlantilla));
+    setShowPreviewModal(true);
+  };
+
+  const reiniciarFormulario = () => {
+    setItems([]);
+    setCliente(null);
+    setNombreCliente("");
+    setDocumentoCliente("");
+    setCondicionPago("Contado");
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 30);
+    setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
+    setSumaopesinimpues(0);
+    setTotaldescuento(0);
+    setVentasgrabadas(0);
+    setValoriva(0);
+    setTotal(0);
+    setDescuentoGrabadasMonto(0);
+    setDescuentoExentasMonto(0);
+    setFormasPago([]);
+    setRetencionIVA({
+      aplicar: false,
+      porcentaje: 1,
+      monto: 0
+    });
+    setTipoIngresoRenta("");
+    setDescTipoIngresoRenta("");
+    obtenerUltimoNumeroFactura();
+  };
+
+  const reiniciarEstados = () => {
+    setCliente(null);
+    setNombreCliente("");
+    setDocumentoCliente("");
+    setTipoDocumentoReceptor("");
+    setNumeroDocumentoReceptor("");
+    setNombreReceptor("");
+    setDireccionReceptor("");
+    setCorreoReceptor("");
+    setTelefonoReceptor("");
+    setComplementoReceptor("");
+    setTipoDocumentoLabel("Documento");
+    setItems([]);
+    setSumaopesinimpues(0);
+    setTotaldescuento(0);
+    setVentasgrabadas(0);
+    setValoriva(0);
+    setTotal(0);
+    setDescuentoGrabadasMonto(0);
+    setDescuentoExentasMonto(0);
+    setExentasConDescuentoState(0);
+    setGravadasSinDescuentoState(0);
+    setExentasSinDescuentoState(0);
+    setCondicionPago("Contado");
+    setFormasPago([]);
+    setRetencionIVA({
+      aplicar: false,
+      porcentaje: 1,
+      monto: 0
+    });
+    setTipoIngresoRenta("");
+    setDescTipoIngresoRenta("");
+    setDatosEntrega({
+      emisorDocumento: "",
+      emisorNombre: "",
+      receptorDocumento: "",
+      receptorNombre: ""
+    });
+    
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 30);
+    setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
+    obtenerUltimoNumeroFactura();
+    setShowModal(false);
+    setShowDiscountModal(false);
+    setShowConfirmModal(false);
+    setShowClientList(false);
+    setShowClientDetails(false);
+    setSearchTerm("");
+  };
+
+  const verDatosFactura = () => {
+    if (items.length === 0) {
+      mostrarModalMensaje("error", "Factura Vacía", "La factura debe tener al menos un item");
+      return;
+    }
+
+    const datosFactura = prepararDatosFactura();
+    
+    console.log("====== DATOS COMPLETOS DE FACTURA (SOLO VISUALIZACIÓN) ======");
+    console.log("========== ENCABEZADO ==========");
+    console.log(JSON.stringify(datosFactura, null, 2));
+    console.log("========== ITEMS (RAW) ==========");
+    console.log(items);
+    
+    const detalles = items.map((item, index) => {
+      const subtotalItem = item.precioUnitario * item.cantidad;
+      const descuentoItem = item.descuento || 0;
+      const baseImponible = subtotalItem - descuentoItem;
+
+      const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+      const esExento = item.tipo === "noAfecto";
+      const esNoSujeto = item.tipo === "noSuj";
+
+      const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+
+      return {
+        numitem: index + 1,
+        tipoitem: "1",
+        numerodocumento: null,
+        cantidad: parseFloat(item.cantidad.toFixed(2)),
+        codigo: codigoItem,
+        codtributo: null,
+        unimedida: item.unidadMedida || "59",
+        descripcion: item.descripcion,
+        preciouni: parseFloat(item.precioUnitario.toFixed(6)),
+        montodescu: parseFloat(descuentoItem.toFixed(6)),
+        ventanosuj: 0.00,
+        ventaexenta: esExento ? parseFloat(baseImponible.toFixed(6)) : 0.00,
+        ventagravada: esGravado ? parseFloat(baseImponible.toFixed(6)) : 0.00,
+        tributos: null,
+        psv: 0,
+        nogravado: 0.00,
+        ivaitem: 0.00
+      };
+    });
+    
+    const datosDetalles = {
+      transmitir: true,
+      idEnvio: Math.floor(1000 + Math.random() * 9000),
+      detalles: detalles,
+    };
+    
+    console.log("========== DETALLES (PARA ENVÍO) ==========");
+    console.log(JSON.stringify(datosDetalles, null, 2));
+    console.log("=============================================================");
+    
+    mostrarModalMensaje(
+      "exito",
+      "Datos en Consola",
+      "Datos de factura mostrados en consola.",
+      "Revisa la consola del navegador (F12) para ver los detalles completos."
+    );
+  };
+
+  const actualizarStockProductos = async (itemsFactura) => {
+    try {
+      const productosParaActualizar = itemsFactura.filter(item => 
+        item.actualizarStock && item.productoId && item.tipo === "producto"
+      );
+
+      console.log("Productos a actualizar stock:", productosParaActualizar);
+
+      for (const producto of productosParaActualizar) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/productos/decrementStock/${producto.productoId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ cantidad: producto.cantidad })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`Stock actualizado para producto ${producto.productoId}:`, result);
+            const actualizarProductoLocal = (productosActuales) => productosActuales.map((item) =>
+              Number(item.id) === Number(producto.productoId)
+                ? { ...item, stock: result.nuevoStock }
+                : item
+            );
+            setProductos(actualizarProductoLocal);
+            setProductosCargados(actualizarProductoLocal);
+          } else {
+            console.error(`Error al actualizar stock para producto ${producto.productoId}:`, response.statusText);
+          }
+        } catch (error) {
+          console.error(`Error al actualizar stock para producto ${producto.productoId}:`, error);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error general en actualización de stock:", error);
+      throw error;
+    }
+  };
+
+  const guardarDetallesFactura = async (iddtefactura) => {
+    try {
+      const detalles = items.map((item, index) => {
+        const subtotalItem = item.precioUnitario * item.cantidad;
+        
+        const descuentoItem = item.descuento || 0;
+        const baseImponible = subtotalItem - descuentoItem;
+
+        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+        const esExento = item.tipo === "noAfecto";
+        const esNoSujeto = item.tipo === "noSuj";
+
+        const tasaIVA = 13;
+        const ivaItem = esGravado ? 
+          (baseImponible * tasaIVA) / (100 + tasaIVA) : 0;
+
+        const codigoItem = item.codigo || (item.tipo === "producto" ? `PROD-${item.id}` : `ITEM-${item.id}`);
+
+        return {
+          numitem: index + 1,
+          tipoitem: "1",
+          numerodocumento: null,
+          cantidad: parseFloat(item.cantidad.toFixed(2)),
+          codigo: codigoItem,
+          codtributo: null,
+          unimedida: item.unidadMedida || "59",
+          descripcion: item.descripcion,
+          preciouni: parseFloat(item.precioUnitario.toFixed(8)),
+          montodescu: parseFloat(descuentoItem.toFixed(8)),
+          ventanosuj: esNoSujeto ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+          ventaexenta: esExento ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+          ventagravada: esGravado ? parseFloat(baseImponible.toFixed(8)) : 0.00,
+          tributos: item.tributos,
+          psv: 0,
+          nogravado: 0.00,
+          ivaitem: parseFloat(ivaItem.toFixed(2)) 
+        };
+      });
+
+      const datosDetalles = {
+        transmitir: true,
+        idEnvio: Math.floor(1000 + Math.random() * 9000),
+        detalles: detalles,
+      };
+
+      console.log("=========================================");
+      console.log("📤 DETALLE A ENVIAR:");
+      console.log(JSON.stringify(datosDetalles, null, 2));
+      console.log("=========================================");
+
+      const responseDetalles = await fetch(`${API_BASE_URL}/facturas/${iddtefactura}/detalles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(datosDetalles),
+      });
+
+      console.log("=========================================");
+      console.log("📥 RESPUESTA DETALLE:");
+      console.log("Status:", responseDetalles.status);
+      const responseTextDetalles = await responseDetalles.text();
+      console.log("Body:", responseTextDetalles);
+      console.log("=========================================");
+
+      if (responseDetalles.ok) {
+        const resultDetalles = JSON.parse(responseTextDetalles);
+        console.log("Detalles de factura guardados:", resultDetalles);
+        await actualizarStockProductos(items);
+        return resultDetalles;
+      } else {
+        console.error("Error response from server:", responseTextDetalles);
+        throw new Error(`Error al guardar los detalles: ${responseTextDetalles}`);
+      }
+    } catch (error) {
+      console.error("Error al guardar detalles:", error);
+      throw error;
+    }
+  };
+
+  const obtenerUltimoNumeroFactura = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/facturas/ultima`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const ultimoNumero = typeof data.ultimaFactura === 'number' ? data.ultimaFactura + 1 : 1;
+        setNumeroFactura(ultimoNumero);
+      } else {
+        console.warn("No se pudo obtener el último número, usando 1 por defecto");
+        setNumeroFactura(1);
+      }
+    } catch (error) {
+      console.error("Error al obtener el último número de factura:", error);
+      setNumeroFactura(1);
+    }
+  };
+
+  const prepararDatosFactura = (paraVistaPrevia = false) => {
+    const subtotal = sumaopesinimpues;
+    const totalPagar = total;
+    
+    const ahora = new Date();
+    const offset = -6;
+    const salvadorTime = new Date(ahora.getTime() + (offset * 60 * 60 * 1000));
+    
+    const year = salvadorTime.getUTCFullYear();
+    const month = String(salvadorTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(salvadorTime.getUTCDate()).padStart(2, '0');
+    const fechaEmision = `${year}-${month}-${day}`;
+    
+    const horaEmision = ahora.toTimeString().split(' ')[0];
+
+    let formapagoValue = "Efectivo";
+    
+    if (formasPago && formasPago.length > 0) {
+      const metodoPago = formasPago[0]?.metodo || "";
+      formapagoValue = metodoPago || "Efectivo";
+    }
+
+    const gravadasBase = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const exentasBase = items
+      .filter(item => item.tipo === "noAfecto")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const gravadasConDescuento = gravadasBase - 
+      (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
+      descuentoGrabadasMonto;
+    
+    const exentasConDescuento = exentasBase - 
+      (items.filter(item => item.tipo === "noAfecto")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
+      descuentoExentasMonto;
+
+    const tasaIVA = 13;
+    const ivaIncluido = gravadasConDescuento > 0 ? 
+      (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
+
+    if (paraVistaPrevia) { 
+      const cuerpoDocumento = items.map((item, index) => {
+        const subtotalItem = item.precioUnitario * item.cantidad;
+        const descuentoItem = item.descuento || 0;
+        const baseImponible = subtotalItem - descuentoItem;
+
+        const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+        const esExento = item.tipo === "noAfecto";
+        const esNoSujeto = !esGravado && !esExento;
+
+        return {
+          numItem: index + 1,
+          cantidad: item.cantidad,
+          uniMedida: item.unidadMedida || "59",
+          descripcion: item.descripcion,
+          precioUni: item.precioUnitario,
+          montoDescu: descuentoItem,
+          ventaNoSuj: esNoSujeto ? baseImponible : 0,
+          ventaExenta: esExento ? baseImponible : 0,
+          ventaGravada: esGravado ? baseImponible : 0,
+          ivaItem: 0, 
+        };
+      });
+
+      return {
+        identificacion: {
+          version: "1.0",
+          tipoDteLabel: "FACTURA",
+          tipoMoneda: "USD",
+          tipoModelo: "1",
+          tipoOperacion: "1",
+          codigoGeneracion: `(Aún no generado)`,
+          numeroControl: `TRX-${numeroFactura}`,
+          fecEmi: fechaEmision,
+          horEmi: horaEmision,
+        },
+        selloRecibido: "(Sello de recepción pendiente)",
+        barcodeDataUri: "",
+        emisor: {
+          nombre: sucursalUsuario?.usuario?.nombre || "Nombre Emisor",
+          nit: sucursalUsuario?.usuario?.nit || "0000-000000-000-0",
+          nrc: sucursalUsuario?.nrc || "-",
+          descActividad: codactividad.find(c => c.codigo === actividadEconomica)?.nombre || "Actividad no especificada",
+          direccion: {
+            complemento: direccionEmisor,
+            municipio: sucursalUsuario?.municipio?.nombre || "",
+            departamento: sucursalUsuario?.departamento?.nombre || "",
+          },
+          telefono: telefonoEmisor,
+          correo: correoVendedor,
+          nombreComercial: sucursalUsuario?.nombre || "Nombre Comercial",
+          tipoEstablecimiento: "Sucursal",
+        },
+        receptor: {
+          nombre: nombreReceptor,
+          tipoDocumento: tipoDocumentoLabel,
+          numDocumento: numeroDocumentoReceptor,
+          direccion: {
+            complemento: direccionReceptor,
+            municipio: cliente?.municipio?.nombre || "",
+            departamento: cliente?.departamento?.nombre || "",
+          },
+          telefono: telefonoReceptor,
+          correo: correoReceptor,
+        },
+        cuerpoDocumento: cuerpoDocumento,
+        resumen: {
+          totalLetras: convertirNumeroALetras(totalPagar),
+          condicionOperacion: condicionPago.toLowerCase() === "contado" ? 1 : 2,
+          totalNoSuj: 0.00,
+          totalExenta: parseFloat(exentasConDescuento.toFixed(2)),
+          totalGravada: parseFloat(gravadasBase.toFixed(2)),
+          totalIva: 0.00,
+          subTotal: parseFloat(subtotal - totaldescuento).toFixed(2),
+          totalPagar: parseFloat(totalPagar.toFixed(2)),
+          montoTotalOperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
+        },
+        extension: {
+          observaciones: "Vista previa del documento.",
+        }
+      };
+    }
+
+    return {
+      idcliente: idReceptor,
+      sellorec: "", 
+      modelofac: "01",
+      verjson: "1.0",
+      tipotran: "1",
+      fechaemision: fechaEmision,
+      horaemision: horaEmision,
+      transaccioncontable: `TRX-${numeroFactura}`,
+      tipoventa: condicionPago.toLowerCase() === "contado" ? "contado" : "crédito",
+      formapago: formapagoValue,
+      estado: "",
+
+      sumaopesinimpues: parseFloat(sumaopesinimpues.toFixed(2)),
+      totaldescuento: parseFloat(totaldescuento.toFixed(2)),
+      valoriva: parseFloat(ivaIncluido.toFixed(2)), 
+      subtotal: parseFloat(subtotal - totaldescuento).toFixed(2),
+      ivapercibido: parseFloat(ivaIncluido.toFixed(2)),
+      ivarete1: retencionIVA.aplicar ? parseFloat(retencionIVA.monto.toFixed(2)) : 0.00,
+      montototalope: parseFloat(subtotal - totaldescuento).toFixed(2),
+      totalotrosmnoafectos: parseFloat(exentasConDescuento.toFixed(2)),
+      totalapagar: parseFloat(totalPagar.toFixed(2)),
+      valorletras: convertirNumeroALetras(totalPagar),
+      tipocontingencia: "",
+      motivocontin: "",
+
+      totalnosuj: 0.00,
+      totalexenta: parseFloat(exentasConDescuento.toFixed(2)),
+      totalgravada: parseFloat(gravadasBase.toFixed(2)),
+      subtotalventas: parseFloat(subtotal.toFixed(2)),
+
+      descunosuj: 0.00,
+      descuexenta: parseFloat(descuentoExentasMonto.toFixed(2)),
+      descugravada: parseFloat(descuentoGrabadasMonto.toFixed(2)),
+      porcentajedescuento: totaldescuento > 0 ? parseFloat(((totaldescuento / sumaopesinimpues) * 100).toFixed(2)) : 0.00,
+      totaldescu: parseFloat(totaldescuento.toFixed(2)),
+      tributosf: null,
+      codigot: "",
+      descripciont: "",
+      valort: 0.00,
+
+      ivaperci1: parseFloat(ivaIncluido.toFixed(2)),
+      reterenta: 0.00,
+
+      montototaloperacion: parseFloat(subtotal - totaldescuento).toFixed(2),
+      totalpagar: parseFloat(totalPagar.toFixed(2)),
+      totalletras: convertirNumeroALetras(totalPagar),
+      totaliva: parseFloat(ivaIncluido.toFixed(2)),
+      saldofavor: 0.00,
+
+      condicionoperacion: 1,
+      codigo: "01",
+      montopago: parseFloat(totalPagar.toFixed(2)),
+      referencia: "",
+      plazo: null,
+      periodo: null,
+      numpagoelectronico: "",
+      nombrecibe: datosEntrega.receptorNombre || nombreReceptor || "",
+      docurecibe: datosEntrega.receptorDocumento || numeroDocumentoReceptor || "",
+      correo_seleccionado: correoReceptor,
+      tipo_documento_cliente: tipoDocumentoReceptor,
+      numero_documento_cliente: numeroDocumentoReceptor,
+      nombre_cliente: nombreReceptor,
+      direccion_cliente: direccionReceptor,
+      telefono_cliente: telefonoReceptor,
+
+      // ========== NUEVOS CAMPOS DE TIPO DE INGRESO ==========
+      tipo_ingreso_renta: tipoIngresoRenta,
+      desc_tipo_ingreso_renta: descTipoIngresoRenta,
+
+      documentofirmado: null
+    };
+  };
+
+  const convertirNumeroALetras = (numero) => {
+    const unidades = ["", "UNO", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE"];
+    const especiales = ["DIEZ", "ONCE", "DOCE", "TRECE", "CATORCE", "QUINCE", "DIECISÉIS", "DIECISIETE", "DIECIOCHO", "DIECINUEVE"];
+    const decenas = ["", "", "VEINTE", "TREINTA", "CUARENTA", "CINCUENTA", "SESENTA", "SETENTA", "OCHENTA", "NOVENTA"];
+    const centenas = ["", "CIENTO", "DOSCIENTOS", "TRESCIENTOS", "CUATROCIENTOS", "QUINIENTOS", "SEISCIENTOS", "SETECIENTOS", "OCHOCIENTOS", "NOVECIENTOS"];
+
+    const convertirMenorQueMil = (n) => {
+      if (n === 100) return "CIEN";
+      let texto = "";
+      const c = Math.floor(n / 100);
+      const d = Math.floor((n % 100) / 10);
+      const u = n % 10;
+
+      if (c > 0) texto += centenas[c] + " ";
+      if (d === 1) texto += especiales[u] + " ";
+      else if (d === 2 && u !== 0) texto += "VEINTI" + unidades[u].toLowerCase() + " ";
+      else {
+        if (d > 2) texto += decenas[d] + (u > 0 ? " Y " : "");
+        if (u > 0) texto += unidades[u] + " ";
+      }
+      return texto.trim();
+    };
+
+    const entero = Math.floor(numero);
+    const decimales = Math.round((numero - entero) * 100);
+
+    if (entero === 0) return `CERO CON ${decimales.toString().padStart(2, "0")}/100`;
+
+    let partes = [];
+    let resto = entero;
+
+    const millones = Math.floor(resto / 1000000);
+    if (millones > 0) {
+      partes.push(millones === 1 ? "UN MILLÓN" : `${convertirMenorQueMil(millones)} MILLONES`);
+      resto %= 1000000;
+    }
+
+    const miles = Math.floor(resto / 1000);
+    if (miles > 0) {
+      partes.push(miles === 1 ? "MIL" : `${convertirMenorQueMil(miles)} MIL`);
+      resto %= 1000;
+    }
+
+    if (resto > 0) {
+      partes.push(convertirMenorQueMil(resto));
+    }
+
+    const textoEntero = partes.join(" ");
+    const textoDecimales = `${decimales.toString().padStart(2, "0")}/100`;
+
+    return `${textoEntero} CON ${textoDecimales} DÓLARES`;
+  };
+
+  const calcularRetencionIVA = (porcentaje = null) => {
+    const porc = porcentaje !== null ? porcentaje : retencionIVA.porcentaje;
+    
+    const gravadasBase = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const descuentoGravadasItems = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.descuento || 0), 0);
+    
+    const gravadasConDescuento = gravadasBase - descuentoGravadasItems - descuentoGrabadasMonto;
+    
+    const montoRetencion = (gravadasConDescuento * porc) / 100;
+    return parseFloat(montoRetencion.toFixed(2));
+  };
+
+  useEffect(() => {
+    const checkResponsive = () => {
+      setIsMobile(window.innerWidth <= 768);
+      setIsTablet(window.innerWidth > 768 && window.innerWidth <= 1024);
+    };
+    checkResponsive();
+    window.addEventListener("resize", checkResponsive);
+    return () => window.removeEventListener("resize", checkResponsive);
+  }, []);
+
+  useEffect(() => {
+    obtenerUltimoNumeroFactura();
+  }, []);
+
+  useEffect(() => {
+    if (showModal && modalType === "producto") {
+      const fetchProductos = async () => {
+        setCargandoProductos(true);
+        setErrorCargaProductos(null);
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/productos/getAll`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setProductosCargados(data);
+          } else {
+            const errorMsg = `Error ${response.status}: ${response.statusText}`;
+            setErrorCargaProductos(errorMsg);
+            console.error(errorMsg);
+          }
+        } catch (error) {
+          const errorMsg = `Error de conexión: ${error.message}`;
+          setErrorCargaProductos(errorMsg);
+          console.error(errorMsg);
+        } finally {
+          setCargandoProductos(false);
+        }
+      };
+
+      fetchProductos();
+    }
+  }, [showModal, modalType]);
+
+  const clientesFiltrados = Array.isArray(clientes) ? clientes.filter(
+    (cliente) =>
+      (cliente?.nombre?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+      (cliente?.nit?.toString() || "").includes(searchTerm.toLowerCase()) ||
+      (cliente?.dui?.toString() || "").includes(searchTerm.toLowerCase())
+  ) : [];
+
+  useEffect(() => {
+    const suma = items.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const descuentoItems = items.reduce((sum, item) => 
+      sum + (item.descuento || 0), 0);
+
+    const gravadasBase = items
+      .filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+    
+    const exentasBase = items
+      .filter(item => item.tipo === "noAfecto")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+
+    const noSujetasBase = items
+      .filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
+      .reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0);
+
+    const descuentoGrabadas = descuentoGrabadasMonto;
+    const descuentoExentas = descuentoExentasMonto;
+    
+    const descuentoTotal = descuentoItems + descuentoGrabadas + descuentoExentas;
+    
+    const gravadasConDescuento = gravadasBase - 
+      (items.filter(item => item.tipo === "producto" || item.tipo === "impuestos")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
+      descuentoGrabadas;
+    
+    const exentasConDescuento = exentasBase - 
+      (items.filter(item => item.tipo === "noAfecto")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0)) -
+      descuentoExentas;
+
+    const noSujetasConDescuento = noSujetasBase - 
+      (items.filter(item => item.tipo !== "producto" && item.tipo !== "impuestos" && item.tipo !== "noAfecto")
+        .reduce((sum, item) => sum + (item.descuento || 0), 0));
+
+    const nuevosTributos = {};
+    
+    items.forEach(item => {
+      if (item.tributos && Array.isArray(item.tributos)) {
+        item.tributos.forEach(tributo => {
+          const subtotalItem = item.precioUnitario * item.cantidad;
+          const descuentoItem = item.descuento || 0;
+          const baseImponible = subtotalItem - descuentoItem;
+          
+          let valorTributo = 0;
+          
+          if (tributo.codigo === "20") {
+            valorTributo = baseImponible * 0.13;
+          } else {
+            valorTributo = tributo.valor || 0;
+          }
+          
+          if (nuevosTributos[tributo.codigo]) {
+            nuevosTributos[tributo.codigo].valor += valorTributo;
+          } else {
+            nuevosTributos[tributo.codigo] = {
+              codigo: tributo.codigo,
+              descripcion: tributo.descripcion || obtenerDescripcionTributo(tributo.codigo),
+              valor: valorTributo
+            };
+          }
+        });
+      }
+    });
+    
+    setTributosDetallados(nuevosTributos);
+
+    const tasaIVA = 13; 
+    const ivaIncluido = gravadasConDescuento > 0 ? 
+      (gravadasConDescuento * tasaIVA) / (100 + tasaIVA) : 0;
+
+    const montoRetencionIVA = retencionIVA.aplicar ? calcularRetencionIVA() : 0;
+
+    const totalBase = gravadasConDescuento + exentasConDescuento + noSujetasConDescuento;
+    const totalConRetencion = retencionIVA.aplicar 
+      ? totalBase - montoRetencionIVA 
+      : totalBase;
+
+    if (retencionIVA.aplicar) {
+      setRetencionIVA(prev => ({
+        ...prev,
+        monto: montoRetencionIVA
+      }));
+    }
+
+    setSumaopesinimpues(parseFloat(suma.toFixed(2)));
+    setTotaldescuento(parseFloat(descuentoTotal.toFixed(2)));
+    setVentasgrabadas(parseFloat(gravadasConDescuento.toFixed(2)));
+    setValoriva(parseFloat(ivaIncluido.toFixed(2))); 
+    setTotal(parseFloat(totalConRetencion.toFixed(2)));
+    
+    setGravadasSinDescuentoState(parseFloat(gravadasBase.toFixed(2)));
+    setExentasSinDescuentoState(parseFloat(exentasBase.toFixed(2)));
+    setExentasConDescuentoState(parseFloat(exentasConDescuento.toFixed(2)));
+  }, [items, descuentoGrabadasMonto, descuentoExentasMonto, retencionIVA.aplicar, retencionIVA.porcentaje]);
+
+  useEffect(() => {
+    if (retencionIVA.aplicar) {
+      const nuevoMonto = calcularRetencionIVA();
+      setRetencionIVA(prev => ({
+        ...prev,
+        monto: nuevoMonto
+      }));
+    }
+  }, [items, descuentoGrabadasMonto, retencionIVA.porcentaje]);
+
+  const obtenerDescripcionTributo = (codigo) => {
+    const tributosMap = {
+      "20": "IVA 13%",
+      "59": "Turismo: por alojamiento (5%)",
+      "71": "Turismo: salida del país por vía aérea $7.00",
+      "D1": "FOVIAL ($0.20 por galón)",
+      "C8": "COTRANS ($0.10 por galón)",
+      "D5": "Otras tasas casos especiales",
+      "D4": "Otros impuestos casos especiales",
+      "C5": "Impuesto ad-valorem bebidas alcohólicas (8%)",
+      "C6": "Impuesto ad-valorem tabaco cigarrillos (39%)",
+      "C7": "Impuesto ad-valorem tabaco cigarros (100%)",
+    };
+    
+    return tributosMap[codigo] || `Tributo ${codigo}`;
+  };
+
+  const showClientDetailsPopup = (cliente) => {
+    setSelectedClient(cliente);
+    setShowClientDetails(true);
+  };
+
+  const handleApplyDiscounts = (discounts) => {
+    setDescuentoGrabadasMonto(discounts.grabadas);
+    setDescuentoExentasMonto(discounts.exentas);
+  };
+
+  const handleDatosEntregaChange = (nuevosDatos) => {
+    setDatosEntrega(nuevosDatos);
+  };
+
+  const handleFechaHoraChange = (datos) => {
+    setFechaHoraEmision(datos);
+  };
+
+  const getTipoDocumentoInfo = (cli) => {
+    if (!cli) return { label: "Documento", value: "" };
+
+    const code = (cli.tipodocumento ?? "").toString().padStart(2, "0");
+    const map = {
+      "13": { label: "DUI", value: cli.dui },
+      "36": { label: "NIT", value: cli.nit },
+      "03": { label: "Pasaporte", value: cli.pasaporte },
+    };
+
+    if (map[code]?.value) return map[code];
+
+    if (cli.nit) return { label: "NIT", value: cli.nit };
+    if (cli.dui) return { label: "DUI", value: cli.dui };
+    if (cli.pasaporte) return { label: "Pasaporte", value: cli.pasaporte };
+    if (cli.nrc) return { label: "NRC", value: cli.nrc };
+    if (cli.carnetresidente) return { label: "Carnet de Residente", value: cli.carnetresidente };
+
+    return { label: "Documento", value: "" };
+  };
+
+  const selectCliente = () => {
+    setCliente(selectedClient);
+    setNombreCliente(selectedClient.nombre);
+
+    const { label, value } = getTipoDocumentoInfo(selectedClient);
+    setTipoDocumentoLabel(label);
+    setDocumentoCliente(value ?? "");
+    const numeroDoc = selectedClient.tipodocumento === "13" ? selectedClient.dui
+      : selectedClient.tipodocumento === "36" ? selectedClient.nit
+        : selectedClient.tipodocumento === "03" ? selectedClient.pasaporte
+          : selectedClient.tipodocumento === "02" ? selectedClient.carnetresidente
+            : (selectedClient.nit ?? selectedClient.dui ?? selectedClient.pasaporte ?? selectedClient.carnetresidente ?? "");
+    setNumeroDocumentoReceptor(numeroDoc ?? "");
+
+    setNombreReceptor(selectedClient.nombre ?? "");
+    setDireccionReceptor(selectedClient.complemento ?? "");
+    setCorreoReceptor(selectedClient.correo ?? "");
+    setTelefonoReceptor(selectedClient.telefono ?? "");
+    setComplementoReceptor("");
+    setSearchTerm("");
+    setShowClientList(false);
+    setShowClientDetails(false);
+    if (scannerMode) setTimeout(() => scannerInputRef.current?.focus(), 0);
+  };
+
+  const handleConsumidorFinal = async () => {
+    if (creandoConsumidorFinal) return;
+
+    setCreandoConsumidorFinal(true);
+
+    try {
+      let clienteCF = Array.isArray(clientes)
+        ? clientes.find(
+            (c) =>
+              String(c?.tipodocumento ?? "") === "37" &&
+              String(c?.dui ?? "") === "00000000"
+          )
+        : null;
+
+      if (clienteCF && !clienteCF.idcliente) {
+        clienteCF = null;
+      }
+
+      if (!clienteCF) {
+        const response = await fetch(`${API_BASE_URL}/clientes/addCli`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            personanatural: true,
+            tipodocumento: "37",
+            nombre: "Consumidor Final",
+          }),
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data?.success || !data?.data?.idcliente) {
+          throw new Error(
+            data?.message || "No se pudo crear el cliente Consumidor Final"
+          );
+        }
+
+        clienteCF = data.data;
+        setClientes((prev) => [...prev, clienteCF]);
+      }
+
+      setCliente(clienteCF);
+      setNombreCliente("Consumidor Final");
+      setDocumentoCliente("00000000");
+      setTipoDocumentoReceptor("37");
+      setNumeroDocumentoReceptor("00000000");
+      setNombreReceptor("Consumidor Final");
+      setDireccionReceptor("");
+      setCorreoReceptor("");
+      setTelefonoReceptor("");
+      setComplementoReceptor("");
+      setTipoDocumentoLabel("37");
+      setIdReceptor(clienteCF.idcliente);
+      setFocusReceptorSignal((prev) => prev + 1);
+    } catch (error) {
+      console.error("Error al preparar Consumidor Final:", error);
+      mostrarModalMensaje(
+        "error",
+        "Consumidor Final",
+        "No se pudo preparar el receptor Consumidor Final.",
+        error.message
+      );
+    } finally {
+      setCreandoConsumidorFinal(false);
+      if (scannerMode) setTimeout(() => scannerInputRef.current?.focus(), 0);
+    }
+  };
+
+  const handleItemChange = (id, field, value) => {
+    if (scannerMode && field === "cantidad") {
+      const cantidad = parseFloat(value);
+      const itemActual = items.find((item) => item.id === id);
+      const producto = productos.find(
+        (item) => Number(item.id) === Number(itemActual?.productoId)
+      );
+      const stockDisponible = producto?.stock === null || producto?.stock === undefined
+        ? null
+        : parseFloat(producto.stock);
+      const cantidadOtrosItems = items
+        .filter((item) => item.id !== id && Number(item.productoId) === Number(itemActual?.productoId))
+        .reduce((totalCantidad, item) => totalCantidad + (parseFloat(item.cantidad) || 0), 0);
+
+      if (!Number.isFinite(cantidad) || cantidad <= 0) {
+        setEstadoEscaneo({ tipo: "error", mensaje: "La cantidad debe ser mayor que cero." });
+        return;
+      }
+
+      if (Number.isFinite(stockDisponible) && cantidadOtrosItems + cantidad > stockDisponible) {
+        setEstadoEscaneo({
+          tipo: "error",
+          mensaje: `${producto.nombre}: stock insuficiente (${stockDisponible} disponible).`
+        });
+        return;
+      }
+    }
+
+    const updatedItems = items.map((item) => {
+      if (item.id === id) {
+        const updatedItem = { ...item, [field]: value };
+        if (field === "cantidad" || field === "precioUnitario" || field === "descuento" || 
+            field === "descuentoGravado" || field === "descuentoExento" || field === "descuentoNoSujeto") {
+          const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
+          const descuentoMonto = updatedItem.descuento || 0;
+          updatedItem.total = Math.max(0, subtotalItem - descuentoMonto);
+          updatedItem.ventaGravada = (updatedItem.tipo === "producto" || updatedItem.tipo === "impuestos")
+            ? updatedItem.total
+            : 0;
+          updatedItem.ventaExenta = updatedItem.tipo === "noAfecto" ? updatedItem.total : 0;
+          updatedItem.ventaNoSujeta = updatedItem.tipo === "noSuj" ? updatedItem.total : 0;
+          updatedItem.tributos = (updatedItem.tributos || []).map((tributo) =>
+            tributo.codigo === "20"
+              ? { ...tributo, valor: parseFloat((updatedItem.total * 0.13).toFixed(2)) }
+              : tributo
+          );
+        }
+        return updatedItem;
+      }
+      return item;
+    });
+    itemsRef.current = updatedItems;
+    setItems(updatedItems);
+  };
+
+  const removeItem = (id) => {
+    const updatedItems = items.filter((item) => item.id !== id);
+    itemsRef.current = updatedItems;
+    setItems(updatedItems);
+  };
+
+  useEffect(() => {
+    const today = new Date();
+    const nextMonth = new Date(today);
+    nextMonth.setDate(today.getDate() + 30);
+    setFechaVencimiento(nextMonth.toISOString().split("T")[0]);
+  }, []);
+
+  useEffect(() => {
+    if (sucursalUsuario) {
+      try {
+        setActividadEconomica(`${sucursalUsuario.codactividad}`);
+        setDireccionEmisor(sucursalUsuario.complemento || "");
+        setTelefonoEmisor(sucursalUsuario.telefono || "");
+
+        setEmisorDocumento(sucursalUsuario.usuario.nit || sucursalUsuario.dui || "");
+        setEmisorNombre(sucursalUsuario.usuario.nombre || sucursalUsuario.usuario.razonsocial || "");
+        
+        if (!correoVendedor && sucursalUsuario.usuario?.correo) {
+          setCorreoVendedor(sucursalUsuario.usuario.correo);
+        }
+      } catch (error) {
+        console.error("Error al procesar datos de sucursal:", error);
+      }
+    }
+  }, [sucursalUsuario, correoVendedor]);
+
+  const idEmisor = sucursalUsuario?.usuario?.id;
+
+  const formatMoney = (value) => {
+    if (value === undefined || value === null || isNaN(value)) {
+      return "$0.00";
+    }
+    
+    const numValue = typeof value === 'number' ? value : parseFloat(value);
+    
+    return `$${numValue.toLocaleString(undefined, { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
+  };
+
+  const openProductModal = () => {
+    setModalType("producto");
+    setShowModal(true);
+  };
+
+  const agregarItemDesdeModal = (tipo, datos) => {
+    console.log("=== DEBUG dteFactura: Item recibido ===");
+    console.log("Tipo:", tipo);
+    console.log("Datos descuento distribuido:", {
+      descuentoGravado: datos.descuentoGravado,
+      descuentoExento: datos.descuentoExento,
+      descuentoNoSujeto: datos.descuentoNoSujeto,
+      descuento: datos.descuento,
+      valorDescuento: datos.valorDescuento,
+      precioUnitario: datos.precioUnitario,
+      cantidad: datos.cantidad,
+      subtotal: datos.precioUnitario * datos.cantidad
+    });
+    console.log("======================================");
+    
+    const newId = items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
+
+    const newItem = {
+      id: newId,
+      tipo: tipo,
+      ...datos,
+      total: (datos.cantidad * datos.precioUnitario) - (datos.descuento || 0),
+      descuentoGravado: datos.descuentoGravado || 0,
+      descuentoExento: datos.descuentoExento || 0,
+      descuentoNoSujeto: datos.descuentoNoSujeto || 0
+    };
+    
+    const updatedItems = [...items, newItem];
+    itemsRef.current = updatedItems;
+    setItems(updatedItems);
+    setShowModal(false);
+    setModalType("");
+    setProductoSeleccionado(null);
+    setTotalModal(0); 
+    if (scannerMode) setTimeout(() => scannerInputRef.current?.focus(), 0);
+  };
+
+  const procesarCodigoEscaneado = (codigoLeido) => {
+    const codigo = String(codigoLeido || "").trim();
+    setCodigoEscaneo("");
+
+    if (!codigo) {
+      setEstadoEscaneo({ tipo: "error", mensaje: "No se recibió un código válido." });
+      return;
+    }
+
+    if (productos.length === 0) {
+      setEstadoEscaneo({
+        tipo: "error",
+        mensaje: "No hay productos cargados. Recargue la vista antes de escanear."
+      });
+      return;
+    }
+
+    const coincidenciasBarra = productos.filter(
+      (producto) => String(producto.codigo_barras ?? "").trim() === codigo
+    );
+    const coincidenciasCodigo = coincidenciasBarra.length === 0
+      ? productos.filter((producto) => String(producto.codigo ?? "").trim() === codigo)
+      : [];
+    const coincidencias = coincidenciasBarra.length > 0 ? coincidenciasBarra : coincidenciasCodigo;
+
+    if (coincidencias.length === 0) {
+      setEstadoEscaneo({ tipo: "error", mensaje: `Código ${codigo} no encontrado.` });
+      return;
+    }
+
+    if (coincidencias.length > 1) {
+      setEstadoEscaneo({ tipo: "error", mensaje: `El código ${codigo} está asignado a más de un producto.` });
+      return;
+    }
+
+    const producto = coincidencias[0];
+    const esServicio = Boolean(producto.es_servicio);
+
+    if (esServicio) {
+      setEstadoEscaneo({
+        tipo: "error",
+        mensaje: `${producto.nombre} es un servicio y debe agregarse desde Agregar Detalle.`
+      });
+      return;
+    }
+
+    const precioUnitario = parseFloat(producto.precio) || 0;
+    const currentItems = itemsRef.current;
+    const esMismoProducto = (item) => Number(item.productoId) === Number(producto.id);
+    const cantidadActual = currentItems
+      .filter(esMismoProducto)
+      .reduce((totalCantidad, item) => totalCantidad + (parseFloat(item.cantidad) || 0), 0);
+    const stockDisponible = producto.stock === null || producto.stock === undefined
+      ? null
+      : parseFloat(producto.stock);
+
+    if (Number.isFinite(stockDisponible) && cantidadActual + 1 > stockDisponible) {
+      setEstadoEscaneo({
+        tipo: "error",
+        mensaje: `${producto.nombre}: stock insuficiente (${stockDisponible} disponible).`
+      });
+      return;
+    }
+
+    const itemExistenteIndex = currentItems.findIndex((item) => (
+      esMismoProducto(item) &&
+      item.tipo === "producto" &&
+      Number(item.precioUnitario) === precioUnitario &&
+      !(item.descuento || item.descuentoGravado || item.descuentoExento || item.descuentoNoSujeto)
+    ));
+
+    let nextItems;
+    if (itemExistenteIndex >= 0) {
+      nextItems = currentItems.map((item, index) => {
+        if (index !== itemExistenteIndex) return item;
+
+        const cantidad = (parseFloat(item.cantidad) || 0) + 1;
+        const subtotal = cantidad * precioUnitario;
+        return {
+          ...item,
+          cantidad,
+          total: subtotal,
+          ventaGravada: subtotal,
+          tributos: (item.tributos || []).map((tributo) =>
+            tributo.codigo === "20"
+              ? { ...tributo, valor: parseFloat((subtotal * 0.13).toFixed(2)) }
+              : tributo
+          )
+        };
+      });
+    } else {
+      const newId = currentItems.length > 0
+        ? Math.max(...currentItems.map((item) => Number(item.id) || 0)) + 1
+        : 1;
+      nextItems = [
+        ...currentItems,
+        {
+          id: newId,
+          tipo: "producto",
+          descripcion: producto.nombre,
+          cantidad: 1,
+          codigo: producto.codigo,
+          precioUnitario,
+          descuento: 0,
+          valorDescuento: 0,
+          unidadMedida: producto.unidad || "59",
+          tributos: [{
+            codigo: "20",
+            descripcion: "Impuesto al Valor Agregado 13%",
+            valor: parseFloat((precioUnitario * 0.13).toFixed(2))
+          }],
+          productoId: producto.id,
+          actualizarStock: Boolean(producto.id),
+          stockAnterior: producto.stock,
+          esServicio: false,
+          ventaGravada: precioUnitario,
+          ventaExenta: 0,
+          ventaNoSujeta: 0,
+          descuentoGravado: 0,
+          descuentoExento: 0,
+          descuentoNoSujeto: 0,
+          total: precioUnitario
+        }
+      ];
+    }
+
+    itemsRef.current = nextItems;
+    setItems(nextItems);
+    if (!tipoIngresoRenta) {
+      setTipoIngresoRenta("03");
+      setDescTipoIngresoRenta("Actividades Comerciales");
+    }
+    setEstadoEscaneo({
+      tipo: "exito",
+      mensaje: `${producto.nombre} agregado. Cantidad: ${cantidadActual + 1}.`
+    });
+  };
+
+  const handleScannerKeyDown = (event) => {
+    if (event.key !== "Enter" && event.key !== "Tab") return;
+
+    event.preventDefault();
+    procesarCodigoEscaneado(event.currentTarget.value);
+    setTimeout(() => scannerInputRef.current?.focus(), 0);
+  };
+
+  useEffect(() => {
+    if (!scannerMode) return undefined;
+
+    const focusTimer = setTimeout(() => scannerInputRef.current?.focus(), 0);
+    let buffer = "";
+    let ultimaTecla = 0;
+
+    const capturarEscaneo = (event) => {
+      if (showModal || showConfirmModal || showPreviewModal || mostrarMensaje) return;
+      if (event.ctrlKey || event.altKey || event.metaKey) return;
+
+      const target = event.target;
+      const esEditable = target instanceof HTMLElement && (
+        target.isContentEditable ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT"
+      );
+      if (target === scannerInputRef.current || esEditable) return;
+
+      const ahora = performance.now();
+      if (event.key === "Enter" || event.key === "Tab") {
+        if (buffer) {
+          event.preventDefault();
+          procesarCodigoEscaneado(buffer);
+          buffer = "";
+        }
+        return;
+      }
+
+      if (event.key.length !== 1) return;
+      if (ahora - ultimaTecla > 120) buffer = "";
+      buffer += event.key;
+      ultimaTecla = ahora;
+    };
+
+    window.addEventListener("keydown", capturarEscaneo, true);
+    return () => {
+      clearTimeout(focusTimer);
+      window.removeEventListener("keydown", capturarEscaneo, true);
+    };
+  }, [scannerMode, showModal, showConfirmModal, showPreviewModal, mostrarMensaje, productos, tipoIngresoRenta]);
+
+  const obtenerNombreUnidad = (codigoUnidad) => {
+    const unidad = unidades.find(u => u.codigo === codigoUnidad.toString());
+    return unidad ? unidad.nombre : "Unidad";
+  };
+
+  const calcularTotalProducto = () => {
+    if (!productoSeleccionado) return;
+
+    const cantidad = parseFloat(document.getElementById('cantidadProducto')?.value) || 1;
+    const precio = parseFloat(productoSeleccionado.precio) || 0;
+    const impuestoSelect = document.getElementById('impuestoProducto');
+    const tasaImpuesto = impuestoSelect.value === "20" ? 0.13 : impuestoSelect.value === "21" ? 0.15 : 0;
+
+    const subtotal = cantidad * precio;
+    const impuesto = subtotal * tasaImpuesto;
+    const total = subtotal + impuesto;
+
+    document.getElementById('totalProducto').textContent = `$${total.toFixed(2)}`;
+  };
+
+  const handleSeleccionProducto = (productoId) => {
+    const producto = productosCargados.find(p => p.id === parseInt(productoId));
+    if (producto) {
+      setProductoSeleccionado(producto);
+
+      setTimeout(() => {
+        calcularTotalProducto();
+      }, 100);
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
+      <Sidebar sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      {/* Contenido principal */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Navbar integrado */}
+        <Navbar
+          user={user}
+          hasHaciendaToken={hasHaciendaToken}
+          haciendaStatus={haciendaStatus}
+          onToggleSidebar={toggleSidebar}
+          sidebarOpen={sidebarOpen}
+        />
+
+        {/* Contenido con scroll */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+            {/* Tarjeta principal */}
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
+              {scannerMode && (
+                <div className="mb-6 flex flex-col items-center gap-4 border-b border-gray-200 pb-5 text-center sm:flex-row sm:text-left">
+                  <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-4 ring-blue-100">
+                    <Image
+                      src={empresaLogo || logo}
+                      alt={`Logo de ${sucursalUsuario?.usuario?.nombre || sucursalUsuario?.usuario?.razonsocial || "la empresa"}`}
+                      width={80}
+                      height={80}
+                      unoptimized={Boolean(empresaLogo)}
+                      onError={() => setEmpresaLogo(null)}
+                      className="h-full w-full object-contain p-1"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">Documento Tributario Electrónico</p>
+                    <h1 className="text-2xl font-bold text-gray-900">Factura con Escáner</h1>
+                    <p className="text-sm text-gray-600">
+                      {sucursalUsuario?.usuario?.nombre || sucursalUsuario?.usuario?.razonsocial || "Byte Fusion Soluciones"}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Mostrar mensaje de error si existe */}
+              {errorValidacion && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded mb-4 text-sm sm:text-base">
+                  <div className="flex items-center">
+                    <FaExclamationTriangle className="mr-2 flex-shrink-0" />
+                    <span className="break-words">{errorValidacion}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Datos del cliente - Responsive */}
+              <div className="mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mb-3">
+                  <span className="text-xs text-gray-500 sm:mr-2">
+                    Receptor: tipo 37 / documento 00000000
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleConsumidorFinal}
+                    disabled={creandoConsumidorFinal}
+                    className={`flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium text-white ${
+                      creandoConsumidorFinal
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                  >
+                    {creandoConsumidorFinal ? (
+                      <>
+                        <FaSpinner className="mr-2 animate-spin" />
+                        Preparando...
+                      </>
+                    ) : (
+                      "Usar Consumidor Final"
+                    )}
+                  </button>
+                </div>
+                <DatosEmisorReceptor
+                  tipoDocumentoReceptor={tipoDocumentoReceptor}
+                  setTipoDocumentoReceptor={setTipoDocumentoReceptor}
+                  numeroDocumentoReceptor={numeroDocumentoReceptor}
+                  setNumeroDocumentoReceptor={setNumeroDocumentoReceptor}
+                  nombreReceptor={nombreReceptor}
+                  setNombreReceptor={setNombreReceptor}
+                  direccionReceptor={direccionReceptor}
+                  setDireccionReceptor={setDireccionReceptor}
+                  correoReceptor={correoReceptor}
+                  setCorreoReceptor={setCorreoReceptor}
+                  telefonoReceptor={telefonoReceptor}
+                  setTelefonoReceptor={setTelefonoReceptor}
+                  complementoReceptor={complementoReceptor}
+                  setComplementoReceptor={setComplementoReceptor}
+                  idReceptor={idReceptor}
+                  setIdReceptor={setIdReceptor}
+                  focusReceptorSignal={focusReceptorSignal}
+                  
+                  actividadEconomica={actividadEconomica}
+                  setActividadEconomica={setActividadEconomica}
+                  direccionEmisor={direccionEmisor}
+                  setDireccionEmisor={setDireccionEmisor}
+                  correoVendedor={correoVendedor}
+                  setCorreoVendedor={setCorreoVendedor}
+                  telefonoEmisor={telefonoEmisor}
+                  setTelefonoEmisor={setTelefonoEmisor}
+                  idEmisor={idEmisor}
+
+                  actividadesEconomicas={codactividad}
+                />
+              </div>
+
+              {/* Selector de Tipo de Ingreso - Responsive */}
+              <div className="mb-6 p-3 sm:p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tipo de Ingreso<span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={tipoIngresoRenta && descTipoIngresoRenta ? `${tipoIngresoRenta} - ${descTipoIngresoRenta}` : ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) {
+                          setTipoIngresoRenta("");
+                          setDescTipoIngresoRenta("");
+                          return;
+                        }
+                        const dashIndex = val.indexOf(' - ');
+                        if (dashIndex !== -1) {
+                          setTipoIngresoRenta(val.substring(0, dashIndex));
+                          setDescTipoIngresoRenta(val.substring(dashIndex + 3));
+                        }
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                      required
+                    >
+                      <option value="">Seleccione el tipo de ingreso</option>
+                      <option value="01 - Profesiones, Artes y Oficios">01 - Profesiones, Artes y Oficios</option>
+                      <option value="02 - Actividades de Servicios">02 - Actividades de Servicios</option>
+                      <option value="03 - Actividades Comerciales">03 - Actividades Comerciales</option>
+                      <option value="04 - Actividades Industriales">04 - Actividades Industriales</option>
+                      <option value="05 - Actividades Agropecuarias">05 - Actividades Agropecuarias</option>
+                      <option value="06 - Utilidades y Dividendos">06 - Utilidades y Dividendos</option>
+                      <option value="07 - Exportaciones de bienes">07 - Exportaciones de bienes</option>
+                      <option value="08 - Servicios Realizados en el Exterior y Utilizados en El Salvador">08 - Servicios Realizados en el Exterior y Utilizados en El Salvador</option>
+                      <option value="09 - Exportaciones de servicios">09 - Exportaciones de servicios</option>
+                      <option value="10 - Otras Rentas Gravables">10 - Otras Rentas Gravables</option>
+                      <option value="12 - Ingresos con retención informados en F14 y F910">12 - Ingresos con retención informados en F14 y F910</option>
+                      <option value="13 - Sujetos pasivos excluidos (art. 6 LISR)">13 - Sujetos pasivos excluidos (art. 6 LISR)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detalle de Factura - Responsive con scroll horizontal */}
+              <div className="mb-6">
+                {scannerMode && (
+                  <div className="mb-4 rounded-lg border-2 border-blue-500 bg-blue-50 p-4 shadow-sm">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                      <div className="flex items-center gap-3 md:min-w-64">
+                        <div className="rounded-full bg-blue-600 p-3 text-white">
+                          <FaBarcode className="text-2xl" />
+                        </div>
+                        <div>
+                          <h2 className="font-semibold text-gray-900">Escáner activo</h2>
+                          <p className="text-sm text-gray-600">Escanee directamente, sin presionar botones.</p>
+                        </div>
+                      </div>
+                      <input
+                        ref={scannerInputRef}
+                        type="text"
+                        value={codigoEscaneo}
+                        onChange={(event) => setCodigoEscaneo(event.target.value)}
+                        onKeyDown={handleScannerKeyDown}
+                        autoComplete="off"
+                        autoFocus
+                        aria-label="Código leído por el escáner"
+                        placeholder="Esperando código de barras..."
+                        className="min-w-0 flex-1 rounded-md border border-blue-300 bg-white px-4 py-3 font-mono text-lg text-gray-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200"
+                      />
+                    </div>
+                    <div className={`mt-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${
+                      estadoEscaneo.tipo === "error"
+                        ? "bg-red-100 text-red-800"
+                        : estadoEscaneo.tipo === "exito"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-white text-blue-800"
+                    }`}>
+                      {estadoEscaneo.tipo === "error" ? (
+                        <FaExclamationTriangle className="flex-shrink-0" />
+                      ) : (
+                        <FaCheckCircle className="flex-shrink-0" />
+                      )}
+                      <span>{estadoEscaneo.mensaje}</span>
+                    </div>
+                  </div>
+                )}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Detalle de Factura</h2>
+                  <button
+                    onClick={openProductModal}
+                    className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-md text-sm sm:text-base w-full sm:w-auto justify-center"
+                  >
+                    <FaPlus className="mr-2" />
+                    Agregar Detalle
+                  </button>
+                </div>
+
+                {/* Tabla de items - Scroll horizontal en móvil */}
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <div className="min-w-[1000px] md:min-w-full">
+                    <table className="w-full border-collapse text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Unidad</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Descripción</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Cant.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Precio</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Sub Total</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Desc. Grav.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Desc. Exen.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Desc. Suj.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Total Grav.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Total Exen.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Total No Suj.</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Total</th>
+                          <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700 border-b">Acc.</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {items.length === 0 ? (
+                          <tr>
+                            <td colSpan="13" className="px-4 py-4 text-center text-gray-500 border-b text-sm">
+                              {scannerMode
+                                ? "No hay items agregados. Escanee un producto para comenzar."
+                                : 'No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.'}
+                            </td>
+                          </tr>
+                        ) : (
+                          items.map((item) => {
+                            const subtotal = item.precioUnitario * item.cantidad;
+                        
+                            const totalGravado = (item.tipo === "producto" || item.tipo === "impuestos") 
+                              ? subtotal - (item.descuentoGravado || 0) 
+                              : 0;
+                              
+                            const totalExento = (item.tipo === "noAfecto") 
+                              ? subtotal - (item.descuentoExento || 0) 
+                              : 0;
+                              
+                            const totalNoSujeto = subtotal - (item.descuentoNoSujeto || 0);
+
+                            const totalItem = ((item.precioUnitario * item.cantidad) - item.descuentoGravado - item.descuentoExento - item.descuentoNoSujeto);
+
+                            return (
+                              <tr key={item.id}>
+                                <td className="px-2 sm:px-4 py-2 border-b">
+                                  <span className="text-xs sm:text-sm">
+                                    {item.unidadMedida}
+                                  </span>
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b">
+                                  <input
+                                    type="text"
+                                    value={item.descripcion}
+                                    onChange={(e) => handleItemChange(item.id, "descripcion", e.target.value)}
+                                    className="w-full p-1 border border-gray-300 rounded text-xs sm:text-sm"
+                                  />
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={item.cantidad}
+                                    onChange={(e) => handleItemChange(item.id, "cantidad", parseFloat(e.target.value))}
+                                    className="w-16 sm:w-20 p-1 border border-gray-300 rounded text-xs sm:text-sm"
+                                  />
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.000001"
+                                    value={item.precioUnitario}
+                                    onChange={(e) => handleItemChange(item.id, "precioUnitario", e.target.value === "" ? 0 : parseFloat(e.target.value))}
+                                    className="w-20 sm:w-24 p-1 border border-gray-300 rounded text-xs sm:text-sm"
+                                  />
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 font-medium border-b text-xs sm:text-sm">
+                                  {formatMoney(subtotal)}
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center">
+                                  <span className="text-xs sm:text-sm text-red-600 font-medium">
+                                    {formatMoney(item.descuentoGravado || 0)}
+                                  </span>
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center">
+                                  <span className="text-xs sm:text-sm text-red-600 font-medium">
+                                    {formatMoney(item.descuentoExento || 0)}
+                                  </span>
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center">
+                                  <span className="text-xs sm:text-sm text-red-600 font-medium">
+                                    {formatMoney(item.descuentoNoSujeto || 0)}
+                                  </span>
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center text-green-600 font-medium text-xs sm:text-sm">
+                                  {formatMoney(totalGravado)}
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center text-green-600 font-medium text-xs sm:text-sm">
+                                  {formatMoney(totalExento)}
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center text-green-600 font-medium text-xs sm:text-sm">
+                                  {formatMoney(totalNoSujeto)}
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b text-center font-bold text-blue-700 text-xs sm:text-sm">
+                                  {formatMoney(totalItem)}
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 border-b">
+                                  <button
+                                    onClick={() => removeItem(item.id)}
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    <FaTrash className="text-sm" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Totales - Responsive grid */}
+              <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="space-y-2 text-sm sm:text-base">
+                    <div className="flex justify-between flex-wrap">
+                      <span className="text-gray-700">Subtotal sin impuestos:</span>
+                      <span className="font-medium">{formatMoney(sumaopesinimpues)}</span>
+                    </div>
+                    
+                    {(() => {
+                      const totalDescuentoGravado = items.reduce((sum, item) => sum + (item.descuentoGravado || 0), 0);
+                      const totalDescuentoExento = items.reduce((sum, item) => sum + (item.descuentoExento || 0), 0);
+                      const totalDescuentoNoSujeto = items.reduce((sum, item) => sum + (item.descuentoNoSujeto || 0), 0);
+                      
+                      return (
+                        <>
+                          {totalDescuentoGravado > 0 && (
+                            <div className="flex justify-between text-blue-600 flex-wrap">
+                              <span className="text-sm">Descuento ventas gravadas:</span>
+                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoGravado)}</span>
+                            </div>
+                          )}
+                          {totalDescuentoExento > 0 && (
+                            <div className="flex justify-between text-blue-600 flex-wrap">
+                              <span className="text-sm">Descuento ventas exentas:</span>
+                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoExento)}</span>
+                            </div>
+                          )}
+                          {totalDescuentoNoSujeto > 0 && (
+                            <div className="flex justify-between text-blue-600 flex-wrap">
+                              <span className="text-sm">Descuento ventas no sujetas:</span>
+                              <span className="text-sm font-medium">-{formatMoney(totalDescuentoNoSujeto)}</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                    
+                    <div className="flex justify-between text-red-600 flex-wrap">
+                      <span className="text-gray-700">Total descuentos:</span>
+                      <span className="font-medium">-{formatMoney(totaldescuento)}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-gray-300 flex-wrap">
+                      <span className="text-gray-700 font-semibold">Sub Total después de descuentos:</span>
+                      <span className="font-semibold">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm sm:text-base">
+                    <div className="flex justify-between flex-wrap">
+                      <span className="text-gray-700">Monto Total de la operación:</span>
+                      <span className="font-medium">{formatMoney(sumaopesinimpues - totaldescuento)}</span>
+                    </div>
+
+                    <div className="space-y-1 pl-2 sm:pl-4 border-l-2 border-gray-300">
+                      <div className="flex justify-between text-sm flex-wrap">
+                        <span className="text-gray-600">Gravado:</span>
+                        <span className="font-medium">
+                          {formatMoney(
+                            items.reduce((sum, item) => sum + (item.ventaGravada || 0), 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm flex-wrap">
+                        <span className="text-gray-600">Exento:</span>
+                        <span className="font-medium">
+                          {formatMoney(
+                            items.reduce((sum, item) => sum + (item.ventaExenta || 0), 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm flex-wrap">
+                        <span className="text-gray-600">No Sujeto:</span>
+                        <span className="font-medium">
+                          {formatMoney(
+                            items.reduce((sum, item) => sum + (item.ventaNoSujeta || 0), 0)
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {Object.values(tributosDetallados)
+                      .filter(tributo => tributo.codigo !== "20")
+                      .map((tributo) => (
+                        <div key={tributo.codigo} className="flex justify-between text-sm flex-wrap">
+                          <span className="text-gray-600 break-words">
+                            {tributo.codigo} - {tributo.descripcion}:
+                          </span>
+                          <span className="font-medium text-green-600">
+                            +{formatMoney(tributo.valor)}
+                          </span>
+                        </div>
+                      ))
+                    }
+                    
+                    {retencionIVA.aplicar && (
+                      <div className="flex justify-between text-sm text-red-600 flex-wrap">
+                        <span className="text-gray-600">
+                          Retención IVA ({retencionIVA.porcentaje}%):
+                        </span>
+                        <span className="font-medium">
+                          -{formatMoney(retencionIVA.monto)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between pt-2 border-t border-gray-300 flex-wrap">
+                      <span className="text-gray-900 font-bold text-base sm:text-lg">Total a pagar:</span>
+                      <span className="text-blue-800 font-bold text-base sm:text-lg">{formatMoney(total)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Retención de IVA - Responsive */}
+              <div className="mb-6 p-3 sm:p-4 border border-gray-300 rounded-lg bg-gray-50">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Retención de IVA</h3>
+                
+                <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="aplicarRetencionIVA"
+                      checked={retencionIVA.aplicar}
+                      onChange={(e) => {
+                        const aplicar = e.target.checked;
+                        setRetencionIVA({
+                          aplicar,
+                          porcentaje: aplicar ? retencionIVA.porcentaje : 1,
+                          monto: aplicar ? calcularRetencionIVA() : 0
+                        });
+                      }}
+                      className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="aplicarRetencionIVA" className="ml-2 text-gray-700 font-medium text-sm sm:text-base">
+                      Aplicar Retención de IVA
+                    </label>
+                  </div>
+
+                  {retencionIVA.aplicar && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="retencion1porciento"
+                            name="porcentajeRetencion"
+                            value="1"
+                            checked={retencionIVA.porcentaje === 1}
+                            onChange={(e) => {
+                              const nuevoPorcentaje = parseInt(e.target.value);
+                              setRetencionIVA(prev => ({
+                                ...prev,
+                                porcentaje: nuevoPorcentaje,
+                                monto: calcularRetencionIVA(nuevoPorcentaje)
+                              }));
+                            }}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label htmlFor="retencion1porciento" className="ml-2 text-gray-700 text-sm">
+                            1%
+                          </label>
+                        </div>
+
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="retencion13porciento"
+                            name="porcentajeRetencion"
+                            value="13"
+                            checked={retencionIVA.porcentaje === 13}
+                            onChange={(e) => {
+                              const nuevoPorcentaje = parseInt(e.target.value);
+                              setRetencionIVA(prev => ({
+                                ...prev,
+                                porcentaje: nuevoPorcentaje,
+                                monto: calcularRetencionIVA(nuevoPorcentaje)
+                              }));
+                            }}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label htmlFor="retencion13porciento" className="ml-2 text-gray-700 text-sm">
+                            13% 
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="ml-0 sm:ml-4">
+                        <span className="text-sm text-gray-600">Monto a retener:</span>
+                        <span className="ml-2 font-semibold text-red-600">
+                          {formatMoney(retencionIVA.monto)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {retencionIVA.aplicar && (
+                  <div className="mt-3 text-xs sm:text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+                    <p>
+                      <FaInfoCircle className="inline mr-1 text-blue-500" />
+                      Se aplicará retención del {retencionIVA.porcentaje}% sobre el total gravado de la factura.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Forma de Pago y Datos de Entrega - Responsive grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <FormaPago 
+                    condicionPago={condicionPago}
+                    setCondicionPago={setCondicionPago}
+                    formasPago={formasPago}
+                    setFormasPago={setFormasPago}
+                    totalFactura={total}
+                  />
+                </div>
+                <div>
+                  <DatosEntrega 
+                    onDatosEntregaChange={handleDatosEntregaChange}
+                    receptorDocumento={numeroDocumentoReceptor}
+                    receptorNombre={nombreReceptor}
+                    emisorDocumento={emisorDocumento}
+                    emisorNombre={emisorNombre}
+                  />
+                </div>
+              </div>
+
+              {/* Botones de acción - Responsive flex column en móvil */}
+              <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4">
+                <button 
+                  onClick={handleConfirmarYGuardar}
+                  disabled={guardandoFactura}
+                  className={`flex items-center justify-center px-4 py-2 rounded-md text-sm sm:text-base w-full sm:w-auto ${
+                    guardandoFactura 
+                      ? "bg-gray-400 cursor-not-allowed" 
+                      : "bg-green-600 hover:bg-green-700" 
+                  } text-white`}
+                >
+                  {guardandoFactura ? (
+                    <>
+                      <FaSpinner className="mr-2 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <FaEye className="mr-2" />
+                      Guardar Factura
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* Footer */}
+        <Footer />
+      </div>
+
+      {/* Modales... (todos los modales existentes) */}
+      <ProductModal
+        isOpen={showModal && modalType === "producto"}
+        onClose={() => {
+          setShowModal(false);
+          setProductoSeleccionado(null);
+          setTotalModal(0);
+        }}
+        onAddItem={(itemData) => agregarItemDesdeModal("producto", itemData)}
+        productosCargados={productosCargados}
+        cargandoProductos={cargandoProductos}
+        errorCargaProductos={errorCargaProductos}
+        unidades={unidades}
+        obtenerNombreUnidad={obtenerNombreUnidad}
+        totalCalculado={totalModal} 
+        onTotalChange={setTotalModal}
+        onTipoIngresoChange={(codigo, descripcion) => {
+          setTipoIngresoRenta(codigo);
+          setDescTipoIngresoRenta(descripcion);
+        }}
+      />
+
+      <NonTaxableModal
+        isOpen={showModal && modalType === "noAfecto"}
+        onClose={() => {
+          setShowModal(false);
+          setModalType("");
+        }}
+        onAddItem={(itemData) => agregarItemDesdeModal("noAfecto", itemData)}
+      />
+
+      <TaxModal
+        isOpen={showModal && modalType === "impuestos"}
+        onClose={() => {
+          setShowModal(false);
+          setModalType("");
+        }}
+        onAddItem={(itemData) => agregarItemDesdeModal("impuestos", itemData)}
+      />
+
+      <ClientListModal
+        isOpen={showClientList && searchTerm}
+        onClose={() => setShowClientList(false)}
+        clients={clientesFiltrados}
+        onSelectClient={showClientDetailsPopup}
+      />
+
+      <DiscountModal
+        isOpen={showDiscountModal}
+        onClose={() => setShowDiscountModal(false)}
+        onApplyDiscounts={handleApplyDiscounts}
+        currentGrabadasDiscount={descuentoGrabadasMonto}  
+        currentExentasDiscount={descuentoExentasMonto}    
+      />
+
+      <ConfirmacionFacturaModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={guardarFactura}
+        datosFactura={prepararDatosFactura()}
+      />
+
+      <MensajeModal
+        isOpen={mostrarMensaje}
+        onClose={() => setMostrarMensaje(false)}
+        tipo={mensajeConfig.tipo}
+        titulo={mensajeConfig.titulo}
+        mensaje={mensajeConfig.mensaje}
+        detalles={mensajeConfig.detalles}
+        idFactura={mensajeConfig.idFactura}
+        onDescargarTicket={descargarTicketFactura}
+        descargando={descargandoTicket}
+      />
+
+      <VistaPreviaModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        htmlContent={previewHtml}
+        onConfirm={guardarFactura}
+        isSaving={guardandoFactura}
+      />
+
+      {showClientDetails && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Detalles del Cliente</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nombre</label>
+                <p className="mt-1 p-2 bg-gray-50 rounded-md text-gray-900 text-sm break-words">{selectedClient.nombre}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Documento</label>
+                <p className="mt-1 p-2 bg-gray-50 rounded-md text-sm break-words">
+                  {selectedClient.nit || selectedClient.dui || "N/A"}
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-4">
+              <button
+                onClick={() => setShowClientDetails(false)}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 w-full sm:w-auto"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={selectCliente}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 w-full sm:w-auto"
+              >
+                Seleccionar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

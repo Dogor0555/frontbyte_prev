@@ -40,6 +40,7 @@ export default function Navbar({ user, hasHaciendaToken, haciendaStatus, onToggl
     'nota_debito': 'Nota de Débito',
     'nota_credito': 'Nota de Crédito',
     'dte_factura': 'Nueva Factura',
+    'dte_factura_escaner': 'Factura con Escáner',
     'dte_credito': 'Nuevo Crédito Fiscal',
     'dte_exportacion': 'Nueva Exportación',
     'dte_liquidacion': 'Nueva Liquidación',

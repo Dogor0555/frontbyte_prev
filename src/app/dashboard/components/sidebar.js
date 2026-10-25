@@ -46,7 +46,8 @@ import {
   FaExchangeAlt,
   FaCheckCircle,
   FaTimes,
-  FaChevronLeft
+  FaChevronLeft,
+  FaBarcode
 } from "react-icons/fa";
 import logo from "../../../app/images/logoo.png";
 import { logout, isAdmin, seleccionarEmpresa, getEmpresasUsuario } from "../../services/auth";
@@ -446,6 +447,12 @@ export default function Sidebar({ onOpenPerfil, sidebarOpen, onClose }) {
           icon: <FaFileInvoice />, 
           href: "/dashboard/dte_factura",
           permiso: "DTE Factura" 
+        },
+        {
+          name: "DTE Factura (Escaner)",
+          icon: <FaBarcode />,
+          href: "/dashboard/dte_factura_escaner",
+          permiso: "DTE Factura (Escaner)"
         },
         { 
           name: "DTE Crédito", 
