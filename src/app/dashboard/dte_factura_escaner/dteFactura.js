@@ -125,6 +125,10 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       : "No hay productos cargados. Recargue la vista antes de escanear."
   });
   const [empresaLogo, setEmpresaLogo] = useState(null);
+  const [alertaStockEscaneo, setAlertaStockEscaneo] = useState(null);
+  const [itemDescuentoSeleccionado, setItemDescuentoSeleccionado] = useState(null);
+  const [montoDescuentoItem, setMontoDescuentoItem] = useState("");
+  const [errorDescuentoItem, setErrorDescuentoItem] = useState("");
 
   const validarFormatoDocumento = (tipoDocumento, numeroDocumento) => {
     if (!tipoDocumento || !numeroDocumento.trim()) {
@@ -372,6 +376,18 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       const mensaje = "Debe agregar al menos un item a la factura";
       setErrorValidacion(mensaje);
       mostrarModalMensaje("error", "Factura Vacía", mensaje);
+      return false;
+    }
+
+    const itemConDescuentoInvalido = items.find((item) => {
+      const subtotalItem = (parseFloat(item.cantidad) || 0) * (parseFloat(item.precioUnitario) || 0);
+      const descuentoItem = parseFloat(item.descuento) || 0;
+      return descuentoItem < 0 || descuentoItem > subtotalItem;
+    });
+    if (itemConDescuentoInvalido) {
+      const mensaje = `El descuento de ${itemConDescuentoInvalido.descripcion} no puede superar el subtotal del producto.`;
+      setErrorValidacion(mensaje);
+      mostrarModalMensaje("error", "Descuento Inválido", mensaje);
       return false;
     }
     
@@ -1449,13 +1465,18 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
         if (field === "cantidad" || field === "precioUnitario" || field === "descuento" || 
             field === "descuentoGravado" || field === "descuentoExento" || field === "descuentoNoSujeto") {
           const subtotalItem = updatedItem.cantidad * updatedItem.precioUnitario;
-          const descuentoMonto = updatedItem.descuento || 0;
+          const descuentoMonto = Math.min(updatedItem.descuento || 0, subtotalItem);
+          const esGravado = updatedItem.tipo === "producto" || updatedItem.tipo === "impuestos";
+          const esExento = updatedItem.tipo === "noAfecto";
+          updatedItem.descuento = descuentoMonto;
+          updatedItem.valorDescuento = descuentoMonto;
+          updatedItem.descuentoGravado = esGravado ? descuentoMonto : 0;
+          updatedItem.descuentoExento = esExento ? descuentoMonto : 0;
+          updatedItem.descuentoNoSujeto = !esGravado && !esExento ? descuentoMonto : 0;
           updatedItem.total = Math.max(0, subtotalItem - descuentoMonto);
-          updatedItem.ventaGravada = (updatedItem.tipo === "producto" || updatedItem.tipo === "impuestos")
-            ? updatedItem.total
-            : 0;
-          updatedItem.ventaExenta = updatedItem.tipo === "noAfecto" ? updatedItem.total : 0;
-          updatedItem.ventaNoSujeta = updatedItem.tipo === "noSuj" ? updatedItem.total : 0;
+          updatedItem.ventaGravada = esGravado ? updatedItem.total : 0;
+          updatedItem.ventaExenta = esExento ? updatedItem.total : 0;
+          updatedItem.ventaNoSujeta = !esGravado && !esExento ? updatedItem.total : 0;
           updatedItem.tributos = (updatedItem.tributos || []).map((tributo) =>
             tributo.codigo === "20"
               ? { ...tributo, valor: parseFloat((updatedItem.total * 0.13).toFixed(2)) }
@@ -1517,6 +1538,73 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     })}`;
   };
 
+  const abrirDescuentoItem = (item) => {
+    setItemDescuentoSeleccionado(item.id);
+    setMontoDescuentoItem(item.descuento > 0 ? String(item.descuento) : "");
+    setErrorDescuentoItem("");
+  };
+
+  const cerrarDescuentoItem = () => {
+    setItemDescuentoSeleccionado(null);
+    setMontoDescuentoItem("");
+    setErrorDescuentoItem("");
+    setTimeout(() => scannerInputRef.current?.focus(), 0);
+  };
+
+  const aplicarDescuentoItem = () => {
+    const item = itemsRef.current.find((currentItem) => currentItem.id === itemDescuentoSeleccionado);
+    if (!item) {
+      cerrarDescuentoItem();
+      return;
+    }
+
+    const monto = montoDescuentoItem === "" ? 0 : parseFloat(montoDescuentoItem);
+    const subtotal = (parseFloat(item.cantidad) || 0) * (parseFloat(item.precioUnitario) || 0);
+    if (!Number.isFinite(monto) || monto < 0) {
+      setErrorDescuentoItem("Ingrese un monto de descuento válido.");
+      return;
+    }
+    if (monto > subtotal) {
+      setErrorDescuentoItem(`El descuento no puede superar ${formatMoney(subtotal)}.`);
+      return;
+    }
+
+    const descuento = parseFloat(monto.toFixed(2));
+    const esGravado = item.tipo === "producto" || item.tipo === "impuestos";
+    const esExento = item.tipo === "noAfecto";
+    const totalItem = Math.max(0, subtotal - descuento);
+    const updatedItems = itemsRef.current.map((currentItem) => {
+      if (currentItem.id !== item.id) return currentItem;
+      return {
+        ...currentItem,
+        descuento,
+        valorDescuento: descuento,
+        descuentoGravado: esGravado ? descuento : 0,
+        descuentoExento: esExento ? descuento : 0,
+        descuentoNoSujeto: !esGravado && !esExento ? descuento : 0,
+        ventaGravada: esGravado ? totalItem : 0,
+        ventaExenta: esExento ? totalItem : 0,
+        ventaNoSujeta: !esGravado && !esExento ? totalItem : 0,
+        total: totalItem,
+        tributos: (currentItem.tributos || []).map((tributo) =>
+          tributo.codigo === "20"
+            ? { ...tributo, valor: parseFloat((totalItem * 0.13).toFixed(2)) }
+            : tributo
+        )
+      };
+    });
+
+    itemsRef.current = updatedItems;
+    setItems(updatedItems);
+    setEstadoEscaneo({
+      tipo: "exito",
+      mensaje: descuento > 0
+        ? `Descuento de ${formatMoney(descuento)} aplicado a ${item.descripcion}.`
+        : `Descuento eliminado de ${item.descripcion}.`
+    });
+    cerrarDescuentoItem();
+  };
+
   const openProductModal = () => {
     setModalType("producto");
     setShowModal(true);
@@ -1559,7 +1647,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     if (scannerMode) setTimeout(() => scannerInputRef.current?.focus(), 0);
   };
 
-  const procesarCodigoEscaneado = (codigoLeido) => {
+  const procesarCodigoEscaneado = (codigoLeido, permitirSinStock = false) => {
     const codigo = String(codigoLeido || "").trim();
     setCodigoEscaneo("");
 
@@ -1615,11 +1703,17 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       ? null
       : parseFloat(producto.stock);
 
-    if (Number.isFinite(stockDisponible) && cantidadActual + 1 > stockDisponible) {
+    if (!permitirSinStock && Number.isFinite(stockDisponible) && cantidadActual + 1 > stockDisponible) {
+      setAlertaStockEscaneo({
+        codigo,
+        nombre: producto.nombre,
+        stockDisponible
+      });
       setEstadoEscaneo({
         tipo: "error",
         mensaje: `${producto.nombre}: stock insuficiente (${stockDisponible} disponible).`
       });
+      setTimeout(() => scannerInputRef.current?.blur(), 0);
       return;
     }
 
@@ -1687,14 +1781,32 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
     itemsRef.current = nextItems;
     setItems(nextItems);
+    setAlertaStockEscaneo(null);
     if (!tipoIngresoRenta) {
       setTipoIngresoRenta("03");
       setDescTipoIngresoRenta("Actividades Comerciales");
     }
     setEstadoEscaneo({
-      tipo: "exito",
-      mensaje: `${producto.nombre} agregado. Cantidad: ${cantidadActual + 1}.`
+      tipo: permitirSinStock ? "advertencia" : "exito",
+      mensaje: permitirSinStock
+        ? `${producto.nombre} agregado sin stock. Cantidad: ${cantidadActual + 1}.`
+        : `${producto.nombre} agregado. Cantidad: ${cantidadActual + 1}.`
     });
+  };
+
+  const continuarEscaneoSinStock = () => {
+    if (!alertaStockEscaneo) return;
+
+    const codigo = alertaStockEscaneo.codigo;
+    setAlertaStockEscaneo(null);
+    procesarCodigoEscaneado(codigo, true);
+    setTimeout(() => scannerInputRef.current?.focus(), 0);
+  };
+
+  const cancelarEscaneoSinStock = () => {
+    setAlertaStockEscaneo(null);
+    setEstadoEscaneo({ tipo: "listo", mensaje: "Lectura cancelada. Escanee otro producto." });
+    setTimeout(() => scannerInputRef.current?.focus(), 0);
   };
 
   const handleScannerKeyDown = (event) => {
@@ -1702,7 +1814,6 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
     event.preventDefault();
     procesarCodigoEscaneado(event.currentTarget.value);
-    setTimeout(() => scannerInputRef.current?.focus(), 0);
   };
 
   useEffect(() => {
@@ -1713,7 +1824,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
     let ultimaTecla = 0;
 
     const capturarEscaneo = (event) => {
-      if (showModal || showConfirmModal || showPreviewModal || mostrarMensaje) return;
+      if (showModal || showConfirmModal || showPreviewModal || mostrarMensaje || alertaStockEscaneo || itemDescuentoSeleccionado) return;
       if (event.ctrlKey || event.altKey || event.metaKey) return;
 
       const target = event.target;
@@ -1746,7 +1857,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       clearTimeout(focusTimer);
       window.removeEventListener("keydown", capturarEscaneo, true);
     };
-  }, [scannerMode, showModal, showConfirmModal, showPreviewModal, mostrarMensaje, productos, tipoIngresoRenta]);
+  }, [scannerMode, showModal, showConfirmModal, showPreviewModal, mostrarMensaje, alertaStockEscaneo, itemDescuentoSeleccionado, productos, tipoIngresoRenta]);
 
   const obtenerNombreUnidad = (codigoUnidad) => {
     const unidad = unidades.find(u => u.codigo === codigoUnidad.toString());
@@ -1964,11 +2075,13 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                     <div className={`mt-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${
                       estadoEscaneo.tipo === "error"
                         ? "bg-red-100 text-red-800"
+                        : estadoEscaneo.tipo === "advertencia"
+                        ? "bg-yellow-100 text-yellow-800"
                         : estadoEscaneo.tipo === "exito"
                         ? "bg-green-100 text-green-800"
                         : "bg-white text-blue-800"
                     }`}>
-                      {estadoEscaneo.tipo === "error" ? (
+                      {estadoEscaneo.tipo === "error" || estadoEscaneo.tipo === "advertencia" ? (
                         <FaExclamationTriangle className="flex-shrink-0" />
                       ) : (
                         <FaCheckCircle className="flex-shrink-0" />
@@ -2099,12 +2212,26 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
                                   {formatMoney(totalItem)}
                                 </td>
                                 <td className="px-2 sm:px-4 py-2 border-b">
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => abrirDescuentoItem(item)}
+                                      title="Aplicar descuento"
+                                      aria-label={`Aplicar descuento a ${item.descripcion}`}
+                                      className="text-blue-600 hover:text-blue-800"
+                                    >
+                                      <FaPercent className="text-sm" />
+                                    </button>
                                   <button
+                                    type="button"
                                     onClick={() => removeItem(item.id)}
+                                    title="Eliminar producto"
+                                    aria-label={`Eliminar ${item.descripcion}`}
                                     className="text-red-600 hover:text-red-800"
                                   >
                                     <FaTrash className="text-sm" />
                                   </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -2378,6 +2505,102 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       </div>
 
       {/* Modales... (todos los modales existentes) */}
+      {itemDescuentoSeleccionado !== null && (() => {
+        const item = items.find((currentItem) => currentItem.id === itemDescuentoSeleccionado);
+        const subtotal = item ? item.cantidad * item.precioUnitario : 0;
+        return (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black bg-opacity-70 p-4">
+            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+              <div className="mb-4 flex items-center">
+                <FaPercent className="mr-3 text-2xl text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Descuento del producto</h3>
+              </div>
+              <p className="mb-1 font-semibold text-gray-800">{item?.descripcion}</p>
+              <p className="mb-4 text-sm text-gray-600">Subtotal: {formatMoney(subtotal)}</p>
+              <label htmlFor="descuento-item" className="mb-2 block text-sm font-medium text-gray-700">
+                Descuento (monto fijo)
+              </label>
+              <input
+                id="descuento-item"
+                type="number"
+                min="0"
+                max={subtotal}
+                step="0.01"
+                value={montoDescuentoItem}
+                onChange={(event) => {
+                  setMontoDescuentoItem(event.target.value);
+                  setErrorDescuentoItem("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    aplicarDescuentoItem();
+                  }
+                }}
+                autoFocus
+                placeholder="0.00"
+                className={`w-full rounded-lg border px-3 py-2 text-gray-900 outline-none focus:ring-2 focus:ring-blue-200 ${
+                  errorDescuentoItem ? "border-red-500" : "border-gray-300 focus:border-blue-500"
+                }`}
+              />
+              {errorDescuentoItem && (
+                <p className="mt-2 text-sm text-red-600">{errorDescuentoItem}</p>
+              )}
+              <p className="mt-2 text-xs text-gray-500">Ingrese 0 para eliminar el descuento.</p>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={cerrarDescuentoItem}
+                  className="rounded-lg bg-gray-300 px-4 py-2 text-gray-800 transition-colors hover:bg-gray-400"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={aplicarDescuentoItem}
+                  className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+                >
+                  Aplicar descuento
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {alertaStockEscaneo && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black bg-opacity-70 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center">
+              <FaExclamationTriangle className="mr-3 text-2xl text-yellow-500" />
+              <h3 className="text-lg font-semibold text-gray-900">Stock insuficiente</h3>
+            </div>
+            <p className="mb-3 text-gray-700">
+              <span className="font-semibold">{alertaStockEscaneo.nombre}</span> tiene {alertaStockEscaneo.stockDisponible} unidades disponibles.
+            </p>
+            <p className="mb-6 text-gray-700">
+              Al continuar se agregará la unidad escaneada y el inventario podrá quedar negativo.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={cancelarEscaneoSinStock}
+                className="rounded-lg bg-gray-300 px-4 py-2 text-gray-800 transition-colors hover:bg-gray-400"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={continuarEscaneoSinStock}
+                className="rounded-lg bg-yellow-500 px-4 py-2 font-medium text-white transition-colors hover:bg-yellow-600"
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ProductModal
         isOpen={showModal && modalType === "producto"}
         onClose={() => {
