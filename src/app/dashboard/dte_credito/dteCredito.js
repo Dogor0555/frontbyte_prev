@@ -5,7 +5,7 @@ import Sidebar from "../components/sidebar";
 import Navbar from "../components/navbar";
 import Footer from "../components/footer";
 import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
-import { codactividad } from "./data/data";
+import { getDepartamentoNombre, getMunicipioNombre, useCatalogos } from "@/hooks/useCatalogos";
 import ClientListModal from "./components/modals/ClientListModal";
 import SelectorModal from "./components/modals/SelectorModal";
 import ProductModal from "./components/modals/ProductModal";
@@ -21,6 +21,7 @@ import MensajeModal from "./components/MensajeModal";
 import { API_BASE_URL } from "@/lib/api";
 
 export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario, hasHaciendaToken, haciendaStatus }) {
+  const { codactividad, departamentos, municipios } = useCatalogos();
   const [cliente, setCliente] = useState(null);
   const [nombreCliente, setNombreCliente] = useState("");
   const [documentoCliente, setDocumentoCliente] = useState("");
@@ -851,8 +852,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           descActividad: codactividad.find(c => c.codigo === actividadEconomica)?.nombre || "Actividad no especificada",
           direccion: {
             complemento: direccionEmisor,
-            municipio: sucursalUsuario?.municipio?.nombre || "",
-            departamento: sucursalUsuario?.departamento?.nombre || "",
+            municipio: getMunicipioNombre(municipios, sucursalUsuario?.departamento, sucursalUsuario?.municipio),
+            departamento: getDepartamentoNombre(departamentos, sucursalUsuario?.departamento),
           },
           telefono: telefonoEmisor,
           correo: correoVendedor,
@@ -866,8 +867,8 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           descActividad: descripcionActividad,
           direccion: {
             complemento: direccionReceptor,
-            municipio: cliente?.municipio?.nombre || "",
-            departamento: cliente?.departamento?.nombre || "",
+            municipio: getMunicipioNombre(municipios, cliente?.departamento, cliente?.municipio),
+            departamento: getDepartamentoNombre(departamentos, cliente?.departamento),
           },
           telefono: telefonoReceptor,
           correo: correoReceptor,

@@ -23,13 +23,12 @@ import {
 } from "react-icons/fa";
 
 // Datos 
-import { codactividad } from "./data/codactividad";
-import { departamentos } from "./data/departamentos";
-import { municipios } from "./data/municipios";
 import { tiposDocumento } from "./data/tiposDocumento";
 import { LIMITES } from "./data/limites";
+import { useCatalogos } from "@/hooks/useCatalogos";
 
 export default function Clientes({ initialClientes = [], user, hasHaciendaToken, haciendaStatus }) {
+  const { codactividad, departamentos, municipios, distritos } = useCatalogos();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [clienteToEdit, setClienteToEdit] = useState(null);
@@ -215,6 +214,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
     telefono: "",
     departamento: "",
     municipio: "",
+    distrito: "",
     complemento: "",
     codactividad: "",
     descactividad: "",
@@ -235,6 +235,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
       telefono: "",
       departamento: "",
       municipio: "",
+      distrito: "",
       complemento: "",
       codactividad: "",
       descactividad: "",
@@ -362,6 +363,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
           descactividad3: null,
           departamento: null,
           municipio: null,
+          distrito: null,
           complemento: "CONSUMIDOR FINAL",
           telefono: null,
           correo: null,
@@ -444,6 +446,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
           descactividad3: null,
           departamento: null,
           municipio: null,
+          distrito: null,
           complemento: "CONSUMIDOR FINAL",
           telefono: null,
           correo: null,
@@ -585,6 +588,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
       telefono: cliente.telefono || "",
       departamento: cliente.departamento || "",
       municipio: cliente.municipio || "",
+      distrito: cliente.distrito || "",
       complemento: cliente.complemento || "",
       codactividad: cliente.codactividad || "",
       descactividad: cliente.descactividad || "",
@@ -952,7 +956,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
                               <div className="col-span-2">
                                 <span className="font-medium text-gray-500">Ubicación:</span>
                                 <span className="ml-2 text-gray-900">
-                                  {!cliente.tipodocumento || cliente.tipodocumento === "37" ? "N/A" : `${cliente.departamento || ""}, ${cliente.municipio || ""}`}
+                                  {!cliente.tipodocumento || cliente.tipodocumento === "37" ? "N/A" : `${cliente.departamento || ""}, ${cliente.municipio || ""}${cliente.distrito ? `, ${cliente.distrito}` : ""}`}
                                 </span>
                               </div>
                             </div>
@@ -979,6 +983,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
           codactividad={codactividad}
           departamentos={departamentos}
           municipios={municipios}
+          distritos={distritos}
           tiposDocumento={tiposDocumento}
           LIMITES={LIMITES}
         />
@@ -994,6 +999,7 @@ export default function Clientes({ initialClientes = [], user, hasHaciendaToken,
           codactividad={codactividad}
           departamentos={departamentos}
           municipios={municipios}
+          distritos={distritos}
           tiposDocumento={tiposDocumento}
           LIMITES={LIMITES}
         />

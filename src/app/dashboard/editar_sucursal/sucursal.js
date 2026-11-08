@@ -22,11 +22,8 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 
-import { municipios } from "./data/municipios";
-import { departamentos } from "./data/departamentos";
-import { codactividad } from "./data/codactividad";
-
 import { API_BASE_URL } from "@/lib/api";
+import { useCatalogos } from "@/hooks/useCatalogos";
 
 // Expresiones regulares para validación
 const NAME_REGEX = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9\s\-\.\,]+$/;
@@ -45,6 +42,11 @@ const LIMITES = {
 
 export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaStatus }) {
   const router = useRouter();
+  const {
+    departamentos: departamentosCatalogo,
+    municipios: municipiosCatalogo,
+    codactividad: codactividadCatalogo,
+  } = useCatalogos();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [loading, setLoading] = useState(!sucursal);
@@ -270,39 +272,31 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
   }, [form, sucursal]);
 
   useEffect(() => {
-    setDepartamentoOptions(departamentos);
-    setMunicipioOptions(municipios);
-    setActividadOptions(codactividad);
+    setDepartamentoOptions(departamentosCatalogo);
+    setMunicipioOptions(municipiosCatalogo);
+    setActividadOptions(codactividadCatalogo);
+
     if (form.departamento) {
-      const municipiosFiltrados = municipios.filter(
+      const municipiosFiltrados = municipiosCatalogo.filter(
         m => m.departamento === form.departamento
       );
       setFilteredMunicipios(municipiosFiltrados);
     } else {
       setFilteredMunicipios([]);
     }
-  }, []);
+  }, [departamentosCatalogo, municipiosCatalogo, codactividadCatalogo, form.departamento]);
 
   useEffect(() => {
     if (form.departamento) {
-      const municipiosFiltrados = municipios.filter(
+      const municipiosFiltrados = municipiosCatalogo.filter(
         m => m.departamento === form.departamento
       );
       setFilteredMunicipios(municipiosFiltrados);
-
-      if (form.municipio) {
-        const municipioValido = municipiosFiltrados.some(
-          m => m.codigo === form.municipio
-        );
-        if (!municipioValido) {
-          setForm(prev => ({ ...prev, municipio: "" }));
-        }
-      }
     } else {
       setFilteredMunicipios([]);
       setForm(prev => ({ ...prev, municipio: "" }));
     }
-  }, [form.departamento]);
+  }, [form.departamento, municipiosCatalogo]);
 
   const canSubmit = useMemo(() => {
     if (saving) return false;
@@ -689,6 +683,11 @@ export default function Sucursal({ sucursal, user, hasHaciendaToken, haciendaSta
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 outline-none focus:ring-1 focus:ring-blue-500 appearance-none"
                     >
                       <option value="">Seleccionar municipio</option>
+                      {form.municipio && !filteredMunicipios.some((mun) => mun.codigo === form.municipio) && (
+                        <option value={form.municipio}>
+                          {form.municipio} - Municipio guardado fuera del catálogo actual
+                        </option>
+                      )}
                       {filteredMunicipios.map((mun) => (
                         <option key={mun.codigo} value={mun.codigo}>
                           {mun.codigo} - {mun.nombre}

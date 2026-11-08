@@ -326,8 +326,15 @@
         <h2>Receptor</h2>
         <div class="kv">
           <div>Nombre o razón social:</div><div>{{receptor.nombre}}</div>
+          {{#if receptor.nit}}
+          <div>NIT:</div><div class="mono">{{receptor.nit}}</div>
+          {{else}}
           <div>Tipo Doc.:</div><div>{{receptor.tipoDocumento}}</div>
           <div>N° Documento:</div><div class="mono">{{receptor.numDocumento}}</div>
+          {{/if}}
+          {{#if receptor.nrc}}
+          <div>NRC:</div><div class="mono">{{receptor.nrc}}</div>
+          {{/if}}
           
           {{#if receptor.descActividad}}
           <div>Actividad económica:</div><div>{{receptor.descActividad}}</div>

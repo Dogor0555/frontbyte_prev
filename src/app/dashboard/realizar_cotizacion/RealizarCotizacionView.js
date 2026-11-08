@@ -5,7 +5,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import DatosEmisorReceptor from "./components/DatosEmisorReceptor";
-import { codactividad } from "./data/data";
+import { getDepartamentoNombre, getMunicipioNombre, useCatalogos } from "@/hooks/useCatalogos";
 import ClientListModal from "./components/modals/ClientListModal";
 import SelectorModal from "./components/modals/SelectorModal";
 import ProductModal from "./components/modals/ProductModal";
@@ -19,6 +19,7 @@ import VistaPreviaModal from "./components/modals/VistaPreviaModal"; // Reutiliz
 import { API_BASE_URL } from "@/lib/api";
 
 export default function RealizarCotizacionView({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
+  const { codactividad, departamentos, municipios } = useCatalogos();
   // Estados para la factura
   const [cliente, setCliente] = useState(null);
   const [nombreCliente, setNombreCliente] = useState("");
@@ -401,7 +402,7 @@ const descargarTicketFactura = async (idFactura) => {
         { label: "NIT:", value: sucursalUsuario?.usuario?.nit || "", mono: true },
         { label: "NRC:", value: sucursalUsuario?.nrc || "-", mono: true },
         { label: "Actividad:", value: codactividad.find(c => c.codigo === actividadEconomica)?.nombre || "" },
-        { label: "Dirección:", value: `${direccionEmisor}, ${sucursalUsuario?.municipio?.nombre || ""}, ${sucursalUsuario?.departamento?.nombre || ""}` },
+        { label: "Dirección:", value: `${direccionEmisor}, ${getMunicipioNombre(municipios, sucursalUsuario?.departamento, sucursalUsuario?.municipio)}, ${getDepartamentoNombre(departamentos, sucursalUsuario?.departamento)}` },
         { label: "Teléfono:", value: telefonoEmisor },
         { label: "Correo:", value: correoVendedor }
     ];
@@ -411,7 +412,7 @@ const descargarTicketFactura = async (idFactura) => {
         { label: "Nombre:", value: nombreReceptor },
         { label: "Tipo Doc.:", value: tipoDocumentoLabel },
         { label: "N° Doc:", value: numeroDocumentoReceptor, mono: true },
-        { label: "Dirección:", value: `${direccionReceptor}, ${cliente?.municipio?.nombre || ""}, ${cliente?.departamento?.nombre || ""}` },
+        { label: "Dirección:", value: `${direccionReceptor}, ${getMunicipioNombre(municipios, cliente?.departamento, cliente?.municipio)}, ${getDepartamentoNombre(departamentos, cliente?.departamento)}` },
         { label: "Teléfono:", value: telefonoReceptor },
         { label: "Correo:", value: correoReceptor }
     ];
@@ -985,8 +986,8 @@ const descargarTicketFactura = async (idFactura) => {
           descActividad: codactividad.find(c => c.codigo === actividadEconomica)?.nombre || "Actividad no especificada",
           direccion: {
             complemento: direccionEmisor,
-            municipio: sucursalUsuario?.municipio?.nombre || "",
-            departamento: sucursalUsuario?.departamento?.nombre || "",
+            municipio: getMunicipioNombre(municipios, sucursalUsuario?.departamento, sucursalUsuario?.municipio),
+            departamento: getDepartamentoNombre(departamentos, sucursalUsuario?.departamento),
           },
           telefono: telefonoEmisor,
           correo: correoVendedor,
@@ -999,8 +1000,8 @@ const descargarTicketFactura = async (idFactura) => {
           numDocumento: numeroDocumentoReceptor,
           direccion: {
             complemento: direccionReceptor,
-            municipio: cliente?.municipio?.nombre || "",
-            departamento: cliente?.departamento?.nombre || "",
+            municipio: getMunicipioNombre(municipios, cliente?.departamento, cliente?.municipio),
+            departamento: getDepartamentoNombre(departamentos, cliente?.departamento),
           },
           telefono: telefonoReceptor,
           correo: correoReceptor,
@@ -2065,4 +2066,4 @@ const descargarTicketFactura = async (idFactura) => {
       )}
     </div>
   );
-}                    
+}

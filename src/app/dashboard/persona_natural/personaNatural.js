@@ -6,9 +6,11 @@ import Footer from "../components/footer";
 import Navbar from "../components/navbar";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import { useCatalogos } from "@/hooks/useCatalogos";
 
 export default function PersonaNatural({ initialPersonas = [], user }) {
     const router = useRouter();
+    const { departamentos, municipios } = useCatalogos();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -61,72 +63,6 @@ export default function PersonaNatural({ initialPersonas = [], user }) {
         { codigo: "02", nombre: "Carnet de Residentes" },
     ];
 
-    const departamentos = [
-        { codigo: "00", nombre: "Otro (Para extranjeros)" },
-        { codigo: "01", nombre: "Ahuachapán" },
-        { codigo: "02", nombre: "Santa Ana" },
-        { codigo: "03", nombre: "Sonsonate" },
-        { codigo: "04", nombre: "Chalatenango" },
-        { codigo: "05", nombre: "La Libertad" },
-        { codigo: "06", nombre: "San Salvador" },
-        { codigo: "07", nombre: "Cuscatlán" },
-        { codigo: "08", nombre: "La Paz" },
-        { codigo: "09", nombre: "Cabañas" },
-        { codigo: "10", nombre: "San Vicente" },
-        { codigo: "11", nombre: "Usulután" },
-        { codigo: "12", nombre: "San Miguel" },
-        { codigo: "13", nombre: "Morazán" },
-        { codigo: "14", nombre: "La Unión" }
-    ];
-
-    const municipios = [
-        { codigo: "00", nombre: "Otro (Para extranjeros)", departamento: "00" },
-        { codigo: "13", nombre: "AHUACHAPAN NORTE", departamento: "01" },
-        { codigo: "14", nombre: "AHUACHAPAN CENTRO", departamento: "01" },
-        { codigo: "15", nombre: "AHUACHAPAN SUR", departamento: "01" },
-        { codigo: "14", nombre: "SANTA ANA NORTE", departamento: "02" },
-        { codigo: "15", nombre: "SANTA ANA CENTRO", departamento: "02" },
-        { codigo: "16", nombre: "SANTA ANA ESTE", departamento: "02" },
-        { codigo: "17", nombre: "SANTA ANA OESTE", departamento: "02" },
-        { codigo: "17", nombre: "SONSONATE NORTE", departamento: "03" },
-        { codigo: "18", nombre: "SONSONATE CENTRO", departamento: "03" },
-        { codigo: "19", nombre: "SONSONATE ESTE", departamento: "03" },
-        { codigo: "20", nombre: "SONSONATE OESTE", departamento: "03" },
-        { codigo: "34", nombre: "CHALATENANGO NORTE", departamento: "04" },
-        { codigo: "35", nombre: "CHALATENANGO CENTRO", departamento: "04" },
-        { codigo: "36", nombre: "CHALATENANGO SUR", departamento: "04" },
-        { codigo: "23", nombre: "LA LIBERTAD NORTE", departamento: "05" },
-        { codigo: "24", nombre: "LA LIBERTAD CENTRO", departamento: "05" },
-        { codigo: "25", nombre: "LA LIBERTAD OESTE", departamento: "05" },
-        { codigo: "26", nombre: "LA LIBERTAD ESTE", departamento: "05" },
-        { codigo: "27", nombre: "LA LIBERTAD COSTA", departamento: "05" },
-        { codigo: "28", nombre: "LA LIBERTAD SUR", departamento: "05" },
-        { codigo: "20", nombre: "SAN SALVADOR NORTE", departamento: "06" },
-        { codigo: "21", nombre: "SAN SALVADOR OESTE", departamento: "06" },
-        { codigo: "22", nombre: "SAN SALVADOR ESTE", departamento: "06" },
-        { codigo: "23", nombre: "SAN SALVADOR CENTRO", departamento: "06" },
-        { codigo: "24", nombre: "SAN SALVADOR SUR", departamento: "06" },
-        { codigo: "17", nombre: "CUSCATLAN NORTE", departamento: "07" },
-        { codigo: "18", nombre: "CUSCATLAN SUR", departamento: "07" },
-        { codigo: "23", nombre: "LA PAZ OESTE", departamento: "08" },
-        { codigo: "24", nombre: "LA PAZ CENTRO", departamento: "08" },
-        { codigo: "25", nombre: "LA PAZ ESTE", departamento: "08" },
-        { codigo: "10", nombre: "CABAÑAS OESTE", departamento: "09" },
-        { codigo: "11", nombre: "CABAÑAS ESTE", departamento: "09" },
-        { codigo: "14", nombre: "SAN VICENTE NORTE", departamento: "10" },
-        { codigo: "15", nombre: "SAN VICENTE SUR", departamento: "10" },
-        { codigo: "24", nombre: "USULUTAN NORTE", departamento: "11" },
-        { codigo: "25", nombre: "USULUTAN ESTE", departamento: "11" },
-        { codigo: "26", nombre: "USULUTAN OESTE", departamento: "11" },
-        { codigo: "21", nombre: "SAN MIGUEL NORTE", departamento: "12" },
-        { codigo: "22", nombre: "SAN MIGUEL CENTRO", departamento: "12" },
-        { codigo: "23", nombre: "SAN MIGUEL OESTE", departamento: "12" },
-        { codigo: "27", nombre: "MORAZAN NORTE", departamento: "13" },
-        { codigo: "28", nombre: "MORAZAN SUR", departamento: "13" },
-        { codigo: "19", nombre: "LA UNION NORTE", departamento: "14" },
-        { codigo: "20", nombre: "LA UNION SUR", departamento: "14" }
-    ];
-
     useEffect(() => {
         if (selectedDepartamento) {
             const filtrados = municipios.filter(m => m.departamento === selectedDepartamento);
@@ -134,7 +70,7 @@ export default function PersonaNatural({ initialPersonas = [], user }) {
         } else {
             setMunicipiosFiltrados([]);
         }
-    }, [selectedDepartamento]);
+    }, [selectedDepartamento, municipios]);
 
     const getNombreDepartamento = (codigo) => {
         const departamento = departamentos.find(depto => depto.codigo === codigo);

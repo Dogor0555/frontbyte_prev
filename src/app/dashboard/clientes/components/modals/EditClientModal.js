@@ -14,6 +14,7 @@ export default function EditClientModal({
   codactividad,
   departamentos,
   municipios,
+  distritos,
   tiposDocumento,
   LIMITES,
 }) {
@@ -551,6 +552,7 @@ export default function EditClientModal({
                     if (selectedPais?.codigo !== "SV") {
                       newState.departamento = "";
                       newState.municipio = "";
+                      newState.distrito = "";
                     }
                     setFormData(newState);
                     setErrors({ ...errors, pais: undefined });
@@ -571,7 +573,7 @@ export default function EditClientModal({
               </div>
 
               {/* Departamento y Municipio */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Departamento {formData.pais !== "SV" && "(Solo para El Salvador)"}
@@ -583,6 +585,7 @@ export default function EditClientModal({
                         ...formData,
                         departamento: e.target.value,
                         municipio: "",
+                        distrito: "",
                       });
                       setErrors({ ...errors, departamento: undefined });
                     }}
@@ -609,7 +612,7 @@ export default function EditClientModal({
                   <select
                     value={formData.municipio}
                     onChange={(e) => {
-                      setFormData({ ...formData, municipio: e.target.value });
+                      setFormData({ ...formData, municipio: e.target.value, distrito: "" });
                       setErrors({ ...errors, municipio: undefined });
                     }}
                     className={`w-full px-3 py-2 border rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700 ${
@@ -630,6 +633,35 @@ export default function EditClientModal({
                       ))}
                   </select>
                   {errors.municipio && <p className="text-red-500 text-xs mt-1">{errors.municipio}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Distrito (opcional)
+                  </label>
+                  <select
+                    value={formData.distrito || ""}
+                    onChange={(e) => setFormData({ ...formData, distrito: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-gray-700"
+                    disabled={!formData.departamento || !formData.municipio || formData.pais !== "SV"}
+                  >
+                    <option value="">Seleccione un Distrito</option>
+                    {formData.distrito && !distritos.some((item) =>
+                      String(item.departamento) === String(formData.departamento) &&
+                      String(item.municipio) === String(formData.municipio) &&
+                      String(item.codigo) === String(formData.distrito)
+                    ) && <option value={formData.distrito}>{formData.distrito} - Guardado fuera del catálogo activo</option>}
+                    {distritos
+                      .filter((item) =>
+                        String(item.departamento) === String(formData.departamento) &&
+                        String(item.municipio) === String(formData.municipio)
+                      )
+                      .map((item) => (
+                        <option key={`${item.departamento}-${item.codigo}`} value={item.codigo}>
+                          {item.codigo} - {item.nombre}
+                        </option>
+                      ))}
+                  </select>
                 </div>
               </div>
 
