@@ -18,6 +18,7 @@ import FechaHoraEmision from "./components/FechaHoraEmision";
 import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal";
 import MensajeModal from "./components/MensajeModal";
 import { API_BASE_URL } from "@/lib/api";
+import { validarDistritoReceptor } from "@/lib/dte/validarDistritoReceptor";
 
 export default function SujetoExcluidoViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
   const { codactividad, departamentos, municipios } = useCatalogos();
@@ -403,6 +404,12 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
 
   const guardarDocumento = async () => {
   if (guardandoDocumento) return;
+
+  const errorDistrito = validarDistritoReceptor({ clientes, idReceptor, tipoDocumentoReceptor });
+  if (errorDistrito) {
+    mostrarModalMensaje("error", "Distrito requerido", errorDistrito);
+    return;
+  }
   
   if (!validarDatosDocumento()) {
     return;
@@ -1334,7 +1341,7 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
                       {items.length === 0 ? (
                         <tr>
                           <td colSpan="11" className="px-4 py-4 text-center text-gray-500 border-b">
-                            No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.
+                            No hay items agregados. Haga clic en &quot;Agregar Detalle&quot; para comenzar.
                           </td>
                         </tr>
                       ) : (

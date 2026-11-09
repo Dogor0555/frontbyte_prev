@@ -19,6 +19,7 @@ import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaMod
 import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal";
 import MensajeModal from "./components/MensajeModal";
 import { API_BASE_URL } from "@/lib/api";
+import { validarDistritoReceptor } from "@/lib/dte/validarDistritoReceptor";
 
 const INCOTERMS_OPTIONS = [
   { codigo: "01", descripcion: "EXW - En fábrica" },
@@ -306,6 +307,12 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
 
   const guardarFactura = async () => {
     if (guardandoFactura) return;
+
+    const errorDistrito = validarDistritoReceptor({ clientes, idReceptor, tipoDocumentoReceptor });
+    if (errorDistrito) {
+      mostrarModalMensaje("error", "Distrito requerido", errorDistrito);
+      return;
+    }
     
     if (!validarDatosFactura()) {
       return;
@@ -1484,7 +1491,7 @@ export default function ExportacionViewComplete({ initialProductos = [], initial
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {items.length === 0 ? (
-                        <tr><td colSpan="8" className="px-4 py-4 text-center text-gray-500 border-b">No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.</td></tr>
+                        <tr><td colSpan="8" className="px-4 py-4 text-center text-gray-500 border-b">No hay items agregados. Haga clic en &quot;Agregar Detalle&quot; para comenzar.</td></tr>
                       ) : (
                         items.map((item) => {
                           const subtotalBruto = item.precioUnitario * item.cantidad;

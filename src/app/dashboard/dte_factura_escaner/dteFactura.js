@@ -20,6 +20,7 @@ import ConfirmacionFacturaModal from "../dte_factura/components/modals/Confirmac
 import MensajeModal from "../dte_factura/components/MensajeModal";
 import VistaPreviaModal from "../dte_factura/components/modals/VistaPreviaModal";
 import { API_BASE_URL } from "@/lib/api";
+import { validarDistritoReceptor } from "@/lib/dte/validarDistritoReceptor";
 
 export default function FacturacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario, hasHaciendaToken, haciendaStatus, scannerMode = false }) {
   const { codactividad, departamentos, municipios } = useCatalogos();
@@ -413,6 +414,12 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
 
   const guardarFactura = async () => {
     if (guardandoFactura) return;
+
+    const errorDistrito = validarDistritoReceptor({ clientes, idReceptor, tipoDocumentoReceptor });
+    if (errorDistrito) {
+      mostrarModalMensaje("error", "Distrito requerido", errorDistrito);
+      return;
+    }
     
     if (!validarDatosFactura()) {
       return;
@@ -515,6 +522,13 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
           if (value === undefined || value === null || isNaN(value)) return "0.00";
           const numValue = typeof value === 'number' ? value : parseFloat(value);
           return numValue.toFixed(2);
+        });
+
+        Handlebars.registerHelper('locationText', (location) => {
+          if (!location) return "";
+          return [location.complemento, location.municipio, location.distrito, location.departamento]
+            .filter(Boolean)
+            .join(", ");
         });
 
         Handlebars.registerHelper('money', (value) => {
@@ -977,7 +991,7 @@ export default function FacturacionViewComplete({ initialProductos = [], initial
       idcliente: idReceptor,
       sellorec: "", 
       modelofac: "01",
-      verjson: "1.0",
+      verjson: "2.0",
       tipotran: "1",
       fechaemision: fechaEmision,
       horaemision: horaEmision,

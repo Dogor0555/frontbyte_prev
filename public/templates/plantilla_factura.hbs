@@ -302,7 +302,7 @@
           <div>NIT:</div><div class="mono">{{emisor.nit}}</div>
           <div>NRC:</div><div class="mono">{{#if emisor.nrc}}{{emisor.nrc}}{{else}}-{{/if}}</div>
           <div>Actividad económica:</div><div>{{emisor.descActividad}}</div>
-          <div>Dirección:</div><div>{{emisor.direccion.complemento}}, {{emisor.direccion.municipio}}, {{emisor.direccion.departamento}}</div>
+          <div>Dirección:</div><div>{{locationText emisor.direccion}}</div>
           
           {{#if emisor.telefono}}
           <div>Teléfono:</div><div>{{emisor.telefono}}</div>
@@ -340,7 +340,7 @@
           <div>Actividad económica:</div><div>{{receptor.descActividad}}</div>
           {{/if}}
           
-          <div>Dirección:</div><div>{{receptor.direccion.complemento}}, {{receptor.direccion.municipio}}, {{receptor.direccion.departamento}}</div>
+          <div>Dirección:</div><div>{{locationText receptor.direccion}}</div>
           
           {{#if receptor.telefono}}
           <div>Teléfono:</div><div>{{receptor.telefono}}</div>

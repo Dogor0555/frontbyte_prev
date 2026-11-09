@@ -19,6 +19,7 @@ import ConfirmacionFacturaModal from "./components/modals/ConfirmacionFacturaMod
 import MensajeModal from "./components/MensajeModal";
 import VistaPreviaModal from "./components/modals/VistaPreviaModal"; // Reutilizaremos el contenedor del modal
 import { API_BASE_URL } from "@/lib/api";
+import { validarDistritoReceptor } from "@/lib/dte/validarDistritoReceptor";
 
 export default function LiquidacionViewComplete({ initialProductos = [], initialClientes = [], user, sucursalUsuario }) {
   const { codactividad, departamentos, municipios } = useCatalogos();
@@ -315,6 +316,12 @@ const descargarTicketFactura = async (idFactura) => {
 
   const guardarFactura = async () => {
     if (guardandoFactura) return;
+
+    const errorDistrito = validarDistritoReceptor({ clientes, idReceptor, tipoDocumentoReceptor });
+    if (errorDistrito) {
+      mostrarModalMensaje("error", "Distrito requerido", errorDistrito);
+      return;
+    }
     
     if (!validarDatosFactura()) {
       return;
@@ -1553,7 +1560,7 @@ const descargarTicketFactura = async (idFactura) => {
                       {items.length === 0 ? (
                         <tr>
                           <td colSpan="13" className="px-4 py-4 text-center text-gray-500 border-b">
-                            No hay items agregados. Haga clic en "Agregar Detalle" para comenzar.
+                            No hay items agregados. Haga clic en &quot;Agregar Detalle&quot; para comenzar.
                           </td>
                         </tr>
                       ) : (
