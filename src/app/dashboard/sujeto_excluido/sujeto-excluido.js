@@ -190,6 +190,13 @@ export default function SujetoExcluidoViewComplete({ initialProductos = [], init
           return numValue.toFixed(2);
         });
 
+        Handlebars.registerHelper('locationText', (location) => {
+          if (!location) return "";
+          return [location.complemento, location.municipio, location.distrito, location.departamento]
+            .filter(Boolean)
+            .join(", ");
+        });
+
         Handlebars.registerHelper('money', (value) => {
           if (value === undefined || value === null || isNaN(value)) return "$0.00";
           const numValue = typeof value === 'number' ? value : parseFloat(value);
